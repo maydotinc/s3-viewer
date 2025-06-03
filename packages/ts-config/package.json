@@ -1,0 +1,10 @@
+{
+    "name": "@s3-viewer/ts-config",
+    "version": "0.0.0",
+    "private": true,
+    "exports": {
+        "./react-library": "./react-library.json",
+        "./nextjs": "./nextjs.json",
+        "./base": "./base.json"
+    }
+}

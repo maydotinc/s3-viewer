@@ -1,0 +1,21 @@
+{
+  "name": "@s3-viewer/db",
+  "version": "0.0.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/client.ts"
+  },
+  "scripts": {
+    "db:generate": "cd ../.. && pnpm db:generate",
+    "db:migrate": "prisma migrate dev"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.8.2",
+    "better-sqlite3": "^11.10.0"
+  },
+  "devDependencies": {
+    "@s3-viewer/ts-config": "workspace:*",
+    "@types/better-sqlite3": "^7.6.13",
+    "prisma": "^6.8.2"
+  }
+}

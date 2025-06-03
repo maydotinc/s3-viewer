@@ -1,0 +1,125 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model from BetterAuth with additional fields
+model User {
+  id            String    @id @default(cuid())
+  email         String
+  emailVerified Boolean
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  name          String   // Added from Better Auth
+  image         String?   // Added from Better Auth
+
+  // Relations
+  ownedServers  Server[]  @relation("ServerOwner")
+  serverAccess  ServerAccess[]
+  sessions      Session[] // Added from Better Auth
+  accounts      Account[] // Added from Better Auth
+
+  @@map("user")
+  @@unique([email])
+}
+
+// Server represents an AWS account or similar
+model Server {
+  id            String    @id @default(cuid())
+  name          String
+  credentials   Json      // Encrypted AWS credentials
+  storageUsed   Float     @default(0) // Total storage used in bytes
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  ownerId       String
+  owner         User      @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  serverAccess  ServerAccess[]
+
+  @@index([ownerId])
+}
+
+// Manages access control for users to servers
+model ServerAccess {
+  id        String    @id @default(cuid())
+  role      Role      @default(VIEWER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId  String
+  server    Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  // Permissions
+  canReadBuckets    Boolean   @default(true)
+  canCreateBuckets  Boolean   @default(false)
+  canDeleteBuckets  Boolean   @default(false)
+  canModifyFiles    Boolean   @default(false)
+  canModifyCors     Boolean   @default(false)
+
+  @@unique([userId, serverId])
+  @@index([userId])
+  @@index([serverId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+// Better Auth Models
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
