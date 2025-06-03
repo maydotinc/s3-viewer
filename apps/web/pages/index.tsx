@@ -1,6 +1,6 @@
 import Header from "@/components/Home/header";
 import HomeInfo from "@/components/Home/homeInfo";
-import ViewerDashboard from "@/components/ViewerLayout/viewerDashboard";
+import ViewerDashboard from "@/components/ViewerLayout/dashboard";
 import { Separator } from "@s3-viewer/ui/components/separator";
 
 const Home = () => {

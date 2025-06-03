@@ -1,5 +1,5 @@
-import ViewerBanner from "./viewerBanner";
-import { ViewerSidebar } from "./viewerSidebar";
+import ViewerBanner from "./banner";
+import { ViewerSidebar } from "./sidebar";
 
 const ViewerDashboard = ( {children} : {children: React.ReactNode}) => {
     return (

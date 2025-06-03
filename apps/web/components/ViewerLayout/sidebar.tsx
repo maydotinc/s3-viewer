@@ -13,7 +13,7 @@ import { House, Star } from "lucide-react";
 
 export function ViewerSidebar() {
   return (
-    <Sidebar className="top-[var(--header-height)] !h-full">
+    <Sidebar className="top-[var(--header-height)]">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Main</SidebarGroupLabel>
