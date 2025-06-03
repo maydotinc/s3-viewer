@@ -1,10 +1,22 @@
+'use client';
+
 import { useSession } from '@s3-viewer/auth/client';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { useEffect } from 'react';
 import ProfileDropdown from './profileDropdown';
 
 export default function ViewerBanner({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession();
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+
+  // Redirect to connect page if not authenticated
+  useEffect(() => {
+    if (!isPending && !session && router.pathname !== '/connect') {
+      router.push('/connect');
+    }
+  }, [session, isPending, router, router.pathname]);
 
   return (
     <div className="flex flex-col size-full [--header-height:calc(theme(spacing.20))]">
