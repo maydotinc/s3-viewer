@@ -1,6 +1,6 @@
 import SignInForm from "@/components/Connect/signInForm";
 import SignUpForm from "@/components/Connect/signUpForm";
-import ViewerBanner from "@/components/ViewerLayout/banner";
+import ViewerBanner from "@/components/Layout/Banner/banner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@s3-viewer/ui/components/tabs";
 
 const ConnectPage = () => {

@@ -1,3 +1,4 @@
+import AuthGuard from '@/components/Auth/authGuard';
 import { SidebarProvider } from '@s3-viewer/ui/components/sidebar';
 import '@s3-viewer/ui/globals.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -22,12 +23,14 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const page : ReactNode = getLayout(<Component {...pageProps} />);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <div className={`${inter.className} min-h-screen min-w-screen`}>
-          {page}
-        </div>
-      </SidebarProvider>
-    </QueryClientProvider>
+    <AuthGuard>
+      <QueryClientProvider client={queryClient}>
+        <SidebarProvider>
+          <div className={`${inter.className} h-screen h-[100dvh] w-full`}>
+            {page}
+          </div>
+        </SidebarProvider>
+      </QueryClientProvider>
+    </AuthGuard>
   );
 } 

@@ -1,14 +1,26 @@
-import { useSession } from "@s3-viewer/auth/client";
+import { signOut, useSession } from "@s3-viewer/auth/client";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@s3-viewer/ui/components/dropdown-menu";
 import { ChevronDown, CircleUserRound } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/router";
 
 const ProfileDropdown = () => {
     const { data } = useSession();
+    const router = useRouter();
     const image = data?.user.image;
     const name = data?.user.name;
-    
+
+    const handleSignOut = () => {
+        signOut({
+            fetchOptions: {
+                onSuccess: () => {
+                    router.push("/connect");
+                }
+            }
+        });
+    }
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -28,9 +40,7 @@ const ProfileDropdown = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent>
                 <DropdownMenuItem>Profile</DropdownMenuItem>
-                <DropdownMenuItem>Billing</DropdownMenuItem>
-                <DropdownMenuItem>Team</DropdownMenuItem>
-                <DropdownMenuItem>Subscription</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleSignOut}>Sign Out</DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
     )
