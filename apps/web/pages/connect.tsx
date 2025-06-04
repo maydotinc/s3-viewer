@@ -1,5 +1,3 @@
-import SignInForm from "@/components/Connect/signInForm";
-import SignUpForm from "@/components/Connect/signUpForm";
 import ViewerBanner from "@/components/Layout/Banner/banner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@s3-viewer/ui/components/tabs";
 
@@ -12,10 +10,10 @@ const ConnectPage = () => {
                     <TabsTrigger value="SignUp">Sign Up</TabsTrigger>
                 </TabsList>
                 <TabsContent value="SignIn">
-                    <SignInForm />
+                    LOL
                 </TabsContent>
                 <TabsContent value="SignUp">
-                    <SignUpForm />
+                    LOL
                 </TabsContent>
             </Tabs>
         </div>

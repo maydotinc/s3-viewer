@@ -3,7 +3,7 @@ import HomeInfo from "@/components/Home/homeInfo";
 import ViewerDashboard from "@/components/Layout/dashboard";
 import { Separator } from "@s3-viewer/ui/components/separator";
 
-const Home = () => {
+const HomePage = () => {
   return (  
     <div className="flex flex-col size-full">
       <Header />
@@ -13,7 +13,7 @@ const Home = () => {
   );
 } 
 
-Home.getLayout = (page: React.ReactNode) => {
+HomePage.getLayout = (page: React.ReactNode) => {
   return (
     <ViewerDashboard>
       {page}
@@ -21,4 +21,4 @@ Home.getLayout = (page: React.ReactNode) => {
   );
 }
 
-export default Home;
+export default HomePage;

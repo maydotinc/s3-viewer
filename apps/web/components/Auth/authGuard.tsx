@@ -7,12 +7,12 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     const { data: session, isPending } = useSession();
 
     useEffect(() => {
-        if (!isPending && !session && router.pathname !== '/connect') {
-            router.push("/connect");
+        if (!isPending && !session && router.pathname !== '/auth') {
+            router.push("/auth");
         }
     }, [session, isPending, router, router.pathname]);
 
-    if (!session && router.pathname !== '/connect') {
+    if (!session && router.pathname !== '/auth') {
         return null;
     }
     

@@ -1,8 +1,8 @@
-import * as React from "react"
 import * as AlertDialogPrimitive from "@radix-ui/react-alert-dialog"
+import * as React from "react"
 
+import { buttonVariants } from "@s3-viewer/ui/components/button"
 import { cn } from "@s3-viewer/ui/lib/utils"
-import { buttonVariants } from "@s3-viewer/ui/components//button"
 
 function AlertDialog({
   ...props
@@ -68,7 +68,7 @@ function AlertDialogHeader({
   return (
     <div
       data-slot="alert-dialog-header"
-      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      className={cn("flex flex-col gap-2 items-center", className)}
       {...props}
     />
   )
@@ -82,7 +82,7 @@ function AlertDialogFooter({
     <div
       data-slot="alert-dialog-footer"
       className={cn(
-        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        "flex gap-2 justify-center",
         className
       )}
       {...props}
@@ -141,15 +141,7 @@ function AlertDialogCancel({
 }
 
 export {
-  AlertDialog,
-  AlertDialogPortal,
-  AlertDialogOverlay,
-  AlertDialogTrigger,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogFooter,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialog, AlertDialogAction,
+  AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogOverlay, AlertDialogPortal, AlertDialogTitle, AlertDialogTrigger
 }
+
