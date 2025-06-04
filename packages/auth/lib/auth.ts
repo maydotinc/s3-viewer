@@ -1,6 +1,7 @@
 import { prisma } from "@s3-viewer/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { emailOTP } from "better-auth/plugins";
 
 /*
  * This is needed here as this code is called from apps/api/server.ts
@@ -34,4 +35,13 @@ export const auth = betterAuth({
             clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
         },
     },
+    plugins: [
+        emailOTP({
+            async sendVerificationOTP({email, otp, type}) {
+                if (type === "sign-in") {
+                    console.log(`Sending OTP to ${email}: ${otp}`);
+                }
+            },
+        }),
+    ],
 });
