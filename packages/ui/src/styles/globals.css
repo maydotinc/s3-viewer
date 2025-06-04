@@ -72,8 +72,14 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
+@theme {
   --color-viewerblue: #3658c1;
+  --color-viewerwhite: #ffffff;
+  --color-viewerborder: #e1e4ea;
+  --color-viewergray: #f7f7f7;
+}
+
+@theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);

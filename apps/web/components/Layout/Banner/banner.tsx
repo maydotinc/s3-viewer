@@ -8,7 +8,7 @@ export default function ViewerBanner({ children }: { children: React.ReactNode }
 
   return (
     <div className="flex flex-col size-full [--header-height:calc(theme(spacing.20))]">
-      <header className="flex justify-between sticky top-0 w-full h-[var(--header-height)] z-50 bg-gray-100 border-b border-gray-200">
+      <header className="flex justify-between sticky top-0 w-full h-[var(--header-height)] z-50 bg-viewergray border-b border-viewerborder">
         <Link href="/" className="flex items-center gap-2 ml-10 my-4 hover:text-gray-500 transition-colors">
           <Image
             src="/logo.png" 
