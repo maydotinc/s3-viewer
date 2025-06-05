@@ -5,7 +5,8 @@ import { ColDef } from "ag-grid-community";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import BaseGrid from "../DataGrid/baseGrid";
-import BucketActions from "../DataGrid/bucketActions";
+import GridActions from "../DataGrid/gridActions";
+import BucketActions from "./bucketActions";
  
 const columns: ColDef<BucketFolder>[] = [
     {
@@ -56,8 +57,11 @@ const BucketInfo = () => {
     });
       
     return (
-        <section className="flex flex-col px-8 py-4 w-full h-full">
-            <BucketActions quickFilterText={quickFilterText} setQuickFilterText={setQuickFilterText}/>
+        <section className="flex flex-col px-8 py-8 w-full h-full">
+            <div className="flex xl:flex-row flex-col pb-8 justify-between">
+                <GridActions quickFilterText={quickFilterText} setQuickFilterText={setQuickFilterText}/>
+                <BucketActions />
+            </div>
             <BaseGrid rowData={folders ?? []} colDefs={columns} quickFilterText={quickFilterText} />
         </section>
     )
