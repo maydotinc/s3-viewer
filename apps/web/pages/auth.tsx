@@ -11,7 +11,7 @@ import {
 } from "@s3-viewer/ui/components/alert-dialog";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@s3-viewer/ui/components/card";
-import { UserRoundPlus } from "lucide-react";
+import { UserRoundCheck, UserRoundPlus } from "lucide-react";
 import { useState } from "react";
 
 const AuthPage = () => {
@@ -20,8 +20,11 @@ const AuthPage = () => {
     return (
         <div className="flex flex-col items-center justify-center h-full">
             <Card className="bg-viewerwhite rounded-2xl w-full max-w-[calc(100%-2rem)] sm:max-w-lg">
-                <CardHeader className="text-center">
-                    <CardTitle>
+                <CardHeader className="flex flex-col gap-2 items-center text-center">
+                    <div className="bg-viewergray border border-viewerborder rounded-2xl p-2">
+                        <UserRoundCheck className="size-10 text-viewerblue" />
+                    </div>
+                    <CardTitle className="text-lg">
                         Sign in to your account
                     </CardTitle>
                     <CardDescription>
@@ -39,7 +42,7 @@ const AuthPage = () => {
             <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
                 <AlertDialogContent className="bg-viewerwhite rounded-2xl" overlayClassName="backdrop-blur-xs" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <AlertDialogHeader>
-                        <div className="bg-gray-100 rounded-2xl p-2">
+                        <div className="bg-viewergray border border-viewerborder rounded-2xl p-2">
                             <UserRoundPlus className="size-10 text-viewerblue" />
                         </div>
                         <AlertDialogTitle>
@@ -52,7 +55,7 @@ const AuthPage = () => {
                     <SignUpForm />
                     <AlertDialogFooter>
                         <AlertDialogDescription>
-                            <span className="text-sm">Already have an account?</span>
+                            <span className="text-sm text-viewerblack">Already have an account?</span>
                             <Button variant="link" className="px-1 hover:pointer" onClick={() => setIsOpen(false)}>Log in</Button>
                         </AlertDialogDescription>
                     </AlertDialogFooter>

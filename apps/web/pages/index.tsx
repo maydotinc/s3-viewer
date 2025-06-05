@@ -1,23 +1,18 @@
-import Header from "@/components/Home/header";
-import HomeInfo from "@/components/Home/homeInfo";
-import ViewerDashboard from "@/components/Layout/dashboard";
-import { Separator } from "@s3-viewer/ui/components/separator";
+import ViewerBanner from "@/components/Layout/Banner/banner";
 
 const HomePage = () => {
   return (  
     <div className="flex flex-col size-full">
-      <Header />
-      <Separator />
-      <HomeInfo />
+      Landing Page
     </div>
   );
 } 
 
 HomePage.getLayout = (page: React.ReactNode) => {
   return (
-    <ViewerDashboard>
+    <ViewerBanner>
       {page}
-    </ViewerDashboard>
+    </ViewerBanner>
   );
 }
 

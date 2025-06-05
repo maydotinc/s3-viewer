@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
-    "@tanstack/react-query": "^5.77.2",
-    "@tanstack/react-table": "^8.21.3",
     "@s3-viewer/auth": "workspace:*",
     "@s3-viewer/ui": "workspace:*",
+    "@tanstack/react-query": "^5.77.2",
+    "@tanstack/react-table": "^8.21.3",
+    "ag-grid-community": "^33.3.2",
+    "ag-grid-react": "^33.3.2",
     "better-auth": "^1.2.8",
     "lucide-react": "^0.475.0",
     "next": "15.3.2",
@@ -30,9 +32,9 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
     "postcss": "^8.5.3",
-    "tailwindcss": "^4.1.5",
-    "autoprefixer": "^10.4.20"
+    "tailwindcss": "^4.1.5"
   },
   "exports": {
     "./types": "./src/utils/types.ts"

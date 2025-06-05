@@ -13,5 +13,5 @@ export async function middleware(request: NextRequest) {
  
 export const config = {
 	// Need to exclude logo.png from middleware for some reason
-	matcher: ["/((?!api|connect|auth|logo.png|_next/static|_next/image|favicon.ico).*)"], // Simplified matcher
+	matcher: ["/((?!api|auth|logo.png|_next/static|_next/image|favicon.ico).*)"], // Simplified matcher
 };

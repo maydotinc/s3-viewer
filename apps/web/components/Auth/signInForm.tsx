@@ -35,7 +35,7 @@ export default function SignInForm() {
     const { data: res, error: err } = await signIn.email({
       email: data.email,
       password: data.password,
-      callbackURL: "/",
+      callbackURL: "/home",
     });
     if (err) {
       setError(err.message || "Something went wrong");
@@ -79,7 +79,7 @@ export default function SignInForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email</FormLabel>
+              <FormLabel className="font-semibold">Email</FormLabel>
               <FormControl>
                 <Input placeholder="your-email@example.com" {...field} />
               </FormControl>
@@ -92,7 +92,7 @@ export default function SignInForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel className="font-semibold">Password</FormLabel>
               <FormControl>
                 <Input placeholder="your-password" {...field} />
               </FormControl>
@@ -112,7 +112,7 @@ export default function SignInForm() {
             </svg>
           </Button>
         </div> */}
-        <Button type="submit" className="w-full">Submit</Button>
+        <Button variant="secondary" type="submit" className="w-full">Submit</Button>
       </form>
     </Form>
   )

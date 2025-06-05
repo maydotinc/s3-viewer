@@ -9,7 +9,7 @@ export default function ViewerBanner({ children }: { children: React.ReactNode }
   return (
     <div className="flex flex-col size-full [--header-height:calc(theme(spacing.20))]">
       <header className="flex justify-between sticky top-0 w-full h-[var(--header-height)] z-50 bg-viewergray border-b border-viewerborder">
-        <Link href="/" className="flex items-center gap-2 ml-10 my-4 hover:text-gray-500 transition-colors">
+        <Link href="/home" className="flex items-center gap-2 ml-10 my-4 hover:text-gray-500 transition-colors">
           <Image
             src="/logo.png" 
             alt="S3 Viewer" 
@@ -19,7 +19,7 @@ export default function ViewerBanner({ children }: { children: React.ReactNode }
             priority
             quality={100}
           />
-          <span className="text-xl font-bold">S3Viewer</span>
+          <span className="text-xl text-viewerblack font-bold">S3Viewer</span>
         </Link>
         {session && (
           <div className="flex items-center mr-10">

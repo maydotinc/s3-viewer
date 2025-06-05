@@ -7,6 +7,7 @@
   --color-viewerborder: #e1e4ea;
   --color-viewergray: #f7f7f7;
   --color-viewertext: #525866;
+  --color-viewerblack: #0E121B;
 }
 
 :root {
@@ -14,7 +15,7 @@
   --background: var(--color-viewerwhite);
   --foreground: var(--color-viewertext);
   --card: var(--color-viewerwhite);
-  --card-foreground: oklch(0.141 0.005 285.823);
+  --card-foreground: var(--color-viewerblack);
   --popover: var(--color-viewerwhite);
   --popover-foreground: oklch(0.141 0.005 285.823);
   --primary: var(--color-viewerwhite);

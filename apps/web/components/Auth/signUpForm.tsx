@@ -41,7 +41,7 @@ export default function SignUpForm() {
     }, {
       onSuccess: () => {
         console.log("Sign up successful");
-        router.push("/");
+        router.push("/home");
       },
       onError: (error) => {
         console.log("Sign up error", error);
@@ -57,7 +57,7 @@ export default function SignUpForm() {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Full Name<span className="text-xs text-viewerblue">*</span></FormLabel>
+              <FormLabel className="font-semibold">Full Name<span className="text-xs text-viewerblue">*</span></FormLabel>
               <FormControl>
                 <Input placeholder="your-name" {...field} />
               </FormControl>
@@ -70,7 +70,7 @@ export default function SignUpForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email Address<span className="text-xs text-viewerblue">*</span></FormLabel>
+              <FormLabel className="font-semibold">Email Address<span className="text-xs text-viewerblue">*</span></FormLabel>
               <FormControl>
                 <Input placeholder="your-email@example.com" {...field} />
               </FormControl>
@@ -83,7 +83,7 @@ export default function SignUpForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel className="font-semibold">Password</FormLabel>
               <FormControl>
                 <Input placeholder="your-password" {...field} />
               </FormControl>
