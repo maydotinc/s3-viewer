@@ -91,7 +91,7 @@ export default function SignUpForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">Register</Button>
+        <Button variant="secondary" type="submit" className="w-full">Register</Button>
       </form>
     </Form>
   );

@@ -31,13 +31,13 @@ const AuthPage = () => {
                 <CardContent>
                     <SignInForm />
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="flex justify-center">
                     <span className="text-sm">Don't have an account? </span>
                     <Button variant="link" className="px-1 hover:pointer" onClick={() => setIsOpen(true)}>Sign up</Button>
                 </CardFooter>
             </Card>
             <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-                <AlertDialogContent className="bg-viewerwhite rounded-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <AlertDialogContent className="bg-viewerwhite rounded-2xl" overlayClassName="backdrop-blur-xs" onOpenAutoFocus={(e) => e.preventDefault()}>
                     <AlertDialogHeader>
                         <div className="bg-gray-100 rounded-2xl p-2">
                             <UserRoundPlus className="size-10 text-viewerblue" />
