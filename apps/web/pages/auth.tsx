@@ -10,7 +10,7 @@ import {
     AlertDialogTitle
 } from "@s3-viewer/ui/components/alert-dialog";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Card } from "@s3-viewer/ui/components/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@s3-viewer/ui/components/card";
 import { UserRoundPlus } from "lucide-react";
 import { useState } from "react";
 
@@ -19,8 +19,22 @@ const AuthPage = () => {
 
     return (
         <div className="flex flex-col items-center justify-center h-full">
-            <Card className="bg-viewerwhite rounded-2xl gap-4 p-6">
-                <SignInForm />
+            <Card className="bg-viewerwhite rounded-2xl w-full max-w-[calc(100%-2rem)] sm:max-w-lg">
+                <CardHeader className="text-center">
+                    <CardTitle>
+                        Sign in to your account
+                    </CardTitle>
+                    <CardDescription>
+                        Enter your details to sign in.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <SignInForm />
+                </CardContent>
+                <CardFooter>
+                    <span className="text-sm">Don't have an account? </span>
+                    <Button variant="link" className="px-1 hover:pointer" onClick={() => setIsOpen(true)}>Sign up</Button>
+                </CardFooter>
             </Card>
             <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
                 <AlertDialogContent className="bg-viewerwhite rounded-2xl" onOpenAutoFocus={(e) => e.preventDefault()}>
