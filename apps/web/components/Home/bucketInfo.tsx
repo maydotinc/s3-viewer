@@ -1,9 +1,10 @@
 import { fetchFolders } from "@/utils/fetching";
 import { BucketFolder } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
-import { ColDef } from "ag-grid-community";
-import { useRouter } from "next/router";
-import { useState } from "react";
+import { ColDef, GridReadyEvent } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import { Loader2 } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import BaseGrid from "../DataGrid/baseGrid";
 import GridActions from "../DataGrid/gridActions";
 import BucketActions from "./bucketActions";
@@ -37,20 +38,15 @@ const columns: ColDef<BucketFolder>[] = [
 ];
 
 const BucketInfo = () => {
-    const testBuckets : BucketFolder[] = [];
-    for (let i = 0; i < 100; i++) {
-        testBuckets.push({
-            Name: `Bucket ${i}`,
-            CreationDate: new Date(),
-            Files: 0,
-            Folders: 0,
-            TotalSize: 0,
-        })
-    }
+    const gridRef = useRef<AgGridReact>(null);
+    const [gridReady, setGridReady] = useState(false);
+    const [pageSize, setPageSize] = useState(25);
+
+    const onGridReady = useCallback((params: GridReadyEvent) => {
+        setGridReady(true);
+    }, []);
     
-    const router = useRouter();
-    const [quickFilterText, setQuickFilterText] = useState("");
-    const { data: folders, isLoading: isLoadingFolders } = useQuery({
+    const { data: folders, isLoading } = useQuery({
         queryKey: ['folders'],
         queryFn: fetchFolders,
         refetchOnMount: true,
@@ -58,11 +54,15 @@ const BucketInfo = () => {
       
     return (
         <section className="flex flex-col px-8 py-8 w-full h-full">
-            <div className="flex xl:flex-row flex-col pb-8 justify-between">
-                <GridActions quickFilterText={quickFilterText} setQuickFilterText={setQuickFilterText}/>
+            <div className="flex lg:flex-row flex-col pb-6 justify-between">
+                <GridActions gridRef={gridRef} gridReady={gridReady} setPageSize={setPageSize}/>
                 <BucketActions />
             </div>
-            <BaseGrid rowData={folders ?? []} colDefs={columns} quickFilterText={quickFilterText} />
+            {isLoading ? 
+            <div className="flex justify-center items-center h-full">
+                <Loader2 className="w-10 h-10 animate-spin" />
+            </div> 
+            : <BaseGrid rowData={folders ?? []} colDefs={columns} gridRef={gridRef} onGridReady={onGridReady} pageSize={pageSize} />}
         </section>
     )
 }

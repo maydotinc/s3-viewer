@@ -1,5 +1,7 @@
-import { AllCommunityModule, ColDef, ModuleRegistry, themeQuartz } from "ag-grid-community";
+import { Button } from "@s3-viewer/ui/components/button";
+import { AllCommunityModule, ColDef, GridReadyEvent, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 ModuleRegistry.registerModules([
     AllCommunityModule
@@ -25,7 +27,7 @@ const viewerGridTheme = themeQuartz
 
 
 const defaultColDef: ColDef = {
-    sortable: false,
+    sortable: true,
     filter: false,
     resizable: false,
 }
@@ -33,21 +35,41 @@ const defaultColDef: ColDef = {
 type BaseGridProps = {
     rowData: any[];
     colDefs: ColDef<any>[];
-    quickFilterText: string;
+    gridRef: React.RefObject<AgGridReact | null>;
+    onGridReady: (params: GridReadyEvent) => void;
+    pageSize: number;
 }
 
-const BaseGrid = ({ rowData, colDefs, quickFilterText }: BaseGridProps) => { 
+const PaginationControls = () => {
     return (
-        <div className="ag-theme-alpine w-full flex-1">
-            <AgGridReact
-                theme={viewerGridTheme}
-                defaultColDef={defaultColDef}
-                columnDefs={colDefs}
-                rowData={rowData}
-                quickFilterText={quickFilterText}
-                pagination={true}
-                suppressPaginationPanel={true}
-            />
+        <div className="flex gap-2 mx-auto">
+            <Button>
+                <ChevronLeft className="size-4" />
+            </Button>
+            <Button>
+                <ChevronRight className="size-4" />
+            </Button>
+        </div>
+    )
+}
+
+const BaseGrid = ({ rowData, colDefs, gridRef, onGridReady, pageSize }: BaseGridProps) => { 
+    return (
+        <div className="w-full flex-1 flex flex-col">
+            <div className="ag-theme-alpine flex-1">
+                <AgGridReact
+                    ref={gridRef}
+                    theme={viewerGridTheme}
+                    defaultColDef={defaultColDef}
+                    columnDefs={colDefs}
+                    rowData={rowData}
+                    onGridReady={onGridReady}
+                    pagination={true}
+                    paginationPageSize={pageSize}
+                    suppressPaginationPanel={true}
+                />
+            </div>
+            <PaginationControls />
         </div>
     );
 }; 
