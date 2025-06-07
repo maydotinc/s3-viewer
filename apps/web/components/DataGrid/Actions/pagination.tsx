@@ -10,6 +10,8 @@ type PaginationProps = {
     className?: string;
 }
 
+const sizes = [25, 50, 100];
+
 const Pagination = ({ className }: PaginationProps) => {
     const context = useContext(GridContext);
     if (!context) {
@@ -21,7 +23,6 @@ const Pagination = ({ className }: PaginationProps) => {
     }
 
     const { gridRef, gridReady, setPageSize } = context;
-    const [sizes, setSizes] = useState<number[]>([25, 50, 100]);
     const [currentPageSize, setCurrentPageSize] = useState<number | null>(null);
     const [isOpen, setIsOpen] = useState(false);
 

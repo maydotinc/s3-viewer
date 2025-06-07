@@ -21,19 +21,18 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
         );
     }
 
-    const { gridRef, gridReady } = context;
+    const { gridRef, gridReady, pageSize } = context;
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
     const [pageInput, setPageInput] = useState<number | string>(1);
 
     useEffect(() => {
-        // LEFT OFF HERE
         if (gridReady && gridRef.current?.api) {
             setCurrentPage(gridRef.current.api.paginationGetCurrentPage());
             setTotalPages(gridRef.current.api.paginationGetTotalPages());
         }
-    }, [gridReady, gridRef.current?.api]);
+    }, [gridReady, pageSize]);
 
     const handlePageChange = () => {
         if (pageInput === "" || isNaN(parseInt(pageInput.toString()))) setPageInput(1);

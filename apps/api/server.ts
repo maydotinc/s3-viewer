@@ -27,7 +27,7 @@ app.use("/bucket", bucketRouter);
 app.use("/object", objectRouter);
 
 app.get("/", (req, res) => {
-    res.send("Can you see this?");
+    res.send("Can see this?");
 });
 
 
