@@ -17,7 +17,7 @@
   --card: var(--color-viewerwhite);
   --card-foreground: var(--color-viewerblack);
   --popover: var(--color-viewerwhite);
-  --popover-foreground: oklch(0.141 0.005 285.823);
+  --popover-foreground: var(--color-viewertext);
   --primary: var(--color-viewerwhite);
   --primary-foreground: var(--color-viewertext);
   --secondary: var(--color-viewerblue);

@@ -1,5 +1,6 @@
 import { Input } from "@s3-viewer/ui/components/input";
 import { AgGridReact } from "ag-grid-react";
+import { Search as SearchIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 
 type SearchProps = {
@@ -16,13 +17,16 @@ const Search = ({ gridRef, gridReady }: SearchProps) => {
     }, [setSearchText]);
 
     return (
-        <Input 
-            disabled={!gridReady}
-            placeholder="Search..." 
-            className="flex-1 md:min-w-1/2" 
-            value={searchText}
-            onChange={(e) => handleQuickFilter(e.target.value)}
-        />
+        <div className="relative flex-1 md:min-w-1/2 items-center flex">
+            <SearchIcon className="absolute left-3 text-viewertext size-4" />
+            <Input 
+                disabled={!gridReady}
+                placeholder="Search..." 
+                className="pl-10" 
+                value={searchText}
+                onChange={(e) => handleQuickFilter(e.target.value)}
+            />
+        </div>
     )
 }
 

@@ -7,6 +7,7 @@ import {
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { Column } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
+import { ListFilter } from "lucide-react";
 import { useEffect, useState } from "react";
 
 type FilterProps = {
@@ -42,10 +43,11 @@ const Filter = ({ gridRef, gridReady }: FilterProps) => {
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <Button>
+                    <ListFilter className="size-4" />
                     Filter
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent className="min-w-fit">
                 {allColumns?.map((column) => (
                     <DropdownMenuCheckboxItem 
                         onSelect={(e) => e.preventDefault()}

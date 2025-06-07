@@ -2,23 +2,37 @@ import { fetchFolders } from "@/utils/fetching";
 import { BucketFolder } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 import { ColDef, GridReadyEvent } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
+import { AgGridReact, CustomCellRendererProps } from "ag-grid-react";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
+import PaginationControls from "../DataGrid/Actions/pageControls";
 import BaseGrid from "../DataGrid/baseGrid";
 import GridActions from "../DataGrid/gridActions";
 import BucketActions from "./bucketActions";
- 
+
+const BucketFormatter = (props: CustomCellRendererProps) => {
+    return (
+        <Link href={`/buckets/${props.value}`} className="hover:underline hover:text-viewerblue">
+            {props.value}
+        </Link>
+    )
+}
+
 const columns: ColDef<BucketFolder>[] = [
     {
         field: "Name",
         headerName: "Bucket Name",
         flex: 2,
+        cellRenderer: BucketFormatter,
     },
     {
         field: "CreationDate",
         headerName: "Creation Date",
         flex: 1,
+        valueFormatter: (params) => {
+            return new Date(params.value).toLocaleDateString();
+        }
     },
     {
         field: "Files",
@@ -54,15 +68,18 @@ const BucketInfo = () => {
       
     return (
         <section className="flex flex-col px-8 py-8 w-full h-full">
-            <div className="flex lg:flex-row flex-col pb-6 justify-between">
+            <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
                 <GridActions gridRef={gridRef} gridReady={gridReady} setPageSize={setPageSize}/>
                 <BucketActions />
             </div>
             {isLoading ? 
             <div className="flex justify-center items-center h-full">
                 <Loader2 className="w-10 h-10 animate-spin" />
-            </div> 
-            : <BaseGrid rowData={folders ?? []} colDefs={columns} gridRef={gridRef} onGridReady={onGridReady} pageSize={pageSize} />}
+            </div> : 
+            <div className="flex flex-col flex-1 gap-2">
+                <BaseGrid rowData={folders ?? []} colDefs={columns} gridRef={gridRef} onGridReady={onGridReady} pageSize={pageSize} />
+                <PaginationControls gridRef={gridRef} gridReady={gridReady} />
+            </div>}
         </section>
     )
 }

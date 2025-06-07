@@ -37,7 +37,7 @@ const Pagination = ({ gridRef, gridReady, setPageSize }: PaginationProps) => {
                     <ChevronDown className={cn("size-4 text-gray-600 transition-transform duration-200", { "rotate-180": isOpen })} />
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent className="min-w-fit">
                 {currentPageSize ? sizes.map((size) => (
                     <DropdownMenuCheckboxItem 
                         key={size}
