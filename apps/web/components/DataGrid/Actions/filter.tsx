@@ -1,3 +1,4 @@
+import { GridContext } from "@/components/Home/bucketInfo";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
     DropdownMenu,
@@ -5,23 +6,33 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { Column } from "ag-grid-community";
-import { AgGridReact } from "ag-grid-react";
 import { ListFilter } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 type FilterProps = {
-    gridRef: React.RefObject<AgGridReact | null>;
-    gridReady: boolean;
+    className?: string;
 }
 
-const Filter = ({ gridRef, gridReady }: FilterProps) => {
+const Filter = ({ className }: FilterProps) => {
+    const context = useContext(GridContext);
+    if (!context) {
+        return (
+            <div className={cn("relative flex-1 md:min-w-1/2 items-center flex", className)}>
+                <Skeleton className="size-full" />
+            </div>
+        );
+    }
+
+    const { gridRef, gridReady } = context;
     const [allColumns, setAllColumns] = useState<Column[] | null>(null);
     const [filteredColumns, setFilteredColumns] = useState<Column[] | null>(null);
     
     useEffect(() => {
         if (gridReady) {
-            const cols = gridRef.current?.api.getColumns() ?? [];
+            const cols = gridRef.current?.api?.getColumns() ?? [];
             setAllColumns(cols);
             setFilteredColumns(cols);
         }

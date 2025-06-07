@@ -5,7 +5,7 @@ import { ColDef, GridReadyEvent } from "ag-grid-community";
 import { AgGridReact, CustomCellRendererProps } from "ag-grid-react";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { createContext, useCallback, useRef, useState } from "react";
 import PaginationControls from "../DataGrid/Actions/pageControls";
 import BaseGrid from "../DataGrid/baseGrid";
 import GridActions from "../DataGrid/gridActions";
@@ -51,7 +51,17 @@ const columns: ColDef<BucketFolder>[] = [
     }
 ];
 
-const BucketInfo = () => {
+type GridContextType = {
+    gridRef: React.RefObject<AgGridReact | null>;
+    gridReady: boolean;
+    pageSize: number;
+    setPageSize: (size: number) => void;
+    onGridReady: (params: GridReadyEvent) => void;
+}
+
+export const GridContext = createContext<GridContextType | null>(null);
+
+const BucketInfo = () => {   
     const gridRef = useRef<AgGridReact>(null);
     const [gridReady, setGridReady] = useState(false);
     const [pageSize, setPageSize] = useState(25);
@@ -67,20 +77,22 @@ const BucketInfo = () => {
     });
       
     return (
-        <section className="flex flex-col px-8 py-8 w-full h-full">
-            <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
-                <GridActions gridRef={gridRef} gridReady={gridReady} setPageSize={setPageSize}/>
-                <BucketActions />
-            </div>
-            {isLoading ? 
-            <div className="flex justify-center items-center h-full">
-                <Loader2 className="w-10 h-10 animate-spin" />
-            </div> : 
-            <div className="flex flex-col flex-1 gap-2">
-                <BaseGrid rowData={folders ?? []} colDefs={columns} gridRef={gridRef} onGridReady={onGridReady} pageSize={pageSize} />
-                <PaginationControls gridRef={gridRef} gridReady={gridReady} />
-            </div>}
-        </section>
+        <GridContext.Provider value={{ gridRef, gridReady, pageSize, setPageSize, onGridReady }}>
+            <section className="flex flex-col px-8 py-8 w-full h-full">
+                <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
+                    <GridActions />
+                    <BucketActions />
+                </div>
+                {isLoading ? 
+                <div className="flex justify-center items-center h-full">
+                    <Loader2 className="w-10 h-10 animate-spin" />
+                </div> : 
+                <div className="flex flex-col flex-1 gap-2">
+                    <BaseGrid rowData={folders ?? []} colDefs={columns} className="flex-1" />
+                    <PaginationControls />
+                </div>}
+            </section>
+        </GridContext.Provider>
     )
 }
 

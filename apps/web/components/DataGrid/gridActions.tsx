@@ -1,20 +1,18 @@
-import { AgGridReact } from "ag-grid-react";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import Filter from "./Actions/filter";
 import Pagination from "./Actions/pagination";
 import Search from "./Actions/search";
 
 type GridActionsProps = {
-    gridRef: React.RefObject<AgGridReact | null>;
-    gridReady: boolean;
-    setPageSize: (pageSize: number) => void;
+    className?: string;
 }
 
-const GridActions = ({ gridRef, gridReady, setPageSize }: GridActionsProps) => {
+const GridActions = ({ className }: GridActionsProps) => {
     return (
-        <div className="flex gap-2">
-            <Search gridRef={gridRef} gridReady={gridReady} />
-            <Filter gridRef={gridRef} gridReady={gridReady} />
-            <Pagination gridRef={gridRef} gridReady={gridReady} setPageSize={setPageSize} />
+        <div className={cn("flex gap-2", className)}>
+            <Search className="flex-2/3" />
+            <Filter className="flex-1/3" />
+            <Pagination className="flex-1/3" />
         </div>
     )
 }

@@ -1,28 +1,39 @@
+import { GridContext } from "@/components/Home/bucketInfo";
 import { Button } from "@s3-viewer/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@s3-viewer/ui/components/dropdown-menu";
 import { Input } from "@s3-viewer/ui/components/input";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { AgGridReact } from "ag-grid-react";
 import { ChevronFirst, ChevronLast, ChevronLeft, ChevronRight, ChevronUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 type PaginationControlsProps = {
-    gridRef: React.RefObject<AgGridReact | null>;
-    gridReady: boolean;
+    className?: string;
 }
 
-const PaginationControls = ({ gridRef, gridReady }: PaginationControlsProps) => {
+const PaginationControls = ({ className }: PaginationControlsProps) => {
+    const context = useContext(GridContext);
+    if (!context) {
+        return (
+            <div className={cn("flex gap-2 mx-auto", className)}>
+                <Skeleton className="size-full" />
+            </div>
+        );
+    }
+
+    const { gridRef, gridReady } = context;
     const [currentPage, setCurrentPage] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [isOpen, setIsOpen] = useState(false);
     const [pageInput, setPageInput] = useState<number | string>(1);
 
     useEffect(() => {
+        // LEFT OFF HERE
         if (gridReady && gridRef.current?.api) {
             setCurrentPage(gridRef.current.api.paginationGetCurrentPage());
             setTotalPages(gridRef.current.api.paginationGetTotalPages());
         }
-    }, [gridReady]);
+    }, [gridReady, gridRef.current?.api]);
 
     const handlePageChange = () => {
         if (pageInput === "" || isNaN(parseInt(pageInput.toString()))) setPageInput(1);
@@ -36,7 +47,7 @@ const PaginationControls = ({ gridRef, gridReady }: PaginationControlsProps) => 
     }
 
     return (
-        <div className="flex gap-2 mx-auto">
+        <div className="flex gap-2 mx-auto" hidden={totalPages === 0}>
             <Button 
                 onClick={() => {
                     gridRef.current?.api.paginationGoToFirstPage();

@@ -1,17 +1,26 @@
+import { GridContext } from "@/components/Home/bucketInfo";
 import { Button } from "@s3-viewer/ui/components/button";
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger } from "@s3-viewer/ui/components/dropdown-menu";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { AgGridReact } from "ag-grid-react";
 import { ChevronDown, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 
 type PaginationProps = {
-    gridRef: React.RefObject<AgGridReact | null>;
-    gridReady: boolean;
-    setPageSize: (pageSize: number) => void;
+    className?: string;
 }
 
-const Pagination = ({ gridRef, gridReady, setPageSize }: PaginationProps) => {
+const Pagination = ({ className }: PaginationProps) => {
+    const context = useContext(GridContext);
+    if (!context) {
+        return (
+            <div className={cn("relative flex-1 md:min-w-1/2 items-center flex", className)}>
+                <Skeleton className="size-full" />
+            </div>
+        );
+    }
+
+    const { gridRef, gridReady, setPageSize } = context;
     const [sizes, setSizes] = useState<number[]>([25, 50, 100]);
     const [currentPageSize, setCurrentPageSize] = useState<number | null>(null);
     const [isOpen, setIsOpen] = useState(false);
@@ -23,17 +32,11 @@ const Pagination = ({ gridRef, gridReady, setPageSize }: PaginationProps) => {
         }
     }, [gridReady]);
 
-    useEffect(() => {
-        if (currentPageSize !== null) {
-            console.log('Page size updated:', currentPageSize);
-        }
-    }, [currentPageSize]);
-    
     return (
         <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
             <DropdownMenuTrigger asChild>
                 <Button>
-                    {`Rows per page (${currentPageSize})`}
+                    {`Rows per page (${currentPageSize ?? 25})`}
                     <ChevronDown className={cn("size-4 text-gray-600 transition-transform duration-200", { "rotate-180": isOpen })} />
                 </Button>
             </DropdownMenuTrigger>

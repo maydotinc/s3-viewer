@@ -1,5 +1,9 @@
-import { AllCommunityModule, ColDef, GridReadyEvent, ModuleRegistry, themeQuartz } from "ag-grid-community";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import { AllCommunityModule, ColDef, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
+import { useContext } from "react";
+import { GridContext } from "../Home/bucketInfo";
 
 ModuleRegistry.registerModules([
     AllCommunityModule
@@ -33,16 +37,22 @@ const defaultColDef: ColDef = {
 type BaseGridProps = {
     rowData: any[];
     colDefs: ColDef<any>[];
-    gridRef: React.RefObject<AgGridReact | null>;
-    onGridReady: (params: GridReadyEvent) => void;
-    pageSize: number;
+    className?: string;
 }
 
-const BaseGrid = ({ rowData, colDefs, gridRef, onGridReady, pageSize }: BaseGridProps) => { 
+const BaseGrid = ({ rowData, colDefs, className }: BaseGridProps) => { 
+    const context = useContext(GridContext);
+    if (!context) {
+        return (
+            <div className={cn("w-full flex-1", className)}>
+                <Skeleton className="size-full" />
+            </div>
+        );
+    }
+
+    const { gridRef, pageSize, onGridReady } = context;
     return (
-        <div 
-            className="w-full flex-1 ag-theme-alpine"
-        >
+        <div className={cn("w-full flex-1 ag-theme-alpine", className)}>
             <AgGridReact
                 ref={gridRef}
                 theme={viewerGridTheme}
