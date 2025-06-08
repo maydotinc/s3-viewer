@@ -1,6 +1,6 @@
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { AllCommunityModule, ColDef, ModuleRegistry, themeQuartz } from "ag-grid-community";
+import { AllCommunityModule, ColDef, IDatasource, ModuleRegistry, themeQuartz } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { useContext } from "react";
 import { GridContext } from "../Home/bucketInfo";
@@ -36,11 +36,19 @@ const defaultColDef: ColDef = {
 
 type BaseGridProps = {
     rowData: any[];
+    datasource?: IDatasource;
     colDefs: ColDef<any>[];
     className?: string;
+    rowModelType?: 'clientSide' | 'infinite';
 }
 
-const BaseGrid = ({ rowData, colDefs, className }: BaseGridProps) => { 
+const BaseGrid = ({ 
+    rowData, 
+    datasource,
+    colDefs, 
+    className,
+    rowModelType = 'clientSide',
+}: BaseGridProps) => { 
     const context = useContext(GridContext);
     if (!context) {
         return (
@@ -51,6 +59,25 @@ const BaseGrid = ({ rowData, colDefs, className }: BaseGridProps) => {
     }
 
     const { gridRef, pageSize, onGridReady } = context;
+    
+    const rowModelProps = rowModelType === 'infinite' ? {
+        rowModelType: 'infinite' as const,
+        datasource,
+        cacheBlockSize: 100,
+        cacheOverflowSize: 1,
+        maxBlocksInCache: 10,
+        blockLoadDebounceMillis: 100,
+        pagination: true,
+        paginationPageSize: pageSize,
+        suppressPaginationPanel: true,
+    } : {
+        rowModelType: 'clientSide' as const,
+        rowData,
+        pagination: true,
+        paginationPageSize: pageSize,
+        suppressPaginationPanel: true,
+    };
+
     return (
         <div className={cn("w-full flex-1 ag-theme-alpine", className)}>
             <AgGridReact
@@ -58,11 +85,8 @@ const BaseGrid = ({ rowData, colDefs, className }: BaseGridProps) => {
                 theme={viewerGridTheme}
                 defaultColDef={defaultColDef}
                 columnDefs={colDefs}
-                rowData={rowData}
                 onGridReady={onGridReady}
-                pagination={true}
-                paginationPageSize={pageSize}
-                suppressPaginationPanel={true}
+                {...rowModelProps}
             />
         </div>
     );
