@@ -1,4 +1,5 @@
 import { fetchFolders } from "@/utils/fetching";
+import testData from "@/utils/test";
 import { BucketFolder } from "@/utils/types";
 import { useQuery } from "@tanstack/react-query";
 import { ColDef, GridReadyEvent } from "ag-grid-community";
@@ -88,7 +89,7 @@ const BucketInfo = () => {
                     <Loader2 className="w-10 h-10 animate-spin" />
                 </div> : 
                 <div className="flex flex-col flex-1 gap-2">
-                    <BaseGrid rowData={folders ?? []} colDefs={columns} className="flex-1" />
+                    <BaseGrid rowData={testData ?? []} colDefs={columns} className="flex-1" />
                     <PaginationControls />
                 </div>}
             </section>
