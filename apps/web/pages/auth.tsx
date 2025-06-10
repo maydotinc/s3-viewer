@@ -18,7 +18,7 @@ const AuthPage = () => {
     const [isOpen, setIsOpen] = useState(true)
 
     return (
-        <div className="flex flex-col items-center justify-center h-full">
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
             <Card className="bg-viewerwhite rounded-2xl w-full max-w-[calc(100%-2rem)] sm:max-w-lg">
                 <CardHeader className="flex flex-col gap-2 items-center text-center">
                     <div className="bg-viewergray border border-viewerborder rounded-2xl p-2">
