@@ -7,7 +7,7 @@
   },
   "scripts": {
     "db:generate": "cd ../.. && pnpm db:generate",
-    "db:migrate": "prisma migrate dev"
+    "db:migrate": "pnpx prisma migrate dev"
   },
   "dependencies": {
     "@prisma/client": "^6.8.2",

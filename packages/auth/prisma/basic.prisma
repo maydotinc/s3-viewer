@@ -1,3 +1,9 @@
+//===============================//
+// THIS SCHEMA IS NOT ACTUALLY USED,
+// IT IS ONLY USED FOR REFERENCE
+// AND TO KEEP TRACK OF THE REQUIRED
+// SCHEMA FOR THE AUTH LIBRARY
+//===============================//
 generator client {
   provider = "prisma-client-js"
 }

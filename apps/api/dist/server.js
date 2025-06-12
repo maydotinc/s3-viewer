@@ -5,7 +5,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express, { urlencoded } from "express";
 
-// routes/bucket.ts
+// routes/s3/bucket.ts
 import { CreateBucketCommand, DeleteBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { Router } from "express";
 
@@ -31,7 +31,7 @@ var formatBuckets = (response) => {
 };
 var formatBuckets_default = formatBuckets;
 
-// routes/bucket.ts
+// routes/s3/bucket.ts
 var bucketRouter = Router();
 bucketRouter.put("/create", async (req, res) => {
   const { bucketName } = req.body;
@@ -64,7 +64,7 @@ bucketRouter.get("/list", async (req, res) => {
 });
 var bucket_default = bucketRouter;
 
-// routes/object.ts
+// routes/s3/object.ts
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Router as Router2 } from "express";
 var objectRouter = Router2();

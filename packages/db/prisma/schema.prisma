@@ -1,6 +1,3 @@
-// This is your Prisma schema file
-// Learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,76 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model from BetterAuth with additional fields
+//==== BetterAuth Models ====//
 model User {
-  id            String    @id @default(cuid())
+  id            String   @id @default(cuid())
   email         String
   emailVerified Boolean
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  name          String   // Added from Better Auth
-  image         String?   // Added from Better Auth
-
-  // Relations
-  ownedServers  Server[]  @relation("ServerOwner")
-  serverAccess  ServerAccess[]
-  sessions      Session[] // Added from Better Auth
-  accounts      Account[] // Added from Better Auth
-
-  @@map("user")
-  @@unique([email])
-}
-
-// Server represents an AWS account or similar
-model Server {
-  id            String    @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
   name          String
-  credentials   Json      // Encrypted AWS credentials
-  storageUsed   Float     @default(0) // Total storage used in bytes
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  image         String?
 
   // Relations
-  ownerId       String
-  owner         User      @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  serverAccess  ServerAccess[]
+  ownedServers Server[]       @relation("ServerOwner")
+  serverAccess ServerAccess[]
+  sessions     Session[]
+  accounts     Account[]
 
-  @@index([ownerId])
+  @@unique([email])
+  @@map("user")
 }
 
-// Manages access control for users to servers
-model ServerAccess {
-  id        String    @id @default(cuid())
-  role      Role      @default(VIEWER)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  // Relations
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  serverId  String
-  server    Server    @relation(fields: [serverId], references: [id], onDelete: Cascade)
-
-  // Permissions
-  canReadBuckets    Boolean   @default(true)
-  canCreateBuckets  Boolean   @default(false)
-  canDeleteBuckets  Boolean   @default(false)
-  canModifyFiles    Boolean   @default(false)
-  canModifyCors     Boolean   @default(false)
-
-  @@unique([userId, serverId])
-  @@index([userId])
-  @@index([serverId])
-}
-
-enum Role {
-  OWNER
-  ADMIN
-  EDITOR
-  VIEWER
-}
-
-// Better Auth Models
 model Session {
   id        String   @id @default(cuid())
   expiresAt DateTime
@@ -122,4 +69,52 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+//==== Server Management Models ====//
+model Server {
+  id          String   @id @default(cuid())
+  name        String
+  credentials Json // Encrypted AWS credentials
+  storageUsed Float    @default(0) // Total storage used in bytes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  ownerId      String
+  owner        User           @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  serverAccess ServerAccess[]
+
+  @@index([ownerId])
+}
+
+model ServerAccess {
+  id        String   @id @default(cuid())
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId String
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  // Permissions
+  canReadBuckets   Boolean @default(true)
+  canCreateBuckets Boolean @default(false)
+  canDeleteBuckets Boolean @default(false)
+  canModifyFiles   Boolean @default(false)
+  canModifyCors    Boolean @default(false)
+
+  @@unique([userId, serverId])
+  @@index([userId])
+  @@index([serverId])
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
 }

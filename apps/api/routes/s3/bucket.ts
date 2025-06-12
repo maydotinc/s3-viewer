@@ -1,7 +1,7 @@
 import { CreateBucketCommand, DeleteBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { Request, Response, Router } from "express";
-import { s3Client } from "../lib/s3.js";
-import formatBuckets from "../utils/formatBuckets.js";
+import { s3Client } from "../../lib/s3.js";
+import formatBuckets from "../../utils/formatBuckets.js";
 const bucketRouter: Router = Router();
 
 bucketRouter.put("/create", async (req: Request, res: Response) => {

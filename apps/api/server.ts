@@ -3,8 +3,8 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { urlencoded } from "express";
-import bucketRouter from "./routes/bucket.js";
-import objectRouter from "./routes/object.js";
+import bucketRouter from "./routes/s3/bucket.js";
+import objectRouter from "./routes/s3/object.js";
 dotenv.config();
 
 const app = express();

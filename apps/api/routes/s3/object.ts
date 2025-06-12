@@ -1,7 +1,7 @@
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Request, Response, Router } from "express";
 import { Readable } from "stream";
-import { s3Client } from "../lib/s3.js";
+import { s3Client } from "../../lib/s3.js";
 
 const objectRouter: Router = Router();
 
