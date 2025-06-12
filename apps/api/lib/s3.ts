@@ -1,15 +1,30 @@
-import { S3Client, S3ClientConfig } from "@aws-sdk/client-s3";
+import { S3Client } from "@aws-sdk/client-s3";
+import { prisma } from "@s3-viewer/db";
 
-// Create S3 client configuration
-const s3Config: S3ClientConfig = {
-  endpoint: process.env.AWS_ENDPOINT || 'http://localhost:9000',
-  region: process.env.AWS_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
-  },
-  forcePathStyle: true,
+const getS3Client = async (serverId: string) => {
+  const server = await prisma.server.findUnique({
+    where: {
+      id: serverId,
+    },
+    select: {
+      credentials: true,
+    }
+  });
+
+  if (!server) {
+    throw new Error("Server not found");
+  }
+
+  const credentials = JSON.parse(server.credentials as string);
+  console.log(credentials);
+
+  return new S3Client({
+    endpoint: credentials.endpoint,
+    region: credentials.region,
+    credentials: {
+      accessKeyId: credentials.accessKey,
+      secretAccessKey: credentials.secretKey,
+    },
+    forcePathStyle: true,
+  });
 };
-
-// Create and export the S3 client
-export const s3Client = new S3Client(s3Config);

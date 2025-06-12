@@ -74,7 +74,7 @@ model Verification {
 //==== Server Management Models ====//
 model Server {
   id          String   @id @default(cuid())
-  name        String
+  name        String?
   credentials Json // Encrypted AWS credentials
   storageUsed Float    @default(0) // Total storage used in bytes
   createdAt   DateTime @default(now())

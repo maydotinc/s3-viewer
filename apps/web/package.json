@@ -23,7 +23,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hook-form": "^7.56.4",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "zustand": "^5.0.5"
   },
   "devDependencies": {
     "@s3-viewer/eslint-config": "workspace:*",
@@ -37,6 +38,6 @@
     "tailwindcss": "^4.1.5"
   },
   "exports": {
-    "./types": "./src/utils/types.ts"
+    "./types": "./utils/types.ts"
   }
 }
