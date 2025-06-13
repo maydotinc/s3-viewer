@@ -2,6 +2,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@s3-viewer/ui/components/form";
 import { Input } from "@s3-viewer/ui/components/input";
+import { Loader } from "lucide-react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import z from "zod";
 
@@ -14,6 +16,8 @@ const formSchema = z.object({
 type ConnectFormData = z.infer<typeof formSchema>;
 
 const ConnectForm = () => {
+    const [connectionStatus, setConnectionStatus] = useState<"Searching" | "Connected" | "Waiting">("Waiting");
+
     const form = useForm<ConnectFormData>({
         resolver: zodResolver(formSchema),
         defaultValues: {
@@ -37,7 +41,7 @@ const ConnectForm = () => {
                     <FormItem>
                         <FormLabel className="font-semibold">Server URL</FormLabel>
                         <FormControl>
-                        <Input placeholder="AWS_S3_ENDPOINT" className="bg-viewergray" {...field} />
+                            <Input placeholder="AWS_S3_ENDPOINT" className="bg-viewergray" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -50,7 +54,7 @@ const ConnectForm = () => {
                     <FormItem>
                         <FormLabel className="font-semibold">Access Key</FormLabel>
                         <FormControl>
-                        <Input placeholder="your-access-key" className="bg-viewergray" {...field} />
+                            <Input placeholder="your-access-key" className="bg-viewergray" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
@@ -63,13 +67,15 @@ const ConnectForm = () => {
                     <FormItem>
                         <FormLabel className="font-semibold">Secret Key</FormLabel>
                         <FormControl>
-                        <Input placeholder="your-secret-key" className="bg-viewergray" {...field} />
+                            <Input type="password" placeholder="your-secret-key" className="bg-viewergray" {...field} />
                         </FormControl>
                         <FormMessage />
                     </FormItem>
                     )}
                 />
-                <Button variant="secondary" type="submit" className="w-full">Connect</Button>
+                {connectionStatus === "Searching" && <Button variant="secondary" type="button" className="w-full"><Loader className="animate-spin" /> Searching</Button>}
+                {connectionStatus === "Connected" && <Button variant="secondary" type="submit" className="w-full">Connect</Button>}
+                {connectionStatus === "Waiting" && <Button variant="secondary" type="button" className="w-full">Establish Connection</Button>}
             </form>
         </Form>
     )

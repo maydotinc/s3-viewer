@@ -1,5 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
+import { ServerCredentials } from "@s3-viewer/types";
 
 const getS3Client = async (serverId: string) => {
   const server = await prisma.server.findUnique({
@@ -28,3 +29,17 @@ const getS3Client = async (serverId: string) => {
     forcePathStyle: true,
   });
 };
+
+const getS3ClientFromCredentials = (serverCredentials: ServerCredentials) => {
+  return new S3Client({
+    endpoint: serverCredentials.endpoint,
+    region: serverCredentials.region,
+    credentials: {
+      accessKeyId: serverCredentials.accessKey,
+      secretAccessKey: serverCredentials.secretKey,
+    },
+    forcePathStyle: true,
+  });
+};
+
+export { getS3Client, getS3ClientFromCredentials };

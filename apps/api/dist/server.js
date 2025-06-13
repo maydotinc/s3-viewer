@@ -1,26 +1,142 @@
 // server.ts
-import { auth } from "@s3-viewer/auth";
+import { auth as auth2 } from "@s3-viewer/auth";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { urlencoded } from "express";
 
-// routes/s3/bucket.ts
-import { CreateBucketCommand, DeleteBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
+// routes/connect.ts
+import { ListBucketsCommand } from "@aws-sdk/client-s3";
+import { prisma as prisma2 } from "@s3-viewer/db";
 import { Router } from "express";
 
 // lib/s3.ts
 import { S3Client } from "@aws-sdk/client-s3";
-var s3Config = {
-  endpoint: process.env.AWS_ENDPOINT || "http://localhost:9000",
-  region: process.env.AWS_REGION || "us-east-1",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ""
-  },
-  forcePathStyle: true
+import { prisma } from "@s3-viewer/db";
+var getS3Client = async (serverId) => {
+  const server2 = await prisma.server.findUnique({
+    where: {
+      id: serverId
+    },
+    select: {
+      credentials: true
+    }
+  });
+  if (!server2) {
+    throw new Error("Server not found");
+  }
+  const credentials = JSON.parse(server2.credentials);
+  console.log(credentials);
+  return new S3Client({
+    endpoint: credentials.endpoint,
+    region: credentials.region,
+    credentials: {
+      accessKeyId: credentials.accessKey,
+      secretAccessKey: credentials.secretKey
+    },
+    forcePathStyle: true
+  });
 };
-var s3Client = new S3Client(s3Config);
+var getS3ClientFromCredentials = (serverCredentials) => {
+  return new S3Client({
+    endpoint: serverCredentials.endpoint,
+    region: serverCredentials.region,
+    credentials: {
+      accessKeyId: serverCredentials.accessKey,
+      secretAccessKey: serverCredentials.secretKey
+    },
+    forcePathStyle: true
+  });
+};
+
+// utils/auth.ts
+import { auth } from "@s3-viewer/auth";
+var authGuard = (req, res, next) => {
+  auth.api.getSession({
+    headers: new Headers(req.headers)
+  }).then((session) => {
+    if (!session) {
+      return res.status(401).json({
+        message: "Unauthorized, please login to continue"
+      });
+    }
+    req.user = session.user;
+    next();
+  }).catch(() => {
+    res.status(401).json({
+      message: "Invalid session"
+    });
+  });
+};
+var auth_default = authGuard;
+
+// routes/connect.ts
+var connectRouter = Router();
+connectRouter.use(auth_default);
+connectRouter.post("/establish", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const credentials = req.body;
+  const s3Client = getS3ClientFromCredentials(credentials);
+  const response = await s3Client.send(new ListBucketsCommand({}));
+  if (response.Buckets) {
+    res.status(200).json({ message: "Server connected established successfully" });
+  } else {
+    res.status(400).json({ message: "Server connection failed, are you sure you're using the correct credentials?" });
+  }
+});
+connectRouter.post("/create", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const { serverCredentials, serverName } = req.body;
+  try {
+    const server2 = await prisma2.server.create({
+      data: {
+        credentials: JSON.stringify(serverCredentials),
+        name: serverName,
+        ownerId: req.user.id,
+        serverAccess: {
+          create: {
+            userId: req.user.id,
+            role: "OWNER",
+            canReadBuckets: true,
+            canCreateBuckets: true,
+            canDeleteBuckets: true,
+            canModifyFiles: true,
+            canModifyCors: true
+          }
+        }
+      }
+    });
+    res.status(200).json({ message: "Server created successfully", serverId: server2.id });
+  } catch (error) {
+    res.status(400).json({ message: "Server creation failed: " + error });
+  }
+});
+connectRouter.delete("/delete", async (req, res) => {
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const { serverId } = req.body;
+  try {
+    await prisma2.server.delete({
+      where: { id: serverId }
+    });
+    res.status(200).json({ message: "Server deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ message: "Server deletion failed: " + error });
+  }
+});
+var connect_default = connectRouter;
+
+// routes/s3-operations/bucket.ts
+import { CreateBucketCommand, DeleteBucketCommand, ListBucketsCommand as ListBucketsCommand2 } from "@aws-sdk/client-s3";
+import { Router as Router2 } from "express";
 
 // utils/formatBuckets.ts
 var formatBuckets = (response) => {
@@ -31,10 +147,41 @@ var formatBuckets = (response) => {
 };
 var formatBuckets_default = formatBuckets;
 
-// routes/s3/bucket.ts
-var bucketRouter = Router();
+// utils/permission.ts
+import { prisma as prisma3 } from "@s3-viewer/db";
+var hasPermissions = async (serverId, userId, authorizedRoles) => {
+  const accessPermissions = await prisma3.serverAccess.findUnique({
+    where: {
+      userId_serverId: {
+        userId,
+        serverId
+      }
+    },
+    select: {
+      role: true
+    }
+  });
+  if (!accessPermissions) {
+    return false;
+  }
+  return authorizedRoles.includes(accessPermissions.role);
+};
+var permission_default = hasPermissions;
+
+// routes/s3-operations/bucket.ts
+var bucketRouter = Router2();
+bucketRouter.use(auth_default);
 bucketRouter.put("/create", async (req, res) => {
-  const { bucketName } = req.body;
+  const { bucketName, serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN"])) {
+    res.status(403).json({ message: "User does not have permission to create buckets" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
   const command = new CreateBucketCommand({ Bucket: bucketName });
   try {
     await s3Client.send(command);
@@ -44,7 +191,16 @@ bucketRouter.put("/create", async (req, res) => {
   }
 });
 bucketRouter.delete("/delete", async (req, res) => {
-  const { bucketName } = req.body;
+  const { bucketName, serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN"])) {
+    res.status(403).json({ message: "User does not have permission to delete buckets" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
   const command = new DeleteBucketCommand({ Bucket: bucketName });
   try {
     await s3Client.send(command);
@@ -54,7 +210,17 @@ bucketRouter.delete("/delete", async (req, res) => {
   }
 });
 bucketRouter.get("/list", async (req, res) => {
-  const command = new ListBucketsCommand({});
+  const { serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
+    res.status(403).json({ message: "User does not have permission to list buckets" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
+  const command = new ListBucketsCommand2({});
   try {
     const response = await s3Client.send(command);
     res.status(200).json(formatBuckets_default(response));
@@ -64,12 +230,22 @@ bucketRouter.get("/list", async (req, res) => {
 });
 var bucket_default = bucketRouter;
 
-// routes/s3/object.ts
+// routes/s3-operations/object.ts
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { Router as Router2 } from "express";
-var objectRouter = Router2();
+import { Router as Router3 } from "express";
+var objectRouter = Router3();
+objectRouter.use(auth_default);
 objectRouter.put("/create", async (req, res) => {
-  const { bucketName, objectKey, file, contentType } = req.body;
+  const { bucketName, objectKey, file, contentType, serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+    res.status(403).json({ message: "User does not have permission to create objects" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
   const buffer = Buffer.from(file);
   const command = new PutObjectCommand({ Bucket: bucketName, Key: objectKey, Body: buffer, ContentType: contentType });
   try {
@@ -80,7 +256,16 @@ objectRouter.put("/create", async (req, res) => {
   }
 });
 objectRouter.get("/get", async (req, res) => {
-  const { bucketName, objectKey } = req.body;
+  const { bucketName, objectKey, serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
+    res.status(403).json({ message: "User does not have permission to get objects" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
   const command = new GetObjectCommand({ Bucket: bucketName, Key: objectKey });
   try {
     const response = await s3Client.send(command);
@@ -106,7 +291,16 @@ objectRouter.get("/get", async (req, res) => {
   }
 });
 objectRouter.delete("/delete", async (req, res) => {
-  const { bucketName, objectKey } = req.body;
+  const { bucketName, objectKey, serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+    res.status(403).json({ message: "User does not have permission to delete objects" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
   const command = new DeleteObjectCommand({ Bucket: bucketName, Key: objectKey });
   try {
     await s3Client.send(command);
@@ -116,7 +310,16 @@ objectRouter.delete("/delete", async (req, res) => {
   }
 });
 objectRouter.post("/copy", async (req, res) => {
-  const { sourceBucket, sourceKey, targetBucket, targetKey } = req.body;
+  const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+    res.status(403).json({ message: "User does not have permission to copy objects" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
   const command = new CopyObjectCommand({
     Bucket: targetBucket,
     Key: targetKey,
@@ -130,7 +333,16 @@ objectRouter.post("/copy", async (req, res) => {
   }
 });
 objectRouter.post("/move", async (req, res) => {
-  const { sourceBucket, sourceKey, targetBucket, targetKey } = req.body;
+  const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+    res.status(403).json({ message: "User does not have permission to move objects" });
+    return;
+  }
+  const s3Client = await getS3Client(serverId);
   const command = new CopyObjectCommand({
     Bucket: targetBucket,
     Key: targetKey,
@@ -160,10 +372,11 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true
 }));
-app.all("/auth/{*any}", toNodeHandler(auth));
+app.all("/auth/{*any}", toNodeHandler(auth2));
 app.use(express.json());
 app.use("/bucket", bucket_default);
 app.use("/object", object_default);
+app.use("/connect", connect_default);
 app.get("/", (req, res) => {
   res.send("Can I see this?");
 });

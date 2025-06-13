@@ -19,6 +19,7 @@
   "devDependencies": {
     "@s3-viewer/eslint-config": "workspace:*",
     "@s3-viewer/ts-config": "workspace:*",
+    "@s3-viewer/types": "workspace:*",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.2",
     "nodemon": "^3.1.10",

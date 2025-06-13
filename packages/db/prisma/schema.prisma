@@ -74,7 +74,7 @@ model Verification {
 //==== Server Management Models ====//
 model Server {
   id          String   @id @default(cuid())
-  name        String?
+  name        String
   credentials Json // Encrypted AWS credentials
   storageUsed Float    @default(0) // Total storage used in bytes
   createdAt   DateTime @default(now())
@@ -99,13 +99,6 @@ model ServerAccess {
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   serverId String
   server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
-
-  // Permissions
-  canReadBuckets   Boolean @default(true)
-  canCreateBuckets Boolean @default(false)
-  canDeleteBuckets Boolean @default(false)
-  canModifyFiles   Boolean @default(false)
-  canModifyCors    Boolean @default(false)
 
   @@unique([userId, serverId])
   @@index([userId])

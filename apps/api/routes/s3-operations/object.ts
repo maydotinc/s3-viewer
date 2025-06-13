@@ -1,12 +1,24 @@
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { Request, Response, Router } from "express";
 import { Readable } from "stream";
-import { s3Client } from "../../lib/s3.js";
+import { getS3Client } from "../../lib/s3.js";
+import authGuard from "../../utils/auth.js";
+import hasPermissions from "../../utils/permission.js";
 
 const objectRouter: Router = Router();
+objectRouter.use(authGuard);
 
 objectRouter.put("/create", async (req: Request, res: Response) => {
-    const { bucketName, objectKey, file, contentType } = req.body;
+    const { bucketName, objectKey, file, contentType, serverId, user } = req.body;
+    if (!serverId) {
+        res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+        res.status(403).json({ message: "User does not have permission to create objects" });
+        return;
+    }
+    const s3Client = await getS3Client(serverId);
     const buffer = Buffer.from(file);
     const command = new PutObjectCommand({ Bucket: bucketName, Key: objectKey, Body: buffer, ContentType: contentType });
     try {
@@ -18,7 +30,16 @@ objectRouter.put("/create", async (req: Request, res: Response) => {
 });
 
 objectRouter.get("/get", async (req: Request, res: Response) => {
-    const { bucketName, objectKey } = req.body;
+    const { bucketName, objectKey, serverId, user } = req.body;
+    if (!serverId) {
+        res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
+        res.status(403).json({ message: "User does not have permission to get objects" });
+        return;
+    }
+    const s3Client = await getS3Client(serverId);
     const command = new GetObjectCommand({ Bucket: bucketName, Key: objectKey });
     try {
         const response = await s3Client.send(command);
@@ -47,7 +68,16 @@ objectRouter.get("/get", async (req: Request, res: Response) => {
 });
 
 objectRouter.delete("/delete", async (req: Request, res: Response) => {
-    const { bucketName, objectKey } = req.body;
+    const { bucketName, objectKey, serverId, user } = req.body;
+    if (!serverId) {
+        res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+        res.status(403).json({ message: "User does not have permission to delete objects" });
+        return;
+    }
+    const s3Client = await getS3Client(serverId);
     const command = new DeleteObjectCommand({ Bucket: bucketName, Key: objectKey });
     try {
         await s3Client.send(command);
@@ -58,7 +88,16 @@ objectRouter.delete("/delete", async (req: Request, res: Response) => {
 });
 
 objectRouter.post("/copy", async (req: Request, res: Response) => {
-    const { sourceBucket, sourceKey, targetBucket, targetKey } = req.body;
+    const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+    if (!serverId) {
+        res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+        res.status(403).json({ message: "User does not have permission to copy objects" });
+        return;
+    }
+    const s3Client = await getS3Client(serverId);
     const command = new CopyObjectCommand({
         Bucket: targetBucket,
         Key: targetKey,
@@ -73,7 +112,16 @@ objectRouter.post("/copy", async (req: Request, res: Response) => {
 });
 
 objectRouter.post("/move", async (req: Request, res: Response) => {
-    const { sourceBucket, sourceKey, targetBucket, targetKey } = req.body;
+    const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+    if (!serverId) {
+        res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+        res.status(403).json({ message: "User does not have permission to move objects" });
+        return;
+    }
+    const s3Client = await getS3Client(serverId);
     const command = new CopyObjectCommand({
         Bucket: targetBucket,
         Key: targetKey,

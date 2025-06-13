@@ -1,3 +1,10 @@
+type ServerCredentials = {
+    endpoint: string;
+    region: string;
+    accessKey: string;
+    secretKey: string;
+}
+
 type S3Bucket = {
     BucketRegion: string;
     CreationDate: string;
@@ -13,3 +20,5 @@ type S3Object = {
     Size: number;
     StorageClass: string;
 }
+
+export type { S3Bucket, S3Object, ServerCredentials };
