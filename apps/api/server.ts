@@ -3,9 +3,10 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { urlencoded } from "express";
-import connectRouter from "./routes/connect.js";
 import bucketRouter from "./routes/s3-operations/bucket.js";
 import objectRouter from "./routes/s3-operations/object.js";
+import manageRouter from "./routes/s3-servers/manage.js";
+import retrieveRouter from "./routes/s3-servers/retrieve.js";
 dotenv.config();
 
 const app = express();
@@ -26,7 +27,8 @@ app.use(express.json());
 
 app.use("/bucket", bucketRouter);
 app.use("/object", objectRouter);
-app.use("/connect", connectRouter);
+app.use("/manage", manageRouter);
+app.use("/retrieve", retrieveRouter);
 
 // for testing
 app.get("/", (req, res) => {

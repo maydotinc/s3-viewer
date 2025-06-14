@@ -1,5 +1,6 @@
 import { auth } from '@s3-viewer/auth';
 import { User } from 'better-auth';
+import { fromNodeHeaders } from 'better-auth/node';
 import { NextFunction, Request, Response } from 'express';
 
 // Extend Express Request type to include session
@@ -12,8 +13,10 @@ declare global {
 }
 
 const authGuard = (req: Request, res: Response, next: NextFunction) => {
+    console.log("Authenticating request");
+    
     auth.api.getSession({
-        headers: new Headers(req.headers as Record<string, string>),
+        headers: fromNodeHeaders(req.headers),
     }).then(session => {
         if (!session) {
             return res.status(401).json({ 
@@ -22,7 +25,8 @@ const authGuard = (req: Request, res: Response, next: NextFunction) => {
         }
         req.user = session.user;
         next();
-    }).catch(() => {
+    }).catch((error) => {
+        console.log("Auth error:", error);
         res.status(401).json({ 
             message: 'Invalid session' 
         });

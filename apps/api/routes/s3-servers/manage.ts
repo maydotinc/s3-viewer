@@ -2,13 +2,14 @@ import { ListBucketsCommand } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
 import { ServerCredentials } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
-import { getS3ClientFromCredentials } from "../lib/s3.js";
-import authGuard from "../utils/auth.js";
+import { getS3ClientFromCredentials } from "../../lib/s3.js";
+import authGuard from "../../utils/auth.js";
 
-const connectRouter: Router = Router();
-connectRouter.use(authGuard);
+const manageRouter: Router = Router();
+manageRouter.use(authGuard);
 
-connectRouter.post("/establish", async (req: Request, res: Response) => {
+manageRouter.post("/establish", async (req: Request, res: Response) => {
+    console.log("Establishing connection");
     if (!req.user) {
         res.status(401).json({ message: "Unauthorized" });
         return;
@@ -23,7 +24,8 @@ connectRouter.post("/establish", async (req: Request, res: Response) => {
     }
 });
 
-connectRouter.post("/create", async (req: Request, res: Response) => {
+manageRouter.post("/create", async (req: Request, res: Response) => {
+    console.log("Creating server");
     if (!req.user) {
         res.status(401).json({ message: "Unauthorized" });
         return;
@@ -39,12 +41,7 @@ connectRouter.post("/create", async (req: Request, res: Response) => {
                 serverAccess: {
                     create: {
                         userId: req.user.id,
-                        role: 'OWNER',
-                        canReadBuckets: true,
-                        canCreateBuckets: true,
-                        canDeleteBuckets: true,
-                        canModifyFiles: true,
-                        canModifyCors: true
+                        role: 'OWNER'
                     }
                 }
             },
@@ -55,7 +52,8 @@ connectRouter.post("/create", async (req: Request, res: Response) => {
     }
 });
 
-connectRouter.delete("/delete", async (req: Request, res: Response) => {
+manageRouter.delete("/delete", async (req: Request, res: Response) => {
+    console.log("Deleting server");
     if (!req.user) {
         res.status(401).json({ message: "Unauthorized" });
         return;
@@ -71,4 +69,4 @@ connectRouter.delete("/delete", async (req: Request, res: Response) => {
     }
 });
 
-export default connectRouter;
+export default manageRouter;

@@ -5,9 +5,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import express, { urlencoded } from "express";
 
-// routes/connect.ts
-import { ListBucketsCommand } from "@aws-sdk/client-s3";
-import { prisma as prisma2 } from "@s3-viewer/db";
+// routes/s3-operations/bucket.ts
+import { CreateBucketCommand, DeleteBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { Router } from "express";
 
 // lib/s3.ts
@@ -51,9 +50,11 @@ var getS3ClientFromCredentials = (serverCredentials) => {
 
 // utils/auth.ts
 import { auth } from "@s3-viewer/auth";
+import { fromNodeHeaders } from "better-auth/node";
 var authGuard = (req, res, next) => {
+  console.log("Authenticating request");
   auth.api.getSession({
-    headers: new Headers(req.headers)
+    headers: fromNodeHeaders(req.headers)
   }).then((session) => {
     if (!session) {
       return res.status(401).json({
@@ -62,81 +63,14 @@ var authGuard = (req, res, next) => {
     }
     req.user = session.user;
     next();
-  }).catch(() => {
+  }).catch((error) => {
+    console.log("Auth error:", error);
     res.status(401).json({
       message: "Invalid session"
     });
   });
 };
 var auth_default = authGuard;
-
-// routes/connect.ts
-var connectRouter = Router();
-connectRouter.use(auth_default);
-connectRouter.post("/establish", async (req, res) => {
-  if (!req.user) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-  const credentials = req.body;
-  const s3Client = getS3ClientFromCredentials(credentials);
-  const response = await s3Client.send(new ListBucketsCommand({}));
-  if (response.Buckets) {
-    res.status(200).json({ message: "Server connected established successfully" });
-  } else {
-    res.status(400).json({ message: "Server connection failed, are you sure you're using the correct credentials?" });
-  }
-});
-connectRouter.post("/create", async (req, res) => {
-  if (!req.user) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-  const { serverCredentials, serverName } = req.body;
-  try {
-    const server2 = await prisma2.server.create({
-      data: {
-        credentials: JSON.stringify(serverCredentials),
-        name: serverName,
-        ownerId: req.user.id,
-        serverAccess: {
-          create: {
-            userId: req.user.id,
-            role: "OWNER",
-            canReadBuckets: true,
-            canCreateBuckets: true,
-            canDeleteBuckets: true,
-            canModifyFiles: true,
-            canModifyCors: true
-          }
-        }
-      }
-    });
-    res.status(200).json({ message: "Server created successfully", serverId: server2.id });
-  } catch (error) {
-    res.status(400).json({ message: "Server creation failed: " + error });
-  }
-});
-connectRouter.delete("/delete", async (req, res) => {
-  if (!req.user) {
-    res.status(401).json({ message: "Unauthorized" });
-    return;
-  }
-  const { serverId } = req.body;
-  try {
-    await prisma2.server.delete({
-      where: { id: serverId }
-    });
-    res.status(200).json({ message: "Server deleted successfully" });
-  } catch (error) {
-    res.status(400).json({ message: "Server deletion failed: " + error });
-  }
-});
-var connect_default = connectRouter;
-
-// routes/s3-operations/bucket.ts
-import { CreateBucketCommand, DeleteBucketCommand, ListBucketsCommand as ListBucketsCommand2 } from "@aws-sdk/client-s3";
-import { Router as Router2 } from "express";
 
 // utils/formatBuckets.ts
 var formatBuckets = (response) => {
@@ -148,9 +82,9 @@ var formatBuckets = (response) => {
 var formatBuckets_default = formatBuckets;
 
 // utils/permission.ts
-import { prisma as prisma3 } from "@s3-viewer/db";
+import { prisma as prisma2 } from "@s3-viewer/db";
 var hasPermissions = async (serverId, userId, authorizedRoles) => {
-  const accessPermissions = await prisma3.serverAccess.findUnique({
+  const accessPermissions = await prisma2.serverAccess.findUnique({
     where: {
       userId_serverId: {
         userId,
@@ -169,7 +103,7 @@ var hasPermissions = async (serverId, userId, authorizedRoles) => {
 var permission_default = hasPermissions;
 
 // routes/s3-operations/bucket.ts
-var bucketRouter = Router2();
+var bucketRouter = Router();
 bucketRouter.use(auth_default);
 bucketRouter.put("/create", async (req, res) => {
   const { bucketName, serverId, user } = req.body;
@@ -220,7 +154,7 @@ bucketRouter.get("/list", async (req, res) => {
     return;
   }
   const s3Client = await getS3Client(serverId);
-  const command = new ListBucketsCommand2({});
+  const command = new ListBucketsCommand({});
   try {
     const response = await s3Client.send(command);
     res.status(200).json(formatBuckets_default(response));
@@ -232,8 +166,8 @@ var bucket_default = bucketRouter;
 
 // routes/s3-operations/object.ts
 import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-import { Router as Router3 } from "express";
-var objectRouter = Router3();
+import { Router as Router2 } from "express";
+var objectRouter = Router2();
 objectRouter.use(auth_default);
 objectRouter.put("/create", async (req, res) => {
   const { bucketName, objectKey, file, contentType, serverId, user } = req.body;
@@ -362,6 +296,122 @@ objectRouter.post("/move", async (req, res) => {
 });
 var object_default = objectRouter;
 
+// routes/s3-servers/manage.ts
+import { ListBucketsCommand as ListBucketsCommand2 } from "@aws-sdk/client-s3";
+import { prisma as prisma3 } from "@s3-viewer/db";
+import { Router as Router3 } from "express";
+var manageRouter = Router3();
+manageRouter.use(auth_default);
+manageRouter.post("/establish", async (req, res) => {
+  console.log("Establishing connection");
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const credentials = req.body;
+  const s3Client = getS3ClientFromCredentials(credentials);
+  const response = await s3Client.send(new ListBucketsCommand2({}));
+  if (response.Buckets) {
+    res.status(200).json({ message: "Server connected established successfully" });
+  } else {
+    res.status(400).json({ message: "Server connection failed, are you sure you're using the correct credentials?" });
+  }
+});
+manageRouter.post("/create", async (req, res) => {
+  console.log("Creating server");
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const { serverCredentials, serverName } = req.body;
+  try {
+    const server2 = await prisma3.server.create({
+      data: {
+        credentials: JSON.stringify(serverCredentials),
+        name: serverName,
+        ownerId: req.user.id,
+        serverAccess: {
+          create: {
+            userId: req.user.id,
+            role: "OWNER"
+          }
+        }
+      }
+    });
+    res.status(200).json({ message: "Server created successfully", serverId: server2.id });
+  } catch (error) {
+    res.status(400).json({ message: "Server creation failed: " + error });
+  }
+});
+manageRouter.delete("/delete", async (req, res) => {
+  console.log("Deleting server");
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const { serverId } = req.body;
+  try {
+    await prisma3.server.delete({
+      where: { id: serverId }
+    });
+    res.status(200).json({ message: "Server deleted successfully" });
+  } catch (error) {
+    res.status(400).json({ message: "Server deletion failed: " + error });
+  }
+});
+var manage_default = manageRouter;
+
+// routes/s3-servers/retrieve.ts
+import { prisma as prisma4 } from "@s3-viewer/db";
+import { Router as Router4 } from "express";
+var retrieveRouter = Router4();
+retrieveRouter.use(auth_default);
+retrieveRouter.get("/get-servers", async (req, res) => {
+  console.log("Getting servers");
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const servers = await prisma4.serverAccess.findMany({
+    where: {
+      userId: req.user.id
+    },
+    select: {
+      server: {
+        select: {
+          id: true,
+          name: true,
+          storageUsed: true
+        }
+      }
+    }
+  });
+  const serversList = servers.map((server2) => ({
+    id: server2.server.id,
+    name: server2.server.name,
+    storageUsed: server2.server.storageUsed
+  }));
+  res.status(200).json({ serversList });
+});
+retrieveRouter.get("/get-server-name", async (req, res) => {
+  console.log("Getting server name");
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const { serverId } = req.query;
+  const serverName = await prisma4.server.findUnique({
+    where: {
+      id: serverId
+    },
+    select: {
+      name: true
+    }
+  });
+  res.status(200).json({ serverName });
+});
+var retrieve_default = retrieveRouter;
+
 // server.ts
 dotenv.config();
 var app = express();
@@ -376,7 +426,8 @@ app.all("/auth/{*any}", toNodeHandler(auth2));
 app.use(express.json());
 app.use("/bucket", bucket_default);
 app.use("/object", object_default);
-app.use("/connect", connect_default);
+app.use("/manage", manage_default);
+app.use("/retrieve", retrieve_default);
 app.get("/", (req, res) => {
   res.send("Can I see this?");
 });

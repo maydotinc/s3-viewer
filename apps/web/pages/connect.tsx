@@ -1,5 +1,5 @@
-import ConnectForm from "@/components/Connect/connectForm";
 import ViewerBanner from "@/components/Layout/Banner/banner";
+import ConnectForm from "@/components/Servers/connectForm";
 import {
     Card,
     CardContent,
