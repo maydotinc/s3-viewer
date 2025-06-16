@@ -28,11 +28,7 @@ retrieveRouter.get("/get-servers", async (req: Request, res: Response) => {
         }
     });
 
-    const serversList : ServerInfo[] = servers.map((server) => ({
-        id: server.server.id,
-        name: server.server.name,
-        storageUsed: server.server.storageUsed
-    }));
+    const serversList: ServerInfo[] = servers.map((server) => (server.server as ServerInfo));
     res.status(200).json({ serversList });
 });
 

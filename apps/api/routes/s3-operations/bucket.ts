@@ -9,9 +9,14 @@ const bucketRouter: Router = Router();
 bucketRouter.use(authGuard);
 
 bucketRouter.put("/create", async (req: Request, res: Response) => {
-    const { bucketName, serverId, user } = req.body;
+    const { bucketName, serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
 
@@ -31,9 +36,14 @@ bucketRouter.put("/create", async (req: Request, res: Response) => {
 });
 
 bucketRouter.delete("/delete", async (req: Request, res: Response) => {
-    const { bucketName, serverId, user } = req.body;
+    const { bucketName, serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
 
@@ -53,9 +63,14 @@ bucketRouter.delete("/delete", async (req: Request, res: Response) => {
 });
 
 bucketRouter.get("/list", async (req: Request, res: Response) => {
-    const { serverId, user } = req.body;
+    const { serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
 
@@ -65,7 +80,7 @@ bucketRouter.get("/list", async (req: Request, res: Response) => {
     }
 
     const s3Client = await getS3Client(serverId);
-    const command = new ListBucketsCommand({});    
+    const command = new ListBucketsCommand({});
     try {
         const response = await s3Client.send(command);
         res.status(200).json(formatBuckets(response));

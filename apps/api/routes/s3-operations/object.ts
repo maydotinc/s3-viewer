@@ -9,9 +9,14 @@ const objectRouter: Router = Router();
 objectRouter.use(authGuard);
 
 objectRouter.put("/create", async (req: Request, res: Response) => {
-    const { bucketName, objectKey, file, contentType, serverId, user } = req.body;
+    const { bucketName, objectKey, file, contentType, serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
     if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
@@ -30,9 +35,14 @@ objectRouter.put("/create", async (req: Request, res: Response) => {
 });
 
 objectRouter.get("/get", async (req: Request, res: Response) => {
-    const { bucketName, objectKey, serverId, user } = req.body;
+    const { bucketName, objectKey, serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
     if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
@@ -43,7 +53,7 @@ objectRouter.get("/get", async (req: Request, res: Response) => {
     const command = new GetObjectCommand({ Bucket: bucketName, Key: objectKey });
     try {
         const response = await s3Client.send(command);
-        
+
         res.setHeader('Content-Type', response.ContentType || 'application/octet-stream');
         if (response.ContentLength) {
             res.setHeader('Content-Length', response.ContentLength);
@@ -55,7 +65,7 @@ objectRouter.get("/get", async (req: Request, res: Response) => {
         if (response.LastModified) {
             res.setHeader('Last-Modified', response.LastModified.toUTCString());
         }
-        
+
         const stream = response.Body as Readable;
         stream.pipe(res);
         return new Promise((resolve) => {
@@ -68,9 +78,14 @@ objectRouter.get("/get", async (req: Request, res: Response) => {
 });
 
 objectRouter.delete("/delete", async (req: Request, res: Response) => {
-    const { bucketName, objectKey, serverId, user } = req.body;
+    const { bucketName, objectKey, serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
     if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
@@ -88,9 +103,14 @@ objectRouter.delete("/delete", async (req: Request, res: Response) => {
 });
 
 objectRouter.post("/copy", async (req: Request, res: Response) => {
-    const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+    const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
     if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
@@ -112,9 +132,14 @@ objectRouter.post("/copy", async (req: Request, res: Response) => {
 });
 
 objectRouter.post("/move", async (req: Request, res: Response) => {
-    const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+    const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } = req.body;
+    const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
+    if (!user) {
+        res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
     if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
