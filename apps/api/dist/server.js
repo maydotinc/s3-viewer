@@ -106,9 +106,14 @@ var permission_default = hasPermissions;
 var bucketRouter = Router();
 bucketRouter.use(auth_default);
 bucketRouter.put("/create", async (req, res) => {
-  const { bucketName, serverId, user } = req.body;
+  const { bucketName, serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN"])) {
@@ -125,9 +130,14 @@ bucketRouter.put("/create", async (req, res) => {
   }
 });
 bucketRouter.delete("/delete", async (req, res) => {
-  const { bucketName, serverId, user } = req.body;
+  const { bucketName, serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN"])) {
@@ -144,9 +154,14 @@ bucketRouter.delete("/delete", async (req, res) => {
   }
 });
 bucketRouter.get("/list", async (req, res) => {
-  const { serverId, user } = req.body;
+  const { serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
@@ -170,9 +185,14 @@ import { Router as Router2 } from "express";
 var objectRouter = Router2();
 objectRouter.use(auth_default);
 objectRouter.put("/create", async (req, res) => {
-  const { bucketName, objectKey, file, contentType, serverId, user } = req.body;
+  const { bucketName, objectKey, file, contentType, serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
@@ -190,9 +210,14 @@ objectRouter.put("/create", async (req, res) => {
   }
 });
 objectRouter.get("/get", async (req, res) => {
-  const { bucketName, objectKey, serverId, user } = req.body;
+  const { bucketName, objectKey, serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
@@ -225,9 +250,14 @@ objectRouter.get("/get", async (req, res) => {
   }
 });
 objectRouter.delete("/delete", async (req, res) => {
-  const { bucketName, objectKey, serverId, user } = req.body;
+  const { bucketName, objectKey, serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
@@ -244,9 +274,14 @@ objectRouter.delete("/delete", async (req, res) => {
   }
 });
 objectRouter.post("/copy", async (req, res) => {
-  const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+  const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
@@ -267,9 +302,14 @@ objectRouter.post("/copy", async (req, res) => {
   }
 });
 objectRouter.post("/move", async (req, res) => {
-  const { sourceBucket, sourceKey, targetBucket, targetKey, serverId, user } = req.body;
+  const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } = req.body;
+  const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
+  if (!user) {
+    res.status(401).json({ message: "Unauthorized, please login to continue" });
     return;
   }
   if (!permission_default(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
@@ -386,11 +426,7 @@ retrieveRouter.get("/get-servers", async (req, res) => {
       }
     }
   });
-  const serversList = servers.map((server2) => ({
-    id: server2.server.id,
-    name: server2.server.name,
-    storageUsed: server2.server.storageUsed
-  }));
+  const serversList = servers.map((server2) => server2.server);
   res.status(200).json({ serversList });
 });
 retrieveRouter.get("/get-server-name", async (req, res) => {

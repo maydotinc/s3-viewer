@@ -1,3 +1,4 @@
+import { ServerInfo } from "@s3-viewer/types";
 import { Bucket, BucketFolder } from "./types";
 
 export const fetchFolders = async () => {
@@ -7,7 +8,7 @@ export const fetchFolders = async () => {
     if (!response.ok) {
       return [];
     }
-    const folders : BucketFolder[] = data.map((bucket: Bucket) => ({
+    const folders: BucketFolder[] = data.map((bucket: Bucket) => ({
       Name: bucket.Name,
       CreationDate: bucket.CreationDate,
       Files: 0,
@@ -19,7 +20,7 @@ export const fetchFolders = async () => {
     console.error('Error fetching folders:', error);
     throw error;
   }
-}; 
+};
 
 export const fetchObjects = async (bucketName: string) => {
   try {
@@ -38,3 +39,24 @@ export const fetchObjects = async (bucketName: string) => {
     throw error;
   }
 };
+
+export const fetchServers = async () => {
+  try {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/retrieve/get-servers`, {
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch servers: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    return data.serversList as ServerInfo[];
+  } catch (error: any) {
+    console.error('Error fetching servers:', error);
+    throw error;
+  }
+}

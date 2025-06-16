@@ -20,7 +20,7 @@ const queryClient = new QueryClient();
 
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
   const getLayout = Component.getLayout ?? ((page) => page);
-  const page : ReactNode = getLayout(<Component {...pageProps} />);
+  const page: ReactNode = getLayout(<Component {...pageProps} />);
 
   return (
     <AuthGuard>
