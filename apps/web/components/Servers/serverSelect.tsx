@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import useSessionStore from "../../utils/sessionStore";
+import ServerCard from "./serverCard";
 
 const ServerSelector = () => {
     const setServerId = useSessionStore((state) => state.setServerId);
@@ -38,7 +39,7 @@ const ServerSelector = () => {
             <SelectContent>
                 {data?.map((server) => (
                     <SelectItem key={server.id} value={server.id}>
-                        <p>{server.name}</p>
+                        <ServerCard server={server} />
                     </SelectItem>
                 ))}
             </SelectContent>
