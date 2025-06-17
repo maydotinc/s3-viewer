@@ -20,7 +20,7 @@ const ServerCard = ({ server }: ServerCardProps) => {
                 <ServerIcon className="size-4" />
                 <p className="text-md font-semibold">{server.name}</p>
                 <div className="flex gap-2 items-center ml-auto border border-viewerborder rounded-full p-1.5 bg-viewerwhite">
-                    <ChevronsLeftRight className="size-4 rotate-90" />
+                    <ChevronsLeftRight className="size-4 rotate-90 text-viewertext" />
                 </div>
             </div>
             <div className="flex gap-2 items-center">

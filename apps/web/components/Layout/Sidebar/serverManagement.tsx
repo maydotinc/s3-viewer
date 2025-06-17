@@ -3,7 +3,7 @@ import { Card, CardContent, CardTitle } from "@s3-viewer/ui/components/card";
 
 const ServerManagement = () => {
     return (
-        <Card className="rounded-2xl w-full p-1">
+        <Card className="rounded-xl w-full p-1">
             <CardContent className="p-2 flex flex-col gap-2">
                 <CardTitle className="text-xs text-viewerlighttext">
                     SERVERS

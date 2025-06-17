@@ -1,6 +1,5 @@
 import { fetchServers } from "@/utils/fetching";
 import type { ServerInfo } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@s3-viewer/ui/components/dropdown-menu";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
@@ -37,20 +36,23 @@ const ServerSelector = () => {
             <DropdownMenuTrigger>
                 <ServerCard server={selectedServer} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="rounded-xl text-viewerblack">
+            <DropdownMenuContent>
                 <DropdownMenuRadioGroup value={serverId} onValueChange={setServerId}>
                     {data.map((server) => (
-                        <DropdownMenuRadioItem key={server.id} value={server.id} className="w-50">
+                        <DropdownMenuRadioItem
+                            key={server.id}
+                            value={server.id}
+                            className="w-50 text-viewerblack"
+                            onSelect={(e) => console.log("Radio item selected")}
+                        >
                             <ServerItem server={server} />
                         </DropdownMenuRadioItem>
                     ))}
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator className="w-19/20 bg-viewerborder mx-auto" />
-                <DropdownMenuItem className="p-0">
-                    <Button variant="ghost" className="gap-2">
-                        <CirclePlus className="size-5" />
-                        Add new server
-                    </Button>
+                <DropdownMenuItem className="py-2 text-viewerblack">
+                    <CirclePlus className="size-5" />
+                    Add new server
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
