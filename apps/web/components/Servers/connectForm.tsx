@@ -22,6 +22,7 @@ const AWS_REGIONS = [
 
 const formSchema = z.object({
     endpoint: z.string().url("Invalid endpoint URL"),
+    name: z.string().min(3, "Name is required"),
     accessKey: z.string().min(4, "Access key must be at least 4 characters"),
     secretKey: z.string().min(4, "Secret key must be at least 4 characters"),
     region: z.enum(AWS_REGIONS, {
@@ -42,6 +43,7 @@ const ConnectForm = () => {
         resolver: zodResolver(formSchema),
         defaultValues: {
             endpoint: "",
+            name: "",
             accessKey: "",
             secretKey: "",
             region: "us-east-1",
@@ -89,7 +91,7 @@ const ConnectForm = () => {
         }
     };
 
-    const onSubmit = async () => {
+    const onSubmit = async (data: ConnectFormData) => {
         setError(null);
         if (!connectedServerCreds) {
             setError("No server credentials found.");
@@ -102,7 +104,7 @@ const ConnectForm = () => {
                     "Content-Type": "application/json",
                 },
                 credentials: "include",
-                body: JSON.stringify({ serverCredentials: connectedServerCreds, serverName: "New Server" }),
+                body: JSON.stringify({ serverCredentials: connectedServerCreds, serverName: data.name }),
             });
 
             console.log("Response status:", response.status);
@@ -128,20 +130,36 @@ const ConnectForm = () => {
     return (
         <Form {...form}>
             <form className="space-y-6" onSubmit={form.handleSubmit(onSubmit)}>
-                <FormField
-                    control={form.control}
-                    name="endpoint"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel className="font-semibold">Server URL</FormLabel>
-                        <FormControl>
-                            <Input placeholder="AWS_S3_ENDPOINT" className="bg-viewergray" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
-                />
-                <div className="flex gap-2 items-center">
+                <div className="flex gap-2">
+                    <FormField
+                        control={form.control}
+                        name="endpoint"
+                        render={({ field }) => (
+                            <FormItem className="flex-[2]">
+                                <FormLabel className="font-semibold">Server URL</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="AWS_S3_ENDPOINT" className="bg-viewergray" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem className="flex-1">
+                                <FormLabel className="font-semibold">Server Name</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="New Server" className="bg-viewergray" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                </div>
+                
+                <div className="flex gap-2">
                     <FormField
                         control={form.control}
                         name="region"

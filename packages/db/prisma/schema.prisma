@@ -74,7 +74,7 @@ model Verification {
 //==== Server Management Models ====//
 model Server {
   id          String   @id @default(cuid())
-  name        String   @unique
+  name        String
   credentials Json // Encrypted AWS credentials
   storageUsed Float    @default(0) // Total storage used in bytes
   createdAt   DateTime @default(now())
@@ -85,6 +85,7 @@ model Server {
   owner        User           @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   serverAccess ServerAccess[]
 
+  @@unique([ownerId, name])
   @@index([ownerId])
 }
 
