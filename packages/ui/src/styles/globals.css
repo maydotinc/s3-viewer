@@ -9,6 +9,8 @@
   --color-viewertext: #525866;
   --color-viewerblack: #0E121B;
   --color-viewerlighttext: #99A0AE;
+  --color-viewertextred: #FB3748;
+  --color-viewerbgred: #FEEBEC;
 }
 
 :root {
@@ -27,7 +29,7 @@
   --muted-foreground: oklch(0.552 0.016 285.938);
   --accent: var(--color-viewergray);
   --accent-foreground: var(--color-viewerblue);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: var(--color-viewerbgred);
   --border: var(--color-viewerborder);
   --input: var(--color-viewerborder);
   --ring: var(--color-viewerblue);
@@ -132,6 +134,7 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

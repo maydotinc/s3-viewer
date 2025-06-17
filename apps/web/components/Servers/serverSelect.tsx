@@ -16,7 +16,7 @@ const ServerSelector = () => {
     const { data, isLoading, error } = useQuery<ServerInfo[]>({
         queryKey: ["servers-list"],
         queryFn: fetchServers
-    });    
+    });
 
     if (isLoading || !data) {
         return (
@@ -39,15 +39,15 @@ const ServerSelector = () => {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="rounded-xl text-viewerblack">
                 <DropdownMenuRadioGroup value={serverId} onValueChange={setServerId}>
-                {data.map((server) => (
-                    <DropdownMenuRadioItem key={server.id} value={server.id}>
-                        <ServerItem server={server} />
-                    </DropdownMenuRadioItem>
-                ))}
+                    {data.map((server) => (
+                        <DropdownMenuRadioItem key={server.id} value={server.id} className="w-50">
+                            <ServerItem server={server} />
+                        </DropdownMenuRadioItem>
+                    ))}
                 </DropdownMenuRadioGroup>
                 <DropdownMenuSeparator className="w-19/20 bg-viewerborder mx-auto" />
                 <DropdownMenuItem className="p-0">
-                    <Button variant="ghost" className="w-full gap-2">
+                    <Button variant="ghost" className="gap-2">
                         <CirclePlus className="size-5" />
                         Add new server
                     </Button>
