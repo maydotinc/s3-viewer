@@ -1,7 +1,7 @@
 import { ServerInfo } from "@s3-viewer/types";
 import { Bucket, BucketFolder } from "./types";
 
-export const fetchFolders = async () => {
+const fetchFolders = async () => {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/bucket/list`);
     const data = await response.json();
@@ -22,7 +22,7 @@ export const fetchFolders = async () => {
   }
 };
 
-export const fetchObjects = async (bucketName: string) => {
+const fetchObjects = async (bucketName: string) => {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/object/list?bucketName=${bucketName}`);
     const data = await response.json();
@@ -40,7 +40,7 @@ export const fetchObjects = async (bucketName: string) => {
   }
 };
 
-export const fetchServers = async () => {
+const fetchServers = async () => {
   try {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/retrieve/get-servers`, {
       credentials: "include",
@@ -60,3 +60,6 @@ export const fetchServers = async () => {
     throw error;
   }
 }
+
+export { fetchFolders, fetchObjects, fetchServers };
+

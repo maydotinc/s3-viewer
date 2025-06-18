@@ -63,7 +63,7 @@ bucketRouter.delete("/delete", async (req: Request, res: Response) => {
 });
 
 bucketRouter.get("/list", async (req: Request, res: Response) => {
-    const { serverId } = req.body;
+    const serverId = req.query.serverId as string;
     const user = req.user;
     if (!serverId) {
         res.status(400).json({ message: "Server ID is required" });
@@ -73,7 +73,6 @@ bucketRouter.get("/list", async (req: Request, res: Response) => {
         res.status(401).json({ message: "Unauthorized, please login to continue" });
         return;
     }
-
     if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
         res.status(403).json({ message: "User does not have permission to list buckets" });
         return;

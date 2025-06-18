@@ -54,11 +54,15 @@ manageRouter.post("/create", async (req: Request, res: Response) => {
 
 manageRouter.delete("/delete", async (req: Request, res: Response) => {
     console.log("Deleting server");
+    const { serverId } = req.body;
     if (!req.user) {
         res.status(401).json({ message: "Unauthorized" });
         return;
     }
-    const { serverId } = req.body;
+    if (!serverId) {
+        res.status(400).json({ message: "Server ID is required" });
+        return;
+    }
     try {
         await prisma.server.delete({
             where: { id: serverId }

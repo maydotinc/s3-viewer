@@ -154,7 +154,7 @@ bucketRouter.delete("/delete", async (req, res) => {
   }
 });
 bucketRouter.get("/list", async (req, res) => {
-  const { serverId } = req.body;
+  const serverId = req.query.serverId;
   const user = req.user;
   if (!serverId) {
     res.status(400).json({ message: "Server ID is required" });
@@ -385,11 +385,15 @@ manageRouter.post("/create", async (req, res) => {
 });
 manageRouter.delete("/delete", async (req, res) => {
   console.log("Deleting server");
+  const { serverId } = req.body;
   if (!req.user) {
     res.status(401).json({ message: "Unauthorized" });
     return;
   }
-  const { serverId } = req.body;
+  if (!serverId) {
+    res.status(400).json({ message: "Server ID is required" });
+    return;
+  }
   try {
     await prisma3.server.delete({
       where: { id: serverId }

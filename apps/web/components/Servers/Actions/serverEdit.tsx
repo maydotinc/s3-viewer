@@ -21,10 +21,7 @@ const ServerEdit = () => {
                     Edit
                 </div>
             </DialogTrigger>
-            <DialogContent
-                onOpenAutoFocus={(e) => e.preventDefault()}
-                onCloseAutoFocus={(e) => e.preventDefault()}
-            >
+            <DialogContent>
                 <DialogHeader className="flex flex-col gap-2 items-center text-center">
                     <div className="bg-viewergray border border-viewerborder rounded-2xl p-3 mb-2">
                         <Server className="size-10 text-viewerblue" />

@@ -1,8 +1,9 @@
 import { ServerInfo } from "@s3-viewer/types";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@s3-viewer/ui/components/dropdown-menu";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { ChevronRight, WifiOff } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useState } from "react";
+import ServerDisconnect from "./serverDisconnect";
 import ServerEdit from "./serverEdit";
 
 type ServerActionsProps = {
@@ -28,8 +29,7 @@ const ServerActions = ({ server }: ServerActionsProps) => {
                     variant="destructive"
                     onSelect={(e) => e.preventDefault()}
                 >
-                    <WifiOff className="size-4 text-viewertextred" />
-                    Disconnect Server
+                    <ServerDisconnect />
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

@@ -36,6 +36,7 @@ const Filter = ({ className }: FilterProps) => {
             setAllColumns(cols);
             setFilteredColumns(cols);
         }
+        console.log("Grid is ready");
     }, [gridReady]);
 
     useEffect(() => {
@@ -48,6 +49,7 @@ const Filter = ({ className }: FilterProps) => {
                 }
             }
         }
+        console.log(filteredColumns);
     }, [filteredColumns]);
     
     return (
