@@ -29,7 +29,7 @@ const ProfileDropdown = () => {
             <DropdownMenuTrigger asChild>
                 <Badge className="rounded-full border border-viewerborder p-0 m-0 h-fit flex items-center gap-2 justify-between select-none cursor-pointer">
                     <div className="flex items-center w-12 h-9">
-                        { image ? (
+                        {image ? (
                             <Image src={image} alt={"Profile"} className="rounded-full object-cover" fill />
                         ) : (
                             <CircleUserRound className="size-9" />

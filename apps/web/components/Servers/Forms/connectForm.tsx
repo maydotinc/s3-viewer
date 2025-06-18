@@ -59,7 +59,7 @@ const ConnectForm = () => {
             endpoint: data.endpoint,
             region: data.region,
         };
-        
+
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/establish`, {
                 method: "POST",
@@ -72,7 +72,7 @@ const ConnectForm = () => {
 
             console.log("Response status:", response.status);
             console.log("Response headers:", response.headers);
-            
+
             if (response.ok) {
                 const responseData = await response.json();
                 console.log("Success response:", responseData);
@@ -108,7 +108,7 @@ const ConnectForm = () => {
             });
 
             console.log("Response status:", response.status);
-            
+
             if (response.ok) {
                 const responseData = await response.json();
                 console.log("Success response:", responseData);
@@ -158,56 +158,55 @@ const ConnectForm = () => {
                         )}
                     />
                 </div>
-                
                 <div className="flex gap-2">
                     <FormField
                         control={form.control}
                         name="region"
                         render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="font-semibold">Region</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                    <SelectTrigger className="bg-viewergray">
-                                        <SelectValue placeholder="Select a region" />
-                                    </SelectTrigger>
-                                </FormControl>
-                                <SelectContent className="max-h-[200px]">
-                                    {AWS_REGIONS.map((region) => (
-                                        <SelectItem key={region} value={region}>
-                                            {region}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
+                            <FormItem>
+                                <FormLabel className="font-semibold">Region</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger className="bg-viewergray">
+                                            <SelectValue placeholder="Select a region" />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent className="max-h-[200px]">
+                                        {AWS_REGIONS.map((region) => (
+                                            <SelectItem key={region} value={region}>
+                                                {region}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
                         )}
                     />
                     <FormField
                         control={form.control}
                         name="accessKey"
                         render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="font-semibold">Access Key</FormLabel>
-                            <FormControl>
-                                <Input placeholder="your-access-key" className="bg-viewergray" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
+                            <FormItem>
+                                <FormLabel className="font-semibold">Access Key</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="your-access-key" className="bg-viewergray" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}
                     />
                     <FormField
                         control={form.control}
                         name="secretKey"
                         render={({ field }) => (
-                        <FormItem>
-                            <FormLabel className="font-semibold">Secret Key</FormLabel>
-                            <FormControl>
-                                <Input type="password" placeholder="your-secret-key" className="bg-viewergray" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                        </FormItem>
+                            <FormItem>
+                                <FormLabel className="font-semibold">Secret Key</FormLabel>
+                                <FormControl>
+                                    <Input type="password" placeholder="your-secret-key" className="bg-viewergray" {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
                         )}
                     />
                 </div>

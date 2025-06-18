@@ -399,6 +399,23 @@ manageRouter.delete("/delete", async (req, res) => {
     res.status(400).json({ message: "Server deletion failed: " + error });
   }
 });
+manageRouter.put("/update", async (req, res) => {
+  console.log("Updating server");
+  if (!req.user) {
+    res.status(401).json({ message: "Unauthorized" });
+    return;
+  }
+  const { serverId, newServerName, newServerCredentials } = req.body;
+  try {
+    await prisma3.server.update({
+      where: { id: serverId },
+      data: { credentials: JSON.stringify(newServerCredentials), name: newServerName }
+    });
+    res.status(200).json({ message: "Server updated successfully" });
+  } catch (error) {
+    res.status(400).json({ message: "Server update failed: " + error });
+  }
+});
 var manage_default = manageRouter;
 
 // routes/s3-servers/retrieve.ts

@@ -69,4 +69,22 @@ manageRouter.delete("/delete", async (req: Request, res: Response) => {
     }
 });
 
+manageRouter.put("/update", async (req: Request, res: Response) => {
+    console.log("Updating server");
+    if (!req.user) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+    }
+    const { serverId, newServerName, newServerCredentials } = req.body as { serverId: string, newServerName: string, newServerCredentials: ServerCredentials };
+    try {
+        await prisma.server.update({
+            where: { id: serverId },
+            data: { credentials: JSON.stringify(newServerCredentials), name: newServerName }
+        });
+        res.status(200).json({ message: "Server updated successfully" });
+    } catch (error) {
+        res.status(400).json({ message: "Server update failed: " + error });
+    }
+});
+
 export default manageRouter;

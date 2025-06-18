@@ -20,6 +20,7 @@ const ServerActions = ({ server }: ServerActionsProps) => {
             <DropdownMenuContent side="right" align="start" onCloseAutoFocus={(e) => e.preventDefault()}>
                 <DropdownMenuItem
                     onSelect={(e) => e.preventDefault()}
+                    className="cursor-pointer w-full"
                 >
                     <ServerEdit />
                 </DropdownMenuItem>
