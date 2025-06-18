@@ -1,5 +1,4 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 node_modules
 /.pnp
@@ -43,4 +42,9 @@ next-env.d.ts
 *.db
 sqlite.db
 
+# vscode
 .vscode
+
+# build artifacts
+/apps/api/dist
+/apps/web/dist

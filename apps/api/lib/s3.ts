@@ -11,14 +11,10 @@ const getS3Client = async (serverId: string) => {
       credentials: true,
     }
   });
-
   if (!server) {
     throw new Error("Server not found");
   }
-
   const credentials = JSON.parse(server.credentials as string);
-  console.log(credentials);
-
   return new S3Client({
     endpoint: credentials.endpoint,
     region: credentials.region,
