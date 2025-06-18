@@ -9,7 +9,7 @@ import ServerManagement from "./Sidebar/serverManagement";
 
 export function ViewerSidebar() {
   return (
-    <Sidebar className="top-[var(--header-height)]">
+    <Sidebar className="top-[var(--header-height)] select-none">
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupContent>

@@ -33,10 +33,10 @@ const ServerSelector = () => {
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger>
+            <DropdownMenuTrigger className="select-none">
                 <ServerCard server={selectedServer} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent className="select-none">
                 <DropdownMenuRadioGroup value={serverId} onValueChange={setServerId}>
                     {data.map((server) => (
                         <DropdownMenuRadioItem

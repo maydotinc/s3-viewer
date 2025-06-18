@@ -14,7 +14,8 @@ const ServerCard = ({ server }: ServerCardProps) => {
     }
 
     return (
-        <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 cursor-pointer">
+        <div
+            className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 cursor-pointer select-none">
             <div className="flex gap-2 items-center">
                 <Circle className="size-2 text-green-500" />
                 <ServerIcon className="size-4" />
