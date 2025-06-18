@@ -29,7 +29,7 @@ const ServerActions = ({ server }: ServerActionsProps) => {
                     variant="destructive"
                     onSelect={(e) => e.preventDefault()}
                 >
-                    <ServerDisconnect />
+                    <ServerDisconnect server={server} />
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>

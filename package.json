@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev --force",
-    "build": "turbo run build"
+    "build": "turbo run build",
+    "format": "prettier --write ."
   },
   "packageManager": "pnpm@10.12.1",
   "devDependencies": {
+    "prettier": "^3.5.3",
     "prisma": "^6.8.2",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
