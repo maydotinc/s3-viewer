@@ -474,11 +474,13 @@ dotenv.config();
 var app = express();
 app.disable("x-powered-by");
 app.use(urlencoded({ extended: true }));
-app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true
+  })
+);
 app.all("/auth/{*any}", toNodeHandler(auth2));
 app.use(express.json());
 app.use("/bucket", bucket_default);
@@ -488,8 +490,8 @@ app.use("/retrieve", retrieve_default);
 app.get("/", (req, res) => {
   res.send("Can I see this?");
 });
-var server = app.listen(process.env.PORT || 3001, () => {
-  console.log(`API Server is running on port ${process.env.PORT || 3001}`);
+var server = app.listen(process.env.PORT || 5001, () => {
+  console.log(`API Server is running on port ${process.env.PORT || 5001}`);
 });
 var connections = /* @__PURE__ */ new Set();
 server.on("connection", (connection) => {

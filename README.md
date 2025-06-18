@@ -1,7 +1,8 @@
 # S3Viewer
+
 ## Package manager and Shadcn
 
-This project uses pnpm as its package manger and shadcn components for modularity. 
+This project uses pnpm as its package manger and shadcn components for modularity.
 To add other shadcn components: cd packages/ui && pnpm dlx shadcn@latest add [component]
 
 ### DEV ENV
@@ -20,7 +21,7 @@ AWS_REGION=us-east-1
 **apps/web .env**
 
 ```
-NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_API_URL=http://localhost:5001
 ```
 
 **packages/db .env**

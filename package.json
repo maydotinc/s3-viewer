@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev --force",
-    "build": "turbo run build",
+    "build": "pnpm --filter @s3-viewer/db db:generate && turbo run build",
     "format": "prettier --write ."
   },
   "packageManager": "pnpm@10.12.1",
