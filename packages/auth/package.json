@@ -1,21 +1,22 @@
 {
-  "name": "@s3-viewer/auth",
-  "version": "0.0.0",
-  "type": "module",
-  "dependencies": {
-    "@s3-viewer/db": "workspace:*",
-    "better-auth": "^1.2.8",
-    "better-sqlite3": "^11.10.0",
-    "dotenv": "^16.5.0"
-  },
-  "devDependencies": {
-    "@better-auth/cli": "^1.2.8",
-    "@s3-viewer/eslint-config": "workspace:*",
-    "@s3-viewer/ts-config": "workspace:*",
-    "@types/better-sqlite3": "^7.6.13"
-  },
-  "exports": {
-    ".": "./lib/auth.ts",
-    "./client": "./lib/client.ts"
-  }
+   "name": "@s3-viewer/auth",
+   "version": "0.0.0",
+   "type": "module",
+   "dependencies": {
+      "@s3-viewer/db": "workspace:*",
+      "better-auth": "^1.2.8",
+      "better-sqlite3": "^11.10.0",
+      "dotenv": "^16.5.0",
+      "@s3-viewer/ui": "workspace:*"
+   },
+   "devDependencies": {
+      "@better-auth/cli": "^1.2.8",
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@types/better-sqlite3": "^7.6.13"
+   },
+   "exports": {
+      ".": "./lib/auth.ts",
+      "./client": "./lib/client.ts"
+   }
 }

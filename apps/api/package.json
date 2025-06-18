@@ -10,11 +10,12 @@
     "@aws-sdk/s3-request-presigner": "^3.802.0",
     "@s3-viewer/auth": "workspace:*",
     "@s3-viewer/db": "workspace:*",
-    "web": "workspace:*",
     "better-auth": "^1.2.8",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "web": "workspace:*",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@s3-viewer/eslint-config": "workspace:*",

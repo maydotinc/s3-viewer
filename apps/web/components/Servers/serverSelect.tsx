@@ -1,4 +1,4 @@
-import { fetchServers } from "@/utils/fetching";
+import { fetchServers } from "@/lib/utils/fetching";
 import type { ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -14,7 +14,7 @@ import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { CirclePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import useSessionStore from "../../utils/sessionStore";
+import useSessionStore from "../../lib/utils/sessionStore";
 import ServerCard from "./serverCard";
 import ServerItem from "./serverItem";
 
