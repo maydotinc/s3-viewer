@@ -99,6 +99,9 @@ importers:
       '@tanstack/react-table':
         specifier: ^8.21.3
         version: 8.21.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@types/lodash':
+        specifier: ^4.17.16
+        version: 4.17.17
       ag-grid-community:
         specifier: ^33.3.2
         version: 33.3.2
@@ -145,9 +148,6 @@ importers:
       '@tailwindcss/postcss':
         specifier: ^4.0.15
         version: 4.1.8
-      '@types/lodash':
-        specifier: ^4.17.17
-        version: 4.17.17
       '@types/node':
         specifier: ^20
         version: 20.17.57

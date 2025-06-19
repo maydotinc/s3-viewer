@@ -16,7 +16,7 @@ const SubmitButton = () => {
       setInvalidFields,
       verifying,
    } = useAuthStore();
-   const buttonText = authType === "signin" ? "Sign in" : "Sign up";
+   const buttonText = authType === "signin" ? "Sign in" : "Register";
 
    const handleSubmit = async () => {
       setLoading(true);
@@ -51,7 +51,12 @@ const SubmitButton = () => {
 
    return (
       <div className="flex flex-col gap-0">
-         <Button disabled={loading || verifying} className="w-full" onClick={handleSubmit}>
+         <Button
+            disabled={loading || verifying}
+            className="w-full"
+            variant="secondary"
+            onClick={handleSubmit}
+         >
             {loading || verifying ? <LoaderCircle className="animate-spin" /> : buttonText}
          </Button>
       </div>

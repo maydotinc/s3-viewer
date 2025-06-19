@@ -34,11 +34,13 @@ const NameInput = () => {
    };
 
    return (
-      <div className="flex flex-col gap-0">
-         <label className="text-sm font-medium text-black">Name</label>
+      <div className="flex flex-col">
+         <label htmlFor="name" className="text-sm font-medium text-black flex items-center gap-1">
+            Name<span className="text-lg text-viewerblue">*</span>
+         </label>
          <Input
             type="text"
-            placeholder="John Doe"
+            placeholder="James Brown"
             className={cn(
                "w-full transition-colors duration-300",
                invalidFields.includes("name") && "border-red-500"

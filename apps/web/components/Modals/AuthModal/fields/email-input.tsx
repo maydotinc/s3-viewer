@@ -4,12 +4,7 @@ import { cn, isValidEmail } from "@s3-viewer/ui/lib/utils";
 import { debounce } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
 
-interface EmailInputProps {
-   label?: string;
-   placeholder?: string;
-}
-
-const EmailInput = ({ label = "Email", placeholder = "john.doe@example.com" }: EmailInputProps) => {
+const EmailInput = () => {
    const { email, setEmail, invalidFields, setInvalidFields } = useAuthStore();
 
    const validateEmail = useCallback(
@@ -25,7 +20,6 @@ const EmailInput = ({ label = "Email", placeholder = "john.doe@example.com" }: E
    );
 
    const debouncedValidateEmail = useMemo(() => debounce(validateEmail, 500), [validateEmail]);
-
    useEffect(() => {
       return () => {
          debouncedValidateEmail.cancel();
@@ -39,14 +33,14 @@ const EmailInput = ({ label = "Email", placeholder = "john.doe@example.com" }: E
    };
 
    return (
-      <div className="flex flex-col gap-0">
-         <label htmlFor="email" className="text-sm font-medium text-black">
-            {label}
+      <div className="flex flex-col">
+         <label htmlFor="email" className="text-sm font-medium text-black flex items-center gap-1">
+            Email Address<span className="text-lg text-viewerblue">*</span>
          </label>
          <Input
             id="email"
             type="email"
-            placeholder={placeholder}
+            placeholder={"hello@gmail.com"}
             autoComplete="email"
             className={cn(
                "w-full transition-colors duration-300",
