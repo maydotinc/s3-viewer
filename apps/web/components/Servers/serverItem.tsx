@@ -1,4 +1,4 @@
-import useSessionStore from "@/lib/utils/sessionStore";
+import useSessionStore from "@/lib/sessionStore";
 import { ServerInfo } from "@s3-viewer/types";
 import { CircleIcon, ServerIcon } from "lucide-react";
 import ServerActions from "./Actions/serverActions";

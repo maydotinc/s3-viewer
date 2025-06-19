@@ -1,4 +1,4 @@
-import useSessionStore from "@/lib/utils/sessionStore";
+import useSessionStore from "@/lib/sessionStore";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ServerCredentials } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";

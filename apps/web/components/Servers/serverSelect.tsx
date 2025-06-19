@@ -14,7 +14,7 @@ import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { useQuery } from "@tanstack/react-query";
 import { CirclePlus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import useSessionStore from "../../lib/utils/sessionStore";
+import useSessionStore from "../../lib/sessionStore";
 import ServerCard from "./serverCard";
 import ServerItem from "./serverItem";
 
