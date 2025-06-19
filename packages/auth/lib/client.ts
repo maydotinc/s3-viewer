@@ -48,7 +48,7 @@ const signOut = async () => {
    return { success: true, data, error: null };
 };
 
-const sendVerificationOtp = async (type: "login" | "signup", email: string) => {
+const sendVerificationOtp = async (type: "signin" | "signup", email: string) => {
    const { exists, error } = await doesUserExist(email);
 
    if (error) {

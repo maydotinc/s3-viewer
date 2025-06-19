@@ -2,7 +2,7 @@ import { isValidEmail } from "@s3-viewer/ui/lib/utils";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
-export type AuthType = "login" | "signup";
+export type AuthType = "signin" | "signup";
 
 type InvalidField = "name" | "email";
 
@@ -34,7 +34,7 @@ type AuthStore = AuthState & AuthActions;
 
 const useAuthStore = create<AuthStore>()(
    immer((set) => ({
-      authType: "login",
+      authType: "signin",
       name: "",
       email: "",
       isValidEmail: false,
@@ -45,7 +45,7 @@ const useAuthStore = create<AuthStore>()(
 
       setInvalidFields: (invalidFields) => set({ invalidFields }),
       toggleAuthType: () =>
-         set((state) => ({ authType: state.authType === "login" ? "signup" : "login" })),
+         set((state) => ({ authType: state.authType === "signin" ? "signup" : "signin" })),
       setName: (name) => set({ name }),
       setEmail: (email) => set({ email }),
       setIsValidEmail: (isValidEmail) => set({ isValidEmail }),
