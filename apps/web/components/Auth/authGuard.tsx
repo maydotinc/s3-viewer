@@ -1,3 +1,4 @@
+import { useModalContext } from "@/lib/contexts/ModalContext";
 import { authClient } from "@s3-viewer/auth/client";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
@@ -5,17 +6,13 @@ import { useEffect } from "react";
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
    const router = useRouter();
    const { data: session, isPending } = authClient.useSession();
+   const { openAuthModal } = useModalContext();
 
    useEffect(() => {
-      if (!isPending && !session && router.pathname !== "/auth") {
-         router.push("/auth");
+      if (!isPending && !session) {
+         openAuthModal();
       }
-   }, [session, isPending, router, router.pathname]);
-
-   if (!session && router.pathname !== "/auth") {
-      return null;
-   }
-
+   }, [session, isPending, router.pathname]);
    return <>{children}</>;
 };
 

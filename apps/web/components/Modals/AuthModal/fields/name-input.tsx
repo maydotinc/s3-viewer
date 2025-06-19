@@ -1,8 +1,8 @@
+import useAuthStore from "@/lib/authStore";
 import { Input } from "@s3-viewer/ui/components/input";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { debounce } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
-import useAuthStore from "../../../lib/authStore";
 
 const NameInput = () => {
    const { name, setName, invalidFields, setInvalidFields } = useAuthStore();

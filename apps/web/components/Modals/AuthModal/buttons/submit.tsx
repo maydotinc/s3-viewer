@@ -1,8 +1,8 @@
+import useAuthStore from "@/lib/authStore";
 import { sendVerificationOtp } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import { isValidEmail } from "@s3-viewer/ui/lib/utils";
 import { LoaderCircle } from "lucide-react";
-import useAuthStore from "../../../lib/authStore";
 
 const SubmitButton = () => {
    const {

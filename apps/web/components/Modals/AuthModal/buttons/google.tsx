@@ -1,6 +1,6 @@
+import useAuthStore from "@/lib/authStore";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Link } from "lucide-react";
-import useAuthStore from "../../../lib/authStore";
 
 const SubmitButton = () => {
    const { authType } = useAuthStore();

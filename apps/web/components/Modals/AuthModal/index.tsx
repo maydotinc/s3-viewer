@@ -4,7 +4,6 @@ import {
    DialogDescription,
    DialogHeader,
    DialogTitle,
-   DialogTrigger,
 } from "@s3-viewer/ui/components/dialog";
 
 // Fields
@@ -17,9 +16,14 @@ import GoogleButton from "./buttons/google";
 import SubmitButton from "./buttons/submit";
 
 // Auth utils
-import useAuthStore from "../../../lib/authStore";
+import useAuthStore from "@/lib/authStore";
+import { UserRoundPlus } from "lucide-react";
 
-const AuthModal = ({ children }: { children: React.ReactNode }) => {
+type AuthModalProps = {
+   onClose: () => void;
+};
+
+const AuthModal = ({ onClose }: AuthModalProps) => {
    const { authType, toggleAuthType, otpSent: isVerificationStage, email, reset } = useAuthStore();
 
    const getDialogText = () => {
@@ -31,7 +35,7 @@ const AuthModal = ({ children }: { children: React.ReactNode }) => {
       }
 
       return {
-         title: authType === "signin" ? "Login to your account" : "Create your account",
+         title: authType === "signin" ? "Login to your account" : "Create a new account",
          description:
             authType === "signin"
                ? "Enter your details to login"
@@ -66,20 +70,14 @@ const AuthModal = ({ children }: { children: React.ReactNode }) => {
    };
 
    return (
-      <Dialog>
-         <DialogTrigger asChild>{children}</DialogTrigger>
+      <Dialog open={true} onOpenChange={onClose}>
          <DialogContent className="max-w-[95%] xs:max-w-lg sm:max-w-md overflow-hidden min-h-[380px]">
-            <DialogHeader className="mt-6 flex flex-col items-center text-center gap-5">
-               <DialogTitle>
-                  <img
-                     draggable={false}
-                     src="/logos/full.svg"
-                     alt="logo"
-                     className="h-7 w-auto select-none"
-                  />
-               </DialogTitle>
+            <DialogHeader className="flex flex-col items-center text-center gap-2">
+               <div className="bg-viewergray border border-viewerborder rounded-2xl p-2">
+                  <UserRoundPlus className="size-10 text-viewerblue" />
+               </div>
+               <DialogTitle>{title}</DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
-                  <span className="text-black text-4xl font-semibold">{title}</span>
                   <span className="text-base font-normal">{description}</span>
                </DialogDescription>
             </DialogHeader>

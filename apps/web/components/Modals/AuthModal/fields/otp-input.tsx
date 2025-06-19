@@ -1,7 +1,7 @@
+import useAuthStore from "@/lib/authStore";
 import { authClient, verifyOtp } from "@s3-viewer/auth/client";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import React, { useEffect, useRef, useState } from "react";
-import useAuthStore from "../../../lib/authStore";
 
 interface OTPInputProps {
    length?: number;

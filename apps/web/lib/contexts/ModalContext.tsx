@@ -1,40 +1,26 @@
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
 type ModalType = "auth" | "connect" | "createBucket" | "createObject";
-interface ModalState {
-   type: ModalType;
-   props: ModalPropsMap[ModalType];
-}
-
 interface ModalContextType {
-   openModal: <T extends ModalType>(modalType: T, modalProps: ModalPropsMap[T]) => void;
+   openModal: (modalType: ModalType) => void;
    closeModal: (modalType: ModalType) => void;
-   modals: ModalState[];
+   modals: ModalType[];
    closeAllModals: () => void;
 }
 
-interface ModalPropsMap {
-   auth: { page: "login" | "signup" };
-   connect: {};
-   createBucket: {};
-   createObject: {};
-}
 const ModalContext = createContext<ModalContextType | undefined>(undefined);
 
 export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-   const [modals, setModals] = useState<ModalState[]>([]);
+   const [modals, setModals] = useState<ModalType[]>([]);
 
-   const openModal = <T extends ModalType>(type: T, props: ModalPropsMap[T]) => {
+   const openModal = (type: ModalType) => {
       window.document.body.style.overflow = "hidden";
-      setModals((prevModals) => [
-         ...prevModals,
-         { type, props: props as ModalPropsMap[ModalType] },
-      ]);
+      setModals((prevModals) => [...prevModals, type]);
    };
 
    const closeModal = (modalType: ModalType) => {
       window.document.body.style.overflow = "auto";
-      setModals((prevModals) => prevModals.filter((modal) => modal.type !== modalType));
+      setModals((prevModals) => prevModals.filter((modal) => modal !== modalType));
    };
 
    const closeAllModals = () => {
@@ -62,11 +48,9 @@ export const useModalContext = () => {
    }
    return {
       ...context,
-      openAuthModal: (props: ModalPropsMap["auth"]) => context.openModal("auth", props),
-      openConnectModal: (props: ModalPropsMap["connect"]) => context.openModal("connect", props),
-      openCreateBucketModal: (props: ModalPropsMap["createBucket"]) =>
-         context.openModal("createBucket", props),
-      openCreateObjectModal: (props: ModalPropsMap["createObject"]) =>
-         context.openModal("createObject", props),
+      openAuthModal: () => context.openModal("auth"),
+      openConnectModal: () => context.openModal("connect"),
+      openCreateBucketModal: () => context.openModal("createBucket"),
+      openCreateObjectModal: () => context.openModal("createObject"),
    };
 };

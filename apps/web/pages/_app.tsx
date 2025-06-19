@@ -1,4 +1,6 @@
 import AuthGuard from "@/components/Auth/authGuard";
+import ModalManager from "@/components/Modals/ModalManager";
+import { ModalProvider } from "@/lib/contexts/ModalContext";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
 import "@s3-viewer/ui/globals.css";
@@ -24,13 +26,16 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
    const page: ReactNode = getLayout(<Component {...pageProps} />);
 
    return (
-      <AuthGuard>
-         <QueryClientProvider client={queryClient}>
-            <SidebarProvider>
-               <Toaster />
-               <div className={`${inter.className} h-screen h-[100dvh] w-full`}>{page}</div>
-            </SidebarProvider>
-         </QueryClientProvider>
-      </AuthGuard>
+      <ModalProvider>
+         <AuthGuard>
+            <QueryClientProvider client={queryClient}>
+               <SidebarProvider>
+                  <Toaster />
+                  <ModalManager />
+                  <div className={`${inter.className} h-screen h-[100dvh] w-full`}>{page}</div>
+               </SidebarProvider>
+            </QueryClientProvider>
+         </AuthGuard>
+      </ModalProvider>
    );
 }

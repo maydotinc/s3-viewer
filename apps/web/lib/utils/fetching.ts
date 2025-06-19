@@ -22,7 +22,7 @@ const fetchFolders = async () => {
       return folders;
    } catch (error: any) {
       console.error("Error fetching folders:", error);
-      throw error;
+      return [];
    }
 };
 
@@ -42,7 +42,7 @@ const fetchObjects = async (bucketName: string) => {
       return data.objects.map((object: { key: string }) => object.key);
    } catch (error: any) {
       console.error("Error fetching objects:", error);
-      throw error;
+      return [];
    }
 };
 
@@ -56,14 +56,15 @@ const fetchServers = async () => {
       });
 
       if (!response.ok) {
-         throw new Error(`Failed to fetch servers: ${response.status} ${response.statusText}`);
+         console.error("Failed to fetch servers:", response.statusText);
+         return [];
       }
 
       const data = await response.json();
       return data.serversList as ServerInfo[];
    } catch (error: any) {
       console.error("Error fetching servers:", error);
-      throw error;
+      return [];
    }
 };
 

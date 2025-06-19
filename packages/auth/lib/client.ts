@@ -33,11 +33,11 @@ const doesUserExist = async (email: string) => {
    }
 };
 
-const signOut = async () => {
+const signOut = async (successUrl: string) => {
    const { data, error } = await authClient.signOut({
       fetchOptions: {
          onSuccess: () => {
-            window.location.href = "/";
+            window.location.href = successUrl;
          },
       },
    });
