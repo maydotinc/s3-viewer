@@ -25,7 +25,7 @@ type AuthModalProps = {
    onClose: () => void;
 };
 
-const AuthModal = ({ onClose }: AuthModalProps) => {
+const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
    const { authType, toggleAuthType, otpSent: isVerificationStage, email, reset } = useAuthStore();
 
    const getDialogText = () => {

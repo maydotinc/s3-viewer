@@ -1,7 +1,7 @@
 import { authClient } from "@s3-viewer/auth/client";
 import Image from "next/image";
 import Link from "next/link";
-import ProfileDropdown from "./profileDropdown";
+import ProfileDropdown from "./profile-dropdown";
 
 export default function ViewerBanner({ children }: { children: React.ReactNode }) {
    const { data: session } = authClient.useSession();

@@ -26,7 +26,7 @@ type ConnectModalProps = {
    onClose: () => void;
 };
 
-const ConnectModal = ({ onClose }: ConnectModalProps) => {
+const ConnectModal: React.FC<ConnectModalProps> = ({ onClose }) => {
    const { serverFound, error: connectError } = useConnectStore();
    const { data, isLoading } = useServers();
 
@@ -67,7 +67,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                <SubmitButton onClose={onClose} />
                {serverFound && <ResetButton />}
             </DialogFooter>
-            {connectError && <span className="text-red-500">{connectError}</span>}
+            {connectError && <span className="text-red-500 text-sm">{connectError}</span>}
          </DialogContent>
       </Dialog>
    );

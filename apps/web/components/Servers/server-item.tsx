@@ -1,7 +1,7 @@
 import useSessionStore from "@/lib/stores/sessionStore";
 import { ServerInfo } from "@s3-viewer/types";
 import { CircleIcon, ServerIcon } from "lucide-react";
-import ServerActions from "./Actions/serverActions";
+import ServerActions from "./server-actions";
 
 type ServerItemProps = {
    server: ServerInfo;

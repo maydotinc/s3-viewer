@@ -1,3 +1,4 @@
+import { useModalContext } from "@/lib/contexts/ModalContext";
 import { ServerInfo } from "@s3-viewer/types";
 import {
    DropdownMenu,
@@ -6,10 +7,8 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, PenLine, WifiOff } from "lucide-react";
 import { useState } from "react";
-import ServerDisconnect from "./disconnect/serverDisconnect";
-import ServerEdit from "./edit";
 
 type ServerActionsProps = {
    server: ServerInfo;
@@ -17,6 +16,7 @@ type ServerActionsProps = {
 
 const ServerActions = ({ server }: ServerActionsProps) => {
    const [isOpen, setIsOpen] = useState(false);
+   const { openModal } = useModalContext();
 
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -31,13 +31,25 @@ const ServerActions = ({ server }: ServerActionsProps) => {
             onCloseAutoFocus={(e) => e.preventDefault()}
          >
             <DropdownMenuItem
-               onSelect={(e) => e.preventDefault()}
-               className="cursor-pointer w-full"
+               className="flex items-center gap-2 cursor-pointer size-full"
+               onSelect={(e) => {
+                  e.preventDefault();
+                  openModal("rename", { server });
+               }}
             >
-               <ServerEdit serverId={server.id} />
+               <PenLine className="size-4" />
+               Rename
             </DropdownMenuItem>
-            <DropdownMenuItem variant="destructive" onSelect={(e) => e.preventDefault()}>
-               <ServerDisconnect server={server} />
+            <DropdownMenuItem
+               variant="destructive"
+               className="flex items-center gap-2 cursor-pointer size-full"
+               onSelect={(e) => {
+                  e.preventDefault();
+                  openModal("disconnect", { server });
+               }}
+            >
+               <WifiOff className="size-4 text-viewertextred" />
+               Disconnect
             </DropdownMenuItem>
          </DropdownMenuContent>
       </DropdownMenu>

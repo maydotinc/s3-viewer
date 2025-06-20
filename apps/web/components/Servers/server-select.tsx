@@ -13,8 +13,8 @@ import {
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { CirclePlus } from "lucide-react";
 import useSessionStore from "../../lib/stores/sessionStore";
-import ServerCard from "./serverCard";
-import ServerItem from "./serverItem";
+import ServerCard from "./server-card";
+import ServerItem from "./server-item";
 
 const ServerSelector = () => {
    const setServerId = useSessionStore((state) => state.setServerId);
