@@ -1,5 +1,5 @@
 import { ServerInfo } from "@s3-viewer/types";
-import useSessionStore from "../sessionStore";
+import useSessionStore from "../stores/sessionStore";
 import { Bucket, BucketFolder } from "./types";
 
 const fetchFolders = async () => {

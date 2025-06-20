@@ -87,6 +87,7 @@ model Server {
 
   @@unique([ownerId, name])
   @@index([ownerId])
+  @@map("server")
 }
 
 model ServerAccess {
@@ -104,6 +105,7 @@ model ServerAccess {
   @@unique([userId, serverId])
   @@index([userId])
   @@index([serverId])
+  @@map("server_access")
 }
 
 enum Role {

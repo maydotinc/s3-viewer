@@ -1,4 +1,4 @@
-import useAuthStore from "@/lib/authStore";
+import useAuthStore from "@/lib/stores/authStore";
 import { Input } from "@s3-viewer/ui/components/input";
 import { cn, isValidEmail } from "@s3-viewer/ui/lib/utils";
 import { debounce } from "lodash";
@@ -43,7 +43,7 @@ const EmailInput = () => {
             placeholder={"hello@gmail.com"}
             autoComplete="email"
             className={cn(
-               "w-full transition-colors duration-300",
+               "w-full transition-colors duration-300 text-black",
                invalidFields.includes("email") && "border-red-500"
             )}
             value={email}

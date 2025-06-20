@@ -1,5 +1,6 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import AuthModal from "./AuthModal";
+import ConnectModal from "./ConnectModal";
 
 const ModalManager = () => {
    const { modals, closeModal } = useModalContext();
@@ -9,14 +10,11 @@ const ModalManager = () => {
             switch (modal) {
                case "auth":
                   return <AuthModal key={`auth-${index}`} onClose={() => closeModal("auth")} />;
-               //    case "connect":
-               //       return (
-               //          <PurchaseModal
-               //             key={`purchase-${index}`}
-               //             {...modal.props}
-               //             onClose={() => closeModal("purchase")}
-               //          />
-               //       );
+               case "connect":
+                  return (
+                     <ConnectModal key={`connect-${index}`} onClose={() => closeModal("connect")} />
+                  );
+
                //    case "viewPurchased":
                //       return (
                //          <ViewPurchasedVideoModal

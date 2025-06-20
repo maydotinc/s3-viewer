@@ -5,12 +5,12 @@ const Toaster = () => {
       <SonnerToaster
          position="bottom-left"
          toastOptions={{
+            duration: 3000,
             style: {
                background: "#FFFFFF",
-               color: "#545454",
+               color: "#525866",
                border: "1px solid #E2E2E2",
             },
-            className: "font-medium",
          }}
       />
    );

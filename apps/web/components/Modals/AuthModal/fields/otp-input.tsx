@@ -1,4 +1,4 @@
-import useAuthStore from "@/lib/authStore";
+import useAuthStore from "@/lib/stores/authStore";
 import { authClient, verifyOtp } from "@s3-viewer/auth/client";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import React, { useEffect, useRef, useState } from "react";

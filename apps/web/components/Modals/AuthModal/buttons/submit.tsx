@@ -1,4 +1,4 @@
-import useAuthStore from "@/lib/authStore";
+import useAuthStore from "@/lib/stores/authStore";
 import { sendVerificationOtp } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import { isValidEmail } from "@s3-viewer/ui/lib/utils";
@@ -12,11 +12,12 @@ const SubmitButton = () => {
       loading,
       setLoading,
       setOtpSent,
+      otpSent,
       invalidFields,
       setInvalidFields,
       verifying,
    } = useAuthStore();
-   const buttonText = authType === "signin" ? "Sign in" : "Register";
+   const buttonText = otpSent ? "Verify" : authType === "signin" ? "Send Code" : "Register";
 
    const handleSubmit = async () => {
       setLoading(true);

@@ -13,8 +13,6 @@ declare global {
 }
 
 const authGuard = (req: Request, res: Response, next: NextFunction) => {
-   console.log("Authenticating request:", req.headers);
-
    auth.api
       .getSession({
          headers: fromNodeHeaders(req.headers),

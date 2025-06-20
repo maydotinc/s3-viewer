@@ -1,4 +1,4 @@
-import useAuthStore from "@/lib/authStore";
+import useAuthStore from "@/lib/stores/authStore";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Link } from "lucide-react";
 

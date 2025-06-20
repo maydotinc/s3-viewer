@@ -1,4 +1,4 @@
-import useAuthStore from "@/lib/authStore";
+import useAuthStore from "@/lib/stores/authStore";
 import { Input } from "@s3-viewer/ui/components/input";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { debounce } from "lodash";
@@ -42,7 +42,7 @@ const NameInput = () => {
             type="text"
             placeholder="James Brown"
             className={cn(
-               "w-full transition-colors duration-300",
+               "w-full transition-colors duration-300 text-black",
                invalidFields.includes("name") && "border-red-500"
             )}
             value={name}
