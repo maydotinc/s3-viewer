@@ -1,5 +1,5 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import { fetchServers } from "@/lib/utils/fetching";
+import { fetchServers } from "@/lib/utils/serverRequests";
 import type { ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {

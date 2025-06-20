@@ -1,0 +1,96 @@
+import { ServerCredentials, ServerInfo } from "@s3-viewer/types";
+import { toast } from "@s3-viewer/ui/components/toast";
+
+const establishConnection = async (credentials: ServerCredentials) => {
+   try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/establish`, {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         credentials: "include",
+         body: JSON.stringify(credentials),
+      });
+      if (!response.ok) {
+         toast.error("Failed to establish connection");
+         return { success: false, error: (await response.json()).message };
+      }
+      return { success: true, message: (await response.json()).message };
+   } catch (error: any) {
+      console.error("Error establishing connection:", error);
+      return { success: false, error: error.message };
+   }
+};
+
+const createServer = async (serverCredentials: ServerCredentials, serverName: string) => {
+   try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/create`, {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         credentials: "include",
+         body: JSON.stringify({ serverCredentials, serverName }),
+      });
+      if (!response.ok) {
+         toast.error("Failed to create server");
+         return { success: false, error: (await response.json()).message };
+      }
+      toast.success("Server created successfully");
+      const data = await response.json();
+      return {
+         success: true,
+         message: data.message,
+         serverId: data.serverId,
+      };
+   } catch (error: any) {
+      console.error("Error creating server:", error);
+      return { success: false, error: error.message };
+   }
+};
+
+const deleteServer = async (serverId: string) => {
+   try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/delete`, {
+         method: "DELETE",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         credentials: "include",
+         body: JSON.stringify({ serverId }),
+      });
+      if (!response.ok) {
+         toast.error("Failed to delete server");
+         return { success: false, error: (await response.json()).message };
+      }
+      toast.success("Server deleted successfully");
+      return { success: true, message: (await response.json()).message };
+   } catch (error: any) {
+      console.error("Error deleting server:", error);
+      return { success: false, error: error.message };
+   }
+};
+
+const fetchServers = async () => {
+   try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/retrieve/get-servers`, {
+         credentials: "include",
+         headers: {
+            "Content-Type": "application/json",
+         },
+      });
+
+      if (!response.ok) {
+         toast.error("Failed to fetch servers");
+         return [];
+      }
+
+      const data = await response.json();
+      return data.serversList as ServerInfo[];
+   } catch (error: any) {
+      console.error("Error fetching servers:", error);
+      return [];
+   }
+};
+
+export { createServer, deleteServer, establishConnection, fetchServers };

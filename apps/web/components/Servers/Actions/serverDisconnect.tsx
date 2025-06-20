@@ -1,3 +1,4 @@
+import { deleteServer } from "@/lib/utils/serverRequests";
 import { ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -24,28 +25,16 @@ const ServerDisconnect = ({ server }: ServerDisconnectProps) => {
    const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
    const handleDisconnect = async () => {
-      console.log("disconnecting server");
       try {
-         const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/manage/delete`,
-            {
-               method: "DELETE",
-               body: JSON.stringify({
-                  serverId: server.id,
-               }),
-               headers: {
-                  "Content-Type": "application/json",
-               },
-               credentials: "include",
-            }
-         );
-         if (!response.ok) {
-            setDisconnectError("Failed to disconnect server");
+         const { success, message } = await deleteServer(server.id);
+         if (!success) {
+            setDisconnectError(message);
             return;
          }
-         console.log("server disconnected");
          queryClient.invalidateQueries({ queryKey: ["servers-list"] });
          queryClient.fetchQuery({ queryKey: ["servers-list"] });
+         setDisconnectError(null);
+         setIsOpen(false);
       } catch (e) {
          console.error(e);
          setDisconnectError("Failed to disconnect server");
@@ -67,8 +56,8 @@ const ServerDisconnect = ({ server }: ServerDisconnectProps) => {
                </div>
                <DialogTitle>Disconnect Server</DialogTitle>
                <DialogDescription>
-                  Are you sure you want to disconnect this server? You will need
-                  to reconnect the server manually to use it again.
+                  Are you sure you want to disconnect this server? You will need to reconnect the
+                  server manually to use it again.
                </DialogDescription>
             </DialogHeader>
             <DialogFooter>
@@ -77,18 +66,12 @@ const ServerDisconnect = ({ server }: ServerDisconnectProps) => {
                      Cancel
                   </Button>
                </DialogClose>
-               <Button
-                  variant="destructive"
-                  className="flex-1"
-                  onClick={handleDisconnect}
-               >
+               <Button variant="destructive" className="flex-1" onClick={handleDisconnect}>
                   Disconnect
                </Button>
             </DialogFooter>
             {disconnectError && (
-               <p className="text-viewertextred text-sm text-center">
-                  {disconnectError}
-               </p>
+               <p className="text-viewertextred text-sm text-center">{disconnectError}</p>
             )}
          </DialogContent>
       </Dialog>

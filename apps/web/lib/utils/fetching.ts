@@ -1,4 +1,3 @@
-import { ServerInfo } from "@s3-viewer/types";
 import useSessionStore from "../stores/sessionStore";
 import { Bucket, BucketFolder } from "./types";
 
@@ -46,26 +45,4 @@ const fetchObjects = async (bucketName: string) => {
    }
 };
 
-const fetchServers = async () => {
-   try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/retrieve/get-servers`, {
-         credentials: "include",
-         headers: {
-            "Content-Type": "application/json",
-         },
-      });
-
-      if (!response.ok) {
-         console.error("Failed to fetch servers:", response.statusText);
-         return [];
-      }
-
-      const data = await response.json();
-      return data.serversList as ServerInfo[];
-   } catch (error: any) {
-      console.error("Error fetching servers:", error);
-      return [];
-   }
-};
-
-export { fetchFolders, fetchObjects, fetchServers };
+export { fetchFolders, fetchObjects };

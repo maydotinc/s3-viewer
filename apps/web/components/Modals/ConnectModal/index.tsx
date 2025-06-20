@@ -1,5 +1,5 @@
 import useConnectStore from "@/lib/stores/connectStore";
-import { fetchServers } from "@/lib/utils/fetching";
+import { fetchServers } from "@/lib/utils/serverRequests";
 import { ServerInfo } from "@s3-viewer/types";
 import {
    Dialog,
@@ -57,13 +57,13 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                   <span>Enter credentials to link the server</span>
                </DialogDescription>
             </DialogHeader>
-            <div className={serverFound ? "hidden" : "flex flex-col gap-4"}>
+            <div className="flex flex-col gap-4">
                <EndpointInput />
                <NameInput />
                <RegionInput />
                <AccessKeyInput />
                <SecretKeyInput />
-               <SubmitButton />
+               <SubmitButton onClose={onClose} />
             </div>
             {connectError && <span className="text-red-500">{connectError}</span>}
          </DialogContent>
