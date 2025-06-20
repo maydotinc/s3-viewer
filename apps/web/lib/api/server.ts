@@ -1,7 +1,29 @@
 import { ServerCredentials, ServerInfo } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 
-const establishConnection = async (credentials: ServerCredentials) => {
+const fetchServersAPI = async (): Promise<ServerInfo[]> => {
+   try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/retrieve/get-servers`, {
+         credentials: "include",
+         headers: {
+            "Content-Type": "application/json",
+         },
+      });
+
+      if (!response.ok) {
+         toast.error("Failed to fetch servers");
+         return [];
+      }
+
+      const data = await response.json();
+      return data.serversList as ServerInfo[];
+   } catch (error: any) {
+      console.error("Error fetching servers:", error);
+      return [];
+   }
+};
+
+const establishConnectionAPI = async (credentials: ServerCredentials) => {
    try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/establish`, {
          method: "POST",
@@ -15,14 +37,15 @@ const establishConnection = async (credentials: ServerCredentials) => {
          toast.error("Failed to establish connection");
          return { success: false, error: (await response.json()).message };
       }
-      return { success: true, message: (await response.json()).message };
+      const data = await response.json();
+      return { success: true, message: data.message, bucketCount: data.bucketCount };
    } catch (error: any) {
       console.error("Error establishing connection:", error);
       return { success: false, error: error.message };
    }
 };
 
-const createServer = async (serverCredentials: ServerCredentials, serverName: string) => {
+const createServerAPI = async (serverCredentials: ServerCredentials, serverName: string) => {
    try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/create`, {
          method: "POST",
@@ -49,7 +72,7 @@ const createServer = async (serverCredentials: ServerCredentials, serverName: st
    }
 };
 
-const deleteServer = async (serverId: string) => {
+const deleteServerAPI = async (serverId: string) => {
    try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/delete`, {
          method: "DELETE",
@@ -71,26 +94,32 @@ const deleteServer = async (serverId: string) => {
    }
 };
 
-const fetchServers = async () => {
+const renameServerAPI = async (serverId: string, serverName: string) => {
    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/retrieve/get-servers`, {
-         credentials: "include",
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/rename`, {
+         method: "PUT",
          headers: {
             "Content-Type": "application/json",
          },
+         credentials: "include",
+         body: JSON.stringify({ serverId, serverName }),
       });
-
       if (!response.ok) {
-         toast.error("Failed to fetch servers");
-         return [];
+         toast.error("Failed to rename server");
+         return { success: false, error: (await response.json()).message };
       }
-
-      const data = await response.json();
-      return data.serversList as ServerInfo[];
+      toast.success("Server renamed successfully");
+      return { success: true, message: (await response.json()).message };
    } catch (error: any) {
-      console.error("Error fetching servers:", error);
-      return [];
+      console.error("Error renaming server:", error);
+      return { success: false, error: error.message };
    }
 };
 
-export { createServer, deleteServer, establishConnection, fetchServers };
+export {
+   createServerAPI,
+   deleteServerAPI,
+   establishConnectionAPI,
+   fetchServersAPI,
+   renameServerAPI,
+};

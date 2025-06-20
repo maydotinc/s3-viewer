@@ -1,6 +1,5 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import { fetchServers } from "@/lib/utils/serverRequests";
-import type { ServerInfo } from "@s3-viewer/types";
+import { useServers } from "@/lib/hooks/useServer";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -12,7 +11,6 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { useQuery } from "@tanstack/react-query";
 import { CirclePlus } from "lucide-react";
 import useSessionStore from "../../lib/stores/sessionStore";
 import ServerCard from "./serverCard";
@@ -22,10 +20,7 @@ const ServerSelector = () => {
    const setServerId = useSessionStore((state) => state.setServerId);
    const serverId = useSessionStore((state) => state.serverId);
    const { openConnectModal } = useModalContext();
-   const { data, isLoading, error } = useQuery<ServerInfo[]>({
-      queryKey: ["servers-list"],
-      queryFn: fetchServers,
-   });
+   const { data, isLoading, error } = useServers();
 
    if (isLoading || !data) {
       return <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />;

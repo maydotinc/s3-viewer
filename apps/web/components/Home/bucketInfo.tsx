@@ -1,6 +1,6 @@
-import { fetchFolders } from "@/lib/utils/fetching";
+import { fetchFolders } from "@/lib/api/s3";
 import testData from "@/lib/utils/test";
-import { BucketFolder } from "@/lib/utils/types";
+import { BucketFolder } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 import { ColDef, GridReadyEvent } from "ag-grid-community";
 import { AgGridReact, CustomCellRendererProps } from "ag-grid-react";

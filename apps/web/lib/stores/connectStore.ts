@@ -34,6 +34,7 @@ type ConnectState = {
    searching: boolean;
    error: string | null;
    serverFound: boolean;
+   bucketCount: number;
 };
 
 type ConnectActions = {
@@ -45,6 +46,8 @@ type ConnectActions = {
    setSearching: (searching: boolean) => void;
    setError: (error: string | null) => void;
    setServerFound: (serverFound: boolean) => void;
+   setBucketCount: (bucketCount: number) => void;
+   reset: () => void;
 };
 
 type ConnectStore = ConnectState & ConnectActions;
@@ -59,7 +62,7 @@ const useConnectStore = create<ConnectStore>()(
       searching: false,
       error: null,
       serverFound: false,
-
+      bucketCount: 0,
       setEndpoint: (endpoint) => set({ endpoint }),
       setServerName: (serverName) => set({ serverName }),
       setRegion: (region) => set({ region }),
@@ -68,6 +71,19 @@ const useConnectStore = create<ConnectStore>()(
       setSearching: (searching) => set({ searching }),
       setError: (error) => set({ error }),
       setServerFound: (serverFound) => set({ serverFound }),
+      setBucketCount: (bucketCount) => set({ bucketCount }),
+      reset: () =>
+         set({
+            endpoint: "",
+            serverName: "",
+            region: "us-east-1",
+            accessKey: "",
+            secretKey: "",
+            searching: false,
+            error: null,
+            serverFound: false,
+            bucketCount: 0,
+         }),
    }))
 );
 

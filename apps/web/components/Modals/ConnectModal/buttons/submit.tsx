@@ -1,8 +1,7 @@
+import { useServerOperations } from "@/lib/hooks/useServer";
 import useConnectStore from "@/lib/stores/connectStore";
 import useSessionStore from "@/lib/stores/sessionStore";
-import { createServer, establishConnection } from "@/lib/utils/serverRequests";
 import { Button } from "@s3-viewer/ui/components/button";
-import { useQueryClient } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
 
 type SubmitButtonProps = {
@@ -21,8 +20,10 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
       serverFound,
       setServerFound,
       setError,
+      setBucketCount,
+      reset,
    } = useConnectStore();
-   const queryClient = useQueryClient();
+   const { createServer, establishConnection } = useServerOperations();
    const setServerId = useSessionStore((state) => state.setServerId);
 
    const handleSubmit = async () => {
@@ -44,10 +45,9 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
          setError(null);
          setSearching(false);
          setServerFound(true);
-         queryClient.invalidateQueries({ queryKey: ["servers-list"] });
-         queryClient.fetchQuery({ queryKey: ["servers-list"] });
          setServerId(serverId);
          onClose();
+         reset();
          return;
       }
 
@@ -57,7 +57,7 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
          setSearching(false);
          return;
       }
-      const { success, message } = await establishConnection({
+      const { success, message, bucketCount } = await establishConnection({
          endpoint,
          region,
          accessKey,
@@ -71,6 +71,7 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
       setServerFound(true);
       setError(null);
       setSearching(false);
+      setBucketCount(bucketCount);
    };
 
    return (

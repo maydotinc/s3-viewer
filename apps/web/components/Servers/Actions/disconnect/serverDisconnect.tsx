@@ -1,4 +1,4 @@
-import { deleteServer } from "@/lib/utils/serverRequests";
+import { useServerOperations } from "@/lib/hooks/useServer";
 import { ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -11,7 +11,6 @@ import {
    DialogTitle,
    DialogTrigger,
 } from "@s3-viewer/ui/components/dialog";
-import { useQueryClient } from "@tanstack/react-query";
 import { Server, WifiOff } from "lucide-react";
 import { useState } from "react";
 
@@ -21,7 +20,7 @@ type ServerDisconnectProps = {
 
 const ServerDisconnect = ({ server }: ServerDisconnectProps) => {
    const [isOpen, setIsOpen] = useState(false);
-   const queryClient = useQueryClient();
+   const { deleteServer } = useServerOperations();
    const [disconnectError, setDisconnectError] = useState<string | null>(null);
 
    const handleDisconnect = async () => {
@@ -31,8 +30,6 @@ const ServerDisconnect = ({ server }: ServerDisconnectProps) => {
             setDisconnectError(message);
             return;
          }
-         queryClient.invalidateQueries({ queryKey: ["servers-list"] });
-         queryClient.fetchQuery({ queryKey: ["servers-list"] });
          setDisconnectError(null);
          setIsOpen(false);
       } catch (e) {

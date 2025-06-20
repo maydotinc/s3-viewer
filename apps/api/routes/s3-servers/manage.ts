@@ -18,7 +18,10 @@ manageRouter.post("/establish", async (req: Request, res: Response) => {
    const s3Client = getS3ClientFromCredentials(credentials);
    const response = await s3Client.send(new ListBucketsCommand({}));
    if (response.Buckets) {
-      res.status(200).json({ message: "Server connected established successfully" });
+      res.status(200).json({
+         message: "Server connected established successfully",
+         bucketCount: response.Buckets?.length,
+      });
    } else {
       res.status(400).json({
          message: "Server connection failed, are you sure you're using the correct credentials?",
@@ -100,4 +103,21 @@ manageRouter.put("/update", async (req: Request, res: Response) => {
    }
 });
 
+manageRouter.put("/rename", async (req: Request, res: Response) => {
+   console.log("Renaming server");
+   const { serverId, serverName } = req.body as { serverId: string; serverName: string };
+   if (!req.user) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+   }
+   try {
+      await prisma.server.update({
+         where: { id: serverId },
+         data: { name: serverName },
+      });
+      res.status(200).json({ message: "Server renamed successfully" });
+   } catch (error) {
+      res.status(400).json({ message: "Server renaming failed: " + error });
+   }
+});
 export default manageRouter;

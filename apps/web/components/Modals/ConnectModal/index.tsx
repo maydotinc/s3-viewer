@@ -1,17 +1,17 @@
+import { useServers } from "@/lib/hooks/useServer";
 import useConnectStore from "@/lib/stores/connectStore";
-import { fetchServers } from "@/lib/utils/serverRequests";
-import { ServerInfo } from "@s3-viewer/types";
 import {
    Dialog,
    DialogContent,
    DialogDescription,
+   DialogFooter,
    DialogHeader,
    DialogTitle,
 } from "@s3-viewer/ui/components/dialog";
-import { useQuery } from "@tanstack/react-query";
 import { Server } from "lucide-react";
 
 // Fields
+import ServerDetected from "./detected";
 import AccessKeyInput from "./fields/accesskey-input";
 import EndpointInput from "./fields/endpoint-input";
 import NameInput from "./fields/name-input";
@@ -19,6 +19,7 @@ import RegionInput from "./fields/region-input";
 import SecretKeyInput from "./fields/secretkey-input";
 
 // Buttons
+import ResetButton from "./buttons/reset";
 import SubmitButton from "./buttons/submit";
 
 type ConnectModalProps = {
@@ -27,10 +28,7 @@ type ConnectModalProps = {
 
 const ConnectModal = ({ onClose }: ConnectModalProps) => {
    const { serverFound, error: connectError } = useConnectStore();
-   const { data, isLoading, error } = useQuery<ServerInfo[]>({
-      queryKey: ["servers-list"],
-      queryFn: fetchServers,
-   });
+   const { data, isLoading } = useServers();
 
    const getDialogText = () => {
       if (isLoading || data?.length === 0) {
@@ -57,14 +55,18 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                   <span>Enter credentials to link the server</span>
                </DialogDescription>
             </DialogHeader>
-            <div className="flex flex-col gap-4">
+            <div className={serverFound ? "hidden" : "flex flex-col gap-4"}>
                <EndpointInput />
                <NameInput />
                <RegionInput />
                <AccessKeyInput />
                <SecretKeyInput />
-               <SubmitButton onClose={onClose} />
             </div>
+            {serverFound && <ServerDetected />}
+            <DialogFooter className="flex flex-col justify-center">
+               <SubmitButton onClose={onClose} />
+               {serverFound && <ResetButton />}
+            </DialogFooter>
             {connectError && <span className="text-red-500">{connectError}</span>}
          </DialogContent>
       </Dialog>
