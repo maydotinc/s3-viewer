@@ -11,12 +11,22 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Server } from "lucide-react";
 
+// Fields
+import AccessKeyInput from "./fields/accesskey-input";
+import EndpointInput from "./fields/endpoint-input";
+import NameInput from "./fields/name-input";
+import RegionInput from "./fields/region-input";
+import SecretKeyInput from "./fields/secretkey-input";
+
+// Buttons
+import SubmitButton from "./buttons/submit";
+
 type ConnectModalProps = {
    onClose: () => void;
 };
 
 const ConnectModal = ({ onClose }: ConnectModalProps) => {
-   const { serverFound } = useConnectStore();
+   const { serverFound, error: connectError } = useConnectStore();
    const { data, isLoading, error } = useQuery<ServerInfo[]>({
       queryKey: ["servers-list"],
       queryFn: fetchServers,
@@ -47,7 +57,15 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                   <span>Enter credentials to link the server</span>
                </DialogDescription>
             </DialogHeader>
-            <div className={serverFound ? "hidden" : "flex flex-col gap-4"}></div>
+            <div className={serverFound ? "hidden" : "flex flex-col gap-4"}>
+               <EndpointInput />
+               <NameInput />
+               <RegionInput />
+               <AccessKeyInput />
+               <SecretKeyInput />
+               <SubmitButton />
+            </div>
+            {connectError && <span className="text-red-500">{connectError}</span>}
          </DialogContent>
       </Dialog>
    );
