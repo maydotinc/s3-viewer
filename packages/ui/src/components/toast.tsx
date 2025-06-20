@@ -3,7 +3,7 @@ import { Toaster as SonnerToaster } from "sonner";
 const Toaster = () => {
    return (
       <SonnerToaster
-         position="bottom-left"
+         position="bottom-center"
          toastOptions={{
             duration: 3000,
             style: {
