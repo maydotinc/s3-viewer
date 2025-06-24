@@ -19,7 +19,14 @@ import ServerItem from "./server-item";
 const ServerSelector = () => {
    const router = useRouter();
    const { openConnectModal } = useModalContext();
-   const { servers, currentServer, selectServer, isServerListLoading, serverError } = useServers();
+   const {
+      servers,
+      currentServer,
+      currentServerId,
+      selectServer,
+      isServerListLoading,
+      serverError,
+   } = useServers();
 
    const handleServerSelect = (newServerId: string) => {
       selectServer(newServerId);
@@ -60,7 +67,7 @@ const ServerSelector = () => {
             <ServerCard server={selectedServer} />
          </DropdownMenuTrigger>
          <DropdownMenuContent className="select-none">
-            <DropdownMenuRadioGroup value={currentServer?.id} onValueChange={handleServerSelect}>
+            <DropdownMenuRadioGroup value={currentServerId} onValueChange={handleServerSelect}>
                {servers.map((server) => (
                   <DropdownMenuRadioItem
                      key={server.id}

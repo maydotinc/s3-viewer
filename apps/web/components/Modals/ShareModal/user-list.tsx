@@ -1,4 +1,4 @@
-import useServers from "@/lib/hooks/useServers";
+import useServerUsers from "@/lib/hooks/useServerUsers";
 import { Role } from "@s3-viewer/types";
 import { User } from "lucide-react";
 import Image from "next/image";
@@ -7,7 +7,7 @@ import RoleSelector from "./fields/role-input";
 
 const UserList = () => {
    const { serverId } = useShareContext();
-   const { serverUsers } = useServers();
+   const { serverUsers } = useServerUsers(serverId);
 
    const handleRoleChange = (userId: string, newRole: Role) => {
       // TODO: Implement API call to update user role

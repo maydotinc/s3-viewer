@@ -1,4 +1,4 @@
-import { fetchServersAPI, fetchServerUsersAPI } from "@/lib/api/server";
+import { fetchServersAPI } from "@/lib/api/server";
 import { authClient } from "@s3-viewer/auth/client";
 import { ServerInfo } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
@@ -23,16 +23,6 @@ const useServers = () => {
       staleTime: 1000 * 60 * 5, // 5 minutes
    });
 
-   const {
-      data: serverUsers = [],
-      isPending: isServerUsersLoading,
-      error: serverUsersError,
-   } = useQuery({
-      queryKey: ["server-users", serverId],
-      queryFn: () => fetchServerUsersAPI(serverId),
-      enabled: !!serverId && isAuthenticated,
-   });
-
    useEffect(() => {
       if (isAuthenticated && servers.length > 0) {
          autoSelectServer(servers);
@@ -44,9 +34,7 @@ const useServers = () => {
    return {
       servers,
       currentServer,
-      serverUsers,
-      isServerUsersLoading,
-      serverUsersError,
+      currentServerId: serverId,
       isServerListLoading,
       serverError,
       selectServer,

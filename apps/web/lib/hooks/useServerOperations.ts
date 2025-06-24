@@ -14,6 +14,14 @@ export const useServerOperations = () => {
       queryClient.invalidateQueries({ queryKey: ["servers"] });
    };
 
+   const invalidateServerUsers = (serverId?: string) => {
+      if (serverId) {
+         queryClient.invalidateQueries({ queryKey: ["server-users", serverId] });
+      } else {
+         queryClient.invalidateQueries({ queryKey: ["server-users"] });
+      }
+   };
+
    const establishConnection = async (credentials: ServerCredentials) => {
       const result = await establishConnectionAPI(credentials);
       return result;
@@ -31,6 +39,7 @@ export const useServerOperations = () => {
       const result = await deleteServerAPI(serverId);
       if (result.success) {
          invalidateServers();
+         invalidateServerUsers(serverId);
       }
       return result;
    };
