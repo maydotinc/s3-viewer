@@ -33,11 +33,13 @@ const doesUserExist = async (email: string) => {
    }
 };
 
-const signOut = async (successUrl: string) => {
+const signOut = async (successUrl?: string) => {
    const { data, error } = await authClient.signOut({
       fetchOptions: {
          onSuccess: () => {
-            window.location.href = successUrl;
+            if (successUrl) {
+               window.location.href = successUrl;
+            }
          },
       },
    });
@@ -79,13 +81,15 @@ const sendVerificationOtp = async (type: "signin" | "signup", email: string) => 
    return { success: true, data, error: null };
 };
 
-const verifyOtp = async (email: string, otp: string, successUrl: string) => {
+const verifyOtp = async (email: string, otp: string, successUrl?: string) => {
    const { data, error } = await authClient.signIn.emailOtp({
       email,
       otp,
       fetchOptions: {
          onSuccess: () => {
-            window.location.href = successUrl;
+            if (successUrl) {
+               window.location.href = successUrl;
+            }
          },
       },
    });

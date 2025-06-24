@@ -1,5 +1,5 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import { useServers } from "@/lib/hooks/useServer";
+import useServers from "@/lib/hooks/useServers";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -12,23 +12,31 @@ import {
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { CirclePlus } from "lucide-react";
-import useSessionStore from "../../lib/stores/sessionStore";
+import { useRouter } from "next/router";
 import ServerCard from "./server-card";
 import ServerItem from "./server-item";
 
 const ServerSelector = () => {
-   const setServerId = useSessionStore((state) => state.setServerId);
-   const serverId = useSessionStore((state) => state.serverId);
+   const router = useRouter();
    const { openConnectModal } = useModalContext();
-   const { data, isLoading, error } = useServers();
+   const { servers, currentServer, selectServer, isServerListLoading, serverError } = useServers();
 
-   if (isLoading || !data) {
+   const handleServerSelect = (newServerId: string) => {
+      selectServer(newServerId);
+      if (router.pathname.includes("/buckets/")) {
+         router.push("/home");
+      }
+   };
+
+   if (isServerListLoading || !servers) {
       return <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />;
    }
-   if (error) {
+
+   if (serverError) {
       return <p>Error loading servers</p>;
    }
-   if (!data || data.length === 0) {
+
+   if (!servers || servers.length === 0) {
       return (
          <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
             <p className="text-viewertext text-center">No servers connected</p>
@@ -44,7 +52,7 @@ const ServerSelector = () => {
       );
    }
 
-   const selectedServer = data.find((server) => server.id === serverId) || data[0];
+   const selectedServer = currentServer || servers[0];
 
    return (
       <DropdownMenu>
@@ -52,13 +60,12 @@ const ServerSelector = () => {
             <ServerCard server={selectedServer} />
          </DropdownMenuTrigger>
          <DropdownMenuContent className="select-none">
-            <DropdownMenuRadioGroup value={serverId} onValueChange={setServerId}>
-               {data.map((server) => (
+            <DropdownMenuRadioGroup value={currentServer?.id} onValueChange={handleServerSelect}>
+               {servers.map((server) => (
                   <DropdownMenuRadioItem
                      key={server.id}
                      value={server.id}
                      className="w-50 text-viewerblack"
-                     onSelect={(e) => console.log("Radio item selected")}
                   >
                      <ServerItem server={server} />
                   </DropdownMenuRadioItem>

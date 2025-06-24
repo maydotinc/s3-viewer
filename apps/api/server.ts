@@ -7,7 +7,7 @@ import bucketRouter from "./routes/s3-operations/bucket.js";
 import objectRouter from "./routes/s3-operations/object.js";
 import manageRouter from "./routes/s3-servers/manage.js";
 import retrieveRouter from "./routes/s3-servers/retrieve.js";
-import userManageRouter from "./routes/user-manage.js";
+import userManageRouter from "./routes/users/user-manage.js";
 dotenv.config();
 
 const app = express();

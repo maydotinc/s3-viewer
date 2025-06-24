@@ -1,3 +1,11 @@
+//==== SERVER TYPES ====//
+enum Role {
+   OWNER = "OWNER",
+   ADMIN = "ADMIN",
+   EDITOR = "EDITOR",
+   VIEWER = "VIEWER",
+}
+
 type ServerCredentials = {
    endpoint: string;
    region: string;
@@ -11,6 +19,15 @@ type ServerInfo = {
    storageUsed: number;
 };
 
+type ServerUser = {
+   id: string;
+   name: string;
+   email: string;
+   image: string;
+   role: Role;
+};
+
+//==== S3 TYPES ====//
 type S3Bucket = {
    BucketRegion: string;
    CreationDate: string;
@@ -44,4 +61,14 @@ type BucketFolder = Bucket & {
    TotalSize: number;
 };
 
-export type { Bucket, BucketFolder, Object, S3Bucket, S3Object, ServerCredentials, ServerInfo };
+export { Role };
+export type {
+   Bucket,
+   BucketFolder,
+   Object,
+   S3Bucket,
+   S3Object,
+   ServerCredentials,
+   ServerInfo,
+   ServerUser,
+};

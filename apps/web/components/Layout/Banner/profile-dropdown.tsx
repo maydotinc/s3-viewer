@@ -91,7 +91,7 @@ const ProfileDropdown: React.FC = () => {
                   )}
                   <div className="flex flex-col items-start justify-start">
                      <p className="truncate max-w-[200px] text-black">{user?.name}</p>
-                     <p className="text-xs text-gray-500">{user?.email}</p>
+                     <p className="text-xs max-w-[200px] truncate text-gray-500">{user?.email}</p>
                   </div>
                </div>
 
@@ -100,18 +100,17 @@ const ProfileDropdown: React.FC = () => {
                <div className="flex w-full flex-col gap-2">
                   {SETTINGS_OPTIONS.map((option) =>
                      option.id === "logout" ? (
-                        <>
+                        <div key={option.id} className="w-full flex flex-col gap-2">
                            <Separator orientation="horizontal" className="w-full" />
                            <Button
                               variant="ghost"
-                              key={option.id}
                               className="w-full items-start hover:bg-viewergray flex items-center justify-start gap-2 text-black"
                               onClick={() => handleOptionSelect(option.id)}
                            >
                               {option.icon}
                               {option.title}
                            </Button>
-                        </>
+                        </div>
                      ) : (
                         <Button
                            variant="ghost"

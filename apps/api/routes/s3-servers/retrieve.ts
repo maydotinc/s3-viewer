@@ -1,5 +1,5 @@
 import { prisma } from "@s3-viewer/db";
-import { ServerInfo } from "@s3-viewer/types";
+import { ServerInfo, ServerUser } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 import authGuard from "../../lib/utils/auth.js";
 
@@ -32,23 +32,37 @@ retrieveRouter.get("/get-servers", async (req: Request, res: Response) => {
    res.status(200).json({ serversList });
 });
 
-retrieveRouter.get("/get-server-name", async (req: Request, res: Response) => {
-   console.log("Getting server name");
+retrieveRouter.get("/get-server-users", async (req: Request, res: Response) => {
+   console.log("Getting server users");
    if (!req.user) {
       res.status(401).json({ message: "Unauthorized" });
       return;
    }
 
    const { serverId } = req.query as { serverId: string };
-   const serverName = await prisma.server.findUnique({
+   const serverUsers = await prisma.serverAccess.findMany({
       where: {
-         id: serverId,
+         serverId: serverId,
       },
       select: {
-         name: true,
+         role: true,
+         user: {
+            select: {
+               id: true,
+               name: true,
+               email: true,
+               image: true,
+            },
+         },
       },
    });
-   res.status(200).json({ serverName });
+   const serverUsersList: ServerUser[] = serverUsers.map((user) => {
+      return {
+         ...user.user,
+         role: user.role,
+      } as ServerUser;
+   });
+   res.status(200).json({ serverUsers: serverUsersList });
 });
 
 export default retrieveRouter;

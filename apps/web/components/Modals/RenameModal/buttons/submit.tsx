@@ -1,4 +1,4 @@
-import { useServerOperations } from "@/lib/hooks/useServer";
+import { useServerOperations } from "@/lib/hooks/useServerOperations";
 import { Button } from "@s3-viewer/ui/components/button";
 import { LoaderCircle } from "lucide-react";
 import { useState } from "react";

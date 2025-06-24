@@ -1,4 +1,4 @@
-import { useServerOperations } from "@/lib/hooks/useServer";
+import { useServerOperations } from "@/lib/hooks/useServerOperations";
 import useConnectStore from "@/lib/stores/connectStore";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";

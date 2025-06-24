@@ -1,4 +1,4 @@
-import { useServers } from "@/lib/hooks/useServer";
+import useServers from "@/lib/hooks/useServers";
 import useConnectStore from "@/lib/stores/connectStore";
 import {
    Dialog,
@@ -28,10 +28,10 @@ type ConnectModalProps = {
 
 const ConnectModal: React.FC<ConnectModalProps> = ({ onClose }) => {
    const { serverFound, error: connectError } = useConnectStore();
-   const { data, isLoading } = useServers();
+   const { servers, isServerListLoading } = useServers();
 
    const getDialogText = () => {
-      if (isLoading || data?.length === 0) {
+      if (isServerListLoading || !servers || servers.length === 0) {
          return "Connect server to get started";
       }
       return "Connect new server";

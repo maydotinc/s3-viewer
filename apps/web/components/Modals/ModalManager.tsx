@@ -3,6 +3,7 @@ import AuthModal from "./AuthModal";
 import ConnectModal from "./ConnectModal";
 import DisconnectModal from "./DisonnectModal";
 import RenameModal from "./RenameModal";
+import ShareModal from "./ShareModal";
 
 const ModalManager = () => {
    const { modals, closeModal } = useModalContext();
@@ -43,14 +44,14 @@ const ModalManager = () => {
                         onClose={() => closeModal("disconnect")}
                      />
                   );
-               //    case "delete":
-               //       return (
-               //          <DeleteModal
-               //             key={`delete-${index}`}
-               //             {...modal.props}
-               //             onClose={() => closeModal("delete")}
-               //          />
-               //       );
+               case "share":
+                  return (
+                     <ShareModal
+                        key={`share-${index}`}
+                        {...modal.props}
+                        onClose={() => closeModal("share")}
+                     />
+                  );
                default:
                   return null;
             }

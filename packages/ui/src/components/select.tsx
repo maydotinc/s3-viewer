@@ -1,5 +1,5 @@
 import * as SelectPrimitive from "@radix-ui/react-select";
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronUpIcon, CircleIcon } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -102,8 +102,11 @@ function SelectItem({
          {...props}
       >
          <span className="absolute left-2 flex size-3.5 items-center justify-center">
+            <CircleIcon className="size-4 text-viewerborder" />
+         </span>
+         <span className="absolute left-2 flex size-3.5 items-center justify-center">
             <SelectPrimitive.ItemIndicator>
-               <CheckIcon className="size-4" />
+               <CircleIcon className="size-4 text-viewerblue fill-viewerblue" />
             </SelectPrimitive.ItemIndicator>
          </span>
          <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>

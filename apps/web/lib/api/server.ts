@@ -1,4 +1,4 @@
-import { ServerCredentials, ServerInfo } from "@s3-viewer/types";
+import { ServerCredentials, ServerInfo, ServerUser } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 
 const fetchServersAPI = async (): Promise<ServerInfo[]> => {
@@ -11,7 +11,6 @@ const fetchServersAPI = async (): Promise<ServerInfo[]> => {
       });
 
       if (!response.ok) {
-         toast.error("Failed to fetch servers");
          return [];
       }
 
@@ -19,6 +18,30 @@ const fetchServersAPI = async (): Promise<ServerInfo[]> => {
       return data.serversList as ServerInfo[];
    } catch (error: any) {
       console.error("Error fetching servers:", error);
+      return [];
+   }
+};
+
+const fetchServerUsersAPI = async (serverId: string) => {
+   try {
+      const response = await fetch(
+         `${process.env.NEXT_PUBLIC_API_URL}/retrieve/get-server-users?serverId=${serverId}`,
+         {
+            credentials: "include",
+            headers: {
+               "Content-Type": "application/json",
+            },
+         }
+      );
+
+      if (!response.ok) {
+         return [];
+      }
+
+      const data = await response.json();
+      return data.serverUsers as ServerUser[];
+   } catch (error: any) {
+      console.error("Error fetching server users:", error);
       return [];
    }
 };
@@ -121,5 +144,6 @@ export {
    deleteServerAPI,
    establishConnectionAPI,
    fetchServersAPI,
+   fetchServerUsersAPI,
    renameServerAPI,
 };

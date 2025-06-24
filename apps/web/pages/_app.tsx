@@ -1,5 +1,6 @@
-import AuthGuard from "@/components/Auth/authGuard";
 import ModalManager from "@/components/Modals/ModalManager";
+import AuthGuard from "@/components/Session/Auth/auth-guard";
+import SessionManager from "@/components/Session/session-manager";
 import { ModalProvider } from "@/lib/contexts/ModalContext";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
@@ -19,23 +20,23 @@ type AppPropsWithLayout = AppProps & {
 };
 
 const inter = Inter({ subsets: ["latin"] });
-const queryClient = new QueryClient();
 
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
    const getLayout = Component.getLayout ?? ((page) => page);
    const page: ReactNode = getLayout(<Component {...pageProps} />);
 
    return (
-      <ModalProvider>
-         <AuthGuard>
-            <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={new QueryClient()}>
+         <ModalProvider>
+            <SessionManager />
+            <AuthGuard>
                <SidebarProvider>
                   <Toaster />
                   <ModalManager />
                   <div className={`${inter.className} h-screen h-[100dvh] w-full`}>{page}</div>
                </SidebarProvider>
-            </QueryClientProvider>
-         </AuthGuard>
-      </ModalProvider>
+            </AuthGuard>
+         </ModalProvider>
+      </QueryClientProvider>
    );
 }

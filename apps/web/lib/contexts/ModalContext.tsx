@@ -1,7 +1,14 @@
 import { ServerInfo } from "@s3-viewer/types";
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
-type ModalType = "auth" | "connect" | "createBucket" | "createObject" | "rename" | "disconnect";
+type ModalType =
+   | "auth"
+   | "connect"
+   | "createBucket"
+   | "createObject"
+   | "rename"
+   | "disconnect"
+   | "share";
 
 type ModalPropsMap = {
    auth: {};
@@ -13,6 +20,9 @@ type ModalPropsMap = {
    };
    disconnect: {
       server: ServerInfo;
+   };
+   share: {
+      server?: ServerInfo;
    };
 };
 
@@ -79,5 +89,6 @@ export const useModalContext = () => {
       openRenameModal: (props: ModalPropsMap["rename"]) => context.openModal("rename", props),
       openDisconnectModal: (props: ModalPropsMap["disconnect"]) =>
          context.openModal("disconnect", props),
+      openShareModal: (props: ModalPropsMap["share"]) => context.openModal("share", props),
    };
 };
