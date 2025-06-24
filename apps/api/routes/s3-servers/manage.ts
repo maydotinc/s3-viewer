@@ -121,4 +121,48 @@ manageRouter.put("/rename", async (req: Request, res: Response) => {
       res.status(400).json({ message: "Server renaming failed: " + error });
    }
 });
+
+manageRouter.post("/send-invitation", async (req: Request, res: Response) => {
+   console.log("Sending server invitation");
+   const { serverId, emails, role, expiresAt } = req.body as {
+      serverId: string;
+      emails: string[];
+      role: Role;
+      expiresAt: Date;
+   };
+   const userId = req.user?.id;
+   if (!req.user || !userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+   }
+   if (!serverId || !emails || !role || !expiresAt) {
+      res.status(400).json({ message: "Server ID, emails, role and expiration date are required" });
+      return;
+   }
+   if (!hasPermissions(serverId, userId, [Role.OWNER, Role.ADMIN])) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+   }
+   const invitations = emails.map((email) => ({
+      email,
+      serverId,
+      role,
+      expiresAt: expiresAt,
+      invitedById: userId,
+   }));
+   try {
+      const createdInvitations = await prisma.pendingInvitation.createMany({
+         data: invitations,
+      });
+      if (createdInvitations.count !== emails.length) {
+         res.status(400).json({ message: "Failed to create all invitations" });
+         return;
+      }
+      // FOR PROD: Send email to invited users
+      res.status(200).json({ message: "Invitation sent successfully" });
+   } catch (error) {
+      res.status(400).json({ message: "Invitation sending failed: " + error });
+   }
+});
+
 export default manageRouter;

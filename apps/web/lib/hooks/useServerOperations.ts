@@ -3,6 +3,7 @@ import {
    deleteServerAPI,
    establishConnectionAPI,
    renameServerAPI,
+   sendInvitationAPI,
 } from "@/lib/api/server";
 import { Role, ServerCredentials } from "@s3-viewer/types";
 import { useQueryClient } from "@tanstack/react-query";
@@ -56,8 +57,17 @@ export const useServerOperations = () => {
       return result;
    };
 
-   const shareServer = async (serverId: string, emails: string[], role: Role) => {
-      const result = await shareServerAPI(serverId, emails, role);
+   const sendInvitation = async (
+      serverId: string,
+      emails: string[],
+      role: Role,
+      expiresAt?: Date
+   ) => {
+      if (!expiresAt) {
+         // Default to 1 day
+         expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24);
+      }
+      const result = await sendInvitationAPI(serverId, emails, role, expiresAt);
       if (result.success) {
          invalidateServerUsers(serverId);
       }
@@ -69,6 +79,6 @@ export const useServerOperations = () => {
       createServer,
       deleteServer,
       renameServer,
-      shareServer,
+      sendInvitation,
    };
 };

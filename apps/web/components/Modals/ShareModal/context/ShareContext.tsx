@@ -12,8 +12,6 @@ type ShareContextType = {
    setInvalidEmails: (emails: string[]) => void;
    isLoading: boolean;
    setIsLoading: (loading: boolean) => void;
-   error: string | null;
-   setError: (error: string | null) => void;
 };
 
 const ShareContext = createContext<ShareContextType | undefined>(undefined);
@@ -37,7 +35,6 @@ export const ShareProvider = ({ children, serverId }: ShareProviderProps) => {
    const [selectedRole, setSelectedRole] = useState<Role>(Role.VIEWER);
    const [invalidEmails, setInvalidEmails] = useState<string[]>([]);
    const [isLoading, setIsLoading] = useState(false);
-   const [error, setError] = useState<string | null>(null);
 
    return (
       <ShareContext.Provider
@@ -51,8 +48,6 @@ export const ShareProvider = ({ children, serverId }: ShareProviderProps) => {
             setInvalidEmails,
             isLoading,
             setIsLoading,
-            error,
-            setError,
          }}
       >
          {children}

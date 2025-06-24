@@ -139,24 +139,29 @@ const renameServerAPI = async (serverId: string, serverName: string) => {
    }
 };
 
-const shareServerAPI = async (serverId: string, emails: string[], role: Role) => {
+const sendInvitationAPI = async (
+   serverId: string,
+   emails: string[],
+   role: Role,
+   expiresAt: Date
+) => {
    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/share`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/send-invitation`, {
          method: "POST",
          headers: {
             "Content-Type": "application/json",
          },
          credentials: "include",
-         body: JSON.stringify({ serverId, emails, role }),
+         body: JSON.stringify({ serverId, emails, role, expiresAt }),
       });
       if (!response.ok) {
-         toast.error("Failed to share server");
+         toast.error("Failed to send invitation");
          return { success: false, error: (await response.json()).message };
       }
-      toast.success("Server shared successfully");
+      toast.success("Invitation sent successfully");
       return { success: true, message: (await response.json()).message };
    } catch (error: any) {
-      console.error("Error sharing server:", error);
+      console.error("Error sending invitation:", error);
       return { success: false, error: error.message };
    }
 };
@@ -168,5 +173,5 @@ export {
    fetchServersAPI,
    fetchServerUsersAPI,
    renameServerAPI,
-   shareServerAPI,
+   sendInvitationAPI,
 };
