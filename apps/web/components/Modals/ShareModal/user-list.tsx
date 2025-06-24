@@ -1,4 +1,5 @@
 import useServerUsers from "@/lib/hooks/useServerUsers";
+import useSessionStore from "@/lib/stores/sessionStore";
 import { Role } from "@s3-viewer/types";
 import { User } from "lucide-react";
 import Image from "next/image";
@@ -8,16 +9,18 @@ import RoleSelector from "./fields/role-input";
 const UserList = () => {
    const { serverId } = useShareContext();
    const { serverUsers } = useServerUsers(serverId);
+   const userId = useSessionStore((state) => state.userId);
+   const users = serverUsers.filter((user) => user.id !== userId);
 
    const handleRoleChange = (userId: string, newRole: Role) => {
       // TODO: Implement API call to update user role
       console.log(`Changing role for user ${userId} to ${newRole}`);
    };
 
-   if (!serverUsers || serverUsers.length === 0) {
+   if (!users || users.length === 0) {
       return (
          <div className="flex flex-col gap-2 w-full p-2">
-            <p className="text-viewerlighttext text-center text-sm">
+            <p className="text-viewerblack text-center text-sm">
                No users have access to this server
             </p>
          </div>
@@ -26,7 +29,7 @@ const UserList = () => {
 
    return (
       <div className="flex flex-col gap-2 w-full py-2">
-         {serverUsers.map((user) => (
+         {users.map((user) => (
             <div key={user.id} className="flex flex-row w-full items-center justify-between">
                <div className="flex flex-row items-center gap-3">
                   {user?.image ? (

@@ -4,7 +4,8 @@ import { useEffect } from "react";
 
 const SessionManager = () => {
    const { data: session, isPending } = authClient.useSession();
-   const { setUserId, clearSession } = useSessionStore();
+   const setUserId = useSessionStore((state) => state.setUserId);
+   const clearSession = useSessionStore((state) => state.clearSession);
 
    useEffect(() => {
       if (isPending) return;

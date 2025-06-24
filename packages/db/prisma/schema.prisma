@@ -18,10 +18,11 @@ model User {
   image         String?
 
   // Relations
-  ownedServers Server[]       @relation("ServerOwner")
-  serverAccess ServerAccess[]
-  sessions     Session[]
-  accounts     Account[]
+  ownedServers    Server[]            @relation("ServerOwner")
+  serverAccess    ServerAccess[]
+  sentInvitations PendingInvitation[] @relation("InvitationSender")
+  sessions        Session[]
+  accounts        Account[]
 
   @@unique([email])
   @@map("user")
@@ -81,9 +82,10 @@ model Server {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  ownerId      String
-  owner        User           @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  serverAccess ServerAccess[]
+  ownerId            String
+  owner              User                @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  serverAccess       ServerAccess[]
+  pendingInvitations PendingInvitation[]
 
   @@unique([ownerId, name])
   @@index([ownerId])
@@ -106,6 +108,25 @@ model ServerAccess {
   @@index([userId])
   @@index([serverId])
   @@map("server_access")
+}
+
+model PendingInvitation {
+  id        String   @id @default(cuid())
+  email     String
+  role      Role
+  expiresAt DateTime
+  accepted  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  serverId    String
+  server      Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  invitedById String
+  invitedBy   User   @relation("InvitationSender", fields: [invitedById], references: [id])
+
+  @@unique([email, serverId])
+  @@map("pending_invitation")
 }
 
 enum Role {

@@ -1,4 +1,4 @@
-import { ServerCredentials, ServerInfo, ServerUser } from "@s3-viewer/types";
+import { Role, ServerCredentials, ServerInfo, ServerUser } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 
 const fetchServersAPI = async (): Promise<ServerInfo[]> => {
@@ -139,6 +139,28 @@ const renameServerAPI = async (serverId: string, serverName: string) => {
    }
 };
 
+const shareServerAPI = async (serverId: string, emails: string[], role: Role) => {
+   try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/share`, {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         credentials: "include",
+         body: JSON.stringify({ serverId, emails, role }),
+      });
+      if (!response.ok) {
+         toast.error("Failed to share server");
+         return { success: false, error: (await response.json()).message };
+      }
+      toast.success("Server shared successfully");
+      return { success: true, message: (await response.json()).message };
+   } catch (error: any) {
+      console.error("Error sharing server:", error);
+      return { success: false, error: error.message };
+   }
+};
+
 export {
    createServerAPI,
    deleteServerAPI,
@@ -146,4 +168,5 @@ export {
    fetchServersAPI,
    fetchServerUsersAPI,
    renameServerAPI,
+   shareServerAPI,
 };

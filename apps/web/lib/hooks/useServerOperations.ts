@@ -4,7 +4,7 @@ import {
    establishConnectionAPI,
    renameServerAPI,
 } from "@/lib/api/server";
-import { ServerCredentials } from "@s3-viewer/types";
+import { Role, ServerCredentials } from "@s3-viewer/types";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const useServerOperations = () => {
@@ -12,6 +12,10 @@ export const useServerOperations = () => {
 
    const invalidateServers = () => {
       queryClient.invalidateQueries({ queryKey: ["servers"] });
+   };
+
+   const invalidateServer = (serverId: string) => {
+      queryClient.invalidateQueries({ queryKey: ["server", serverId] });
    };
 
    const invalidateServerUsers = (serverId?: string) => {
@@ -47,7 +51,15 @@ export const useServerOperations = () => {
    const renameServer = async (serverId: string, serverName: string) => {
       const result = await renameServerAPI(serverId, serverName);
       if (result.success) {
-         invalidateServers();
+         invalidateServer(serverId);
+      }
+      return result;
+   };
+
+   const shareServer = async (serverId: string, emails: string[], role: Role) => {
+      const result = await shareServerAPI(serverId, emails, role);
+      if (result.success) {
+         invalidateServerUsers(serverId);
       }
       return result;
    };
@@ -57,5 +69,6 @@ export const useServerOperations = () => {
       createServer,
       deleteServer,
       renameServer,
+      shareServer,
    };
 };

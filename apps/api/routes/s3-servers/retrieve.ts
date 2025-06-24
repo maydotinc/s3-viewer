@@ -1,5 +1,5 @@
 import { prisma } from "@s3-viewer/db";
-import { ServerInfo, ServerUser } from "@s3-viewer/types";
+import { Role, ServerInfo, ServerUser } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 import authGuard from "../../lib/utils/auth.js";
 
@@ -18,6 +18,7 @@ retrieveRouter.get("/get-servers", async (req: Request, res: Response) => {
          userId: req.user.id,
       },
       select: {
+         role: true,
          server: {
             select: {
                id: true,
@@ -28,7 +29,12 @@ retrieveRouter.get("/get-servers", async (req: Request, res: Response) => {
       },
    });
 
-   const serversList: ServerInfo[] = servers.map((server) => server.server as ServerInfo);
+   const serversList: ServerInfo[] = servers.map((server) => {
+      return {
+         ...server.server,
+         userRole: server.role as Role,
+      } as ServerInfo;
+   });
    res.status(200).json({ serversList });
 });
 

@@ -6,7 +6,6 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@s3-viewer/ui/components/dialog";
-import { Separator } from "@s3-viewer/ui/components/separator";
 import { XIcon } from "lucide-react";
 import InviteButton from "./buttons/invite";
 import { ShareProvider } from "./context/ShareContext";
@@ -28,7 +27,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ onClose, server }) => {
                onOpenAutoFocus={(e) => e.preventDefault()}
                aria-describedby={undefined}
             >
-               <DialogHeader className="text-left flex flex-row justify-between px-4 pt-4">
+               <DialogHeader className="text-left flex flex-row justify-between px-4 py-4 border-b border-viewerborder">
                   <DialogTitle className="text-lg text-viewerblack">
                      Share server with team
                   </DialogTitle>
@@ -37,7 +36,6 @@ const ShareModal: React.FC<ShareModalProps> = ({ onClose, server }) => {
                      <span className="sr-only">Close</span>
                   </DialogClose>
                </DialogHeader>
-               <Separator orientation="horizontal" />
                <div className="flex flex-col gap-4 px-4">
                   <div className="flex flex-col border border-viewerborder rounded-2xl p-3 gap-3">
                      <EmailRoleInput />

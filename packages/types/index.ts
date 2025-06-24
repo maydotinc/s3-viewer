@@ -17,6 +17,7 @@ type ServerInfo = {
    id: string;
    name: string;
    storageUsed: number;
+   userRole: Role;
 };
 
 type ServerUser = {
