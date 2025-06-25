@@ -29,18 +29,12 @@ type ServerUser = {
 };
 
 type ServerInvite = {
-   id: string;
-   email: string;
    role: Role;
-   expiresAt: string;
-   accepted: boolean;
-   createdAt: string;
+   expiresAt: Date;
    server: {
-      id: string;
       name: string;
    };
-   invitedBy?: {
-      id: string;
+   invitedBy: {
       name: string;
       email: string;
    };
@@ -89,5 +83,6 @@ export type {
    S3Object,
    ServerCredentials,
    ServerInfo,
+   ServerInvite,
    ServerUser,
 };

@@ -1,4 +1,4 @@
-import useServers from "@/lib/hooks/useServers";
+import useServers from "@/lib/hooks/queries/useServers";
 import useConnectStore from "@/lib/stores/connectStore";
 import {
    Dialog,
@@ -67,7 +67,9 @@ const ConnectModal: React.FC<ConnectModalProps> = ({ onClose }) => {
                <SubmitButton onClose={onClose} />
                {serverFound && <ResetButton />}
             </DialogFooter>
-            {connectError && <span className="text-red-500 text-sm">{connectError}</span>}
+            {connectError && (
+               <span className="text-red-500 text-sm">{connectError}</span>
+            )}
          </DialogContent>
       </Dialog>
    );

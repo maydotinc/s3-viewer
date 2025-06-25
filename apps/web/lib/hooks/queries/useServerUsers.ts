@@ -1,4 +1,4 @@
-import { fetchServerUsersAPI } from "@/lib/api/server";
+import { fetchServerUsers } from "@/lib/api/server";
 import { authClient } from "@s3-viewer/auth/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -13,7 +13,7 @@ const useServerUsers = (serverId: string) => {
       refetch,
    } = useQuery({
       queryKey: ["server-users", serverId],
-      queryFn: () => fetchServerUsersAPI(serverId),
+      queryFn: fetchServerUsers,
       enabled: !!serverId && isAuthenticated,
       staleTime: 1000 * 60 * 2, // 2 minutes
    });

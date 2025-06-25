@@ -1,9 +1,9 @@
-import { fetchServersAPI } from "@/lib/api/server";
+import { fetchServers } from "@/lib/api/server";
+import useSessionStore from "@/lib/stores/sessionStore";
 import { authClient } from "@s3-viewer/auth/client";
 import { ServerInfo } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import useSessionStore from "../stores/sessionStore";
 
 const useServers = () => {
    const { data: session } = authClient.useSession();
@@ -18,7 +18,7 @@ const useServers = () => {
       refetch,
    } = useQuery<ServerInfo[]>({
       queryKey: ["servers"],
-      queryFn: fetchServersAPI,
+      queryFn: fetchServers,
       enabled: isAuthenticated,
       staleTime: 1000 * 60 * 5, // 5 minutes
    });
@@ -29,7 +29,8 @@ const useServers = () => {
       }
    }, [servers, isAuthenticated, autoSelectServer]);
 
-   const currentServer = servers.find((server) => server.id === serverId) || null;
+   const currentServer =
+      servers.find((server) => server.id === serverId) || null;
 
    return {
       servers,

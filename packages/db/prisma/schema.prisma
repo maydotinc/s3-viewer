@@ -126,6 +126,7 @@ model PendingInvitation {
   invitedBy   User   @relation("InvitationSender", fields: [invitedById], references: [id])
 
   @@unique([email, serverId])
+  @@index([invitedById])
   @@map("pending_invitation")
 }
 

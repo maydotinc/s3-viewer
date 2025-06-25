@@ -1,4 +1,5 @@
-import { useServerOperations } from "@/lib/hooks/useServerOperations";
+import useCreateServer from "@/lib/hooks/mutations/useCreateServer";
+import useEstablishConnection from "@/lib/hooks/mutations/useEstablishConnection";
 import useConnectStore from "@/lib/stores/connectStore";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -23,64 +24,85 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
       setBucketCount,
       reset,
    } = useConnectStore();
-   const { createServer, establishConnection } = useServerOperations();
+   const createServerMutation = useCreateServer();
+   const establishConnectionMutation = useEstablishConnection();
    const setServerId = useSessionStore((state) => state.setServerId);
 
-   const handleSubmit = async () => {
+   const handleSubmit = () => {
       if (serverFound) {
-         const { success, message, serverId } = await createServer(
+         createServerMutation.mutate(
             {
-               endpoint,
-               region,
-               accessKey,
-               secretKey,
+               serverCredentials: {
+                  endpoint,
+                  region,
+                  accessKey,
+                  secretKey,
+               },
+               serverName,
             },
-            serverName
+            {
+               onSuccess: (data) => {
+                  setError(null);
+                  setSearching(false);
+                  setServerFound(true);
+                  setServerId(data.serverId);
+                  onClose();
+                  reset();
+               },
+               onError: (error) => {
+                  setError(error.message);
+                  setSearching(false);
+               },
+            }
          );
-         if (!success) {
-            setError(message);
-            setSearching(false);
-            return;
-         }
-         setError(null);
-         setSearching(false);
-         setServerFound(true);
-         setServerId(serverId);
-         onClose();
-         reset();
+         return;
+      }
+
+      if (!endpoint || !serverName || !region || !accessKey || !secretKey) {
+         setError("Please fill in all fields");
          return;
       }
 
       setSearching(true);
-      if (!endpoint || !serverName || !region || !accessKey || !secretKey) {
-         setError("Please fill in all fields");
-         setSearching(false);
-         return;
-      }
-      const { success, message, bucketCount } = await establishConnection({
-         endpoint,
-         region,
-         accessKey,
-         secretKey,
-      });
-      if (!success) {
-         setError(message);
-         setSearching(false);
-         return;
-      }
-      setServerFound(true);
-      setError(null);
-      setSearching(false);
-      setBucketCount(bucketCount);
+      establishConnectionMutation.mutate(
+         {
+            endpoint,
+            region,
+            accessKey,
+            secretKey,
+         },
+         {
+            onSuccess: (data) => {
+               setServerFound(true);
+               setError(null);
+               setSearching(false);
+               setBucketCount(data.bucketCount);
+            },
+            onError: (error) => {
+               setError(error.message);
+               setSearching(false);
+            },
+         }
+      );
    };
+
+   const isLoading =
+      searching ||
+      createServerMutation.isPending ||
+      establishConnectionMutation.isPending;
 
    return (
       <div className="flex flex-col gap-0 w-full">
-         <Button className="w-full" variant="secondary" disabled={searching} onClick={handleSubmit}>
-            {searching ? (
+         <Button
+            className="w-full"
+            variant="secondary"
+            disabled={isLoading}
+            onClick={handleSubmit}
+         >
+            {isLoading ? (
                <span className="flex items-center gap-2">
                   <LoaderCircle className="animate-spin" />
-                  Searching
+                  {serverFound ? "Connecting" : "Searching"}
                </span>
             ) : (
                "Connect"

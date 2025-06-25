@@ -1,5 +1,5 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import useServers from "@/lib/hooks/useServers";
+import useServers from "@/lib/hooks/queries/useServers";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -36,7 +36,9 @@ const ServerSelector = () => {
    };
 
    if (isServerListLoading || !servers) {
-      return <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />;
+      return (
+         <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
+      );
    }
 
    if (serverError) {
@@ -67,7 +69,10 @@ const ServerSelector = () => {
             <ServerCard server={selectedServer} />
          </DropdownMenuTrigger>
          <DropdownMenuContent className="select-none">
-            <DropdownMenuRadioGroup value={currentServerId} onValueChange={handleServerSelect}>
+            <DropdownMenuRadioGroup
+               value={currentServerId}
+               onValueChange={handleServerSelect}
+            >
                {servers.map((server) => (
                   <DropdownMenuRadioItem
                      key={server.id}
@@ -79,7 +84,10 @@ const ServerSelector = () => {
                ))}
             </DropdownMenuRadioGroup>
             <DropdownMenuSeparator className="w-19/20 bg-viewerborder mx-auto" />
-            <DropdownMenuItem className="py-2 text-viewerblack" onClick={() => openConnectModal()}>
+            <DropdownMenuItem
+               className="py-2 text-viewerblack"
+               onClick={() => openConnectModal()}
+            >
                <CirclePlus className="size-5" />
                Add new server
             </DropdownMenuItem>

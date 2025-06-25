@@ -1,4 +1,4 @@
-import { useServerOperations } from "@/lib/hooks/useServerOperations";
+import useDeleteServer from "@/lib/hooks/mutations/useDeleteServer";
 import { ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -18,27 +18,26 @@ type DisconnectModalProps = {
    server: ServerInfo;
 };
 
-const DisconnectModal: React.FC<DisconnectModalProps> = ({ onClose, server }) => {
-   const { deleteServer } = useServerOperations();
+const DisconnectModal: React.FC<DisconnectModalProps> = ({
+   onClose,
+   server,
+}) => {
+   const deleteServerMutation = useDeleteServer();
    const [disconnectError, setDisconnectError] = useState<string | null>(null);
-   const [loading, setLoading] = useState(false);
 
-   const handleDisconnect = async () => {
-      setLoading(true);
-      try {
-         const { success, message } = await deleteServer(server.id);
-         if (!success) {
-            setDisconnectError(message);
-            setLoading(false);
-            return;
+   const handleDisconnect = () => {
+      deleteServerMutation.mutate(
+         { serverId: server.id },
+         {
+            onSuccess: () => {
+               setDisconnectError(null);
+               onClose();
+            },
+            onError: (error) => {
+               setDisconnectError(error.message);
+            },
          }
-         setDisconnectError(null);
-         onClose();
-      } catch (e) {
-         console.error(e);
-         setDisconnectError("Failed to disconnect server");
-         setLoading(false);
-      }
+      );
    };
 
    return (
@@ -55,8 +54,8 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({ onClose, server }) =>
                </DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
                   <span>
-                     Are you sure you want to disconnect this server? You will need to reconnect the
-                     server manually to use it again.
+                     Are you sure you want to disconnect this server? You will
+                     need to reconnect the server manually to use it again.
                   </span>
                </DialogDescription>
             </DialogHeader>
@@ -65,9 +64,11 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({ onClose, server }) =>
                   variant="destructive"
                   className="w-full"
                   onClick={handleDisconnect}
-                  disabled={loading}
+                  disabled={deleteServerMutation.isPending}
                >
-                  {loading ? "Disconnecting..." : "Disconnect"}
+                  {deleteServerMutation.isPending
+                     ? "Disconnecting..."
+                     : "Disconnect"}
                </Button>
                <DialogClose asChild>
                   <Button variant="outline" className="w-full">
@@ -76,7 +77,9 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({ onClose, server }) =>
                </DialogClose>
             </DialogFooter>
             {disconnectError && (
-               <span className="text-red-500 text-sm text-center">{disconnectError}</span>
+               <span className="text-red-500 text-sm text-center">
+                  {disconnectError}
+               </span>
             )}
          </DialogContent>
       </Dialog>
