@@ -28,6 +28,24 @@ type ServerUser = {
    role: Role;
 };
 
+type ServerInvite = {
+   id: string;
+   email: string;
+   role: Role;
+   expiresAt: string;
+   accepted: boolean;
+   createdAt: string;
+   server: {
+      id: string;
+      name: string;
+   };
+   invitedBy?: {
+      id: string;
+      name: string;
+      email: string;
+   };
+};
+
 //==== S3 TYPES ====//
 type S3Bucket = {
    BucketRegion: string;

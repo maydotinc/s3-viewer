@@ -48,16 +48,24 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
    const [modals, setModals] = useState<ModalState[]>([]);
 
    const openModal = <T extends ModalType>(type: T, props: ModalPropsMap[T]) => {
-      window.document.body.style.overflow = "hidden";
+      if (modals.length === 0) {
+         window.document.body.style.overflow = "hidden";
+      }
       setModals((prevModals) => [...prevModals, { type, props } as ModalState]);
    };
 
    const closeModal = (modalType: ModalType) => {
-      window.document.body.style.overflow = "auto";
-      setModals((prevModals) => prevModals.filter((modal) => modal.type !== modalType));
+      setModals((prevModals) => {
+         const newModals = prevModals.filter((modal) => modal.type !== modalType);
+         if (newModals.length === 0) {
+            window.document.body.style.overflow = "auto";
+         }
+         return newModals;
+      });
    };
 
    const closeAllModals = () => {
+      window.document.body.style.overflow = "auto";
       setModals([]);
    };
 
