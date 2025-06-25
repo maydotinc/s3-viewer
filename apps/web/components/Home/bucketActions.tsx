@@ -7,7 +7,7 @@ const BucketActions = () => {
 
    return (
       <div className="flex gap-2">
-         <Button className="hidden lg:inline-flex" onClick={() => openShareModal({})}>
+         <Button onClick={() => openShareModal({})}>
             <UserRoundPlus className="size-4" />
             Share
          </Button>

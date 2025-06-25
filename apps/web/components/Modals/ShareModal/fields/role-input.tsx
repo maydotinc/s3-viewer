@@ -11,7 +11,6 @@ const ROLES: { value: Role; label: string; description: string }[] = [
    { value: Role.VIEWER, label: "Read", description: "Can view files and folders" },
    { value: Role.EDITOR, label: "Write", description: "Can view, create, edit, and delete files" },
    { value: Role.ADMIN, label: "Admin", description: "Can manage users and settings" },
-   { value: Role.OWNER, label: "Owner", description: "Full access and ownership" },
 ];
 
 type RoleSelectorProps = {
@@ -36,7 +35,7 @@ const RoleSelector = ({
          <SelectTrigger className={`${className} h-full transition-colors`}>
             <SelectValue className="text-sm font-medium">{selectedRoleLabel}</SelectValue>
          </SelectTrigger>
-         <SelectContent className="w-fit">
+         <SelectContent className="w-fit" position="popper" align="end">
             {ROLES.map((role) => (
                <SelectItem key={role.value} value={role.value}>
                   <div className="flex flex-col">

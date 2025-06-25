@@ -19,7 +19,7 @@ type ShareModalProps = {
 
 const ShareModal: React.FC<ShareModalProps> = ({ onClose, server }) => {
    return (
-      <ShareProvider serverId={server?.id}>
+      <ShareProvider serverId={server?.id} onClose={onClose}>
          <Dialog open={true} onOpenChange={onClose}>
             <DialogContent
                showCloseButton={false}

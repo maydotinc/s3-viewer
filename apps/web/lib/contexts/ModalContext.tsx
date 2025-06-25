@@ -8,7 +8,8 @@ type ModalType =
    | "createObject"
    | "rename"
    | "disconnect"
-   | "share";
+   | "share"
+   | "invites";
 
 type ModalPropsMap = {
    auth: {};
@@ -24,6 +25,7 @@ type ModalPropsMap = {
    share: {
       server?: ServerInfo;
    };
+   invites: {};
 };
 
 type ModalState = {
@@ -90,5 +92,6 @@ export const useModalContext = () => {
       openDisconnectModal: (props: ModalPropsMap["disconnect"]) =>
          context.openModal("disconnect", props),
       openShareModal: (props: ModalPropsMap["share"]) => context.openModal("share", props),
+      openInvitesModal: () => context.openModal("invites", {}),
    };
 };

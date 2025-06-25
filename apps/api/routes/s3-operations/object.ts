@@ -4,6 +4,7 @@ import {
    GetObjectCommand,
    PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { Role } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 import { Readable } from "stream";
 import { getS3Client } from "../../lib/s3.js";
@@ -24,7 +25,7 @@ objectRouter.put("/create", async (req: Request, res: Response) => {
       res.status(401).json({ message: "Unauthorized, please login to continue" });
       return;
    }
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+   if (!(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN, Role.EDITOR]))) {
       res.status(403).json({ message: "User does not have permission to create objects" });
       return;
    }
@@ -55,7 +56,9 @@ objectRouter.get("/get", async (req: Request, res: Response) => {
       res.status(401).json({ message: "Unauthorized, please login to continue" });
       return;
    }
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
+   if (
+      !(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN, Role.EDITOR, Role.VIEWER]))
+   ) {
       res.status(403).json({ message: "User does not have permission to get objects" });
       return;
    }
@@ -101,7 +104,7 @@ objectRouter.delete("/delete", async (req: Request, res: Response) => {
       res.status(401).json({ message: "Unauthorized, please login to continue" });
       return;
    }
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+   if (!(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN, Role.EDITOR]))) {
       res.status(403).json({ message: "User does not have permission to delete objects" });
       return;
    }
@@ -126,7 +129,7 @@ objectRouter.post("/copy", async (req: Request, res: Response) => {
       res.status(401).json({ message: "Unauthorized, please login to continue" });
       return;
    }
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+   if (!(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN, Role.EDITOR]))) {
       res.status(403).json({ message: "User does not have permission to copy objects" });
       return;
    }
@@ -157,7 +160,7 @@ objectRouter.post("/move", async (req: Request, res: Response) => {
       res.status(401).json({ message: "Unauthorized, please login to continue" });
       return;
    }
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR"])) {
+   if (!(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN, Role.EDITOR]))) {
       res.status(403).json({ message: "User does not have permission to move objects" });
       return;
    }

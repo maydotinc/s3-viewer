@@ -1,19 +1,22 @@
+import { useModalContext } from "@/lib/contexts/ModalContext";
 import { authClient, signOut } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Separator } from "@s3-viewer/ui/components/separator";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { ChevronDown, FileText, Headset, LogOut, User } from "lucide-react";
+import { ChevronDown, FileText, Headset, LogOut, Mail, User } from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
 
 const SETTINGS_OPTIONS = [
    { id: "help", title: "Help & Support", icon: <Headset /> },
    { id: "terms", title: "Terms of Service", icon: <FileText /> },
+   { id: "invites", title: "Invites", icon: <Mail /> },
    { id: "logout", title: "Logout", icon: <LogOut /> },
 ] as const;
 
 const ProfileDropdown: React.FC = () => {
    const { data } = authClient.useSession();
+   const { openInvitesModal } = useModalContext();
    const user = data?.user;
 
    const [isOpen, setIsOpen] = useState(false);
@@ -41,7 +44,7 @@ const ProfileDropdown: React.FC = () => {
       };
    }, []);
 
-   const handleOptionSelect = async (optionId: "help" | "terms" | "logout") => {
+   const handleOptionSelect = async (optionId: "help" | "terms" | "invites" | "logout") => {
       setIsOpen(false);
       switch (optionId) {
          case "help":
@@ -49,6 +52,9 @@ const ProfileDropdown: React.FC = () => {
             break;
          case "terms":
             console.log("terms");
+            break;
+         case "invites":
+            openInvitesModal();
             break;
          case "logout":
             await signOut("/home");

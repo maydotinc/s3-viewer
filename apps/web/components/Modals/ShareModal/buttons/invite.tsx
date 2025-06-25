@@ -13,6 +13,7 @@ const InviteButton = () => {
       isLoading,
       setIsLoading,
       setInvalidEmails,
+      onClose,
    } = useShareContext();
    const { sendInvitation } = useServerOperations();
 
@@ -38,8 +39,9 @@ const InviteButton = () => {
          const result = await sendInvitation(serverId, emailList, selectedRole);
          if (result.success) {
             setInvalidEmails([]);
+            onClose();
          } else {
-            console.error("Invitation failed:", result.message);
+            console.error("Invitation failed:", result.error);
          }
       } catch (error) {
          console.error("Failed to invite users:", error);

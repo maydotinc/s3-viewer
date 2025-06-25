@@ -1,4 +1,5 @@
 import { CreateBucketCommand, DeleteBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
+import { Role } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 import { getS3Client } from "../../lib/s3.js";
 import authGuard from "../../lib/utils/auth.js";
@@ -20,7 +21,7 @@ bucketRouter.put("/create", async (req: Request, res: Response) => {
       return;
    }
 
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN"])) {
+   if (!(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN]))) {
       res.status(403).json({ message: "User does not have permission to create buckets" });
       return;
    }
@@ -47,7 +48,7 @@ bucketRouter.delete("/delete", async (req: Request, res: Response) => {
       return;
    }
 
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN"])) {
+   if (!(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN]))) {
       res.status(403).json({ message: "User does not have permission to delete buckets" });
       return;
    }
@@ -73,7 +74,9 @@ bucketRouter.get("/list", async (req: Request, res: Response) => {
       res.status(401).json({ message: "Unauthorized, please login to continue" });
       return;
    }
-   if (!hasPermissions(serverId, user.id, ["OWNER", "ADMIN", "EDITOR", "VIEWER"])) {
+   if (
+      !(await hasPermissions(serverId, user.id, [Role.OWNER, Role.ADMIN, Role.EDITOR, Role.VIEWER]))
+   ) {
       res.status(403).json({ message: "User does not have permission to list buckets" });
       return;
    }

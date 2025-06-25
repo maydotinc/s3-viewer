@@ -82,7 +82,7 @@ const createServerAPI = async (serverCredentials: ServerCredentials, serverName:
          toast.error("Failed to create server");
          return { success: false, error: (await response.json()).message };
       }
-      toast.success("Server created successfully");
+      toast.success("Server connected successfully");
       const data = await response.json();
       return {
          success: true,
@@ -90,7 +90,7 @@ const createServerAPI = async (serverCredentials: ServerCredentials, serverName:
          serverId: data.serverId,
       };
    } catch (error: any) {
-      console.error("Error creating server:", error);
+      console.error("Error connecting server:", error);
       return { success: false, error: error.message };
    }
 };
@@ -146,7 +146,7 @@ const sendInvitationAPI = async (
    expiresAt: Date
 ) => {
    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/send-invitation`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/manage/invites/send`, {
          method: "POST",
          headers: {
             "Content-Type": "application/json",
@@ -156,7 +156,8 @@ const sendInvitationAPI = async (
       });
       if (!response.ok) {
          toast.error("Failed to send invitation");
-         return { success: false, error: (await response.json()).message };
+         const { message } = await response.json();
+         return { success: false, error: message };
       }
       toast.success("Invitation sent successfully");
       return { success: true, message: (await response.json()).message };

@@ -12,6 +12,7 @@ type ShareContextType = {
    setInvalidEmails: (emails: string[]) => void;
    isLoading: boolean;
    setIsLoading: (loading: boolean) => void;
+   onClose: () => void;
 };
 
 const ShareContext = createContext<ShareContextType | undefined>(undefined);
@@ -27,9 +28,10 @@ export const useShareContext = () => {
 type ShareProviderProps = {
    children: ReactNode;
    serverId?: string;
+   onClose: () => void;
 };
 
-export const ShareProvider = ({ children, serverId }: ShareProviderProps) => {
+export const ShareProvider = ({ children, serverId, onClose }: ShareProviderProps) => {
    const currServerId = useSessionStore((state) => state.serverId);
    const [emails, setEmails] = useState("");
    const [selectedRole, setSelectedRole] = useState<Role>(Role.VIEWER);
@@ -48,6 +50,7 @@ export const ShareProvider = ({ children, serverId }: ShareProviderProps) => {
             setInvalidEmails,
             isLoading,
             setIsLoading,
+            onClose,
          }}
       >
          {children}

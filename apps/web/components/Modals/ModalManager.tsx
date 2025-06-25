@@ -2,6 +2,7 @@ import { useModalContext } from "@/lib/contexts/ModalContext";
 import AuthModal from "./AuthModal";
 import ConnectModal from "./ConnectModal";
 import DisconnectModal from "./DisonnectModal";
+import InvitesModal from "./InvitesModal";
 import RenameModal from "./RenameModal";
 import ShareModal from "./ShareModal";
 
@@ -50,6 +51,14 @@ const ModalManager = () => {
                         key={`share-${index}`}
                         {...modal.props}
                         onClose={() => closeModal("share")}
+                     />
+                  );
+               case "invites":
+                  return (
+                     <InvitesModal
+                        key={`invites-${index}`}
+                        {...modal.props}
+                        onClose={() => closeModal("invites")}
                      />
                   );
                default:
