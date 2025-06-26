@@ -9,14 +9,34 @@ import {
    CardTitle,
 } from "@s3-viewer/ui/components/card";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { Clock, Mail, Server, Trash2 } from "lucide-react";
+import {
+   CheckCircle,
+   Clock,
+   Loader2,
+   Mail,
+   Server,
+   Trash2,
+   User,
+} from "lucide-react";
+import { useState } from "react";
 
 const SentInvites: React.FC = () => {
    const { data: sentInvites = [], isLoading } = useSentInvites();
    const revokeInviteMutation = useRevokeInvite();
+   const [processingInviteId, setProcessingInviteId] = useState<string | null>(
+      null
+   );
 
    const handleRevokeInvite = (inviteId: string) => {
-      revokeInviteMutation.mutate({ inviteId });
+      setProcessingInviteId(inviteId);
+      revokeInviteMutation.mutate(
+         { inviteId },
+         {
+            onSettled: () => {
+               setProcessingInviteId(null);
+            },
+         }
+      );
    };
 
    const isExpired = (expiresAt: string) => {
@@ -25,20 +45,17 @@ const SentInvites: React.FC = () => {
 
    if (isLoading) {
       return (
-         <div className="space-y-4">
+         <div className="flex flex-col gap-2">
             {[1, 2, 3].map((i) => (
-               <Card key={i}>
-                  <CardHeader className="pb-2">
-                     <Skeleton className="h-4 w-3/4" />
-                  </CardHeader>
-                  <CardContent>
-                     <div className="space-y-2">
-                        <Skeleton className="h-3 w-1/2" />
-                        <Skeleton className="h-3 w-2/3" />
-                        <Skeleton className="h-8 w-20" />
-                     </div>
-                  </CardContent>
-               </Card>
+               <div
+                  key={i}
+                  className="flex flex-col gap-2 border border-viewerborder rounded-md p-2"
+               >
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-8 w-20" />
+               </div>
             ))}
          </div>
       );
@@ -46,12 +63,10 @@ const SentInvites: React.FC = () => {
 
    if (sentInvites.length === 0) {
       return (
-         <div className="text-center py-8">
-            <Mail className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-               No invites sent
-            </h3>
-            <p className="text-gray-500">
+         <div className="flex flex-col items-center justify-center gap-2 p-4 text-center">
+            <Mail className="size-12 text-viewerblue" />
+            <h3 className="text-lg text-viewerblack">No invites sent</h3>
+            <p className="text-viewertext">
                You haven't sent any server invitations yet.
             </p>
          </div>
@@ -59,82 +74,82 @@ const SentInvites: React.FC = () => {
    }
 
    return (
-      <div className="space-y-4 max-h-96 overflow-y-auto">
-         {sentInvites.map((invite) => (
-            <Card key={invite.id} className="relative">
-               <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                     <CardTitle className="text-base flex items-center gap-2">
-                        <Server className="h-4 w-4" />
-                        {invite.server.name}
-                     </CardTitle>
-                     <div className="flex items-center gap-2">
-                        <Badge
-                           variant={
-                              isExpired(invite.expiresAt)
-                                 ? "destructive"
-                                 : "secondary"
-                           }
-                        >
-                           {invite.role}
-                        </Badge>
-                        {invite.accepted && (
+      <div className="overflow-y-auto flex flex-col gap-2 max-h-[60vh]">
+         {sentInvites.map((invite) => {
+            const isInviteProcessing = processingInviteId === invite.id;
+            const isInviteExpired = isExpired(invite.expiresAt);
+
+            return (
+               <Card key={invite.id} className="relative p-3">
+                  <CardHeader className="p-0">
+                     <div className="flex items-center justify-between">
+                        <CardTitle className="flex items-center gap-2">
+                           <Server className="size-4" />
+                           {invite.server.name}
+                        </CardTitle>
+                        <div className="flex items-center gap-2">
                            <Badge
-                              variant="default"
-                              className="bg-green-100 text-green-800"
+                              variant={
+                                 isInviteExpired ? "destructive" : "secondary"
+                              }
                            >
-                              Accepted
+                              {invite.role}
                            </Badge>
-                        )}
+                           {invite.accepted && (
+                              <Badge
+                                 variant="default"
+                                 className="bg-green-100 text-green-800"
+                              >
+                                 Accepted
+                              </Badge>
+                           )}
+                        </div>
                      </div>
-                  </div>
-               </CardHeader>
-               <CardContent>
-                  <div className="space-y-2">
-                     <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Clock className="h-3 w-3" />
+                  </CardHeader>
+                  <CardContent className="p-0 flex flex-col">
+                     <div className="flex items-center gap-2 text-sm text-viewertext">
+                        <User className="size-3" />
+                        <span>Sent to {invite.email}</span>
+                     </div>
+                     <div className="flex items-center gap-2 text-sm text-viewertext">
+                        <Clock className="size-3" />
                         <span>
-                           {isExpired(invite.expiresAt)
-                              ? `Expired on ${new Date(invite.expiresAt).toLocaleDateString()}`
-                              : `Expires on ${new Date(invite.expiresAt).toLocaleDateString()}`}
+                           {isInviteExpired
+                              ? `Expired: ${new Date(invite.expiresAt).toLocaleDateString()}`
+                              : `Expires: ${new Date(invite.expiresAt).toLocaleDateString()}`}
                         </span>
                      </div>
-                     <div className="pt-2">
-                        {invite.accepted ? (
-                           <Badge
-                              variant="default"
-                              className="bg-green-100 text-green-800 text-xs"
-                           >
-                              ✓ Invitation Accepted
-                           </Badge>
-                        ) : isExpired(invite.expiresAt) ? (
-                           <Badge variant="destructive" className="text-xs">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Expired
-                           </Badge>
-                        ) : (
-                           <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRevokeInvite(invite.id)}
-                              disabled={revokeInviteMutation.isPending}
-                              className="text-xs"
-                           >
-                              {revokeInviteMutation.isPending ? (
-                                 "Revoking..."
-                              ) : (
-                                 <>
-                                    <Trash2 className="h-3 w-3 mr-1" />
-                                    Revoke Invite
-                                 </>
-                              )}
-                           </Button>
-                        )}
-                     </div>
-                  </div>
-               </CardContent>
-            </Card>
-         ))}
+                     {invite.accepted ? (
+                        <div className="flex items-center gap-2 text-sm text-green-600 mt-2">
+                           <CheckCircle className="size-3" />
+                           <span>Invitation Accepted</span>
+                        </div>
+                     ) : isInviteExpired ? (
+                        <div className="flex items-center gap-2 text-sm text-red-600 mt-2">
+                           <Clock className="size-3" />
+                           <span>Invitation Expired</span>
+                        </div>
+                     ) : (
+                        <Button
+                           onClick={() => handleRevokeInvite(invite.id)}
+                           disabled={isInviteProcessing}
+                           variant="destructive"
+                           className="mt-2 w-fit"
+                        >
+                           {isInviteProcessing ? (
+                              <Loader2 className="size-3 animate-spin" />
+                           ) : (
+                              <>
+                                 <Trash2 className="size-3" />
+                                 Revoke Invite
+                              </>
+                           )}
+                        </Button>
+                     )}
+                  </CardContent>
+               </Card>
+            );
+         })}
       </div>
    );
 };

@@ -149,6 +149,7 @@ manageRouter.get("/invites/received", async (req: Request, res: Response) => {
          },
          select: {
             id: true,
+            email: true,
             role: true,
             expiresAt: true,
             accepted: true,
@@ -170,6 +171,7 @@ manageRouter.get("/invites/received", async (req: Request, res: Response) => {
       });
       const receivedInvites: ServerInvite[] = invites.map((invite) => ({
          id: invite.id,
+         email: invite.email,
          role: invite.role as Role,
          expiresAt: invite.expiresAt.toISOString(),
          accepted: invite.accepted,
@@ -201,6 +203,7 @@ manageRouter.get("/invites/sent", async (req: Request, res: Response) => {
          },
          select: {
             id: true,
+            email: true,
             role: true,
             expiresAt: true,
             accepted: true,
@@ -222,6 +225,7 @@ manageRouter.get("/invites/sent", async (req: Request, res: Response) => {
       });
       const sentInvites: ServerInvite[] = invites.map((invite) => ({
          id: invite.id,
+         email: invite.email,
          role: invite.role as Role,
          expiresAt: invite.expiresAt.toISOString(),
          accepted: invite.accepted,
