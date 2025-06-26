@@ -1,28 +1,46 @@
-import { fetchServerUsers } from "@/lib/api/server";
+import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { authClient } from "@s3-viewer/auth/client";
-import { useQuery } from "@tanstack/react-query";
+import { ServerUser } from "@s3-viewer/types";
+import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useServerUsers = (serverId: string) => {
    const { data: session } = authClient.useSession();
-   const isAuthenticated = !!session?.user;
 
    const {
       data: serverUsers = [],
-      isPending: isLoading,
-      error,
+      isPending: isServerUsersLoading,
+      error: serverUsersError,
       refetch,
-   } = useQuery({
+   } = useQuery<ServerUser[]>({
       queryKey: ["server-users", serverId],
-      queryFn: fetchServerUsers,
-      enabled: !!serverId && isAuthenticated,
-      staleTime: 1000 * 60 * 2, // 2 minutes
+      queryFn: async ({
+         queryKey,
+         signal,
+      }: QueryFunctionContext): Promise<ServerUser[]> => {
+         const [, serverId] = queryKey as [string, string];
+
+         const response = await createApiRequest(
+            `/retrieve/get-server-users?serverId=${serverId}`,
+            { signal }
+         );
+
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+
+         const { serverUsers } = (await response.json()) as {
+            serverUsers: ServerUser[];
+         };
+         return serverUsers;
+      },
+      enabled: !!session?.user && !!serverId,
    });
 
    return {
       serverUsers,
-      isLoading,
-      error,
-      refetch,
+      isServerUsersLoading,
+      serverUsersError,
+      refreshServerUsers: refetch,
    };
 };
 

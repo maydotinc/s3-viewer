@@ -1,4 +1,4 @@
-import { renameServer } from "@/lib/api/server";
+import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -6,23 +6,37 @@ const useRenameServer = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: ({
+      mutationFn: async ({
          serverId,
          serverName,
       }: {
          serverId: string;
          serverName: string;
-      }) => renameServer(serverId, serverName),
+      }): Promise<{ message: string }> => {
+         const response = await createApiRequest("/manage/rename", {
+            method: "PUT",
+            body: JSON.stringify({ serverId, serverName }),
+         });
 
-      onSuccess: (data, variables) => {
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+
+         const data = await response.json();
+         return { message: data.message };
+      },
+
+      onSuccess: (_, variables) => {
          toast.success("Server renamed successfully");
          queryClient.invalidateQueries({
-            queryKey: ["server", variables.serverId],
+            queryKey: ["servers"],
          });
       },
 
       onError: (error: Error) => {
-         toast.error(error.message);
+         toast.error("Unable to rename server", {
+            description: error.message,
+         });
       },
    });
 };

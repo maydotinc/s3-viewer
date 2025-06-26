@@ -1,4 +1,5 @@
 import useAcceptInvite from "@/lib/hooks/mutations/useAcceptInvite";
+import useRejectInvite from "@/lib/hooks/mutations/useRejectInvite";
 import { useReceivedInvites } from "@/lib/hooks/queries/useServerInvites";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -9,13 +10,25 @@ import {
    CardTitle,
 } from "@s3-viewer/ui/components/card";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { CheckCircle, Clock, Loader2, Mail, Server, User } from "lucide-react";
+import {
+   CheckCircle,
+   Clock,
+   Loader2,
+   Mail,
+   Server,
+   User,
+   X,
+} from "lucide-react";
 import { useState } from "react";
 
 const ReceivedInvites: React.FC = () => {
    const { data: receivedInvites = [], isLoading } = useReceivedInvites();
    const acceptInviteMutation = useAcceptInvite();
+   const rejectInviteMutation = useRejectInvite();
    const [processingInviteId, setProcessingInviteId] = useState<string | null>(
+      null
+   );
+   const [rejectingInviteId, setRejectingInviteId] = useState<string | null>(
       null
    );
 
@@ -26,6 +39,18 @@ const ReceivedInvites: React.FC = () => {
          {
             onSettled: () => {
                setProcessingInviteId(null);
+            },
+         }
+      );
+   };
+
+   const handleRejectInvite = (inviteId: string) => {
+      setRejectingInviteId(inviteId);
+      rejectInviteMutation.mutate(
+         { inviteId },
+         {
+            onSettled: () => {
+               setRejectingInviteId(null);
             },
          }
       );
@@ -70,6 +95,7 @@ const ReceivedInvites: React.FC = () => {
          {receivedInvites.map((invite) => {
             const isInviteProcessing = processingInviteId === invite.id;
             const isInviteExpired = isExpired(invite.expiresAt);
+            const isInviteRejecting = rejectingInviteId === invite.id;
 
             return (
                <Card key={invite.id} className="relative p-3">
@@ -101,21 +127,38 @@ const ReceivedInvites: React.FC = () => {
                               : `Expires: ${new Date(invite.expiresAt).toLocaleDateString()}`}
                         </span>
                      </div>
-                     <Button
-                        onClick={() => handleAcceptInvite(invite.id)}
-                        disabled={isInviteProcessing || isInviteExpired}
-                        variant={isInviteExpired ? "destructive" : "secondary"}
-                        className="mt-2 w-fit"
-                     >
-                        {isInviteProcessing ? (
-                           <Loader2 className="size-3 animate-spin" />
-                        ) : (
-                           <>
-                              <CheckCircle className="size-3" />
-                              Accept Invite
-                           </>
-                        )}
-                     </Button>
+                     <div className="flex items-center gap-2 mt-2">
+                        <Button
+                           onClick={() => handleAcceptInvite(invite.id)}
+                           disabled={isInviteProcessing || isInviteExpired}
+                           variant="secondary"
+                           className="flex-1"
+                        >
+                           {isInviteProcessing ? (
+                              <Loader2 className="size-3 animate-spin" />
+                           ) : (
+                              <>
+                                 <CheckCircle className="size-3" />
+                                 Accept Invite
+                              </>
+                           )}
+                        </Button>
+                        <Button
+                           variant="destructive"
+                           className="flex-1"
+                           onClick={() => handleRejectInvite(invite.id)}
+                           disabled={isInviteRejecting}
+                        >
+                           {isInviteRejecting ? (
+                              <Loader2 className="size-3 animate-spin" />
+                           ) : (
+                              <>
+                                 <X className="size-3" />
+                                 Reject Invite
+                              </>
+                           )}
+                        </Button>
+                     </div>
                   </CardContent>
                </Card>
             );

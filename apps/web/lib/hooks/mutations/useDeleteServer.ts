@@ -1,4 +1,4 @@
-import { deleteServer } from "@/lib/api/server";
+import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -6,19 +6,33 @@ const useDeleteServer = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: ({ serverId }: { serverId: string }) =>
-         deleteServer(serverId),
+      mutationFn: async ({
+         serverId,
+      }: {
+         serverId: string;
+      }): Promise<{ message: string }> => {
+         const response = await createApiRequest("/manage/delete", {
+            method: "DELETE",
+            body: JSON.stringify({ serverId }),
+         });
 
-      onSuccess: (data, variables) => {
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+
+         const data = await response.json();
+         return { message: data.message };
+      },
+
+      onSuccess: () => {
          toast.success("Server deleted successfully");
          queryClient.invalidateQueries({ queryKey: ["servers"] });
-         queryClient.invalidateQueries({
-            queryKey: ["server-users", variables.serverId],
-         });
       },
 
       onError: (error: Error) => {
-         toast.error(error.message);
+         toast.error("Unable to delete server", {
+            description: error.message,
+         });
       },
    });
 };

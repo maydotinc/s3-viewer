@@ -1,30 +1,31 @@
 {
-  "name": "api",
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "tsup server.ts --watch --onSuccess \"tsx dist/server.js\""
-  },
-  "dependencies": {
-    "@aws-sdk/client-s3": "^3.802.0",
-    "@aws-sdk/s3-request-presigner": "^3.802.0",
-    "@s3-viewer/auth": "workspace:*",
-    "@s3-viewer/db": "workspace:*",
-    "better-auth": "^1.2.8",
-    "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
-    "express": "^5.1.0",
-    "web": "workspace:*",
-    "zod": "^3.25.67"
-  },
-  "devDependencies": {
-    "@s3-viewer/eslint-config": "workspace:*",
-    "@s3-viewer/ts-config": "workspace:*",
-    "@s3-viewer/types": "workspace:*",
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.2",
-    "nodemon": "^3.1.10",
-    "tsup": "^8.4.0",
-    "tsx": "^4.19.4"
-  }
+   "name": "api",
+   "version": "0.0.0",
+   "type": "module",
+   "scripts": {
+      "dev": "tsup server.ts --watch --onSuccess \"tsx dist/server.js\""
+   },
+   "dependencies": {
+      "@aws-sdk/client-s3": "^3.802.0",
+      "@aws-sdk/s3-request-presigner": "^3.802.0",
+      "@prisma/client": "^6.8.2",
+      "@s3-viewer/auth": "workspace:*",
+      "@s3-viewer/db": "workspace:*",
+      "better-auth": "^1.2.8",
+      "cors": "^2.8.5",
+      "dotenv": "^16.5.0",
+      "express": "^5.1.0",
+      "web": "workspace:*",
+      "zod": "^3.25.67"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@s3-viewer/types": "workspace:*",
+      "@types/cors": "^2.8.17",
+      "@types/express": "^5.0.2",
+      "nodemon": "^3.1.10",
+      "tsup": "^8.4.0",
+      "tsx": "^4.19.4"
+   }
 }

@@ -9,15 +9,7 @@ import {
    CardTitle,
 } from "@s3-viewer/ui/components/card";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import {
-   CheckCircle,
-   Clock,
-   Loader2,
-   Mail,
-   Server,
-   Trash2,
-   User,
-} from "lucide-react";
+import { Clock, Loader2, Mail, Server, Trash2, User } from "lucide-react";
 import { useState } from "react";
 
 const SentInvites: React.FC = () => {
@@ -119,33 +111,21 @@ const SentInvites: React.FC = () => {
                               : `Expires: ${new Date(invite.expiresAt).toLocaleDateString()}`}
                         </span>
                      </div>
-                     {invite.accepted ? (
-                        <div className="flex items-center gap-2 text-sm text-green-600 mt-2">
-                           <CheckCircle className="size-3" />
-                           <span>Invitation Accepted</span>
-                        </div>
-                     ) : isInviteExpired ? (
-                        <div className="flex items-center gap-2 text-sm text-red-600 mt-2">
-                           <Clock className="size-3" />
-                           <span>Invitation Expired</span>
-                        </div>
-                     ) : (
-                        <Button
-                           onClick={() => handleRevokeInvite(invite.id)}
-                           disabled={isInviteProcessing}
-                           variant="destructive"
-                           className="mt-2 w-fit"
-                        >
-                           {isInviteProcessing ? (
-                              <Loader2 className="size-3 animate-spin" />
-                           ) : (
-                              <>
-                                 <Trash2 className="size-3" />
-                                 Revoke Invite
-                              </>
-                           )}
-                        </Button>
-                     )}
+                     <Button
+                        onClick={() => handleRevokeInvite(invite.id)}
+                        disabled={isInviteProcessing}
+                        variant="destructive"
+                        className="mt-2 w-full"
+                     >
+                        {isInviteProcessing ? (
+                           <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                           <>
+                              <Trash2 className="size-3" />
+                              Revoke Invite
+                           </>
+                        )}
+                     </Button>
                   </CardContent>
                </Card>
             );

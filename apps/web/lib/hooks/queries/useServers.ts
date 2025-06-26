@@ -1,7 +1,7 @@
-import { fetchServers } from "@/lib/api/server";
+import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { authClient } from "@s3-viewer/auth/client";
 import { ServerInfo } from "@s3-viewer/types";
-import { useQuery } from "@tanstack/react-query";
+import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useServers = () => {
    const { data: session } = authClient.useSession();
@@ -13,7 +13,22 @@ const useServers = () => {
       refetch,
    } = useQuery<ServerInfo[]>({
       queryKey: ["servers"],
-      queryFn: fetchServers,
+      queryFn: async ({
+         signal,
+      }: QueryFunctionContext): Promise<ServerInfo[]> => {
+         const response = await createApiRequest("/retrieve/get-servers", {
+            signal,
+         });
+
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+
+         const { serversList } = (await response.json()) as {
+            serversList: ServerInfo[];
+         };
+         return serversList;
+      },
       enabled: !!session?.user,
    });
 

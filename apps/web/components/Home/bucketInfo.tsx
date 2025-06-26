@@ -1,10 +1,7 @@
-import { fetchFolders } from "@/lib/api/s3";
 import testData from "@/lib/utils/test";
 import { BucketFolder } from "@s3-viewer/types";
-import { useQuery } from "@tanstack/react-query";
 import { ColDef, GridReadyEvent } from "ag-grid-community";
 import { AgGridReact, CustomCellRendererProps } from "ag-grid-react";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { createContext, useCallback, useRef, useState } from "react";
 import PaginationControls from "../DataGrid/Actions/pageControls";
@@ -14,7 +11,10 @@ import BucketActions from "./bucketActions";
 
 const BucketFormatter = (props: CustomCellRendererProps) => {
    return (
-      <Link href={`/buckets/${props.value}`} className="hover:underline hover:text-viewerblue">
+      <Link
+         href={`/buckets/${props.value}`}
+         className="hover:underline hover:text-viewerblue"
+      >
          {props.value}
       </Link>
    );
@@ -71,29 +71,23 @@ const BucketInfo = () => {
       setGridReady(true);
    }, []);
 
-   const { data: folders, isLoading } = useQuery({
-      queryKey: ["folders"],
-      queryFn: fetchFolders,
-      refetchOnMount: true,
-   });
-
    return (
-      <GridContext.Provider value={{ gridRef, gridReady, pageSize, setPageSize, onGridReady }}>
+      <GridContext.Provider
+         value={{ gridRef, gridReady, pageSize, setPageSize, onGridReady }}
+      >
          <section className="flex flex-col px-8 py-8 w-full h-full">
             <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
                <GridActions />
                <BucketActions />
             </div>
-            {isLoading ? (
-               <div className="flex justify-center items-center h-full">
-                  <Loader2 className="w-10 h-10 animate-spin" />
-               </div>
-            ) : (
-               <div className="flex flex-col flex-1 gap-2">
-                  <BaseGrid rowData={testData ?? []} colDefs={columns} className="flex-1" />
-                  <PaginationControls />
-               </div>
-            )}
+            <div className="flex flex-col flex-1 gap-2">
+               <BaseGrid
+                  rowData={testData ?? []}
+                  colDefs={columns}
+                  className="flex-1"
+               />
+               <PaginationControls />
+            </div>
          </section>
       </GridContext.Provider>
    );

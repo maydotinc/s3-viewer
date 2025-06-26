@@ -1,4 +1,4 @@
-import { sendInvite } from "@/lib/api/server";
+import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { Role } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -7,7 +7,7 @@ const useSendInvite = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: ({
+      mutationFn: async ({
          serverId,
          emails,
          role,
@@ -17,22 +17,33 @@ const useSendInvite = () => {
          emails: string[];
          role: Role;
          expiresAt?: string;
-      }) => {
+      }): Promise<{ message: string }> => {
          const expiry =
             expiresAt ||
             new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
-         return sendInvite(serverId, emails, role, expiry);
+
+         const response = await createApiRequest("/manage/invites/send", {
+            method: "POST",
+            body: JSON.stringify({ serverId, emails, role, expiresAt: expiry }),
+         });
+
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+
+         const data = await response.json();
+         return { message: data.message };
       },
 
-      onSuccess: (data, variables) => {
+      onSuccess: () => {
          toast.success("Invitation sent successfully");
-         queryClient.invalidateQueries({
-            queryKey: ["server-users", variables.serverId],
-         });
+         queryClient.invalidateQueries({ queryKey: ["sent-invites"] });
       },
 
       onError: (error: Error) => {
-         toast.error(error.message);
+         toast.error("Unable to send invitation", {
+            description: error.message,
+         });
       },
    });
 };

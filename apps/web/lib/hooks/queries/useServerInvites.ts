@@ -1,14 +1,29 @@
-import { fetchReceivedInvites, fetchSentInvites } from "@/lib/api/server";
+import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { authClient } from "@s3-viewer/auth/client";
 import { ServerInvite } from "@s3-viewer/types";
-import { useQuery } from "@tanstack/react-query";
+import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useReceivedInvites = () => {
    const { data: session } = authClient.useSession();
 
    return useQuery<ServerInvite[]>({
       queryKey: ["received-invites"],
-      queryFn: fetchReceivedInvites,
+      queryFn: async ({
+         signal,
+      }: QueryFunctionContext): Promise<ServerInvite[]> => {
+         const response = await createApiRequest("/manage/invites/received", {
+            signal,
+         });
+
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+
+         const { receivedInvites } = (await response.json()) as {
+            receivedInvites: ServerInvite[];
+         };
+         return receivedInvites;
+      },
       enabled: !!session?.user,
    });
 };
@@ -18,7 +33,22 @@ const useSentInvites = () => {
 
    return useQuery<ServerInvite[]>({
       queryKey: ["sent-invites"],
-      queryFn: fetchSentInvites,
+      queryFn: async ({
+         signal,
+      }: QueryFunctionContext): Promise<ServerInvite[]> => {
+         const response = await createApiRequest("/manage/invites/sent", {
+            signal,
+         });
+
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+
+         const { sentInvites } = (await response.json()) as {
+            sentInvites: ServerInvite[];
+         };
+         return sentInvites;
+      },
       enabled: !!session?.user,
    });
 };

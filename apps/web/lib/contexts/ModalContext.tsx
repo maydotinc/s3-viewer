@@ -36,7 +36,10 @@ type ModalState = {
 }[ModalType];
 
 interface ModalContextType {
-   openModal: <T extends ModalType>(modalType: T, props: ModalPropsMap[T]) => void;
+   openModal: <T extends ModalType>(
+      modalType: T,
+      props: ModalPropsMap[T]
+   ) => void;
    closeModal: (modalType: ModalType) => void;
    modals: ModalState[];
    closeAllModals: () => void;
@@ -44,10 +47,21 @@ interface ModalContextType {
 
 const ModalContext = createContext<ModalContextType | undefined>(undefined);
 
-export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const ModalProvider: React.FC<{ children: ReactNode }> = ({
+   children,
+}) => {
    const [modals, setModals] = useState<ModalState[]>([]);
 
-   const openModal = <T extends ModalType>(type: T, props: ModalPropsMap[T]) => {
+   const openModal = <T extends ModalType>(
+      type: T,
+      props: ModalPropsMap[T]
+   ) => {
+      // Only blur if the focused element will be hidden by the modal
+      const activeElement = document.activeElement as HTMLElement;
+      if (activeElement && !activeElement.closest("[data-radix-portal]")) {
+         activeElement.blur();
+      }
+
       if (modals.length === 0) {
          window.document.body.style.overflow = "hidden";
       }
@@ -56,7 +70,9 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
    const closeModal = (modalType: ModalType) => {
       setModals((prevModals) => {
-         const newModals = prevModals.filter((modal) => modal.type !== modalType);
+         const newModals = prevModals.filter(
+            (modal) => modal.type !== modalType
+         );
          if (newModals.length === 0) {
             window.document.body.style.overflow = "auto";
          }
@@ -96,10 +112,12 @@ export const useModalContext = () => {
          context.openModal("createBucket", props),
       openCreateObjectModal: (props: ModalPropsMap["createObject"]) =>
          context.openModal("createObject", props),
-      openRenameModal: (props: ModalPropsMap["rename"]) => context.openModal("rename", props),
+      openRenameModal: (props: ModalPropsMap["rename"]) =>
+         context.openModal("rename", props),
       openDisconnectModal: (props: ModalPropsMap["disconnect"]) =>
          context.openModal("disconnect", props),
-      openShareModal: (props: ModalPropsMap["share"]) => context.openModal("share", props),
+      openShareModal: (props: ModalPropsMap["share"]) =>
+         context.openModal("share", props),
       openInvitesModal: () => context.openModal("invites", {}),
    };
 };
