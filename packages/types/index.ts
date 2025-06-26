@@ -29,8 +29,10 @@ type ServerUser = {
 };
 
 type ServerInvite = {
+   id: string;
    role: Role;
-   expiresAt: Date;
+   expiresAt: string;
+   accepted: boolean;
    server: {
       name: string;
    };

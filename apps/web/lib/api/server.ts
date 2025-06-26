@@ -220,7 +220,7 @@ const sendInvite = async (
    serverId: string,
    emails: string[],
    role: Role,
-   expiresAt: Date
+   expiresAt: string
 ): Promise<{ message: string }> => {
    const response = await fetch(
       `${process.env.NEXT_PUBLIC_API_URL}/manage/invites/send`,

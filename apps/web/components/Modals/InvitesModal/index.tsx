@@ -11,7 +11,6 @@ import {
    TabsList,
    TabsTrigger,
 } from "@s3-viewer/ui/components/tabs";
-import { useEffect } from "react";
 import { InvitesProvider, useInvitesContext } from "./context/InvitesContext";
 import ReceivedInvites from "./received";
 import SentInvites from "./sent";
@@ -21,11 +20,7 @@ type InvitesModalProps = {
 };
 
 const InvitesModalContent: React.FC = () => {
-   const { activeTab, setActiveTab, refreshInvites } = useInvitesContext();
-
-   useEffect(() => {
-      refreshInvites();
-   }, []);
+   const { activeTab, setActiveTab } = useInvitesContext();
 
    return (
       <div className="flex flex-col gap-4 px-4">

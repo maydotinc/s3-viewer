@@ -148,8 +148,10 @@ manageRouter.get("/invites/received", async (req: Request, res: Response) => {
             accepted: false,
          },
          select: {
+            id: true,
             role: true,
             expiresAt: true,
+            accepted: true,
             server: {
                select: {
                   name: true,
@@ -167,8 +169,10 @@ manageRouter.get("/invites/received", async (req: Request, res: Response) => {
          },
       });
       const receivedInvites: ServerInvite[] = invites.map((invite) => ({
+         id: invite.id,
          role: invite.role as Role,
-         expiresAt: invite.expiresAt,
+         expiresAt: invite.expiresAt.toISOString(),
+         accepted: invite.accepted,
          server: {
             name: invite.server.name,
          },
@@ -196,8 +200,10 @@ manageRouter.get("/invites/sent", async (req: Request, res: Response) => {
             invitedById: req.user.id,
          },
          select: {
+            id: true,
             role: true,
             expiresAt: true,
+            accepted: true,
             invitedBy: {
                select: {
                   name: true,
@@ -215,8 +221,10 @@ manageRouter.get("/invites/sent", async (req: Request, res: Response) => {
          },
       });
       const sentInvites: ServerInvite[] = invites.map((invite) => ({
+         id: invite.id,
          role: invite.role as Role,
-         expiresAt: invite.expiresAt,
+         expiresAt: invite.expiresAt.toISOString(),
+         accepted: invite.accepted,
          server: {
             name: invite.server.name,
          },
@@ -341,7 +349,7 @@ manageRouter.post("/invites/send", async (req: Request, res: Response) => {
       serverId: string;
       emails: string[];
       role: Role;
-      expiresAt: Date;
+      expiresAt: string;
    };
    const userId = req.user?.id;
    if (!req.user || !userId) {
@@ -365,7 +373,7 @@ manageRouter.post("/invites/send", async (req: Request, res: Response) => {
       email,
       serverId,
       role,
-      expiresAt: expiresAt,
+      expiresAt: new Date(expiresAt),
       invitedById: userId,
    }));
    try {

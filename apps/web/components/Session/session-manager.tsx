@@ -1,11 +1,12 @@
+import useServers from "@/lib/hooks/queries/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { authClient } from "@s3-viewer/auth/client";
 import { useEffect } from "react";
 
 const SessionManager = () => {
    const { data: session, isPending } = authClient.useSession();
-   const setUserId = useSessionStore((state) => state.setUserId);
-   const clearSession = useSessionStore((state) => state.clearSession);
+   const { servers } = useServers();
+   const { serverId, setUserId, setServerId, clearSession } = useSessionStore();
 
    useEffect(() => {
       if (isPending) return;
@@ -15,7 +16,24 @@ const SessionManager = () => {
       } else {
          clearSession();
       }
-   }, [session, isPending, setUserId, clearSession]);
+   }, [session, isPending, clearSession]);
+
+   useEffect(() => {
+      if (servers.length === 0) {
+         if (serverId !== "") {
+            setServerId("");
+         }
+         return;
+      }
+
+      const currentServer = servers.find((server) => server.id === serverId);
+      if (!serverId || !currentServer) {
+         const firstServer = servers[0];
+         if (firstServer) {
+            setServerId(firstServer.id);
+         }
+      }
+   }, [servers.length]);
 
    return null;
 };

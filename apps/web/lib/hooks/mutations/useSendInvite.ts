@@ -16,9 +16,11 @@ const useSendInvite = () => {
          serverId: string;
          emails: string[];
          role: Role;
-         expiresAt?: Date;
+         expiresAt?: string;
       }) => {
-         const expiry = expiresAt || new Date(Date.now() + 1000 * 60 * 60 * 24);
+         const expiry =
+            expiresAt ||
+            new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
          return sendInvite(serverId, emails, role, expiry);
       },
 

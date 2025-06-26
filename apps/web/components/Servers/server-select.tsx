@@ -1,5 +1,6 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import useServers from "@/lib/hooks/queries/useServers";
+import useSessionStore from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -19,33 +20,33 @@ import ServerItem from "./server-item";
 const ServerSelector = () => {
    const router = useRouter();
    const { openConnectModal } = useModalContext();
-   const {
-      servers,
-      currentServer,
-      currentServerId,
-      selectServer,
-      isServerListLoading,
-      serverError,
-   } = useServers();
+   const { servers, isServerListLoading, serverError } = useServers();
+   const setServerId = useSessionStore((state) => state.setServerId);
+   const serverId = useSessionStore((state) => state.serverId);
+   const currentServer = servers.find((server) => server.id === serverId);
 
    const handleServerSelect = (newServerId: string) => {
-      selectServer(newServerId);
+      setServerId(newServerId);
       if (router.pathname.includes("/buckets/")) {
          router.push("/home");
       }
    };
 
-   if (isServerListLoading || !servers) {
+   if (isServerListLoading) {
       return (
          <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
       );
    }
 
    if (serverError) {
-      return <p>Error loading servers</p>;
+      return (
+         <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
+            <p className="text-viewertext text-center">Error loading servers</p>
+         </div>
+      );
    }
 
-   if (!servers || servers.length === 0) {
+   if (servers.length === 0) {
       return (
          <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
             <p className="text-viewertext text-center">No servers connected</p>
@@ -61,16 +62,20 @@ const ServerSelector = () => {
       );
    }
 
-   const selectedServer = currentServer || servers[0];
+   if (!currentServer) {
+      return (
+         <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
+      );
+   }
 
    return (
       <DropdownMenu>
          <DropdownMenuTrigger className="select-none">
-            <ServerCard server={selectedServer} />
+            <ServerCard server={currentServer} />
          </DropdownMenuTrigger>
          <DropdownMenuContent className="select-none">
             <DropdownMenuRadioGroup
-               value={currentServerId}
+               value={currentServer.id}
                onValueChange={handleServerSelect}
             >
                {servers.map((server) => (

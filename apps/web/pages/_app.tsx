@@ -9,7 +9,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { NextPage } from "next";
 import type { AppProps } from "next/app";
 import { Inter } from "next/font/google";
-import { ReactElement, ReactNode } from "react";
+import { ReactElement, ReactNode, useState } from "react";
 
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
    getLayout?: (page: ReactElement) => ReactNode;
@@ -22,18 +22,35 @@ type AppPropsWithLayout = AppProps & {
 const inter = Inter({ subsets: ["latin"] });
 
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
+   const [queryClient] = useState(
+      () =>
+         new QueryClient({
+            defaultOptions: {
+               queries: {
+                  refetchOnWindowFocus: true,
+                  refetchOnReconnect: true,
+                  staleTime: 1000 * 60 * 5,
+               },
+            },
+         })
+   );
+
    const getLayout = Component.getLayout ?? ((page) => page);
    const page: ReactNode = getLayout(<Component {...pageProps} />);
 
    return (
-      <QueryClientProvider client={new QueryClient()}>
+      <QueryClientProvider client={queryClient}>
          <ModalProvider>
-            <SessionManager />
             <AuthGuard>
+               <SessionManager />
                <SidebarProvider>
                   <Toaster />
                   <ModalManager />
-                  <div className={`${inter.className} h-screen h-[100dvh] w-full`}>{page}</div>
+                  <div
+                     className={`${inter.className} h-screen h-[100dvh] w-full`}
+                  >
+                     {page}
+                  </div>
                </SidebarProvider>
             </AuthGuard>
          </ModalProvider>

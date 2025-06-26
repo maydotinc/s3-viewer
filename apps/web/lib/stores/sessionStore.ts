@@ -1,4 +1,3 @@
-import { ServerInfo } from "@s3-viewer/types";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
@@ -10,8 +9,6 @@ type SessionStoreState = {
 type SessionStoreActions = {
    setServerId: (serverId: string) => void;
    setUserId: (userId: string | null) => void;
-   selectServer: (serverId: string) => void;
-   autoSelectServer: (servers: ServerInfo[]) => void;
    clearSession: () => void;
 };
 
@@ -29,30 +26,6 @@ const useSessionStore = create<SessionStore>()(
                set({ userId, serverId: "" });
             } else {
                set({ userId });
-            }
-         },
-         selectServer: (serverId: string) => {
-            const { userId } = get();
-            if (!userId) {
-               return;
-            }
-            get().setServerId(serverId);
-         },
-         autoSelectServer: (servers: ServerInfo[]) => {
-            const { serverId, userId } = get();
-
-            if (!userId) return;
-
-            // If no current server or current server not in list, select first available
-            const currentServerExists = servers.some((server) => server.id === serverId);
-
-            if (!serverId || !currentServerExists) {
-               const firstServer = servers[0];
-               if (firstServer) {
-                  get().setServerId(firstServer.id);
-               } else {
-                  set({ serverId: "" });
-               }
             }
          },
          clearSession: () => {

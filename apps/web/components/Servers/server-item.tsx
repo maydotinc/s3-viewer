@@ -19,7 +19,7 @@ const ServerItem = ({ server }: ServerItemProps) => {
          )}
          <div className="flex gap-2 items-center flex-1">
             <ServerIcon className="size-4" />
-            <p>{server.name}</p>
+            <p className="max-w-[105px] truncate">{server.name}</p>
          </div>
          <div
             onClick={(e) => e.preventDefault()}
