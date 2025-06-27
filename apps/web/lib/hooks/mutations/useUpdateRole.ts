@@ -8,13 +8,17 @@ const useUpdateRole = () => {
 
    return useMutation({
       mutationFn: async (data: {
+         serverId: string;
          userId: string;
          role: Role;
       }): Promise<{ message: string }> => {
-         const response = await createApiRequest(`/server/update/role`, {
-            method: "PUT",
-            body: JSON.stringify(data),
-         });
+         const response = await createApiRequest(
+            `/server/invites/update-role`,
+            {
+               method: "PUT",
+               body: JSON.stringify(data),
+            }
+         );
 
          if (!response.ok) {
             await handleApiError(response);
@@ -25,8 +29,8 @@ const useUpdateRole = () => {
       },
 
       onSuccess: () => {
-         queryClient.invalidateQueries({ queryKey: ["server-users"] });
          toast.success("Role updated");
+         queryClient.invalidateQueries({ queryKey: ["server-users"] });
       },
 
       onError: (error: Error) => {

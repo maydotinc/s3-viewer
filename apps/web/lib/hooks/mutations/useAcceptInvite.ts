@@ -6,22 +6,20 @@ const useAcceptInvite = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: async ({
-         inviteId,
-      }: {
+      mutationFn: async (data: {
          inviteId: string;
       }): Promise<{ message: string }> => {
          const response = await createApiRequest("/server/invites/accept", {
             method: "POST",
-            body: JSON.stringify({ inviteId }),
+            body: JSON.stringify(data),
          });
 
          if (!response.ok) {
             await handleApiError(response);
          }
 
-         const data = await response.json();
-         return { message: data.message };
+         const responseData = await response.json();
+         return { message: responseData.message };
       },
 
       onSuccess: () => {

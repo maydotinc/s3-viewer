@@ -6,7 +6,6 @@ import {
 } from "@aws-sdk/client-s3";
 import { Request, Response, Router } from "express";
 import { Readable } from "stream";
-import authGuard from "../../lib/middleware/auth.js";
 import {
    requireDeleteObject,
    requireDownloadObject,
@@ -16,7 +15,6 @@ import {
 import { getS3Client } from "../../lib/s3.js";
 
 const objectRouter: Router = Router();
-objectRouter.use(authGuard);
 
 objectRouter.put(
    "/create",

@@ -98,6 +98,7 @@ const EmailRoleInput = () => {
                   onValueChange={setSelectedRole}
                   className="h-full border-none shadow-none bg-transparent hover:bg-gray-50 px-3 w-fit"
                   roles={ROLES}
+                  mode="invite"
                />
             </div>
          </div>

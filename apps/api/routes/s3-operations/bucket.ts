@@ -4,7 +4,6 @@ import {
    ListBucketsCommand,
 } from "@aws-sdk/client-s3";
 import { Request, Response, Router } from "express";
-import authGuard from "../../lib/middleware/auth.js";
 import {
    requireCreateBucket,
    requireDeleteBucket,
@@ -14,7 +13,6 @@ import { getS3Client } from "../../lib/s3.js";
 import formatBuckets from "../../lib/utils/formatBuckets.js";
 
 const bucketRouter: Router = Router();
-bucketRouter.use(authGuard);
 
 bucketRouter.put(
    "/create",

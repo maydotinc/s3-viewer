@@ -1,3 +1,5 @@
+import useDeleteRole from "@/lib/hooks/mutations/useDeleteRole";
+import useUpdateRole from "@/lib/hooks/mutations/useUpdateRole";
 import useServerUsers from "@/lib/hooks/queries/useServerUsers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Role } from "@s3-viewer/types";
@@ -11,10 +13,15 @@ const UserList = () => {
    const { serverUsers } = useServerUsers(serverId);
    const userId = useSessionStore((state) => state.userId);
    const users = serverUsers.filter((user) => user.id !== userId);
+   const deleteRoleMutation = useDeleteRole();
+   const updateRoleMutation = useUpdateRole();
 
    const handleRoleChange = (userId: string, newRole: Role) => {
-      // TODO: Implement API call to update user role
-      console.log(`Changing role for user ${userId} to ${newRole}`);
+      updateRoleMutation.mutate({ serverId, userId, role: newRole });
+   };
+
+   const handleRemove = (userId: string, userRole: Role) => {
+      deleteRoleMutation.mutate({ serverId, userId, role: userRole });
    };
 
    if (!users || users.length === 0) {
@@ -57,13 +64,18 @@ const UserList = () => {
                </div>
                <div>
                   <RoleSelector
-                     disabled={user.role === Role.OWNER}
+                     disabled={
+                        user.role === Role.OWNER ||
+                        deleteRoleMutation.isPending ||
+                        updateRoleMutation.isPending
+                     }
                      value={user.role}
                      onValueChange={(newRole) =>
                         handleRoleChange(user.id, newRole)
                      }
-                     showDescriptions={false}
+                     mode="manage"
                      className="w-fit hover:bg-gray-50 border-none shadow-none bg-transparent"
+                     onRemove={() => handleRemove(user.id, user.role)}
                   />
                </div>
             </div>

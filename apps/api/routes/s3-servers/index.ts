@@ -1,5 +1,5 @@
 import { Router } from "express";
-import authGuard from "../../lib/middleware/auth.js";
+import { authGuard } from "../../lib/middleware/auth.js";
 import inviteRouter from "./invites.js";
 import manageRouter from "./manage.js";
 import retrieveRouter from "./retrieve.js";

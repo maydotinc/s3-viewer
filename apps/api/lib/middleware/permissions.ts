@@ -9,6 +9,7 @@ const requirePermissions = (
 ) => {
    return async (req: Request, res: Response, next: NextFunction) => {
       try {
+         console.log("Checking permissions for", permissions);
          const user = req.user;
          if (!user) {
             res.status(401).json({ message: "Authentication required" });

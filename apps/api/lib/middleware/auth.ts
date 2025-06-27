@@ -24,4 +24,12 @@ const authGuard = (req: Request, res: Response, next: NextFunction) => {
       });
 };
 
-export default authGuard;
+const requireUser = (req: Request, res: Response, next: NextFunction) => {
+   if (!req.user) {
+      res.status(401).json({ message: "Authentication required" });
+      return;
+   }
+   next();
+};
+
+export { authGuard, requireUser };

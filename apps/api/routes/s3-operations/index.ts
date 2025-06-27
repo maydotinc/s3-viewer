@@ -1,5 +1,5 @@
 import { Router } from "express";
-import authGuard from "../../lib/middleware/auth.js";
+import { authGuard } from "../../lib/middleware/auth.js";
 import bucketRouter from "./bucket.js";
 import objectRouter from "./object.js";
 

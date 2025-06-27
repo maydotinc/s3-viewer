@@ -1,4 +1,7 @@
+import useCurrentServer from "@/lib/hooks/queries/useCurrentServer";
+import { hasPermissions, Permission } from "@s3-viewer/permissions";
 import { Role } from "@s3-viewer/types";
+import { Button } from "@s3-viewer/ui/components/button";
 import {
    Select,
    SelectContent,
@@ -6,6 +9,9 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@s3-viewer/ui/components/select";
+import { Separator } from "@s3-viewer/ui/components/separator";
+import { LogOut } from "lucide-react";
+import { useShareContext } from "../context/ShareContext";
 
 const ROLES: { value: Role; label: string; description: string }[] = [
    {
@@ -33,22 +39,38 @@ const ROLES: { value: Role; label: string; description: string }[] = [
 type RoleSelectorProps = {
    value: Role;
    onValueChange: (role: Role) => void;
+   onRemove?: () => void;
    disabled?: boolean;
    className?: string;
-   showDescriptions?: boolean;
+   mode: "invite" | "manage";
    roles?: { value: Role; label: string; description: string }[];
 };
 
 const RoleSelector = ({
    value,
    onValueChange,
+   onRemove,
    disabled = false,
    className = "",
-   showDescriptions = true,
+   mode = "invite",
    roles = ROLES,
 }: RoleSelectorProps) => {
+   const { serverId } = useShareContext();
    const selectedRoleLabel =
       roles.find((role) => role.value === value)?.label || "Read";
+   const userRole = useCurrentServer(serverId)?.userRole;
+   const getPermission = (role: Role): Permission => {
+      switch (role) {
+         case Role.ADMIN:
+            return Permission.MANAGE_ADMIN;
+         case Role.EDITOR:
+            return Permission.MANAGE_EDITOR;
+         case Role.VIEWER:
+            return Permission.MANAGE_VIEWER;
+         default:
+            return Permission.MANAGE_VIEWER;
+      }
+   };
 
    return (
       <Select value={value} onValueChange={onValueChange} disabled={disabled}>
@@ -57,17 +79,26 @@ const RoleSelector = ({
                {selectedRoleLabel}
             </SelectValue>
          </SelectTrigger>
-         <SelectContent className="w-fit" position="popper" align="end">
+         <SelectContent
+            className="w-fit rounded-lg p-1"
+            position="popper"
+            align="end"
+         >
             {roles.map((role) => (
                <SelectItem
                   key={role.value}
                   value={role.value}
-                  disabled={role.value === Role.OWNER}
+                  disabled={
+                     role.value === Role.OWNER ||
+                     !hasPermissions(userRole || Role.VIEWER, [
+                        getPermission(role.value),
+                     ])
+                  }
                   hidden={role.value === Role.OWNER}
                >
                   <div className="flex flex-col">
                      <span className="text-viewerblack">{role.label}</span>
-                     {showDescriptions && (
+                     {mode === "invite" && (
                         <span className="text-xs text-viewerlighttext">
                            {role.description}
                         </span>
@@ -75,6 +106,20 @@ const RoleSelector = ({
                   </div>
                </SelectItem>
             ))}
+            {mode === "manage" && (
+               <div className="flex flex-col gap-2">
+                  <Separator className="bg-viewerborder" />
+                  <Button
+                     variant="destructive"
+                     className="w-full justify-start rounded-lg"
+                     onClick={onRemove}
+                     size="sm"
+                  >
+                     <LogOut className="size-4" />
+                     <span>Remove</span>
+                  </Button>
+               </div>
+            )}
          </SelectContent>
       </Select>
    );
