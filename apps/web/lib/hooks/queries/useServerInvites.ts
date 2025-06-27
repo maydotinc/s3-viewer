@@ -11,7 +11,7 @@ const useReceivedInvites = () => {
       queryFn: async ({
          signal,
       }: QueryFunctionContext): Promise<ServerInvite[]> => {
-         const response = await createApiRequest("/manage/invites/received", {
+         const response = await createApiRequest("/server/invites/received", {
             signal,
          });
 
@@ -36,7 +36,7 @@ const useSentInvites = () => {
       queryFn: async ({
          signal,
       }: QueryFunctionContext): Promise<ServerInvite[]> => {
-         const response = await createApiRequest("/manage/invites/sent", {
+         const response = await createApiRequest("/server/invites/sent", {
             signal,
          });
 

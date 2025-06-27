@@ -1,13 +1,24 @@
 import { auth } from "@s3-viewer/auth";
+import { Role } from "@s3-viewer/types";
+import { User } from "better-auth";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { urlencoded } from "express";
-import bucketRouter from "./routes/s3-operations/bucket.js";
-import objectRouter from "./routes/s3-operations/object.js";
-import manageRouter from "./routes/s3-servers/manage.js";
-import retrieveRouter from "./routes/s3-servers/retrieve.js";
-import userManageRouter from "./routes/users/user-manage.js";
+import s3Router from "./routes/s3-operations/index.js";
+import serverRouter from "./routes/s3-servers/index.js";
+import userRouter from "./routes/users/user-manage.js";
+
+// Extend Express Request type to include userRole
+declare global {
+   namespace Express {
+      interface Request {
+         userRole?: Role;
+         user?: User;
+      }
+   }
+}
+
 dotenv.config();
 
 const app = express();
@@ -28,11 +39,9 @@ app.all("/auth/{*any}", toNodeHandler(auth));
 // body parsing after auth
 app.use(express.json());
 
-app.use("/bucket", bucketRouter);
-app.use("/object", objectRouter);
-app.use("/manage", manageRouter);
-app.use("/retrieve", retrieveRouter);
-app.use("/user", userManageRouter);
+app.use("/s3", s3Router);
+app.use("/server", serverRouter);
+app.use("/user", userRouter);
 
 // for testing
 app.get("/", (req, res) => {

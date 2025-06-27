@@ -16,9 +16,12 @@ const useServers = () => {
       queryFn: async ({
          signal,
       }: QueryFunctionContext): Promise<ServerInfo[]> => {
-         const response = await createApiRequest("/retrieve/get-servers", {
-            signal,
-         });
+         const response = await createApiRequest(
+            "/server/retrieve/get-servers",
+            {
+               signal,
+            }
+         );
 
          if (!response.ok) {
             await handleApiError(response);

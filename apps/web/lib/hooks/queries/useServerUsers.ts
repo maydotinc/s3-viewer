@@ -20,7 +20,7 @@ const useServerUsers = (serverId: string) => {
          const [, serverId] = queryKey as [string, string];
 
          const response = await createApiRequest(
-            `/retrieve/get-server-users?serverId=${serverId}`,
+            `/server/retrieve/get-server-users?serverId=${serverId}`,
             { signal }
          );
 

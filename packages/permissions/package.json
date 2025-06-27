@@ -1,0 +1,22 @@
+{
+   "name": "@s3-viewer/permissions",
+   "version": "0.0.0",
+   "packageManager": "pnpm@10.11.1",
+   "exports": {
+      ".": "./index.ts"
+   },
+   "scripts": {
+      "lint": "eslint . --max-warnings 0",
+      "type-check": "tsc --noEmit"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@s3-viewer/types": "workspace:*",
+      "eslint": "^9.15.0",
+      "typescript": "^5.6.3"
+   },
+   "peerDependencies": {
+      "@s3-viewer/types": "workspace:*"
+   }
+}

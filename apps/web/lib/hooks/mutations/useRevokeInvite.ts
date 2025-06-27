@@ -11,7 +11,7 @@ const useRevokeInvite = () => {
       }: {
          inviteId: string;
       }): Promise<{ message: string }> => {
-         const response = await createApiRequest("/manage/invites/revoke", {
+         const response = await createApiRequest("/server/invites/revoke", {
             method: "DELETE",
             body: JSON.stringify({ inviteId }),
          });

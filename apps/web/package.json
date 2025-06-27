@@ -12,6 +12,7 @@
    "dependencies": {
       "@hookform/resolvers": "^5.0.1",
       "@s3-viewer/auth": "workspace:*",
+      "@s3-viewer/permissions": "workspace:*",
       "@s3-viewer/types": "workspace:*",
       "@s3-viewer/ui": "workspace:*",
       "@tanstack/react-query": "^5.77.2",

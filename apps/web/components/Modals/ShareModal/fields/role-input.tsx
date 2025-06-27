@@ -9,11 +9,6 @@ import {
 
 const ROLES: { value: Role; label: string; description: string }[] = [
    {
-      value: Role.OWNER,
-      label: "Owner",
-      description: "Can manage users and settings",
-   },
-   {
       value: Role.VIEWER,
       label: "Read",
       description: "Can view files and folders",
@@ -36,6 +31,7 @@ type RoleSelectorProps = {
    disabled?: boolean;
    className?: string;
    showDescriptions?: boolean;
+   roles?: { value: Role; label: string; description: string }[];
 };
 
 const RoleSelector = ({
@@ -44,19 +40,20 @@ const RoleSelector = ({
    disabled = false,
    className = "",
    showDescriptions = true,
+   roles = ROLES,
 }: RoleSelectorProps) => {
    const selectedRoleLabel =
-      ROLES.find((role) => role.value === value)?.label || "Read";
+      roles.find((role) => role.value === value)?.label || "Read";
 
    return (
       <Select value={value} onValueChange={onValueChange} disabled={disabled}>
-         <SelectTrigger className={`${className} h-full transition-colors`}>
+         <SelectTrigger className={`${className} h-full hover:bg-transparent`}>
             <SelectValue className="text-sm font-medium">
                {selectedRoleLabel}
             </SelectValue>
          </SelectTrigger>
          <SelectContent className="w-fit" position="popper" align="end">
-            {ROLES.map((role) => (
+            {roles.map((role) => (
                <SelectItem key={role.value} value={role.value}>
                   <div className="flex flex-col">
                      <span className="text-viewerblack">{role.label}</span>

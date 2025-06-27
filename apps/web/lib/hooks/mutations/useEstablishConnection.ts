@@ -8,7 +8,7 @@ const useEstablishConnection = () => {
       mutationFn: async (
          credentials: ServerCredentials
       ): Promise<{ message: string; bucketCount: number }> => {
-         const response = await createApiRequest("/manage/establish", {
+         const response = await createApiRequest("/server/manage/establish", {
             method: "POST",
             body: JSON.stringify(credentials),
          });

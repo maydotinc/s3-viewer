@@ -14,7 +14,7 @@ const useCreateServer = () => {
          serverCredentials: ServerCredentials;
          serverName: string;
       }): Promise<{ message: string; serverId: string }> => {
-         const response = await createApiRequest("/manage/create", {
+         const response = await createApiRequest("/server/manage/create", {
             method: "POST",
             body: JSON.stringify({ serverCredentials, serverName }),
          });

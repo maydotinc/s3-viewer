@@ -11,7 +11,7 @@ const useDeleteServer = () => {
       }: {
          serverId: string;
       }): Promise<{ message: string }> => {
-         const response = await createApiRequest("/manage/delete", {
+         const response = await createApiRequest("/server/manage/delete", {
             method: "DELETE",
             body: JSON.stringify({ serverId }),
          });

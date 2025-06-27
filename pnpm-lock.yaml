@@ -38,6 +38,12 @@ importers:
       '@s3-viewer/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@s3-viewer/permissions':
+        specifier: workspace:*
+        version: link:../../packages/permissions
+      '@s3-viewer/types':
+        specifier: workspace:*
+        version: link:../../packages/types
       better-auth:
         specifier: ^1.2.8
         version: 1.2.8
@@ -63,9 +69,6 @@ importers:
       '@s3-viewer/ts-config':
         specifier: workspace:*
         version: link:../../packages/ts-config
-      '@s3-viewer/types':
-        specifier: workspace:*
-        version: link:../../packages/types
       '@types/cors':
         specifier: ^2.8.17
         version: 2.8.18
@@ -90,6 +93,9 @@ importers:
       '@s3-viewer/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@s3-viewer/permissions':
+        specifier: workspace:*
+        version: link:../../packages/permissions
       '@s3-viewer/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -255,6 +261,24 @@ importers:
       typescript-eslint:
         specifier: ^8.32.0
         version: 8.33.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
+
+  packages/permissions:
+    devDependencies:
+      '@s3-viewer/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@s3-viewer/ts-config':
+        specifier: workspace:*
+        version: link:../ts-config
+      '@s3-viewer/types':
+        specifier: workspace:*
+        version: link:../types
+      eslint:
+        specifier: ^9.15.0
+        version: 9.28.0(jiti@2.4.2)
+      typescript:
+        specifier: ^5.6.3
+        version: 5.8.3
 
   packages/ts-config: {}
 

@@ -7,7 +7,7 @@ const useRejectInvite = () => {
 
    return useMutation({
       mutationFn: async ({ inviteId }: { inviteId: string }) => {
-         const response = await createApiRequest("/manage/invites/reject", {
+         const response = await createApiRequest("/server/invites/reject", {
             method: "POST",
             body: JSON.stringify({ inviteId }),
          });

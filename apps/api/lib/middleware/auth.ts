@@ -1,16 +1,6 @@
 import { auth } from "@s3-viewer/auth";
-import { User } from "better-auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { NextFunction, Request, Response } from "express";
-
-// Extend Express Request type to include session
-declare global {
-   namespace Express {
-      interface Request {
-         user?: User;
-      }
-   }
-}
 
 const authGuard = (req: Request, res: Response, next: NextFunction) => {
    auth.api

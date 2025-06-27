@@ -22,7 +22,7 @@ const useSendInvite = () => {
             expiresAt ||
             new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString();
 
-         const response = await createApiRequest("/manage/invites/send", {
+         const response = await createApiRequest("/server/invites/send", {
             method: "POST",
             body: JSON.stringify({ serverId, emails, role, expiresAt: expiry }),
          });

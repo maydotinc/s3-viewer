@@ -11,7 +11,7 @@ const useAcceptInvite = () => {
       }: {
          inviteId: string;
       }): Promise<{ message: string }> => {
-         const response = await createApiRequest("/manage/invites/accept", {
+         const response = await createApiRequest("/server/invites/accept", {
             method: "POST",
             body: JSON.stringify({ inviteId }),
          });

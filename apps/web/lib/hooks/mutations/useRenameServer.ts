@@ -13,7 +13,7 @@ const useRenameServer = () => {
          serverId: string;
          serverName: string;
       }): Promise<{ message: string }> => {
-         const response = await createApiRequest("/manage/rename", {
+         const response = await createApiRequest("/server/manage/rename", {
             method: "PUT",
             body: JSON.stringify({ serverId, serverName }),
          });

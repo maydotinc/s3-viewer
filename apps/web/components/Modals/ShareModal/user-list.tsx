@@ -6,6 +6,24 @@ import Image from "next/image";
 import { useShareContext } from "./context/ShareContext";
 import RoleSelector from "./fields/role-input";
 
+const ROLES: { value: Role; label: string; description: string }[] = [
+   {
+      value: Role.VIEWER,
+      label: "Read",
+      description: "Can view files and folders",
+   },
+   {
+      value: Role.EDITOR,
+      label: "Write",
+      description: "Can view, create, edit, and delete files",
+   },
+   {
+      value: Role.ADMIN,
+      label: "Admin",
+      description: "Can manage users and settings",
+   },
+];
+
 const UserList = () => {
    const { serverId } = useShareContext();
    const { serverUsers } = useServerUsers(serverId);
@@ -57,6 +75,7 @@ const UserList = () => {
                </div>
                <div>
                   <RoleSelector
+                     disabled={user.role === Role.OWNER}
                      value={user.role}
                      onValueChange={(newRole) =>
                         handleRoleChange(user.id, newRole)
