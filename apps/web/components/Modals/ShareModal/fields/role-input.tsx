@@ -9,6 +9,11 @@ import {
 
 const ROLES: { value: Role; label: string; description: string }[] = [
    {
+      value: Role.OWNER,
+      label: "Owner",
+      description: "Can manage users and settings",
+   },
+   {
       value: Role.VIEWER,
       label: "Read",
       description: "Can view files and folders",
@@ -54,7 +59,12 @@ const RoleSelector = ({
          </SelectTrigger>
          <SelectContent className="w-fit" position="popper" align="end">
             {roles.map((role) => (
-               <SelectItem key={role.value} value={role.value}>
+               <SelectItem
+                  key={role.value}
+                  value={role.value}
+                  disabled={role.value === Role.OWNER}
+                  hidden={role.value === Role.OWNER}
+               >
                   <div className="flex flex-col">
                      <span className="text-viewerblack">{role.label}</span>
                      {showDescriptions && (

@@ -3,7 +3,14 @@ import { authClient, signOut } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Separator } from "@s3-viewer/ui/components/separator";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { ChevronDown, FileText, Headset, LogOut, Mail, User } from "lucide-react";
+import {
+   ChevronDown,
+   FileText,
+   Headset,
+   LogOut,
+   Mail,
+   User,
+} from "lucide-react";
 import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
 
@@ -24,7 +31,10 @@ const ProfileDropdown: React.FC = () => {
 
    useEffect(() => {
       const handleOutsideClick = (event: MouseEvent) => {
-         if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+         if (
+            dropdownRef.current &&
+            !dropdownRef.current.contains(event.target as Node)
+         ) {
             setIsOpen(false);
          }
       };
@@ -44,7 +54,9 @@ const ProfileDropdown: React.FC = () => {
       };
    }, []);
 
-   const handleOptionSelect = async (optionId: "help" | "terms" | "invites" | "logout") => {
+   const handleOptionSelect = async (
+      optionId: "help" | "terms" | "invites" | "logout"
+   ) => {
       setIsOpen(false);
       switch (optionId) {
          case "help":
@@ -57,7 +69,7 @@ const ProfileDropdown: React.FC = () => {
             openInvitesModal();
             break;
          case "logout":
-            await signOut("/home");
+            await signOut();
             break;
       }
    };
@@ -69,7 +81,11 @@ const ProfileDropdown: React.FC = () => {
             className="flex max-w-[150px] items-center justify-between gap-2 rounded-full border border-gray-300 bg-viewerwhite !pl-0.5 hover:bg-gray-100 focus:outline-none"
          >
             {user?.image ? (
-               <Image src={user.image} alt="Profile" className="size-8 rounded-full object-cover" />
+               <Image
+                  src={user.image}
+                  alt="Profile"
+                  className="size-8 rounded-full object-cover"
+               />
             ) : (
                <User className="size-8 rounded-full bg-blue-400 p-1 text-viewergray" />
             )}
@@ -96,8 +112,12 @@ const ProfileDropdown: React.FC = () => {
                      <User className="size-10 rounded-full bg-blue-400 p-1 min-w-10 text-viewergray" />
                   )}
                   <div className="flex flex-col items-start justify-start">
-                     <p className="truncate max-w-[200px] text-black">{user?.name}</p>
-                     <p className="text-xs max-w-[200px] truncate text-gray-500">{user?.email}</p>
+                     <p className="truncate max-w-[200px] text-black">
+                        {user?.name}
+                     </p>
+                     <p className="text-xs max-w-[200px] truncate text-gray-500">
+                        {user?.email}
+                     </p>
                   </div>
                </div>
 
@@ -106,8 +126,14 @@ const ProfileDropdown: React.FC = () => {
                <div className="flex w-full flex-col gap-2">
                   {SETTINGS_OPTIONS.map((option) =>
                      option.id === "logout" ? (
-                        <div key={option.id} className="w-full flex flex-col gap-2">
-                           <Separator orientation="horizontal" className="w-full" />
+                        <div
+                           key={option.id}
+                           className="w-full flex flex-col gap-2"
+                        >
+                           <Separator
+                              orientation="horizontal"
+                              className="w-full"
+                           />
                            <Button
                               variant="ghost"
                               className="w-full items-start hover:bg-viewergray flex items-center justify-start gap-2 text-black"
@@ -129,7 +155,9 @@ const ProfileDropdown: React.FC = () => {
                         </Button>
                      )
                   )}
-                  <span className="text-xs text-gray-500 p-2">v0.0.0 - S3 Viewer</span>
+                  <span className="text-xs text-gray-500 p-2">
+                     v0.0.0 - S3 Viewer
+                  </span>
                </div>
             </div>
          )}
