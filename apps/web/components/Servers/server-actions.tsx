@@ -1,5 +1,6 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import { ServerInfo } from "@s3-viewer/types";
+import useCurrentServer from "@/lib/hooks/queries/useCurrentServer";
+import { Role, ServerInfo } from "@s3-viewer/types";
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -7,7 +8,7 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { ChevronRight, PenLine, WifiOff } from "lucide-react";
+import { ChevronRight, PenLine, Trash2, WifiOff } from "lucide-react";
 import { useState } from "react";
 
 type ServerActionsProps = {
@@ -15,14 +16,18 @@ type ServerActionsProps = {
 };
 
 const ServerActions = ({ server }: ServerActionsProps) => {
+   const currentServer = useCurrentServer(server.id);
    const [isOpen, setIsOpen] = useState(false);
    const { openModal } = useModalContext();
+   const isOwner = currentServer?.userRole === Role.OWNER;
 
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
          <DropdownMenuTrigger>
             <ChevronRight
-               className={cn("size-4 transition-transform duration-200", { "rotate-180": isOpen })}
+               className={cn("size-4 transition-transform duration-200", {
+                  "rotate-180": isOpen,
+               })}
             />
          </DropdownMenuTrigger>
          <DropdownMenuContent
@@ -48,8 +53,17 @@ const ServerActions = ({ server }: ServerActionsProps) => {
                   openModal("disconnect", { server });
                }}
             >
-               <WifiOff className="size-4 text-viewertextred" />
-               Disconnect
+               {isOwner ? (
+                  <>
+                     <Trash2 className="size-4 text-viewertextred" />
+                     Delete
+                  </>
+               ) : (
+                  <>
+                     <WifiOff className="size-4 text-viewertextred" />
+                     Disconnect
+                  </>
+               )}
             </DropdownMenuItem>
          </DropdownMenuContent>
       </DropdownMenu>

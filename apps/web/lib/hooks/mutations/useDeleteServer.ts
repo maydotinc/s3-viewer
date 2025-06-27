@@ -25,7 +25,7 @@ const useDeleteServer = () => {
       },
 
       onSuccess: () => {
-         toast.success("Server deleted successfully");
+         toast.success("Server deleted");
          queryClient.invalidateQueries({ queryKey: ["servers"] });
       },
 

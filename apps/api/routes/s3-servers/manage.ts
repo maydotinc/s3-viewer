@@ -4,6 +4,7 @@ import { prisma } from "@s3-viewer/db";
 import { ServerCredentials } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 import {
+   requireListBuckets,
    requireRenameServer,
    requireServerOwner,
 } from "../../lib/middleware/permissions.js";
@@ -77,6 +78,35 @@ manageRouter.post("/create", async (req: Request, res: Response) => {
       res.status(400).json({ message: "Server creation failed: " + error });
    }
 });
+
+manageRouter.delete(
+   "/disconnect",
+   requireListBuckets(),
+   async (req: Request, res: Response) => {
+      console.log("Disconnecting from server");
+      const { serverId } = req.body;
+
+      try {
+         await prisma.serverAccess.delete({
+            where: { userId_serverId: { userId: req.user!.id, serverId } },
+         });
+         res.status(200).json({
+            message: "Disconnected from server",
+         });
+      } catch (error) {
+         console.error("Error disconnecting from server:", error);
+         if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            if (error.code === "P2025") {
+               res.status(404).json({
+                  message: "Server not found",
+               });
+               return;
+            }
+         }
+         res.status(400).json({ message: "Disconnection failed: " + error });
+      }
+   }
+);
 
 manageRouter.delete(
    "/delete",

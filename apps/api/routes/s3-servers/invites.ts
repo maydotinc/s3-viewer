@@ -1,122 +1,123 @@
-import { prisma } from "@s3-viewer/db";
-import { Role, ServerInvite } from "@s3-viewer/types";
-import { Request, Response, Router } from "express";
 import {
    requireInvitePermission,
    requireRevokePermission,
-} from "../../lib/middleware/invite-permissions.js";
+} from "@/lib/middleware/invite-permissions.js";
+import { requireListBuckets } from "@/lib/middleware/permissions.js";
+import { prisma } from "@s3-viewer/db";
+import { Role, ServerInvite } from "@s3-viewer/types";
+import { Request, Response, Router } from "express";
 
 const inviteRouter: Router = Router();
 
-inviteRouter.get("/received", async (req: Request, res: Response) => {
-   console.log("Getting received invites");
-   if (!req.user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-   }
-   try {
-      const invites = await prisma.pendingInvitation.findMany({
-         where: {
-            email: req.user.email,
-            accepted: false,
-         },
-         select: {
-            id: true,
-            email: true,
-            role: true,
-            expiresAt: true,
-            accepted: true,
-            server: {
-               select: {
-                  name: true,
+inviteRouter.get(
+   "/received",
+   requireListBuckets(),
+   async (req: Request, res: Response) => {
+      console.log("Getting received invites");
+      try {
+         const invites = await prisma.pendingInvitation.findMany({
+            where: {
+               email: req.user!.email,
+               accepted: false,
+            },
+            select: {
+               id: true,
+               email: true,
+               role: true,
+               expiresAt: true,
+               accepted: true,
+               server: {
+                  select: {
+                     name: true,
+                  },
                },
+               invitedBy: {
+                  select: {
+                     name: true,
+                     email: true,
+                  },
+               },
+            },
+            orderBy: {
+               createdAt: "desc",
+            },
+         });
+         const receivedInvites: ServerInvite[] = invites.map((invite) => ({
+            id: invite.id,
+            email: invite.email,
+            role: invite.role as Role,
+            expiresAt: invite.expiresAt.toISOString(),
+            accepted: invite.accepted,
+            server: {
+               name: invite.server.name,
             },
             invitedBy: {
-               select: {
-                  name: true,
-                  email: true,
-               },
+               name: invite.invitedBy.name || "",
+               email: invite.invitedBy.email,
             },
-         },
-         orderBy: {
-            createdAt: "desc",
-         },
-      });
-      const receivedInvites: ServerInvite[] = invites.map((invite) => ({
-         id: invite.id,
-         email: invite.email,
-         role: invite.role as Role,
-         expiresAt: invite.expiresAt.toISOString(),
-         accepted: invite.accepted,
-         server: {
-            name: invite.server.name,
-         },
-         invitedBy: {
-            name: invite.invitedBy.name || "",
-            email: invite.invitedBy.email,
-         },
-      }));
-      res.status(200).json({ receivedInvites });
-   } catch (error) {
-      console.error("Error getting received invites:", error);
-      res.status(500).json({ message: "Internal server error" });
+         }));
+         res.status(200).json({ receivedInvites });
+      } catch (error) {
+         console.error("Error getting received invites:", error);
+         res.status(500).json({ message: "Internal server error" });
+      }
    }
-});
+);
 
-inviteRouter.get("/sent", async (req: Request, res: Response) => {
-   console.log("Getting sent invites");
-   if (!req.user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-   }
-   try {
-      const invites = await prisma.pendingInvitation.findMany({
-         where: {
-            invitedById: req.user.id,
-            accepted: false,
-         },
-         select: {
-            id: true,
-            email: true,
-            role: true,
-            expiresAt: true,
-            accepted: true,
-            server: {
-               select: {
-                  name: true,
+inviteRouter.get(
+   "/sent",
+   requireListBuckets(),
+   async (req: Request, res: Response) => {
+      console.log("Getting sent invites");
+      try {
+         const invites = await prisma.pendingInvitation.findMany({
+            where: {
+               invitedById: req.user!.id,
+               accepted: false,
+            },
+            select: {
+               id: true,
+               email: true,
+               role: true,
+               expiresAt: true,
+               accepted: true,
+               server: {
+                  select: {
+                     name: true,
+                  },
                },
+               invitedBy: {
+                  select: {
+                     name: true,
+                     email: true,
+                  },
+               },
+            },
+            orderBy: {
+               createdAt: "desc",
+            },
+         });
+         const sentInvites: ServerInvite[] = invites.map((invite) => ({
+            id: invite.id,
+            email: invite.email,
+            role: invite.role as Role,
+            expiresAt: invite.expiresAt.toISOString(),
+            accepted: invite.accepted,
+            server: {
+               name: invite.server.name,
             },
             invitedBy: {
-               select: {
-                  name: true,
-                  email: true,
-               },
+               name: invite.invitedBy.name || "",
+               email: invite.invitedBy.email,
             },
-         },
-         orderBy: {
-            createdAt: "desc",
-         },
-      });
-      const sentInvites: ServerInvite[] = invites.map((invite) => ({
-         id: invite.id,
-         email: invite.email,
-         role: invite.role as Role,
-         expiresAt: invite.expiresAt.toISOString(),
-         accepted: invite.accepted,
-         server: {
-            name: invite.server.name,
-         },
-         invitedBy: {
-            name: invite.invitedBy.name || "",
-            email: invite.invitedBy.email,
-         },
-      }));
-      res.status(200).json({ sentInvites });
-   } catch (error) {
-      console.error("Error getting sent invites:", error);
-      res.status(500).json({ message: "Internal server error" });
+         }));
+         res.status(200).json({ sentInvites });
+      } catch (error) {
+         console.error("Error getting sent invites:", error);
+         res.status(500).json({ message: "Internal server error" });
+      }
    }
-});
+);
 
 inviteRouter.post(
    "/send",
@@ -252,7 +253,6 @@ inviteRouter.delete(
    async (req: Request, res: Response) => {
       console.log("Revoking invite");
       const { inviteId } = req.body;
-
       try {
          await prisma.pendingInvitation.delete({
             where: { id: inviteId },
@@ -261,6 +261,43 @@ inviteRouter.delete(
          res.status(200).json({ message: "Invite revoked successfully" });
       } catch (error) {
          console.error("Error revoking invite:", error);
+         res.status(500).json({ message: "Internal server error" });
+      }
+   }
+);
+
+inviteRouter.delete(
+   "/delete-role",
+   requireInvitePermission,
+   async (req: Request, res: Response) => {
+      console.log("Deleting user role");
+      const { serverId, userId } = req.body;
+      try {
+         await prisma.serverAccess.delete({
+            where: { userId_serverId: { userId, serverId } },
+         });
+         res.status(200).json({ message: "User role deleted successfully" });
+      } catch (error) {
+         console.error("Error deleting user role:", error);
+         res.status(500).json({ message: "Internal server error" });
+      }
+   }
+);
+
+inviteRouter.put(
+   "/update-role",
+   requireInvitePermission,
+   async (req: Request, res: Response) => {
+      console.log("Updating user role");
+      const { role, serverId, userId } = req.body;
+      try {
+         await prisma.serverAccess.update({
+            where: { userId_serverId: { userId, serverId } },
+            data: { role },
+         });
+         res.status(200).json({ message: "User role updated successfully" });
+      } catch (error) {
+         console.error("Error updating user role:", error);
          res.status(500).json({ message: "Internal server error" });
       }
    }

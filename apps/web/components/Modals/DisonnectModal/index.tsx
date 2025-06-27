@@ -1,5 +1,7 @@
 import useDeleteServer from "@/lib/hooks/mutations/useDeleteServer";
-import { ServerInfo } from "@s3-viewer/types";
+import useDisconnectServer from "@/lib/hooks/mutations/useDisconnectServer";
+import useCurrentServer from "@/lib/hooks/queries/useCurrentServer";
+import { Role, ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    Dialog,
@@ -23,17 +25,24 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({
    server,
 }) => {
    const deleteServerMutation = useDeleteServer();
+   const disconnectServerMutation = useDisconnectServer();
    const [disconnectError, setDisconnectError] = useState<string | null>(null);
+   const currentServer = useCurrentServer(server.id);
+
+   const isOwner = currentServer?.userRole === Role.OWNER;
+   const activeMutation = isOwner
+      ? deleteServerMutation
+      : disconnectServerMutation;
 
    const handleDisconnect = () => {
-      deleteServerMutation.mutate(
+      activeMutation.mutate(
          { serverId: server.id },
          {
             onSuccess: () => {
                setDisconnectError(null);
                onClose();
             },
-            onError: (error) => {
+            onError: (error: Error) => {
                setDisconnectError(error.message);
             },
          }
@@ -49,13 +58,16 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({
                      <div className="bg-viewergray border border-xs rounded-2xl p-4">
                         <WifiOff className="size-7 text-viewerblue" />
                      </div>
-                     <span>Disconnect Server</span>
+                     <span>
+                        {isOwner ? "Delete Server" : "Disconnect Server"}
+                     </span>
                   </div>
                </DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
                   <span>
-                     Are you sure you want to disconnect this server? You will
-                     need to reconnect the server manually to use it again.
+                     {isOwner
+                        ? "Are you sure you want to delete this server? This will permanently delete the server and remove all associated invites."
+                        : "Are you sure you want to disconnect this server? You will need to be re-invited to access it again."}
                   </span>
                </DialogDescription>
             </DialogHeader>
@@ -64,11 +76,15 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({
                   variant="destructive"
                   className="w-full"
                   onClick={handleDisconnect}
-                  disabled={deleteServerMutation.isPending}
+                  disabled={activeMutation.isPending}
                >
-                  {deleteServerMutation.isPending
-                     ? "Disconnecting..."
-                     : "Disconnect"}
+                  {activeMutation.isPending
+                     ? isOwner
+                        ? "Deleting..."
+                        : "Disconnecting..."
+                     : isOwner
+                       ? "Delete Server"
+                       : "Disconnect Server"}
                </Button>
                <DialogClose asChild>
                   <Button variant="outline" className="w-full">
