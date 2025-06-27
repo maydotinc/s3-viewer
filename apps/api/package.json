@@ -3,7 +3,7 @@
    "version": "0.0.0",
    "type": "module",
    "scripts": {
-      "dev": "tsup server.ts --watch --onSuccess \"tsx dist/server.js\""
+      "dev": "tsup --watch"
    },
    "dependencies": {
       "@aws-sdk/client-s3": "^3.802.0",

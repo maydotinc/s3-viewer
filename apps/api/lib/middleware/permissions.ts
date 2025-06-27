@@ -16,11 +16,11 @@ const requirePermissions = (
          }
 
          let serverId: string;
-         if (req.body[serverIdParam]) {
+         if (req.body?.[serverIdParam]) {
             serverId = req.body[serverIdParam];
-         } else if (req.query[serverIdParam]) {
+         } else if (req.query?.[serverIdParam]) {
             serverId = req.query[serverIdParam] as string;
-         } else if (req.params[serverIdParam]) {
+         } else if (req.params?.[serverIdParam]) {
             serverId = req.params[serverIdParam];
          } else {
             res.status(400).json({ message: "Server ID is required" });

@@ -136,6 +136,11 @@ manageRouter.put(
                   message: "Server not found",
                });
                return;
+            } else if (error.code === "P2002") {
+               res.status(400).json({
+                  message: "A server with this name already exists",
+               });
+               return;
             }
          }
          res.status(500).json({ message: "Internal server error" });

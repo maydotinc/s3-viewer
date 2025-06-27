@@ -23,8 +23,12 @@ const requireInvitePermission = async (
    res: Response,
    next: NextFunction
 ) => {
-   const { role, serverId } = req.body;
    const user = req.user;
+
+   // Extract parameters from body, query, or params
+   const role = req.body?.role || req.query?.role || req.params?.role;
+   const serverId =
+      req.body?.serverId || req.query?.serverId || req.params?.serverId;
 
    if (!user) {
       res.status(401).json({ message: "Authentication required" });
@@ -47,29 +51,34 @@ const requireInvitePermission = async (
       return;
    }
 
-   const serverAccess = await prisma.serverAccess.findUnique({
-      where: { userId_serverId: { userId: user.id, serverId } },
-      select: { role: true },
-   });
-
-   const userRole = serverAccess?.role as Role;
-   if (!userRole) {
-      res.status(403).json({
-         message: "Access denied - no permissions for this server",
+   try {
+      const serverAccess = await prisma.serverAccess.findUnique({
+         where: { userId_serverId: { userId: user.id, serverId } },
+         select: { role: true },
       });
-      return;
-   }
 
-   if (!hasPermissions(userRole, [requiredPermission])) {
-      res.status(403).json({
-         message: `Insufficient permissions to manage ${role.toLowerCase()} users`,
-         required: requiredPermission,
-      });
-      return;
-   }
+      const userRole = serverAccess?.role as Role;
+      if (!userRole) {
+         res.status(403).json({
+            message: "Access denied - no permissions for this server",
+         });
+         return;
+      }
 
-   req.userRole = userRole;
-   next();
+      if (!hasPermissions(userRole, [requiredPermission])) {
+         res.status(403).json({
+            message: `Insufficient permissions to manage ${role.toLowerCase()} users`,
+            required: requiredPermission,
+         });
+         return;
+      }
+
+      req.userRole = userRole;
+      next();
+   } catch (error) {
+      console.error("Invite permission check error:", error);
+      res.status(500).json({ message: "Permission check failed" });
+   }
 };
 
 const requireRevokePermission = async (
@@ -77,8 +86,13 @@ const requireRevokePermission = async (
    res: Response,
    next: NextFunction
 ) => {
-   const { inviteId, serverId } = req.body;
    const user = req.user;
+
+   // Extract parameters from body, query, or params
+   const inviteId =
+      req.body?.inviteId || req.query?.inviteId || req.params?.inviteId;
+   const serverId =
+      req.body?.serverId || req.query?.serverId || req.params?.serverId;
 
    if (!user) {
       res.status(401).json({ message: "Authentication required" });
@@ -137,7 +151,7 @@ const requireRevokePermission = async (
       req.userRole = userRole;
       next();
    } catch (error) {
-      console.error("Permission check error:", error);
+      console.error("Revoke invite permission check error:", error);
       res.status(500).json({ message: "Permission check failed" });
    }
 };
