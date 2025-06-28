@@ -32,7 +32,6 @@ type ServerInvite = {
    id: string;
    role: Role;
    expiresAt: string;
-   accepted: boolean;
    email: string;
    server: {
       name: string;

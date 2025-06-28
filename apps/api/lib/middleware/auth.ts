@@ -25,6 +25,7 @@ const authGuard = (req: Request, res: Response, next: NextFunction) => {
 };
 
 const requireUser = (req: Request, res: Response, next: NextFunction) => {
+   console.log("Checking if user is authenticated");
    if (!req.user) {
       res.status(401).json({ message: "Authentication required" });
       return;

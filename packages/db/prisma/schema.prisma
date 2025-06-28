@@ -115,7 +115,6 @@ model PendingInvitation {
   email     String
   role      Role
   expiresAt DateTime
-  accepted  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -127,6 +126,7 @@ model PendingInvitation {
 
   @@unique([email, serverId])
   @@index([invitedById])
+  @@index([email])
   @@map("pending_invitation")
 }
 

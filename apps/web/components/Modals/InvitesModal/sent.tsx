@@ -37,18 +37,11 @@ const SentInvites: React.FC = () => {
 
    if (isLoading) {
       return (
-         <div className="flex flex-col gap-2">
-            {[1, 2, 3].map((i) => (
-               <div
-                  key={i}
-                  className="flex flex-col gap-2 border border-viewerborder rounded-md p-2"
-               >
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="h-3 w-2/3" />
-                  <Skeleton className="h-8 w-20" />
-               </div>
-            ))}
+         <div className="flex flex-col gap-2 border border-viewerborder rounded-md p-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-8 w-20" />
          </div>
       );
    }
@@ -79,23 +72,13 @@ const SentInvites: React.FC = () => {
                            <Server className="size-4" />
                            {invite.server.name}
                         </CardTitle>
-                        <div className="flex items-center gap-2">
-                           <Badge
-                              variant={
-                                 isInviteExpired ? "destructive" : "secondary"
-                              }
-                           >
-                              {invite.role}
-                           </Badge>
-                           {invite.accepted && (
-                              <Badge
-                                 variant="default"
-                                 className="bg-green-100 text-green-800"
-                              >
-                                 Accepted
-                              </Badge>
-                           )}
-                        </div>
+                        <Badge
+                           variant={
+                              isInviteExpired ? "destructive" : "secondary"
+                           }
+                        >
+                           {invite.role}
+                        </Badge>
                      </div>
                   </CardHeader>
                   <CardContent className="p-0 flex flex-col">

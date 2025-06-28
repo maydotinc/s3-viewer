@@ -18,14 +18,12 @@ inviteRouter.get(
          const invites = await prisma.pendingInvitation.findMany({
             where: {
                email: req.user!.email,
-               accepted: false,
             },
             select: {
                id: true,
                email: true,
                role: true,
                expiresAt: true,
-               accepted: true,
                server: {
                   select: {
                      name: true,
@@ -47,7 +45,6 @@ inviteRouter.get(
             email: invite.email,
             role: invite.role as Role,
             expiresAt: invite.expiresAt.toISOString(),
-            accepted: invite.accepted,
             server: {
                name: invite.server.name,
             },
@@ -70,14 +67,12 @@ inviteRouter.get("/sent", requireUser, async (req: Request, res: Response) => {
       const invites = await prisma.pendingInvitation.findMany({
          where: {
             invitedById: req.user!.id,
-            accepted: false,
          },
          select: {
             id: true,
             email: true,
             role: true,
             expiresAt: true,
-            accepted: true,
             server: {
                select: {
                   name: true,
@@ -99,7 +94,6 @@ inviteRouter.get("/sent", requireUser, async (req: Request, res: Response) => {
          email: invite.email,
          role: invite.role as Role,
          expiresAt: invite.expiresAt.toISOString(),
-         accepted: invite.accepted,
          server: {
             name: invite.server.name,
          },
@@ -133,20 +127,18 @@ inviteRouter.post(
          });
          return;
       }
+      const invitations = emails.map((email) => ({
+         serverId,
+         email,
+         role,
+         expiresAt: new Date(expiresAt),
+         invitedById: req.user!.id,
+      }));
 
       try {
-         const invitations = emails.map((email) => ({
-            serverId,
-            email,
-            role,
-            expiresAt: new Date(expiresAt),
-            invitedById: req.user!.id,
-         }));
-
          await prisma.pendingInvitation.createMany({
             data: invitations,
          });
-
          res.status(200).json({ message: "Invitations sent successfully" });
       } catch (error) {
          console.error("Error sending invitations:", error);
@@ -155,93 +147,96 @@ inviteRouter.post(
    }
 );
 
-inviteRouter.post("/accept", async (req: Request, res: Response) => {
-   console.log("Accepting invite");
-   const { inviteId } = req.body;
-   if (!req.user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-   }
-   if (!inviteId) {
-      res.status(400).json({ message: "Invite ID is required" });
-      return;
-   }
-
-   try {
-      const invite = await prisma.pendingInvitation.findFirst({
-         where: {
-            id: inviteId,
-            email: req.user.email,
-            accepted: false,
-            expiresAt: {
-               gt: new Date(),
-            },
-         },
-      });
-
-      if (!invite) {
-         res.status(404).json({
-            message: "Invite not found or has expired",
-         });
+inviteRouter.post(
+   "/accept",
+   requireUser,
+   async (req: Request, res: Response) => {
+      console.log("Accepting invite");
+      const { inviteId } = req.body;
+      if (!inviteId) {
+         res.status(400).json({ message: "Invite ID is required" });
          return;
       }
 
-      // Create server access and mark invite as accepted
-      await prisma.$transaction([
-         prisma.serverAccess.create({
-            data: {
-               userId: req.user.id,
-               serverId: invite.serverId,
-               role: invite.role,
-            },
-         }),
-         prisma.pendingInvitation.update({
-            where: { id: inviteId },
-            data: { accepted: true },
-         }),
-      ]);
+      try {
+         await prisma.$transaction(async (tx) => {
+            const invite = await tx.pendingInvitation.findFirst({
+               where: {
+                  id: inviteId,
+                  email: req.user!.email,
+                  expiresAt: {
+                     gt: new Date(),
+                  },
+               },
+            });
 
-      res.status(200).json({ message: "Invite accepted successfully" });
-   } catch (error) {
-      console.error("Error accepting invite:", error);
-      res.status(500).json({ message: "Internal server error" });
-   }
-});
+            if (!invite) {
+               res.status(404).json({
+                  message: "Invite not found or has expired",
+               });
+               return;
+            }
 
-inviteRouter.post("/reject", async (req: Request, res: Response) => {
-   console.log("Rejecting invite");
-   const { inviteId } = req.body;
-   if (!req.user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-   }
-   if (!inviteId) {
-      res.status(400).json({ message: "Invite ID is required" });
-      return;
-   }
+            await tx.serverAccess.create({
+               data: {
+                  userId: req.user!.id,
+                  serverId: invite.serverId,
+                  role: invite.role,
+               },
+            });
 
-   try {
-      const deletedInvite = await prisma.pendingInvitation.deleteMany({
-         where: {
-            id: inviteId,
-            email: req.user.email,
-            accepted: false,
-         },
-      });
-
-      if (deletedInvite.count === 0) {
-         res.status(404).json({
-            message: "Invite not found or already processed",
+            await tx.pendingInvitation.delete({
+               where: { id: inviteId },
+            });
          });
+
+         res.status(200).json({ message: "Invite accepted successfully" });
+      } catch (error) {
+         console.error("Error accepting invite:", error);
+         res.status(500).json({ message: "Internal server error" });
+      }
+   }
+);
+
+inviteRouter.post(
+   "/reject",
+   requireUser,
+   async (req: Request, res: Response) => {
+      console.log("Rejecting invite");
+      const { inviteId } = req.body;
+      if (!inviteId) {
+         res.status(400).json({ message: "Invite ID is required" });
          return;
       }
 
-      res.status(200).json({ message: "Invite rejected successfully" });
-   } catch (error) {
-      console.error("Error rejecting invite:", error);
-      res.status(500).json({ message: "Internal server error" });
+      try {
+         await prisma.$transaction(async (tx) => {
+            const invite = await tx.pendingInvitation.findFirst({
+               where: {
+                  id: inviteId,
+                  email: req.user!.email,
+               },
+            });
+
+            if (!invite) {
+               res.status(404).json({
+                  message: "Invite not found",
+               });
+               return;
+            }
+
+            await tx.pendingInvitation.delete({
+               where: { id: inviteId },
+            });
+         });
+
+         res.status(200).json({ message: "Invite rejected successfully" });
+      } catch (error) {
+         console.error("Error rejecting invite:", error);
+         res.status(500).json({ message: "Internal server error" });
+      }
    }
-});
+);
 
 inviteRouter.delete(
    "/revoke",

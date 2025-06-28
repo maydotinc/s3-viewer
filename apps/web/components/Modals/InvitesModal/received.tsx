@@ -62,18 +62,11 @@ const ReceivedInvites: React.FC = () => {
 
    if (isLoading) {
       return (
-         <div className="flex flex-col gap-2">
-            {[1, 2, 3].map((i) => (
-               <div
-                  key={i}
-                  className="flex flex-col gap-2 border border-viewerborder rounded-md p-2"
-               >
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-3 w-1/2" />
-                  <Skeleton className="h-3 w-2/3" />
-                  <Skeleton className="h-8 w-20" />
-               </div>
-            ))}
+         <div className="flex flex-col gap-2 border border-viewerborder rounded-md p-2">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-8 w-20" />
          </div>
       );
    }
