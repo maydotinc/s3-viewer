@@ -1,4 +1,3 @@
-import { requireUser } from "@/lib/middleware/auth.js";
 import {
    requireInvitePermission,
    requireRevokePermission,
@@ -9,59 +8,55 @@ import { Request, Response, Router } from "express";
 
 const inviteRouter: Router = Router();
 
-inviteRouter.get(
-   "/received",
-   requireUser,
-   async (req: Request, res: Response) => {
-      console.log("Getting received invites");
-      try {
-         const invites = await prisma.pendingInvitation.findMany({
-            where: {
-               email: req.user!.email,
-            },
-            select: {
-               id: true,
-               email: true,
-               role: true,
-               expiresAt: true,
-               server: {
-                  select: {
-                     name: true,
-                  },
-               },
-               invitedBy: {
-                  select: {
-                     name: true,
-                     email: true,
-                  },
-               },
-            },
-            orderBy: {
-               createdAt: "desc",
-            },
-         });
-         const receivedInvites: ServerInvite[] = invites.map((invite) => ({
-            id: invite.id,
-            email: invite.email,
-            role: invite.role as Role,
-            expiresAt: invite.expiresAt.toISOString(),
+inviteRouter.get("/received", async (req: Request, res: Response) => {
+   console.log("Getting received invites");
+   try {
+      const invites = await prisma.pendingInvitation.findMany({
+         where: {
+            email: req.user!.email,
+         },
+         select: {
+            id: true,
+            email: true,
+            role: true,
+            expiresAt: true,
             server: {
-               name: invite.server.name,
+               select: {
+                  name: true,
+               },
             },
             invitedBy: {
-               name: invite.invitedBy.name || "",
-               email: invite.invitedBy.email,
+               select: {
+                  name: true,
+                  email: true,
+               },
             },
-         }));
-         res.status(200).json({ receivedInvites });
-      } catch (error) {
-         console.error("Error getting received invites:", error);
-         res.status(500).json({ message: "Internal server error" });
-      }
+         },
+         orderBy: {
+            createdAt: "desc",
+         },
+      });
+      const receivedInvites: ServerInvite[] = invites.map((invite) => ({
+         id: invite.id,
+         email: invite.email,
+         role: invite.role as Role,
+         expiresAt: invite.expiresAt.toISOString(),
+         server: {
+            name: invite.server.name,
+         },
+         invitedBy: {
+            name: invite.invitedBy.name || "",
+            email: invite.invitedBy.email,
+         },
+      }));
+      res.status(200).json({ receivedInvites });
+   } catch (error) {
+      console.error("Error getting received invites:", error);
+      res.status(500).json({ message: "Internal server error" });
    }
-);
+});
 
-inviteRouter.get("/sent", requireUser, async (req: Request, res: Response) => {
+inviteRouter.get("/sent", async (req: Request, res: Response) => {
    console.log("Getting sent invites");
    try {
       const invites = await prisma.pendingInvitation.findMany({
@@ -147,96 +142,88 @@ inviteRouter.post(
    }
 );
 
-inviteRouter.post(
-   "/accept",
-   requireUser,
-   async (req: Request, res: Response) => {
-      console.log("Accepting invite");
-      const { inviteId } = req.body;
-      if (!inviteId) {
-         res.status(400).json({ message: "Invite ID is required" });
-         return;
-      }
+inviteRouter.post("/accept", async (req: Request, res: Response) => {
+   console.log("Accepting invite");
+   const { inviteId } = req.body;
+   if (!inviteId) {
+      res.status(400).json({ message: "Invite ID is required" });
+      return;
+   }
 
-      try {
-         await prisma.$transaction(async (tx) => {
-            const invite = await tx.pendingInvitation.findFirst({
-               where: {
-                  id: inviteId,
-                  email: req.user!.email,
-                  expiresAt: {
-                     gt: new Date(),
-                  },
+   try {
+      await prisma.$transaction(async (tx) => {
+         const invite = await tx.pendingInvitation.findFirst({
+            where: {
+               id: inviteId,
+               email: req.user!.email,
+               expiresAt: {
+                  gt: new Date(),
                },
-            });
-
-            if (!invite) {
-               res.status(404).json({
-                  message: "Invite not found or has expired",
-               });
-               return;
-            }
-
-            await tx.serverAccess.create({
-               data: {
-                  userId: req.user!.id,
-                  serverId: invite.serverId,
-                  role: invite.role,
-               },
-            });
-
-            await tx.pendingInvitation.delete({
-               where: { id: inviteId },
-            });
+            },
          });
 
-         res.status(200).json({ message: "Invite accepted successfully" });
-      } catch (error) {
-         console.error("Error accepting invite:", error);
-         res.status(500).json({ message: "Internal server error" });
-      }
-   }
-);
-
-inviteRouter.post(
-   "/reject",
-   requireUser,
-   async (req: Request, res: Response) => {
-      console.log("Rejecting invite");
-      const { inviteId } = req.body;
-      if (!inviteId) {
-         res.status(400).json({ message: "Invite ID is required" });
-         return;
-      }
-
-      try {
-         await prisma.$transaction(async (tx) => {
-            const invite = await tx.pendingInvitation.findFirst({
-               where: {
-                  id: inviteId,
-                  email: req.user!.email,
-               },
+         if (!invite) {
+            res.status(404).json({
+               message: "Invite not found or has expired",
             });
+            return;
+         }
 
-            if (!invite) {
-               res.status(404).json({
-                  message: "Invite not found",
-               });
-               return;
-            }
-
-            await tx.pendingInvitation.delete({
-               where: { id: inviteId },
-            });
+         await tx.serverAccess.create({
+            data: {
+               userId: req.user!.id,
+               serverId: invite.serverId,
+               role: invite.role,
+            },
          });
 
-         res.status(200).json({ message: "Invite rejected successfully" });
-      } catch (error) {
-         console.error("Error rejecting invite:", error);
-         res.status(500).json({ message: "Internal server error" });
-      }
+         await tx.pendingInvitation.delete({
+            where: { id: inviteId },
+         });
+      });
+
+      res.status(200).json({ message: "Invite accepted successfully" });
+   } catch (error) {
+      console.error("Error accepting invite:", error);
+      res.status(500).json({ message: "Internal server error" });
    }
-);
+});
+
+inviteRouter.post("/reject", async (req: Request, res: Response) => {
+   console.log("Rejecting invite");
+   const { inviteId } = req.body;
+   if (!inviteId) {
+      res.status(400).json({ message: "Invite ID is required" });
+      return;
+   }
+
+   try {
+      await prisma.$transaction(async (tx) => {
+         const invite = await tx.pendingInvitation.findFirst({
+            where: {
+               id: inviteId,
+               email: req.user!.email,
+            },
+         });
+
+         if (!invite) {
+            res.status(404).json({
+               message: "Invite not found",
+            });
+            return;
+         }
+
+         await tx.pendingInvitation.delete({
+            where: { id: inviteId },
+         });
+      });
+
+      res.status(200).json({ message: "Invite rejected successfully" });
+   } catch (error) {
+      console.error("Error rejecting invite:", error);
+      res.status(500).json({ message: "Internal server error" });
+   }
+});
 
 inviteRouter.delete(
    "/revoke",

@@ -15,10 +15,6 @@ const manageRouter: Router = Router();
 manageRouter.post("/establish", async (req: Request, res: Response) => {
    console.log("Establishing connection");
    const credentials = req.body as ServerCredentials;
-   if (!req.user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-   }
    if (!credentials) {
       res.status(400).json({ message: "Server credentials are required" });
       return;
@@ -47,10 +43,6 @@ manageRouter.post("/establish", async (req: Request, res: Response) => {
 
 manageRouter.post("/create", async (req: Request, res: Response) => {
    console.log("Creating server");
-   if (!req.user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-   }
    const { serverCredentials, serverName } = req.body as {
       serverCredentials: ServerCredentials;
       serverName: string;
@@ -61,10 +53,10 @@ manageRouter.post("/create", async (req: Request, res: Response) => {
          data: {
             credentials: JSON.stringify(serverCredentials),
             name: serverName,
-            ownerId: req.user.id,
+            ownerId: req.user!.id,
             serverAccess: {
                create: {
-                  userId: req.user.id,
+                  userId: req.user!.id,
                   role: "OWNER",
                },
             },

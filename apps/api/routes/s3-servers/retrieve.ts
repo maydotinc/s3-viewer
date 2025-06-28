@@ -7,14 +7,10 @@ const retrieveRouter: Router = Router();
 
 retrieveRouter.get("/get-servers", async (req: Request, res: Response) => {
    console.log("Getting servers");
-   if (!req.user) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-   }
 
    const servers = await prisma.serverAccess.findMany({
       where: {
-         userId: req.user.id,
+         userId: req.user!.id,
       },
       select: {
          role: true,
