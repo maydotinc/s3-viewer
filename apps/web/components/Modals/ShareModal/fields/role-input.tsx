@@ -1,5 +1,9 @@
-import useCurrentServer from "@/lib/hooks/queries/useCurrentServer";
-import { hasPermissions, Permission } from "@s3-viewer/permissions";
+import useServers from "@/lib/hooks/queries/useServers";
+import {
+   getManagePermissionForRole,
+   hasPermissions,
+   Permission,
+} from "@s3-viewer/permissions";
 import { Role } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -58,18 +62,13 @@ const RoleSelector = ({
    const { serverId } = useShareContext();
    const selectedRoleLabel =
       roles.find((role) => role.value === value)?.label || "Read";
-   const userRole = useCurrentServer(serverId)?.userRole;
-   const getPermission = (role: Role): Permission => {
-      switch (role) {
-         case Role.ADMIN:
-            return Permission.MANAGE_ADMIN;
-         case Role.EDITOR:
-            return Permission.MANAGE_EDITOR;
-         case Role.VIEWER:
-            return Permission.MANAGE_VIEWER;
-         default:
-            return Permission.MANAGE_VIEWER;
-      }
+   const userRole = useServers(serverId).currentServer?.userRole;
+
+   const isDisabled = (selectedRole: Role, userRole: Role | undefined) => {
+      if (selectedRole === Role.OWNER || !userRole) return true;
+      return !hasPermissions(userRole, [
+         getManagePermissionForRole(selectedRole) ?? Permission.MANAGE_VIEWER,
+      ]);
    };
 
    return (
@@ -88,12 +87,7 @@ const RoleSelector = ({
                <SelectItem
                   key={role.value}
                   value={role.value}
-                  disabled={
-                     role.value === Role.OWNER ||
-                     !hasPermissions(userRole || Role.VIEWER, [
-                        getPermission(role.value),
-                     ])
-                  }
+                  disabled={isDisabled(role.value, userRole)}
                   hidden={role.value === Role.OWNER}
                >
                   <div className="flex flex-col">

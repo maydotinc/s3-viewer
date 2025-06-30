@@ -1,10 +1,15 @@
+import useSessionStore from "@/lib/stores/sessionStore";
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { authClient } from "@s3-viewer/auth/client";
 import { ServerInfo } from "@s3-viewer/types";
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
-const useServers = () => {
+const useServers = (serverId?: string) => {
    const { data: session } = authClient.useSession();
+   const sessionServerId = useSessionStore((state) => state.serverId);
+
+   // Use provided serverId or fall back to session store
+   const currentServerId = serverId || sessionServerId;
 
    const {
       data: servers = [],
@@ -35,8 +40,12 @@ const useServers = () => {
       enabled: !!session?.user,
    });
 
+   const currentServer =
+      servers.find((server) => server.id === currentServerId) || null;
+
    return {
       servers,
+      currentServer,
       isServerListLoading,
       serverError,
       refreshServers: refetch,

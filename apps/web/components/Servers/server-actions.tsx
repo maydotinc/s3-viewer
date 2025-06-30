@@ -1,5 +1,6 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import useCurrentServer from "@/lib/hooks/queries/useCurrentServer";
+import useServers from "@/lib/hooks/queries/useServers";
+import { hasPermissions, Permission } from "@s3-viewer/permissions";
 import { Role, ServerInfo } from "@s3-viewer/types";
 import {
    DropdownMenu,
@@ -16,10 +17,12 @@ type ServerActionsProps = {
 };
 
 const ServerActions = ({ server }: ServerActionsProps) => {
-   const currentServer = useCurrentServer(server.id);
+   const { currentServer } = useServers(server.id);
    const [isOpen, setIsOpen] = useState(false);
    const { openModal } = useModalContext();
-   const isOwner = currentServer?.userRole === Role.OWNER;
+
+   const userRole = currentServer?.userRole;
+   const isOwner = userRole === Role.OWNER;
 
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -41,6 +44,10 @@ const ServerActions = ({ server }: ServerActionsProps) => {
                   e.preventDefault();
                   openModal("rename", { server });
                }}
+               disabled={
+                  !userRole ||
+                  !hasPermissions(userRole, [Permission.RENAME_SERVER])
+               }
             >
                <PenLine className="size-4" />
                Rename

@@ -1,7 +1,7 @@
 import {
-   requireInvitePermission,
+   requireManagePermission,
    requireRevokePermission,
-} from "@/lib/middleware/invite-permissions.js";
+} from "@/lib/middleware/permissions.js";
 import { prisma } from "@s3-viewer/db";
 import { Role, ServerInvite } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
@@ -106,7 +106,7 @@ inviteRouter.get("/sent", async (req: Request, res: Response) => {
 
 inviteRouter.post(
    "/send",
-   requireInvitePermission,
+   requireManagePermission,
    async (req: Request, res: Response) => {
       console.log("Sending invite");
       const { serverId, emails, role, expiresAt } = req.body as {
@@ -246,7 +246,7 @@ inviteRouter.delete(
 
 inviteRouter.delete(
    "/delete-role",
-   requireInvitePermission,
+   requireManagePermission,
    async (req: Request, res: Response) => {
       console.log("Deleting user role");
       const { serverId, userId } = req.body;
@@ -264,7 +264,7 @@ inviteRouter.delete(
 
 inviteRouter.put(
    "/update-role",
-   requireInvitePermission,
+   requireManagePermission,
    async (req: Request, res: Response) => {
       console.log("Updating user role");
       const { role, serverId, userId } = req.body;

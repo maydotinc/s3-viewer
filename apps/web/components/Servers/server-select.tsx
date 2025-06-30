@@ -1,5 +1,4 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import useCurrentServer from "@/lib/hooks/queries/useCurrentServer";
 import useServers from "@/lib/hooks/queries/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -21,9 +20,9 @@ import ServerItem from "./server-item";
 const ServerSelector = () => {
    const router = useRouter();
    const { openConnectModal } = useModalContext();
-   const { servers, isServerListLoading, serverError } = useServers();
+   const { servers, currentServer, isServerListLoading, serverError } =
+      useServers();
    const setServerId = useSessionStore((state) => state.setServerId);
-   const currentServer = useCurrentServer();
 
    const handleServerSelect = (newServerId: string) => {
       setServerId(newServerId);

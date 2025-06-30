@@ -2,26 +2,28 @@ import { auth } from "@s3-viewer/auth";
 import { fromNodeHeaders } from "better-auth/node";
 import { NextFunction, Request, Response } from "express";
 
-const authGuard = (req: Request, res: Response, next: NextFunction) => {
-   auth.api
-      .getSession({
+const authGuard = async (req: Request, res: Response, next: NextFunction) => {
+   try {
+      const session = await auth.api.getSession({
          headers: fromNodeHeaders(req.headers),
-      })
-      .then((session) => {
-         if (!session) {
-            return res.status(401).json({
-               message: "Unauthorized, please login to continue",
-            });
-         }
-         req.user = session.user;
-         next();
-      })
-      .catch((error) => {
-         console.log("Auth error:", error);
-         res.status(401).json({
-            message: "Invalid session",
-         });
       });
+
+      if (!session) {
+         return res.status(401).json({ error: "Unauthorized" });
+      }
+
+      //=== Maybe dont need this ===//
+      // if (!isSessionIpValid(session.session, req)) {
+      //    console.warn("Mismatching IP address");
+      //    return res.status(401).json({ error: "Unauthorized" });
+      // }
+
+      req.user = session.user;
+      next();
+   } catch (e: any) {
+      console.log("Auth error:", e);
+      res.status(500).send({ error: "Internal server error" });
+   }
 };
 
 export { authGuard };

@@ -74,4 +74,19 @@ const hasPermissions = (role: Role, permissions: Permission[]): boolean => {
    );
 };
 
-export { hasPermissions, Permission };
+const getManagePermissionForRole = (role: Role): Permission | null => {
+   switch (role) {
+      case Role.VIEWER:
+         return Permission.MANAGE_VIEWER;
+      case Role.EDITOR:
+         return Permission.MANAGE_EDITOR;
+      case Role.ADMIN:
+         return Permission.MANAGE_ADMIN;
+      case Role.OWNER:
+         return null;
+      default:
+         return null;
+   }
+};
+
+export { getManagePermissionForRole, hasPermissions, Permission };

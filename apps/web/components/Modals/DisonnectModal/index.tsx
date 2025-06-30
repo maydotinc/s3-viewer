@@ -1,6 +1,6 @@
 import useDeleteServer from "@/lib/hooks/mutations/useDeleteServer";
 import useDisconnectServer from "@/lib/hooks/mutations/useDisconnectServer";
-import useCurrentServer from "@/lib/hooks/queries/useCurrentServer";
+import useServers from "@/lib/hooks/queries/useServers";
 import { Role, ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -27,7 +27,7 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({
    const deleteServerMutation = useDeleteServer();
    const disconnectServerMutation = useDisconnectServer();
    const [disconnectError, setDisconnectError] = useState<string | null>(null);
-   const currentServer = useCurrentServer(server.id);
+   const { currentServer } = useServers(server.id);
 
    const isOwner = currentServer?.userRole === Role.OWNER;
    const activeMutation = isOwner
