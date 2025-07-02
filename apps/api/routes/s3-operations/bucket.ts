@@ -3,14 +3,14 @@ import {
    DeleteBucketCommand,
    ListBucketsCommand,
 } from "@aws-sdk/client-s3";
+import { Bucket } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 import {
    requireCreateBucket,
    requireDeleteBucket,
    requireListBuckets,
 } from "../../lib/middleware/permissions.js";
-import { getS3Client } from "../../lib/s3.js";
-import formatBuckets from "../../lib/utils/formatBuckets.js";
+import { getS3Client } from "../../lib/utils/s3-client.js";
 
 const bucketRouter: Router = Router();
 
@@ -56,15 +56,34 @@ bucketRouter.get(
    "/list",
    requireListBuckets(),
    async (req: Request, res: Response) => {
+      console.log("Listing buckets");
       const serverId = req.query.serverId as string;
-
-      const s3Client = await getS3Client(serverId);
-      const command = new ListBucketsCommand({});
+      const buckets: Bucket[] = [];
       try {
-         const response = await s3Client.send(command);
-         res.status(200).json(formatBuckets(response));
+         let contToken: string | undefined;
+         do {
+            const s3Client = await getS3Client(serverId);
+            const command = new ListBucketsCommand({
+               MaxBuckets: 10000,
+               ...(contToken && { ContinuationToken: contToken }),
+            });
+            const response = await s3Client.send(command);
+            contToken = response.ContinuationToken;
+
+            buckets.push(
+               ...(response.Buckets?.map((bucket) => ({
+                  Name: bucket.Name || "",
+                  CreationDate: bucket.CreationDate?.toISOString() || "",
+                  Files: 0,
+                  Folders: 0,
+                  TotalSize: 0,
+               })) || [])
+            );
+         } while (contToken);
+         res.status(200).json({ buckets });
       } catch (error: any) {
-         res.status(500).json({ error: error.message });
+         console.error(error);
+         res.status(500).json({ error: "Error listing buckets" });
       }
    }
 );

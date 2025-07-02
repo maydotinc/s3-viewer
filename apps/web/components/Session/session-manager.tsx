@@ -1,4 +1,4 @@
-import useServers from "@/lib/hooks/queries/useServers";
+import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { authClient } from "@s3-viewer/auth/client";
 import { useEffect } from "react";
@@ -19,6 +19,8 @@ const SessionManager = () => {
    }, [session, isPending, clearSession]);
 
    useEffect(() => {
+      if (!session?.user) return;
+
       if (servers.length === 0) {
          if (serverId !== "") {
             setServerId("");

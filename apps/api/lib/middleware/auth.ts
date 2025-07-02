@@ -9,7 +9,8 @@ const authGuard = async (req: Request, res: Response, next: NextFunction) => {
       });
 
       if (!session) {
-         return res.status(401).json({ error: "Unauthorized" });
+         res.status(401).json({ error: "Unauthorized" });
+         return;
       }
 
       //=== Maybe dont need this ===//
@@ -26,4 +27,4 @@ const authGuard = async (req: Request, res: Response, next: NextFunction) => {
    }
 };
 
-export { authGuard };
+export default authGuard;

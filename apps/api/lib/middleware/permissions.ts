@@ -20,17 +20,13 @@ const requirePermissions = (
             res.status(401).json({ message: "Authentication required" });
             return;
          }
-         let serverId: string;
-         if (req.body?.[serverIdParam]) {
-            serverId = req.body[serverIdParam];
-         } else if (req.query?.[serverIdParam]) {
-            serverId = req.query[serverIdParam] as string;
-         } else if (req.params?.[serverIdParam]) {
-            serverId = req.params[serverIdParam];
-         } else {
+         const serverId =
+            req.body?.serverId || req.query?.serverId || req.params?.serverId;
+         if (!serverId) {
             res.status(400).json({ message: "Server ID is required" });
             return;
          }
+
          const serverAccess = await prisma.serverAccess.findUnique({
             where: {
                userId_serverId: { userId: user.id, serverId: serverId },

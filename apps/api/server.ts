@@ -5,7 +5,7 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { urlencoded } from "express";
-import { authGuard } from "./lib/middleware/auth.js";
+import authGuard from "./lib/middleware/auth.js";
 import s3Router from "./routes/s3-operations/index.js";
 import serverRouter from "./routes/s3-servers/index.js";
 import userRouter from "./routes/users/user-manage.js";

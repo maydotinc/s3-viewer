@@ -12,7 +12,7 @@ import {
    requireMoveObject,
    requireUploadObject,
 } from "../../lib/middleware/permissions.js";
-import { getS3Client } from "../../lib/s3.js";
+import { getS3Client } from "../../lib/utils/s3-client.js";
 
 const objectRouter: Router = Router();
 

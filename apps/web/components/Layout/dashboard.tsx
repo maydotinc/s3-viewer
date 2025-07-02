@@ -1,12 +1,20 @@
 import ViewerBanner from "./Banner/banner";
 import { ViewerSidebar } from "./sidebar";
 
-const ViewerDashboard = ({ children }: { children: React.ReactNode }) => {
+type ViewerDashboardProps = {
+   children: React.ReactNode;
+   mobileStrategy?: "fullscreen" | "hidden";
+};
+
+const ViewerDashboard = ({
+   children,
+   mobileStrategy,
+}: ViewerDashboardProps) => {
    return (
       <ViewerBanner>
          <div className="flex size-full">
-            <ViewerSidebar />
-            <div className="w-full md:w-[calc(100%-var(--sidebar-width))] h-full">{children}</div>
+            <ViewerSidebar mobileStrategy={mobileStrategy} />
+            <div className="flex-1 w-full h-full">{children}</div>
          </div>
       </ViewerBanner>
    );

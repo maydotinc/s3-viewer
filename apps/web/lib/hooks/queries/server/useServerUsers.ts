@@ -4,7 +4,8 @@ import { ServerUser } from "@s3-viewer/types";
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useServerUsers = (serverId: string) => {
-   const { data: session } = authClient.useSession();
+   const { data: session, isPending: isSessionPending } =
+      authClient.useSession();
 
    const {
       data: serverUsers = [],
@@ -33,7 +34,7 @@ const useServerUsers = (serverId: string) => {
          };
          return serverUsers;
       },
-      enabled: !!session?.user && !!serverId,
+      enabled: !isSessionPending && !!session?.user && !!serverId,
    });
 
    return {

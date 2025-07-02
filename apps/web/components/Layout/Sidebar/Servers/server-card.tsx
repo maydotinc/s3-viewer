@@ -1,5 +1,4 @@
 import { ServerInfo } from "@s3-viewer/types";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { ChevronsLeftRight, Circle, Database, ServerIcon } from "lucide-react";
 
 type ServerCardProps = {
@@ -9,7 +8,11 @@ type ServerCardProps = {
 const ServerCard = ({ server }: ServerCardProps) => {
    if (!server) {
       return (
-         <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
+         <div className="rounded-md flex flex-col gap-2 bg-viewergray p-2">
+            <h1 className="text-viewerblack text-md font-semibold">
+               Please sign in to view your servers
+            </h1>
+         </div>
       );
    }
 
@@ -18,7 +21,7 @@ const ServerCard = ({ server }: ServerCardProps) => {
          <div className="flex gap-2 items-center">
             <Circle className="size-2 text-green-500" />
             <ServerIcon className="size-4" />
-            <p className="text-md font-semibold max-w-[100px] truncate">
+            <p className="text-md font-semibold md:max-w-[100px] truncate">
                {server.name}
             </p>
             <div className="flex gap-2 items-center ml-auto border border-viewerborder rounded-full p-1.5 bg-viewerwhite">

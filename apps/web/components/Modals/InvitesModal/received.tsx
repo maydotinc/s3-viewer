@@ -1,6 +1,6 @@
 import useAcceptInvite from "@/lib/hooks/mutations/useAcceptInvite";
 import useRejectInvite from "@/lib/hooks/mutations/useRejectInvite";
-import { useReceivedInvites } from "@/lib/hooks/queries/useServerInvites";
+import { useReceivedInvites } from "@/lib/hooks/queries/server/useServerInvites";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
 import {

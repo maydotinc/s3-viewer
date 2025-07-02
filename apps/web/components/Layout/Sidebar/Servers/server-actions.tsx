@@ -1,5 +1,5 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import useServers from "@/lib/hooks/queries/useServers";
+import useServers from "@/lib/hooks/queries/server/useServers";
 import { hasPermissions, Permission } from "@s3-viewer/permissions";
 import { Role, ServerInfo } from "@s3-viewer/types";
 import {

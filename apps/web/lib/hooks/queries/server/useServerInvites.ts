@@ -4,7 +4,8 @@ import { ServerInvite } from "@s3-viewer/types";
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useReceivedInvites = () => {
-   const { data: session } = authClient.useSession();
+   const { data: session, isPending: isSessionPending } =
+      authClient.useSession();
 
    return useQuery<ServerInvite[]>({
       queryKey: ["received-invites"],
@@ -24,12 +25,13 @@ const useReceivedInvites = () => {
          };
          return receivedInvites;
       },
-      enabled: !!session?.user,
+      enabled: !isSessionPending && !!session?.user,
    });
 };
 
 const useSentInvites = () => {
-   const { data: session } = authClient.useSession();
+   const { data: session, isPending: isSessionPending } =
+      authClient.useSession();
 
    return useQuery<ServerInvite[]>({
       queryKey: ["sent-invites"],
@@ -49,7 +51,7 @@ const useSentInvites = () => {
          };
          return sentInvites;
       },
-      enabled: !!session?.user,
+      enabled: !isSessionPending && !!session?.user,
    });
 };
 

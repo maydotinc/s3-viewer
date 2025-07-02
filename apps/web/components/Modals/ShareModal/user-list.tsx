@@ -1,6 +1,6 @@
 import useDeleteRole from "@/lib/hooks/mutations/useDeleteRole";
 import useUpdateRole from "@/lib/hooks/mutations/useUpdateRole";
-import useServerUsers from "@/lib/hooks/queries/useServerUsers";
+import useServerUsers from "@/lib/hooks/queries/server/useServerUsers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Role } from "@s3-viewer/types";
 import { User } from "lucide-react";

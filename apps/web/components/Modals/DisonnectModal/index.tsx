@@ -1,6 +1,6 @@
 import useDeleteServer from "@/lib/hooks/mutations/useDeleteServer";
 import useDisconnectServer from "@/lib/hooks/mutations/useDisconnectServer";
-import useServers from "@/lib/hooks/queries/useServers";
+import useServers from "@/lib/hooks/queries/server/useServers";
 import { Role, ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {

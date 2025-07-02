@@ -8,7 +8,7 @@ import {
    requireRenameServer,
    requireServerOwner,
 } from "../../lib/middleware/permissions.js";
-import { getS3ClientFromCredentials } from "../../lib/s3.js";
+import { getS3ClientFromCredentials } from "../../lib/utils/s3-client.js";
 
 const manageRouter: Router = Router();
 
@@ -22,6 +22,7 @@ manageRouter.post("/establish", async (req: Request, res: Response) => {
    const s3Client = getS3ClientFromCredentials(credentials);
    try {
       const response = await s3Client.send(new ListBucketsCommand({}));
+      console.log(response);
       if (response.Buckets) {
          res.status(200).json({
             message: "Server connected established successfully",

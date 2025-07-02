@@ -1,5 +1,5 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import useServers from "@/lib/hooks/queries/useServers";
+import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";
 import {

@@ -1,4 +1,4 @@
-import useServers from "@/lib/hooks/queries/useServers";
+import useServers from "@/lib/hooks/queries/server/useServers";
 import {
    getManagePermissionForRole,
    hasPermissions,

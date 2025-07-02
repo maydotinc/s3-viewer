@@ -5,7 +5,8 @@ import { ServerInfo } from "@s3-viewer/types";
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useServers = (serverId?: string) => {
-   const { data: session } = authClient.useSession();
+   const { data: session, isPending: isSessionPending } =
+      authClient.useSession();
    const sessionServerId = useSessionStore((state) => state.serverId);
 
    // Use provided serverId or fall back to session store
@@ -37,7 +38,7 @@ const useServers = (serverId?: string) => {
          };
          return serversList;
       },
-      enabled: !!session?.user,
+      enabled: !isSessionPending && !!session?.user,
    });
 
    const currentServer =

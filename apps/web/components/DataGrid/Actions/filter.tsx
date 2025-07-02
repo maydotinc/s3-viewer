@@ -1,4 +1,3 @@
-import { GridContext } from "@/components/Home/bucketInfo";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -6,29 +5,21 @@ import {
    DropdownMenuContent,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { cn } from "@s3-viewer/ui/lib/utils";
 import { Column } from "ag-grid-community";
 import { ListFilter } from "lucide-react";
-import { useContext, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useGridContext } from "../Contexts/grid-context";
 
 type FilterProps = {
    className?: string;
 };
 
 const Filter = ({ className }: FilterProps) => {
-   const context = useContext(GridContext);
-   if (!context) {
-      return (
-         <div className={cn("relative flex-1 md:min-w-1/2 items-center flex", className)}>
-            <Skeleton className="size-full" />
-         </div>
-      );
-   }
-
-   const { gridRef, gridReady } = context;
+   const { gridRef, gridReady } = useGridContext();
    const [allColumns, setAllColumns] = useState<Column[] | null>(null);
-   const [filteredColumns, setFilteredColumns] = useState<Column[] | null>(null);
+   const [filteredColumns, setFilteredColumns] = useState<Column[] | null>(
+      null
+   );
 
    useEffect(() => {
       if (gridReady) {
@@ -66,9 +57,14 @@ const Filter = ({ className }: FilterProps) => {
                   checked={filteredColumns?.includes(column)}
                   onCheckedChange={(checked) => {
                      if (checked) {
-                        setFilteredColumns([...(filteredColumns ?? []), column]);
+                        setFilteredColumns([
+                           ...(filteredColumns ?? []),
+                           column,
+                        ]);
                      } else {
-                        setFilteredColumns(filteredColumns?.filter((c) => c !== column) ?? []);
+                        setFilteredColumns(
+                           filteredColumns?.filter((c) => c !== column) ?? []
+                        );
                      }
                   }}
                >
