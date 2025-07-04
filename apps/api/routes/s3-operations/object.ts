@@ -2,6 +2,7 @@ import {
    CopyObjectCommand,
    DeleteObjectCommand,
    GetObjectCommand,
+   ListObjectsV2Command,
    PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { Request, Response, Router } from "express";
@@ -9,6 +10,7 @@ import { Readable } from "stream";
 import {
    requireDeleteObject,
    requireDownloadObject,
+   requireListObjects,
    requireMoveObject,
    requireUploadObject,
 } from "../../lib/middleware/permissions.js";
@@ -153,6 +155,51 @@ objectRouter.post(
          await s3Client.send(deleteCommand);
          res.status(200).json({
             message: `Object ${sourceKey} moved to ${targetBucket}/${targetKey}`,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+objectRouter.get(
+   "/list",
+   requireListObjects(),
+   async (req: Request, res: Response) => {
+      const { bucket, serverId, continuationToken, blockSize } = req.query;
+      console.log(
+         "List objects",
+         bucket,
+         serverId,
+         continuationToken,
+         blockSize
+      );
+      const command = new ListObjectsV2Command({
+         Bucket: bucket as string,
+         ContinuationToken: continuationToken as string,
+         MaxKeys: Number(blockSize),
+      });
+      try {
+         const s3Client = await getS3Client(serverId as string);
+         const response = await s3Client.send(command);
+
+         const files = response.Contents?.map((file) => ({
+            Key: file.Key,
+            Size: file.Size,
+            LastModified: file.LastModified,
+         }));
+
+         const folders = response.CommonPrefixes?.map((folder) => ({
+            Key: folder.Prefix,
+            Size: null,
+            LastModified: null,
+         }));
+
+         const nextToken = response.NextContinuationToken;
+
+         res.status(200).json({
+            objects: [...(folders || []), ...(files || [])],
+            nextToken,
          });
       } catch (error: any) {
          res.status(500).json({ error: error.message });

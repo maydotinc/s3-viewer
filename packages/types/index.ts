@@ -43,7 +43,7 @@ type ServerInvite = {
 };
 
 //==== S3 TYPES ====//
-type Bucket = {
+type S3Bucket = {
    Name: string;
    CreationDate: string;
    Files: number;
@@ -51,16 +51,16 @@ type Bucket = {
    TotalSize: number;
 };
 
-type Object = {
+type S3Object = {
    Key: string;
-   LastModified: string;
-   Size: number;
+   LastModified: string | null;
+   Size: number | null;
 };
 
 export { Role };
 export type {
-   Bucket,
-   Object,
+   S3Bucket,
+   S3Object,
    ServerCredentials,
    ServerInfo,
    ServerInvite,

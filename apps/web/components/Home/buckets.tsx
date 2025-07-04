@@ -1,24 +1,26 @@
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
-import testData from "@/lib/utils/test";
-import { Bucket } from "@s3-viewer/types";
+import { testBuckets } from "@/lib/utils/test-data";
+import { S3Bucket } from "@s3-viewer/types";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { ColDef } from "ag-grid-community";
 import { CustomCellRendererProps } from "ag-grid-react";
 import Link from "next/link";
-import GridActions from "../DataGrid/Actions";
-import PaginationControls from "../DataGrid/Actions/pageControls";
-import { GridProvider } from "../DataGrid/Contexts/grid-context";
+import Filter from "../DataGrid/Actions/filter";
+import PaginationControls from "../DataGrid/Actions/page-controls";
+import Pagination from "../DataGrid/Actions/pagination";
+import QuickSearch from "../DataGrid/Actions/quick-search";
+import { GridProvider } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
 import BucketActions from "./actions";
 
-const columns: ColDef<Bucket>[] = [
+const columns: ColDef<S3Bucket>[] = [
    {
       field: "Name",
       headerName: "Bucket Name",
       flex: 2,
       cellRenderer: (props: CustomCellRendererProps) => (
          <Link
-            href={`/buckets/${props.value}`}
+            href={`/buckets/${props.data.Name}`}
             className="hover:underline hover:text-viewerblue"
          >
             {props.value}
@@ -51,7 +53,7 @@ const columns: ColDef<Bucket>[] = [
 ];
 
 const Buckets = () => {
-   const { buckets, isBucketsLoading, bucketsError, refetch } = useBuckets();
+   const { buckets, isBucketsLoading, bucketsError } = useBuckets();
 
    if (isBucketsLoading) {
       return (
@@ -79,14 +81,21 @@ const Buckets = () => {
       <GridProvider>
          <section className="flex flex-col p-8 w-full h-full">
             <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
-               <GridActions />
+               <div className="flex gap-2">
+                  <QuickSearch className="flex-2/3" />
+                  <Filter className="flex-1/3" />
+                  <Pagination className="flex-1/3" />
+               </div>
                <BucketActions />
             </div>
             <div className="flex flex-col flex-1 gap-2">
                <BaseGrid
-                  rowData={buckets ?? testData}
+                  rowData={buckets ?? testBuckets}
                   colDefs={columns}
                   className="flex-1"
+                  rowModel={{
+                     type: "clientSide",
+                  }}
                />
                <PaginationControls />
             </div>

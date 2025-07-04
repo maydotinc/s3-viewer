@@ -3,7 +3,7 @@ import {
    DeleteBucketCommand,
    ListBucketsCommand,
 } from "@aws-sdk/client-s3";
-import { Bucket } from "@s3-viewer/types";
+import { S3Bucket } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 import {
    requireCreateBucket,
@@ -58,9 +58,10 @@ bucketRouter.get(
    async (req: Request, res: Response) => {
       console.log("Listing buckets");
       const serverId = req.query.serverId as string;
-      const buckets: Bucket[] = [];
+      const buckets: S3Bucket[] = [];
       try {
          let contToken: string | undefined;
+         // Loop through all buckets then return
          do {
             const s3Client = await getS3Client(serverId);
             const command = new ListBucketsCommand({

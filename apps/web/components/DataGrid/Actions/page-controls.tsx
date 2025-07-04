@@ -14,7 +14,7 @@ import {
    ChevronUp,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGridContext } from "../Contexts/grid-context";
+import { useGridContext } from "../context";
 
 type PaginationControlsProps = {
    className?: string;

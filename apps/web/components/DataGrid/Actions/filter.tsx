@@ -8,7 +8,7 @@ import {
 import { Column } from "ag-grid-community";
 import { ListFilter } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGridContext } from "../Contexts/grid-context";
+import { useGridContext } from "../context";
 
 type FilterProps = {
    className?: string;

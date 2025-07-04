@@ -9,7 +9,7 @@ import {
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ChevronDown, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useGridContext } from "../Contexts/grid-context";
+import { useGridContext } from "../context";
 
 type PaginationProps = {
    className?: string;
@@ -33,7 +33,7 @@ const Pagination = ({ className }: PaginationProps) => {
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
          <DropdownMenuTrigger asChild>
             <Button>
-               {`Rows per page (${currentPageSize ?? 25})`}
+               {`Rows (${currentPageSize ?? 25})`}
                <ChevronDown
                   className={cn(
                      "size-4 text-gray-600 transition-transform duration-200",

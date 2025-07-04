@@ -2,13 +2,13 @@ import { Input } from "@s3-viewer/ui/components/input";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Search as SearchIcon } from "lucide-react";
 import { useCallback, useState } from "react";
-import { useGridContext } from "../Contexts/grid-context";
+import { useGridContext } from "../context";
 
-type SearchProps = {
+type QuickSearchProps = {
    className?: string;
 };
 
-const Search = ({ className }: SearchProps) => {
+const QuickSearch = ({ className }: QuickSearchProps) => {
    const { gridRef, gridReady } = useGridContext();
    const [searchText, setSearchText] = useState("");
 
@@ -39,4 +39,4 @@ const Search = ({ className }: SearchProps) => {
    );
 };
 
-export default Search;
+export default QuickSearch;

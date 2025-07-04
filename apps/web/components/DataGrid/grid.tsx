@@ -5,11 +5,11 @@ import {
    IDatasource,
    ModuleRegistry,
    themeQuartz,
+   ValidationModule,
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
-import { useGridContext } from "./Contexts/grid-context";
-
-ModuleRegistry.registerModules([AllCommunityModule]);
+import { useGridContext } from "./context";
+ModuleRegistry.registerModules([AllCommunityModule, ValidationModule]);
 
 const viewerGridTheme = themeQuartz.withParams({
    accentColor: "var(--color-viewerblue)",
@@ -36,11 +36,17 @@ const defaultColDef: ColDef = {
 };
 
 type BaseGridProps = {
-   rowData: any[];
+   rowData?: any[];
    datasource?: IDatasource;
    colDefs: ColDef<any>[];
    className?: string;
-   rowModelType?: "clientSide" | "infinite";
+   rowModel: {
+      type: "clientSide" | "infinite";
+      cacheBlockSize?: number;
+      cacheOverflowSize?: number;
+      maxBlocksInCache?: number;
+      blockLoadDebounceMillis?: number;
+   };
 };
 
 const BaseGrid = ({
@@ -48,22 +54,22 @@ const BaseGrid = ({
    datasource,
    colDefs,
    className,
-   rowModelType = "clientSide",
+   rowModel,
 }: BaseGridProps) => {
    const { gridRef, pageSize, onGridReady } = useGridContext();
 
    const rowModelProps =
-      rowModelType === "infinite"
+      rowModel.type === "infinite"
          ? {
               rowModelType: "infinite" as const,
               datasource,
-              cacheBlockSize: 100,
-              cacheOverflowSize: 1,
-              maxBlocksInCache: 10,
-              blockLoadDebounceMillis: 100,
+              cacheBlockSize: rowModel.cacheBlockSize,
+              cacheOverflowSize: rowModel.cacheOverflowSize,
+              maxBlocksInCache: rowModel.maxBlocksInCache,
+              blockLoadDebounceMillis: rowModel.blockLoadDebounceMillis,
               pagination: true,
-              paginationPageSize: pageSize,
-              suppressPaginationPanel: true,
+              paginationPageSize: 100,
+              suppressPaginationPanel: false,
            }
          : {
               rowModelType: "clientSide" as const,
