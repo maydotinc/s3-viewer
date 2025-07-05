@@ -1,6 +1,6 @@
 import { GridReadyEvent } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
-import { createContext, useContext, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 
 type GridContextType = {
    gridRef: React.RefObject<AgGridReact | null>;
@@ -8,14 +8,46 @@ type GridContextType = {
    pageSize: number;
    setPageSize: (size: number) => void;
    onGridReady: (params: GridReadyEvent) => void;
+   totalPages: number | "many";
+   currentPage: number;
 };
 
 const GridContext = createContext<GridContextType | null>(null);
 
-const GridProvider = ({ children }: { children: React.ReactNode }) => {
-   const gridRef = useRef<AgGridReact>(null);
+type GridProviderProps = {
+   children: React.ReactNode;
+   customGridRef?: React.RefObject<AgGridReact | null>;
+};
+
+const GridProvider = ({ children, customGridRef }: GridProviderProps) => {
+   const baseGridRef = useRef<AgGridReact>(null);
+   const gridRef = customGridRef ?? baseGridRef;
    const [gridReady, setGridReady] = useState(false);
    const [pageSize, setPageSize] = useState(25);
+   const [totalPages, setTotalPages] = useState<number | "many">(0);
+   const [currentPage, setCurrentPage] = useState(0);
+
+   useEffect(() => {
+      if (!gridReady || !gridRef.current?.api) return;
+      const api = gridRef.current.api;
+      const handler = () => {
+         setCurrentPage(api.paginationGetCurrentPage() ?? 1);
+         setTotalPages(
+            api.paginationIsLastPageFound()
+               ? (api.paginationGetTotalPages() ?? 1)
+               : "many"
+         );
+      };
+
+      handler();
+      api.addEventListener("paginationChanged", handler);
+
+      return () => {
+         if (!api.isDestroyed()) {
+            api.removeEventListener("paginationChanged", handler);
+         }
+      };
+   }, [gridReady]);
 
    const onGridReady = (params: GridReadyEvent) => {
       setGridReady(true);
@@ -27,6 +59,8 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
       pageSize,
       setPageSize,
       onGridReady,
+      totalPages,
+      currentPage,
    };
    return <GridContext.Provider value={value}>{children}</GridContext.Provider>;
 };

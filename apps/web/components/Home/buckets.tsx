@@ -1,7 +1,6 @@
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import { testBuckets } from "@/lib/utils/test-data";
 import { S3Bucket } from "@s3-viewer/types";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { ColDef } from "ag-grid-community";
 import { CustomCellRendererProps } from "ag-grid-react";
 import Link from "next/link";
@@ -53,29 +52,20 @@ const columns: ColDef<S3Bucket>[] = [
 ];
 
 const Buckets = () => {
-   const { buckets, isBucketsLoading, bucketsError } = useBuckets();
+   const { buckets } = useBuckets();
 
-   if (isBucketsLoading) {
+   const noRowsOverlayComponent = () => {
       return (
-         <section className="flex flex-col p-8 w-full h-full items-center justify-center">
-            <Skeleton className="w-full h-full rounded-2xl" />
-         </section>
-      );
-   }
-
-   if (bucketsError) {
-      return (
-         <section className="flex flex-col p-8 w-full h-full items-center justify-center">
+         <div className="flex flex-col items-center justify-center h-full">
             <h1 className="text-2xl font-bold text-viewerblack">
-               Please connect to a server
+               You have no buckets
             </h1>
             <p className="text-sm text-viewertext">
-               You are not connected to any server. Please connect to a server
-               to view your buckets.
+               Please create a bucket to get started.
             </p>
-         </section>
+         </div>
       );
-   }
+   };
 
    return (
       <GridProvider>
@@ -96,6 +86,7 @@ const Buckets = () => {
                   rowModel={{
                      type: "clientSide",
                   }}
+                  noRowsOverlayComponent={noRowsOverlayComponent}
                />
                <PaginationControls />
             </div>

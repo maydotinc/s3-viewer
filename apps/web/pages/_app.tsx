@@ -34,11 +34,7 @@ export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
                <SidebarProvider>
                   <Toaster />
                   <ModalManager />
-                  <div
-                     className={`${inter.className} h-screen h-[100dvh] w-full`}
-                  >
-                     {page}
-                  </div>
+                  <div className={`${inter.className} w-full`}>{page}</div>
                </SidebarProvider>
             </AuthGuard>
          </ModalProvider>

@@ -1,3 +1,5 @@
+import useServers from "@/lib/hooks/queries/server/useServers";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import {
    AllCommunityModule,
@@ -31,8 +33,8 @@ const viewerGridTheme = themeQuartz.withParams({
 
 const defaultColDef: ColDef = {
    sortable: true,
-   filter: false,
    resizable: false,
+   filter: false,
 };
 
 type BaseGridProps = {
@@ -47,6 +49,7 @@ type BaseGridProps = {
       maxBlocksInCache?: number;
       blockLoadDebounceMillis?: number;
    };
+   noRowsOverlayComponent?: React.ComponentType<any>;
 };
 
 const BaseGrid = ({
@@ -55,8 +58,10 @@ const BaseGrid = ({
    colDefs,
    className,
    rowModel,
+   noRowsOverlayComponent,
 }: BaseGridProps) => {
    const { gridRef, pageSize, onGridReady } = useGridContext();
+   const { currentServer, isServerListLoading } = useServers();
 
    const rowModelProps =
       rowModel.type === "infinite"
@@ -67,17 +72,33 @@ const BaseGrid = ({
               cacheOverflowSize: rowModel.cacheOverflowSize,
               maxBlocksInCache: rowModel.maxBlocksInCache,
               blockLoadDebounceMillis: rowModel.blockLoadDebounceMillis,
-              pagination: true,
-              paginationPageSize: 100,
-              suppressPaginationPanel: false,
            }
          : {
               rowModelType: "clientSide" as const,
               rowData,
-              pagination: true,
-              paginationPageSize: pageSize,
-              suppressPaginationPanel: true,
            };
+
+   if (isServerListLoading) {
+      return (
+         <section className="flex flex-col size-full items-center justify-center">
+            <Skeleton className="size-full rounded-2xl" />
+         </section>
+      );
+   }
+
+   if (!currentServer) {
+      return (
+         <section className="flex flex-col size-full items-center justify-center">
+            <h1 className="text-2xl font-bold text-viewerblack">
+               Please connect to a server
+            </h1>
+            <p className="text-sm text-viewertext">
+               You are not connected to any server. Please connect to a server
+               to view your buckets.
+            </p>
+         </section>
+      );
+   }
 
    return (
       <div className={cn("w-full flex-1 ag-theme-alpine", className)}>
@@ -87,6 +108,10 @@ const BaseGrid = ({
             defaultColDef={defaultColDef}
             columnDefs={colDefs}
             onGridReady={onGridReady}
+            pagination={true}
+            suppressPaginationPanel={true}
+            paginationPageSize={pageSize}
+            noRowsOverlayComponent={noRowsOverlayComponent}
             {...rowModelProps}
          />
       </div>

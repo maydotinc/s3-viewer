@@ -3,11 +3,15 @@ import Image from "next/image";
 import Link from "next/link";
 import ProfileDropdown from "./profile-dropdown";
 
-export default function ViewerBanner({ children }: { children: React.ReactNode }) {
+export default function ViewerBanner({
+   children,
+}: {
+   children: React.ReactNode;
+}) {
    const { data: session } = authClient.useSession();
 
    return (
-      <div className="flex flex-col size-full [--header-height:calc(theme(spacing.20))]">
+      <div className="flex flex-col size-full">
          <header className="flex justify-between sticky top-0 w-full h-[var(--header-height)] z-50 bg-viewergray border-b border-viewerborder">
             <Link
                href="/home"
@@ -22,7 +26,9 @@ export default function ViewerBanner({ children }: { children: React.ReactNode }
                   priority
                   quality={100}
                />
-               <span className="text-xl text-viewerblack font-bold">S3Viewer</span>
+               <span className="text-xl text-viewerblack font-bold">
+                  S3Viewer
+               </span>
             </Link>
             {session && (
                <div className="flex items-center mr-10">
@@ -30,7 +36,9 @@ export default function ViewerBanner({ children }: { children: React.ReactNode }
                </div>
             )}
          </header>
-         <div className="h-[calc(100svh-var(--header-height))] w-full">{children}</div>
+         <div className="h-[calc(100svh-var(--header-height))] w-full">
+            {children}
+         </div>
       </div>
    );
 }

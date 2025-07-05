@@ -13,7 +13,7 @@ import {
    ChevronRight,
    ChevronUp,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useGridContext } from "../context";
 
 type PaginationControlsProps = {
@@ -21,56 +21,62 @@ type PaginationControlsProps = {
 };
 
 const PaginationControls = ({ className }: PaginationControlsProps) => {
-   const { gridRef, gridReady, pageSize } = useGridContext();
-   const [currentPage, setCurrentPage] = useState(0);
-   const [totalPages, setTotalPages] = useState(0);
+   const { gridRef, gridReady, totalPages, currentPage } = useGridContext();
    const [isOpen, setIsOpen] = useState(false);
    const [pageInput, setPageInput] = useState<number | string>(1);
 
-   useEffect(() => {
-      if (gridReady && gridRef.current?.api) {
-         setCurrentPage(gridRef.current.api.paginationGetCurrentPage());
-         setTotalPages(gridRef.current.api.paginationGetTotalPages());
-      }
-   }, [gridReady, pageSize]);
-
    const handlePageChange = () => {
-      if (pageInput === "" || isNaN(parseInt(pageInput.toString())))
+      if (!gridReady || !gridRef.current?.api) return;
+      if (pageInput === "" || isNaN(parseInt(pageInput.toString()))) {
          setPageInput(1);
-      else if (parseInt(pageInput.toString()) > totalPages)
-         setPageInput(totalPages.toString());
-      else if (parseInt(pageInput.toString()) < 1) setPageInput(1);
-      else {
-         gridRef.current?.api.paginationGoToPage(
-            parseInt(pageInput.toString()) - 1
-         );
-         setCurrentPage(parseInt(pageInput.toString()) - 1);
-         setIsOpen(false);
       }
+      gridRef.current?.api.paginationGoToPage(
+         parseInt(pageInput.toString()) - 1
+      );
    };
 
+   if (
+      !gridReady ||
+      !gridRef.current?.api ||
+      (gridRef.current?.api.paginationIsLastPageFound() &&
+         gridRef.current?.api.paginationGetTotalPages() === 0)
+   ) {
+      return null;
+   }
+
+   const forwardDisabled =
+      gridRef.current?.api.paginationIsLastPageFound() &&
+      gridRef.current?.api.paginationGetCurrentPage() >=
+         gridRef.current?.api.paginationGetTotalPages() - 1;
+   const backwardDisabled =
+      gridRef.current?.api.paginationGetCurrentPage() <= 0;
+
    return (
-      <div className="flex gap-2 mx-auto" hidden={totalPages === 0}>
+      <div
+         className="flex gap-2 mx-auto"
+         hidden={!gridReady || !gridRef.current?.api}
+      >
          <Button
             onClick={() => {
                gridRef.current?.api.paginationGoToFirstPage();
-               setCurrentPage(0);
             }}
-            disabled={currentPage === 0}
+            disabled={backwardDisabled}
          >
             <ChevronFirst className="size-4" />
          </Button>
          <Button
             onClick={() => {
                gridRef.current?.api.paginationGoToPreviousPage();
-               setCurrentPage((prev) => prev - 1);
             }}
-            disabled={currentPage === 0}
+            disabled={backwardDisabled}
          >
             <ChevronLeft className="size-4" />
          </Button>
          <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger
+               asChild
+               disabled={!gridRef.current?.api.paginationIsLastPageFound()}
+            >
                <Button>
                   {`Page ${currentPage + 1} of ${totalPages}`}
                   <ChevronUp
@@ -102,18 +108,16 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
          <Button
             onClick={() => {
                gridRef.current?.api.paginationGoToNextPage();
-               setCurrentPage((prev) => prev + 1);
             }}
-            disabled={currentPage === totalPages - 1}
+            disabled={forwardDisabled}
          >
             <ChevronRight className="size-4" />
          </Button>
          <Button
             onClick={() => {
                gridRef.current?.api.paginationGoToLastPage();
-               setCurrentPage(totalPages - 1);
             }}
-            disabled={currentPage === totalPages - 1}
+            disabled={forwardDisabled}
          >
             <ChevronLast className="size-4" />
          </Button>

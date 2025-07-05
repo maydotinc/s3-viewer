@@ -166,18 +166,21 @@ objectRouter.get(
    "/list",
    requireListObjects(),
    async (req: Request, res: Response) => {
-      const { bucket, serverId, continuationToken, blockSize } = req.query;
+      const { bucket, serverId, continuationToken, blockSize, prefix } =
+         req.query;
       console.log(
          "List objects",
          bucket,
          serverId,
          continuationToken,
-         blockSize
+         blockSize,
+         prefix
       );
       const command = new ListObjectsV2Command({
          Bucket: bucket as string,
          ContinuationToken: continuationToken as string,
          MaxKeys: Number(blockSize),
+         ...(prefix && { Prefix: prefix as string }),
       });
       try {
          const s3Client = await getS3Client(serverId as string);

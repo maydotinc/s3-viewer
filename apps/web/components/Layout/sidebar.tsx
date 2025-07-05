@@ -14,13 +14,13 @@ type ViewerSidebarProps = {
 export function ViewerSidebar({ mobileStrategy }: ViewerSidebarProps) {
    return (
       <Sidebar
-         className="top-[var(--header-height)] select-none"
+         className="top-[var(--header-height)] h-[calc(100svh-var(--header-height))] select-none"
          mobileStrategy={mobileStrategy}
       >
-         <SidebarContent className="p-2">
-            <SidebarGroup>
-               <SidebarGroupContent>
-                  <SidebarMenu>
+         <SidebarContent className="p-2 flex-2">
+            <SidebarGroup className="h-full">
+               <SidebarGroupContent className="h-full">
+                  <SidebarMenu className="h-full">
                      <ServerManagement />
                   </SidebarMenu>
                </SidebarGroupContent>
