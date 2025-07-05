@@ -15,7 +15,7 @@ const BucketList = () => {
    const virtualItems = virtualizer.getVirtualItems();
 
    return (
-      <div className="w-full flex-1 overflow-auto px-2 my-2" ref={containerRef}>
+      <div className="w-full overflow-auto p x-2 my-2" ref={containerRef}>
          <div
             className="relative"
             style={{ height: `${virtualizer.getTotalSize()}px` }}

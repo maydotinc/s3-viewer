@@ -13,7 +13,7 @@ import {
    ChevronRight,
    ChevronUp,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGridContext } from "../context";
 
 type PaginationControlsProps = {
@@ -34,6 +34,10 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
          parseInt(pageInput.toString()) - 1
       );
    };
+
+   useEffect(() => {
+      setPageInput(currentPage + 1);
+   }, [currentPage, gridReady]);
 
    if (
       !gridReady ||

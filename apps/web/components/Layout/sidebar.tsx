@@ -17,8 +17,8 @@ export function ViewerSidebar({ mobileStrategy }: ViewerSidebarProps) {
          className="top-[var(--header-height)] h-[calc(100svh-var(--header-height))] select-none"
          mobileStrategy={mobileStrategy}
       >
-         <SidebarContent className="p-2 flex-2">
-            <SidebarGroup className="h-full">
+         <SidebarContent className="p-2">
+            <SidebarGroup className="max-h-full">
                <SidebarGroupContent className="h-full">
                   <SidebarMenu className="h-full">
                      <ServerManagement />
