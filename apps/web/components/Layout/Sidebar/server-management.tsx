@@ -1,21 +1,18 @@
 import ServerSelector from "@/components/Layout/Sidebar/Servers/server-select";
-import { Card, CardContent, CardTitle } from "@s3-viewer/ui/components/card";
 import BucketList from "./Buckets";
 
 const ServerManagement = () => {
    return (
-      <Card className="rounded-xl max-h-full flex-1 flex flex-col p-1 select-none">
-         <CardContent className="p-2 flex flex-col flex-1 gap-2 max-h-full">
-            <CardTitle className="text-xs text-viewerlighttext">
-               SERVERS
-            </CardTitle>
+      <div className="flex flex-col flex-1 rounded-xl max-h-full border border-viewerborder px-2 pt-2 pb-0 gap-3">
+         <div className="flex flex-col gap-3">
+            <span className="text-xs text-viewerlighttext">SERVERS</span>
             <ServerSelector />
-            <CardTitle className="text-xs text-viewerlighttext">
-               BUCKETS
-            </CardTitle>
+         </div>
+         <div className="flex flex-col overflow-auto gap-3">
+            <span className="text-xs text-viewerlighttext">BUCKETS</span>
             <BucketList />
-         </CardContent>
-      </Card>
+         </div>
+      </div>
    );
 };
 

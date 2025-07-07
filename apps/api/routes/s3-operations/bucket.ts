@@ -83,7 +83,7 @@ bucketRouter.get(
          } while (contToken);
          res.status(200).json({ buckets });
       } catch (error: any) {
-         console.error(error);
+         console.error("Error listing buckets:", error);
          res.status(500).json({ error: "Error listing buckets" });
       }
    }

@@ -4,7 +4,7 @@ import { authClient } from "@s3-viewer/auth/client";
 import { S3Bucket } from "@s3-viewer/types";
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
-const useBuckets = (serverId?: string) => {
+const useBuckets = (serverId?: string, bucketName?: string) => {
    const { data: session, isPending: isSessionPending } =
       authClient.useSession();
    const sessionServerId = useSessionStore((state) => state.serverId);
@@ -39,8 +39,11 @@ const useBuckets = (serverId?: string) => {
       enabled: !isSessionPending && !!session?.user && !!currentServerId,
    });
 
+   const currentBucket = buckets.find((bucket) => bucket.Name === bucketName);
+
    return {
       buckets,
+      currentBucket,
       isBucketsLoading,
       bucketsError,
       refetch,

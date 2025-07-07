@@ -1,3 +1,4 @@
+import { BucketProvider } from "@/components/Bucket/Context/context";
 import BucketHeader from "@/components/Bucket/header";
 import Objects from "@/components/Bucket/objects";
 import ViewerDashboard from "@/components/Layout/dashboard";
@@ -8,10 +9,12 @@ const BucketPage = () => {
    const { bucket } = router.query;
 
    return (
-      <div className="flex flex-col size-full">
-         <BucketHeader />
-         <Objects bucket={bucket as string} />
-      </div>
+      <BucketProvider bucketName={bucket as string}>
+         <div className="flex flex-col size-full">
+            <BucketHeader />
+            <Objects bucket={bucket as string} />
+         </div>
+      </BucketProvider>
    );
 };
 
