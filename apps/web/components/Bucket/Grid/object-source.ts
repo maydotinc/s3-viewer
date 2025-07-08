@@ -20,9 +20,9 @@ const MakeObjectSource = (
    const getRows = async (params: IGetRowsParams) => {
       const page = Math.floor(params.startRow / blockSize);
       const continuationToken = pageCache[page - 1]?.nextToken;
-      const filterPrefix = params.filterModel?.Key?.filter ?? "";
-      const pathPrefix = path.join("/") + "/";
-      const prefix = path.length > 0 ? pathPrefix + filterPrefix : filterPrefix;
+      const filter = params.filterModel?.Key?.filter ?? "";
+      const prefix = path.length > 0 ? path.join("/") + "/" + filter : filter;
+      console.log("prefix:, filter:", prefix, filter);
 
       const searchParams = new URLSearchParams({
          serverId,

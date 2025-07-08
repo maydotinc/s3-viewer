@@ -16,17 +16,10 @@ const GridContext = createContext<GridContextType | null>(null);
 
 type GridProviderProps = {
    children: React.ReactNode;
-   customGridRef?: React.RefObject<AgGridReact | null>;
-   onGridReady?: (params: GridReadyEvent) => void;
 };
 
-const GridProvider = ({
-   children,
-   customGridRef,
-   onGridReady: customOnGridReady,
-}: GridProviderProps) => {
-   const baseGridRef = useRef<AgGridReact>(null);
-   const gridRef = customGridRef ?? baseGridRef;
+const GridProvider = ({ children }: GridProviderProps) => {
+   const gridRef = useRef<AgGridReact>(null);
    const [gridReady, setGridReady] = useState(false);
    const [pageSize, setPageSize] = useState(25);
    const [totalPages, setTotalPages] = useState<number | "many">(0);
@@ -56,7 +49,6 @@ const GridProvider = ({
 
    const onGridReady = (params: GridReadyEvent) => {
       setGridReady(true);
-      customOnGridReady?.(params);
    };
 
    const value = {
