@@ -14,8 +14,11 @@ type ModalType =
 type ModalPropsMap = {
    auth: {};
    connect: {};
-   createBucket: { serverId: string };
-   createObject: { serverId: string };
+   createBucket: { serverId?: string };
+   createObject: {
+      serverId?: string;
+      bucketName?: string;
+   };
    rename: {
       server: ServerInfo;
    };

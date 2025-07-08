@@ -10,7 +10,7 @@ const useCreateBucket = (serverId: string) => {
 
    return useMutation({
       mutationFn: async (bucketName: string): Promise<{ message: string }> => {
-         const response = await createApiRequest("/bucket/create", {
+         const response = await createApiRequest("/s3/bucket/create", {
             method: "PUT",
             body: JSON.stringify({ bucketName, serverId: currentServerId }),
          });

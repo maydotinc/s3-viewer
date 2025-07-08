@@ -1,6 +1,7 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import AuthModal from "./AuthModal";
 import ConnectModal from "./ConnectModal";
+import CreateBucketModal from "./CreateBucketModal";
 import DisconnectModal from "./DisonnectModal";
 import InvitesModal from "./InvitesModal";
 import RenameModal from "./RenameModal";
@@ -59,6 +60,14 @@ const ModalManager = () => {
                         key={`invites-${index}`}
                         {...modal.props}
                         onClose={() => closeModal("invites")}
+                     />
+                  );
+               case "createBucket":
+                  return (
+                     <CreateBucketModal
+                        key={`createBucket-${index}`}
+                        {...modal.props}
+                        onClose={() => closeModal("createBucket")}
                      />
                   );
                default:

@@ -17,7 +17,7 @@ const ServerInfo = () => {
    if (serverError || !currentServer) return null;
 
    return (
-      <div className="w-full hidden sm:flex max-h-20 bg-viewerwhite justify-between px-8 py-4 items-center">
+      <div className="w-full hidden sm:flex max-h-20 bg-viewerwhite px-8 py-4 items-center">
          <div className="flex gap-2 items-center">
             <div className="bg-viewerwhite border border-xs rounded-lg p-2">
                <ServerIcon className="text-viewerblack" />
@@ -30,12 +30,6 @@ const ServerInfo = () => {
                   {currentServer?.name}
                </span>
             </div>
-         </div>
-         <div className="flex flex-col justify-end">
-            <span className="text-viewertext text-sm">Total Storage</span>
-            <span className="text-viewerblack text-xl font-semibold">
-               {currentServer?.storageUsed} T
-            </span>
          </div>
       </div>
    );

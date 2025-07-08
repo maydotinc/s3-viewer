@@ -9,6 +9,7 @@ import BaseGrid from "../DataGrid/grid";
 import { useBucketContext } from "./Context/context";
 import columns from "./Grid/cols/columns";
 import MakeObjectSource from "./Grid/object-source";
+import ObjectActions from "./actions";
 
 const Objects = () => {
    const { path, bucket } = useBucketContext();
@@ -55,6 +56,7 @@ const Objects = () => {
                <Filter className="flex-1/3" />
                <Pagination className="flex-1/3" />
             </div>
+            <ObjectActions />
          </div>
          <div className="flex flex-col flex-1 gap-2">
             <BaseGrid
