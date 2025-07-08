@@ -17,11 +17,19 @@ const FolderCell = (params: ICellRendererParams) => {
       path.length === 0 ? params.value : params.value.slice(path.length + 1);
 
    if (params.value.endsWith("/")) {
+      const slugSegments = [
+         bucketName,
+         ...(params.context?.path || []),
+         normalizedValue.slice(0, -1),
+      ];
+
+      const href = {
+         pathname: "/buckets/[[...slug]]",
+         query: { slug: slugSegments },
+      };
+
       return (
-         <Link
-            href={`/buckets/${bucketName}/${path}/${normalizedValue}`}
-            className="text-viewerblue underline"
-         >
+         <Link href={href} className="text-viewerblue underline">
             {normalizedValue}
          </Link>
       );

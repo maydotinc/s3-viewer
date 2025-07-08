@@ -22,7 +22,6 @@ const MakeObjectSource = (
       const continuationToken = pageCache[page - 1]?.nextToken;
       const filter = params.filterModel?.Key?.filter ?? "";
       const prefix = path.length > 0 ? path.join("/") + "/" + filter : filter;
-      console.log("prefix:, filter:", prefix, filter);
 
       const searchParams = new URLSearchParams({
          serverId,
@@ -47,6 +46,9 @@ const MakeObjectSource = (
             nextToken: nextToken,
          };
 
+         console.log("objects:", objects);
+         console.log("nextToken:", nextToken);
+         console.log("page:", page);
          const lastRow = nextToken
             ? undefined
             : page * blockSize + (objects?.length || 0);

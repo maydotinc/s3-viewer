@@ -51,20 +51,20 @@ const BucketHeader = () => {
                   {path.map((item, index) => {
                      if (index === path.length - 1) {
                         return (
-                           <>
-                              <BreadcrumbSeparator key={index} />
-                              <BreadcrumbItem key={index}>
+                           <div key={index} className="contents">
+                              <BreadcrumbSeparator />
+                              <BreadcrumbItem>
                                  <BreadcrumbPage className="text-viewerblack font-semibold">
                                     {item}
                                  </BreadcrumbPage>
                               </BreadcrumbItem>
-                           </>
+                           </div>
                         );
                      }
                      return (
-                        <>
-                           <BreadcrumbSeparator key={index} />
-                           <BreadcrumbItem key={index}>
+                        <div key={index} className="contents">
+                           <BreadcrumbSeparator />
+                           <BreadcrumbItem>
                               <BreadcrumbLink asChild>
                                  <Link
                                     href={`/buckets/${bucket?.Name}/${path
@@ -75,7 +75,7 @@ const BucketHeader = () => {
                                  </Link>
                               </BreadcrumbLink>
                            </BreadcrumbItem>
-                        </>
+                        </div>
                      );
                   })}
                </BreadcrumbList>

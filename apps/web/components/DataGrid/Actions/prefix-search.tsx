@@ -15,6 +15,9 @@ const PrefixSearch = ({ className }: PrefixSearchProps) => {
 
    const handlePrefixSearch = useCallback(
       (value: string) => {
+         if (value.includes("/")) {
+            value = value.split("/")[0] ?? "";
+         }
          console.log("Setting filter model", value);
          gridRef.current?.api.setFilterModel({
             Key: {
