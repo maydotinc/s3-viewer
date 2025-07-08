@@ -186,7 +186,6 @@ objectRouter.get(
       try {
          const s3Client = await getS3Client(serverId as string);
          const response = await s3Client.send(command);
-         console.log("response:", response);
 
          const files = response.Contents?.map((file) => ({
             Key: file.Key,

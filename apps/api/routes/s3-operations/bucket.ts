@@ -19,10 +19,9 @@ bucketRouter.put(
    requireCreateBucket(),
    async (req: Request, res: Response) => {
       const { bucketName, serverId } = req.body;
-
-      const s3Client = await getS3Client(serverId);
-      const command = new CreateBucketCommand({ Bucket: bucketName });
       try {
+         const s3Client = await getS3Client(serverId);
+         const command = new CreateBucketCommand({ Bucket: bucketName });
          await s3Client.send(command);
          res.status(201).json({
             message: `Bucket ${bucketName} created successfully`,
