@@ -6,13 +6,16 @@ import { useRouter } from "next/router";
 
 const BucketPage = () => {
    const router = useRouter();
-   const { bucket } = router.query;
+   const { slug } = router.query;
+   const slugArray = Array.isArray(slug) ? slug : [];
+   const bucketName = slugArray[0];
+   const path = slugArray.slice(1);
 
    return (
-      <BucketProvider bucketName={bucket as string}>
+      <BucketProvider bucketName={bucketName as string} path={path}>
          <div className="flex flex-col size-full">
             <BucketHeader />
-            <Objects bucket={bucket as string} />
+            <Objects />
          </div>
       </BucketProvider>
    );

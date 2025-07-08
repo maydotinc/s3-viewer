@@ -46,9 +46,6 @@ type ServerInvite = {
 type S3Bucket = {
    Name: string;
    CreationDate: string;
-   Files: number;
-   Folders: number;
-   TotalSize: number;
 };
 
 type S3Object = {

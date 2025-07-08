@@ -34,21 +34,6 @@ const columns: ColDef<S3Bucket>[] = [
          return new Date(params.value).toLocaleDateString();
       },
    },
-   {
-      field: "Files",
-      headerName: "Files",
-      flex: 1,
-   },
-   {
-      field: "Folders",
-      headerName: "Folders",
-      flex: 1,
-   },
-   {
-      field: "TotalSize",
-      headerName: "Total Size",
-      flex: 1,
-   },
 ];
 
 const Buckets = () => {

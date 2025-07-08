@@ -4,7 +4,6 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import {
    AllCommunityModule,
    ColDef,
-   IDatasource,
    ModuleRegistry,
    themeQuartz,
    ValidationModule,
@@ -39,7 +38,6 @@ const defaultColDef: ColDef = {
 
 type BaseGridProps = {
    rowData?: any[];
-   datasource?: IDatasource;
    colDefs: ColDef<any>[];
    className?: string;
    rowModel: {
@@ -50,15 +48,19 @@ type BaseGridProps = {
       blockLoadDebounceMillis?: number;
    };
    noRowsOverlayComponent?: React.ComponentType<any>;
+   routeContext?: {
+      bucketName: string;
+      path: string[];
+   };
 };
 
 const BaseGrid = ({
    rowData,
-   datasource,
    colDefs,
    className,
    rowModel,
    noRowsOverlayComponent,
+   routeContext,
 }: BaseGridProps) => {
    const { gridRef, pageSize, onGridReady } = useGridContext();
    const { currentServer, isServerListLoading } = useServers();
@@ -67,7 +69,6 @@ const BaseGrid = ({
       rowModel.type === "infinite"
          ? {
               rowModelType: "infinite" as const,
-              datasource,
               cacheBlockSize: rowModel.cacheBlockSize,
               cacheOverflowSize: rowModel.cacheOverflowSize,
               maxBlocksInCache: rowModel.maxBlocksInCache,
@@ -112,6 +113,7 @@ const BaseGrid = ({
             suppressPaginationPanel={true}
             paginationPageSize={pageSize}
             noRowsOverlayComponent={noRowsOverlayComponent}
+            context={routeContext}
             {...rowModelProps}
          />
       </div>

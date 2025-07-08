@@ -8,12 +8,12 @@ import {
 } from "@s3-viewer/ui/components/breadcrumb";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { Folder, House, Link2 } from "lucide-react";
+import { House, Link2 } from "lucide-react";
 import Link from "next/link";
 import { useBucketContext } from "./Context/context";
 
 const BucketHeader = () => {
-   const { bucket } = useBucketContext();
+   const { bucket, path } = useBucketContext();
 
    if (!bucket) {
       return (
@@ -23,49 +23,73 @@ const BucketHeader = () => {
       );
    }
    return (
-      <div className="flex flex-col w-full h-35 border-b border-viewerborder px-8 py-4 justify-between">
-         <Breadcrumb>
-            <BreadcrumbList>
-               <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                     <Link href="/home">
-                        <House className="size-4" />
-                     </Link>
-                  </BreadcrumbLink>
-               </BreadcrumbItem>
-               <BreadcrumbSeparator />
-               <BreadcrumbItem>
-                  <BreadcrumbPage className="text-viewerblack font-semibold">
-                     {bucket?.Name}
-                  </BreadcrumbPage>
-               </BreadcrumbItem>
-            </BreadcrumbList>
-         </Breadcrumb>
-         <div className="flex w-full items-center">
-            <div className="flex flex-1 items-center gap-2">
-               <Folder className="size-6 text-viewerblue" />
-               <span className="text-viewerblack font-semibold text-xl">
-                  {bucket?.Name}
-               </span>
-            </div>
-            <div className="flex flex-1 items-center justify-center gap-2">
-               <div className="flex flex-col">
-                  <span className="text-viewertext text-sm">Total Size</span>
-                  <span className="text-viewerblack text-xl font-semibold">
-                     {bucket?.TotalSize} TB
-                  </span>
-               </div>
-            </div>
-            <div className="flex flex-1 items-center gap-2 ml-auto">
-               <Button>
-                  <Link2 className="size-4" />
-                  Custom Domain
-               </Button>
-               <Button>
-                  <Link2 className="size-4" />
-                  Public URL
-               </Button>
-            </div>
+      <div className="flex md:flex-row flex-col w-full border-b border-viewerborder px-8 py-4 md:justify-between justify-start gap-2">
+         <div className="flex-1 flex items-center justify-start">
+            <Breadcrumb>
+               <BreadcrumbList>
+                  <BreadcrumbItem>
+                     <BreadcrumbLink asChild>
+                        <Link href="/home">
+                           <House className="size-5" />
+                        </Link>
+                     </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                     {path.length > 0 ? (
+                        <BreadcrumbLink asChild>
+                           <Link href={`/buckets/${bucket?.Name}`}>
+                              {bucket?.Name}
+                           </Link>
+                        </BreadcrumbLink>
+                     ) : (
+                        <BreadcrumbPage className="text-viewerblack font-semibold">
+                           {bucket?.Name}
+                        </BreadcrumbPage>
+                     )}
+                  </BreadcrumbItem>
+                  {path.map((item, index) => {
+                     if (index === path.length - 1) {
+                        return (
+                           <>
+                              <BreadcrumbSeparator key={index} />
+                              <BreadcrumbItem key={index}>
+                                 <BreadcrumbPage className="text-viewerblack font-semibold">
+                                    {item}
+                                 </BreadcrumbPage>
+                              </BreadcrumbItem>
+                           </>
+                        );
+                     }
+                     return (
+                        <>
+                           <BreadcrumbSeparator key={index} />
+                           <BreadcrumbItem key={index}>
+                              <BreadcrumbLink asChild>
+                                 <Link
+                                    href={`/buckets/${bucket?.Name}/${path
+                                       .slice(0, index + 1)
+                                       .join("/")}`}
+                                 >
+                                    {item}
+                                 </Link>
+                              </BreadcrumbLink>
+                           </BreadcrumbItem>
+                        </>
+                     );
+                  })}
+               </BreadcrumbList>
+            </Breadcrumb>
+         </div>
+         <div className="flex flex-1 w-fit items-center justify-end gap-2">
+            <Button>
+               <Link2 className="size-4" />
+               Custom Domain
+            </Button>
+            <Button>
+               <Link2 className="size-4" />
+               Public URL
+            </Button>
          </div>
       </div>
    );

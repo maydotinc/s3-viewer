@@ -180,6 +180,7 @@ objectRouter.get(
          Bucket: bucket as string,
          ContinuationToken: continuationToken as string,
          MaxKeys: Number(blockSize),
+         Delimiter: "/",
          ...(prefix && { Prefix: prefix as string }),
       });
       try {

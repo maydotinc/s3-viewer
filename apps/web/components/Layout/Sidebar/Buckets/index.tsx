@@ -1,6 +1,6 @@
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronRightIcon, Folder } from "lucide-react";
+import { Folder } from "lucide-react";
 import { useRef } from "react";
 
 const BucketList = () => {
@@ -32,14 +32,11 @@ const BucketList = () => {
                      key={virtualItem.key}
                      data-index={virtualItem.index}
                   >
-                     <div className="flex-1 flex gap-2 justify-between items-start">
-                        <div className="flex gap-2 items-center">
-                           <Folder className="size-4 text-viewerblue" />
-                           <span className="text-viewertext">
-                              {bucketCard?.Name}
-                           </span>
-                        </div>
-                        <ChevronRightIcon className="size-4" />
+                     <div className="flex-1 flex gap-2 items-center justify-start">
+                        <Folder className="size-4 text-viewerblue" />
+                        <span className="text-viewertext">
+                           {bucketCard?.Name}
+                        </span>
                      </div>
                   </div>
                );

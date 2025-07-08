@@ -65,7 +65,7 @@ bucketRouter.get(
          do {
             const s3Client = await getS3Client(serverId);
             const command = new ListBucketsCommand({
-               MaxBuckets: 10000,
+               // MaxBuckets: 10000, this is not supported by all S3 providers but needed for high bucket quota accounts
                ...(contToken && { ContinuationToken: contToken }),
             });
             const response = await s3Client.send(command);
@@ -75,9 +75,6 @@ bucketRouter.get(
                ...(response.Buckets?.map((bucket) => ({
                   Name: bucket.Name || "",
                   CreationDate: bucket.CreationDate?.toISOString() || "",
-                  Files: 0,
-                  Folders: 0,
-                  TotalSize: 0,
                })) || [])
             );
          } while (contToken);

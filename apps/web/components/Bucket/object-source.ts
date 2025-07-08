@@ -1,16 +1,16 @@
-import { queryClient } from "@/lib/queryClient";
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { S3Object } from "@s3-viewer/types";
 import { IDatasource, IGetRowsParams } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 
 type PageMeta = {
-   nextToken: string | null;
+   nextToken: string | undefined;
 };
 
 const MakeObjectSource = (
    gridRef: React.RefObject<AgGridReact | null>,
    bucket: string,
+   path: string[],
    blockSize: number,
    serverId: string
 ): IDatasource => {
@@ -19,7 +19,9 @@ const MakeObjectSource = (
    const getRows = async (params: IGetRowsParams) => {
       const page = Math.floor(params.startRow / blockSize);
       const continuationToken = pageCache[page - 1]?.nextToken;
-      const prefix = params.filterModel?.Key?.filter ?? "";
+      const filterPrefix = params.filterModel?.Key?.filter ?? "";
+      const pathPrefix = path.join("/") + "/";
+      const prefix = path.length > 0 ? pathPrefix + filterPrefix : filterPrefix;
 
       const searchParams = new URLSearchParams({
          serverId,
@@ -30,41 +32,31 @@ const MakeObjectSource = (
       });
 
       try {
-         const response = await queryClient.fetchQuery({
-            queryKey: ["objects", serverId, bucket, page, prefix],
-            queryFn: async ({ signal }) => {
-               const response = await createApiRequest(
-                  `/s3/object/list?${searchParams.toString()}`,
-                  { signal }
-               );
-
-               if (!response.ok) {
-                  await handleApiError(response);
-               }
-
-               const { objects, nextToken } = (await response.json()) as {
-                  objects: S3Object[];
-                  nextToken: string | null;
-               };
-               return { objects, nextToken };
-            },
-         });
-
+         const response = await createApiRequest(
+            `/s3/object/list?${searchParams.toString()}`
+         );
+         if (!response.ok) {
+            await handleApiError(response);
+         }
+         const { objects, nextToken } = (await response.json()) as {
+            objects: S3Object[];
+            nextToken: string | undefined;
+         };
          pageCache[page] = {
-            nextToken: response.nextToken,
+            nextToken: nextToken,
          };
 
-         const lastRow = response.nextToken
+         const lastRow = nextToken
             ? undefined
-            : page * blockSize + (response.objects?.length || 0);
+            : page * blockSize + (objects?.length || 0);
 
-         if (response.objects.length === 0) {
+         if (objects.length === 0) {
             gridRef.current?.api?.showNoRowsOverlay();
          } else {
             gridRef.current?.api?.hideOverlay();
          }
 
-         params.successCallback(response.objects, lastRow);
+         params.successCallback(objects, lastRow);
       } catch (error: any) {
          console.error("Error fetching objects", error.message);
          params.failCallback();

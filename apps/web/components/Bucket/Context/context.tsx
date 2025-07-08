@@ -4,20 +4,26 @@ import { createContext, useContext } from "react";
 
 type BucketContextType = {
    bucket: S3Bucket | null;
+   path: string[];
 };
 
 const BucketContext = createContext<BucketContextType | null>(null);
 
 type BucketProviderProps = {
    bucketName: string;
+   path: string[];
    children: React.ReactNode;
 };
 
-const BucketProvider = ({ bucketName, children }: BucketProviderProps) => {
+const BucketProvider = ({
+   bucketName,
+   path,
+   children,
+}: BucketProviderProps) => {
    const { currentBucket } = useBuckets(undefined, bucketName);
 
    return (
-      <BucketContext.Provider value={{ bucket: currentBucket ?? null }}>
+      <BucketContext.Provider value={{ bucket: currentBucket ?? null, path }}>
          {children}
       </BucketContext.Provider>
    );
