@@ -75,7 +75,7 @@ const Objects = () => {
             blockSize,
             serverId
          ),
-      [bucket?.Name, path, blockSize, serverId]
+      [bucket?.Name, path.length, blockSize, serverId]
    );
 
    const handleGridReady = () => {
