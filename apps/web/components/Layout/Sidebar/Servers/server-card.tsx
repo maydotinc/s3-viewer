@@ -1,5 +1,5 @@
 import { ServerInfo } from "@s3-viewer/types";
-import { ChevronsLeftRight, Circle, Database, ServerIcon } from "lucide-react";
+import { ChevronsLeftRight, Circle, ServerIcon, UserPen } from "lucide-react";
 
 type ServerCardProps = {
    server: ServerInfo | undefined;
@@ -28,9 +28,11 @@ const ServerCard = ({ server }: ServerCardProps) => {
                <ChevronsLeftRight className="size-4 rotate-90 text-viewertext" />
             </div>
          </div>
-         <div className="flex gap-2 items-center">
-            <Database className="size-4" />
-            <p>{server.storageUsed} GB</p>
+         <div className="flex gap-2 items-center text-viewertext">
+            <UserPen className="size-4 text-inherit" />
+            <p className="text-md font-semibold text-inherit">
+               {server.userRole.toLocaleLowerCase()}
+            </p>
          </div>
       </div>
    );
