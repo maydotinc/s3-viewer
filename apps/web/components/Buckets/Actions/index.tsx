@@ -1,3 +1,5 @@
+import UploadFile from "@/components/Buckets/Actions/upload-file";
+import { useGridContext } from "@/components/DataGrid/context";
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -6,14 +8,18 @@ import {
    DropdownMenuItem,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
-import { File, Folder, Plus, RefreshCcw, UserRoundPlus } from "lucide-react";
+import { Folder, Plus, RefreshCcw, UserRoundPlus } from "lucide-react";
 
 const ObjectActions = () => {
    const { openShareModal, openCreateBucketModal } = useModalContext();
+   const { gridRef, gridReady } = useGridContext();
 
    return (
       <div className="flex gap-2">
-         <Button>
+         <Button
+            disabled={!gridReady}
+            onClick={() => gridRef.current?.api?.refreshInfiniteCache()}
+         >
             <RefreshCcw className="size-4" />
             Refresh
          </Button>
@@ -36,10 +42,7 @@ const ObjectActions = () => {
                   <Folder className="size-4 text-inherit" />
                   Upload Folder
                </DropdownMenuItem>
-               <DropdownMenuItem className="flex items-center gap-2 cursor-pointer size-full">
-                  <File className="size-4 text-inherit" />
-                  Upload File
-               </DropdownMenuItem>
+               <UploadFile />
             </DropdownMenuContent>
          </DropdownMenu>
       </div>

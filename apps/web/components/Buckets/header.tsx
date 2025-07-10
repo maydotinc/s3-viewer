@@ -10,7 +10,7 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { House, Link2 } from "lucide-react";
 import Link from "next/link";
-import { useBucketContext } from "./Context/context";
+import { useBucketContext } from "./Context";
 
 const BucketHeader = () => {
    const { bucket, path } = useBucketContext();

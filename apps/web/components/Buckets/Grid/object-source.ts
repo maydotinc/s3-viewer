@@ -46,9 +46,6 @@ const MakeObjectSource = (
             nextToken: nextToken,
          };
 
-         console.log("objects:", objects);
-         console.log("nextToken:", nextToken);
-         console.log("page:", page);
          const lastRow = nextToken
             ? undefined
             : page * blockSize + (objects?.length || 0);

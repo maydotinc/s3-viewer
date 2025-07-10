@@ -1,4 +1,4 @@
-import useRenameServer from "@/lib/hooks/mutations/useRenameServer";
+import useRenameServer from "@/lib/hooks/mutations/server/useRenameServer";
 import { Button } from "@s3-viewer/ui/components/button";
 import { LoaderCircle } from "lucide-react";
 

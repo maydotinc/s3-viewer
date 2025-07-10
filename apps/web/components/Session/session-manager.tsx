@@ -1,9 +1,11 @@
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { authClient } from "@s3-viewer/auth/client";
+import { useRouter } from "next/router";
 import { useEffect } from "react";
 
 const SessionManager = () => {
+   const router = useRouter();
    const { data: session, isPending } = authClient.useSession();
    const { servers } = useServers();
    const { serverId, setUserId, setServerId, clearSession } = useSessionStore();
@@ -36,6 +38,10 @@ const SessionManager = () => {
          }
       }
    }, [servers.length]);
+
+   useEffect(() => {
+      if (serverId) router.push("/home");
+   }, [serverId]);
 
    return null;
 };

@@ -1,5 +1,5 @@
-import useCreateServer from "@/lib/hooks/mutations/useCreateServer";
-import useEstablishConnection from "@/lib/hooks/mutations/useEstablishConnection";
+import useCreateServer from "@/lib/hooks/mutations/server/useCreateServer";
+import useEstablishConnection from "@/lib/hooks/mutations/server/useEstablishConnection";
 import useConnectStore from "@/lib/stores/connectStore";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";

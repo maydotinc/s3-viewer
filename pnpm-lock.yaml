@@ -27,7 +27,7 @@ importers:
         specifier: ^3.802.0
         version: 3.821.0
       '@aws-sdk/s3-request-presigner':
-        specifier: ^3.802.0
+        specifier: ^3.821.0
         version: 3.821.0
       '@prisma/client':
         specifier: ^6.8.2

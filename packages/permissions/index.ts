@@ -44,7 +44,6 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
       Permission.MANAGE_VIEWER,
       Permission.MANAGE_EDITOR,
       Permission.CREATE_BUCKET,
-      Permission.DELETE_BUCKET,
       Permission.LIST_BUCKETS,
       Permission.UPLOAD_OBJECT,
       Permission.DELETE_OBJECT,

@@ -13,12 +13,10 @@ import {
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { CirclePlus } from "lucide-react";
-import { useRouter } from "next/router";
 import ServerCard from "./server-card";
 import ServerItem from "./server-item";
 
 const ServerSelector = () => {
-   const router = useRouter();
    const { openConnectModal } = useModalContext();
    const { servers, currentServer, isServerListLoading, serverError } =
       useServers();
@@ -26,9 +24,6 @@ const ServerSelector = () => {
 
    const handleServerSelect = (newServerId: string) => {
       setServerId(newServerId);
-      if (router.pathname.includes("/buckets/")) {
-         router.push("/home");
-      }
    };
 
    if (isServerListLoading) {

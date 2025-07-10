@@ -1,6 +1,6 @@
-import { BucketProvider } from "@/components/Bucket/Context/context";
-import BucketHeader from "@/components/Bucket/header";
-import Objects from "@/components/Bucket/objects";
+import { BucketProvider } from "@/components/Buckets/Context";
+import BucketHeader from "@/components/Buckets/header";
+import Objects from "@/components/Buckets/objects";
 import { GridProvider } from "@/components/DataGrid/context";
 import ViewerDashboard from "@/components/Layout/dashboard";
 import { useRouter } from "next/router";

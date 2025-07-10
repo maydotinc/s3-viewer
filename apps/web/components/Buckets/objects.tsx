@@ -6,10 +6,10 @@ import Pagination from "../DataGrid/Actions/pagination";
 import PrefixSearch from "../DataGrid/Actions/prefix-search";
 import { useGridContext } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
-import { useBucketContext } from "./Context/context";
+import ObjectActions from "./Actions";
+import { useBucketContext } from "./Context";
 import columns from "./Grid/cols/columns";
 import MakeObjectSource from "./Grid/object-source";
-import ObjectActions from "./actions";
 
 const Objects = () => {
    const { path, bucket } = useBucketContext();

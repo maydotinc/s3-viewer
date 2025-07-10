@@ -1,4 +1,4 @@
-import useCreateBucket from "@/lib/hooks/mutations/useCreateBucket";
+import useCreateBucket from "@/lib/hooks/mutations/bucket/useCreateBucket";
 import { Button } from "@s3-viewer/ui/components/button";
 import { LoaderCircle } from "lucide-react";
 

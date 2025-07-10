@@ -1,4 +1,4 @@
-import useSendInvite from "@/lib/hooks/mutations/useSendInvite";
+import useSendInvite from "@/lib/hooks/mutations/invites/useSendInvite";
 import { Button } from "@s3-viewer/ui/components/button";
 import { isValidEmail } from "@s3-viewer/ui/lib/utils";
 import { LoaderCircle } from "lucide-react";

@@ -1,4 +1,5 @@
 import useServers from "@/lib/hooks/queries/server/useServers";
+import { Separator } from "@s3-viewer/ui/components/separator";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { ServerIcon } from "lucide-react";
 
@@ -17,7 +18,7 @@ const ServerInfo = () => {
    if (serverError || !currentServer) return null;
 
    return (
-      <div className="w-full hidden sm:flex max-h-20 bg-viewerwhite px-8 py-4 items-center">
+      <div className="w-full hidden sm:flex max-h-20 bg-viewerwhite px-8 py-4 gap-4 items-center">
          <div className="flex gap-2 items-center">
             <div className="bg-viewerwhite border border-xs rounded-lg p-2">
                <ServerIcon className="text-viewerblack" />
@@ -28,6 +29,18 @@ const ServerInfo = () => {
                </span>
                <span className="text-viewerblack text-xl font-semibold leading-none max-w-[250px] truncate">
                   {currentServer?.name}
+               </span>
+            </div>
+         </div>
+         <Separator orientation="vertical" />
+         <div className="flex gap-2 items-center">
+            <div className="flex flex-col items-start justify-between">
+               <span className="text-viewertext text-sm leading-none">
+                  Role
+               </span>
+               <span className="text-viewerblack text-xl font-semibold leading-none max-w-[250px] truncate">
+                  {currentServer?.userRole.charAt(0) +
+                     currentServer?.userRole.toLowerCase().slice(1)}
                </span>
             </div>
          </div>

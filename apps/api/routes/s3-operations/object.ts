@@ -5,8 +5,8 @@ import {
    ListObjectsV2Command,
    PutObjectCommand,
 } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Request, Response, Router } from "express";
-import { Readable } from "stream";
 import {
    requireDeleteObject,
    requireDownloadObject,
@@ -18,24 +18,25 @@ import { getS3Client } from "../../lib/utils/s3-client.js";
 
 const objectRouter: Router = Router();
 
-objectRouter.put(
-   "/create",
+objectRouter.get(
+   "/presign-upload",
    requireUploadObject(),
    async (req: Request, res: Response) => {
-      const { bucketName, objectKey, file, contentType, serverId } = req.body;
+      const { bucketName, objectKey, contentType, serverId } = req.query;
 
-      const s3Client = await getS3Client(serverId);
-      const buffer = Buffer.from(file);
-      const command = new PutObjectCommand({
-         Bucket: bucketName,
-         Key: objectKey,
-         Body: buffer,
-         ContentType: contentType,
-      });
       try {
-         await s3Client.send(command);
+         const s3Client = await getS3Client(serverId as string);
+         const command = new PutObjectCommand({
+            Bucket: bucketName as string,
+            Key: objectKey as string,
+            ContentType: contentType as string,
+         });
+
+         const url = await getSignedUrl(s3Client, command, { expiresIn: 900 }); // 15 minutes
+
          res.status(200).json({
-            message: `Object ${objectKey} created successfully`,
+            url,
+            message: `Presigned upload URL generated for ${objectKey}`,
          });
       } catch (error: any) {
          res.status(500).json({ error: error.message });
@@ -44,42 +45,23 @@ objectRouter.put(
 );
 
 objectRouter.get(
-   "/get",
+   "/presign-download",
    requireDownloadObject(),
    async (req: Request, res: Response) => {
-      const { bucketName, objectKey, serverId } = req.body;
+      const { bucketName, objectKey, serverId } = req.query;
 
-      const s3Client = await getS3Client(serverId);
-      const command = new GetObjectCommand({
-         Bucket: bucketName,
-         Key: objectKey,
-      });
       try {
-         const response = await s3Client.send(command);
+         const s3Client = await getS3Client(serverId as string);
+         const command = new GetObjectCommand({
+            Bucket: bucketName as string,
+            Key: objectKey as string,
+         });
 
-         res.setHeader(
-            "Content-Type",
-            response.ContentType || "application/octet-stream"
-         );
-         if (response.ContentLength) {
-            res.setHeader("Content-Length", response.ContentLength);
-         }
-         res.setHeader(
-            "Content-Disposition",
-            `attachment; filename="${(objectKey as string).split("/").pop()}"`
-         );
-         if (response.ETag) {
-            res.setHeader("ETag", response.ETag);
-         }
-         if (response.LastModified) {
-            res.setHeader("Last-Modified", response.LastModified.toUTCString());
-         }
+         const url = await getSignedUrl(s3Client, command, { expiresIn: 900 }); // 15 minutes
 
-         const stream = response.Body as Readable;
-         stream.pipe(res);
-         return new Promise((resolve) => {
-            stream.on("end", resolve);
-            stream.on("error", resolve);
+         res.status(200).json({
+            url,
+            message: `Presigned download URL generated for ${objectKey}`,
          });
       } catch (error: any) {
          res.status(500).json({ error: error.message });
