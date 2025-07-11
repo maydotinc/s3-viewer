@@ -1,25 +1,15 @@
 import { useBucketContext } from "@/components/Buckets/Context";
 import { useGridContext } from "@/components/DataGrid/context";
-import useUploadFiles from "@/lib/hooks/mutations/object/useUploadFiles";
 import useSessionStore from "@/lib/stores/sessionStore";
+import useUploadStore from "@/lib/stores/uploadStore";
 import { DropdownMenuItem } from "@s3-viewer/ui/components/dropdown-menu";
 import { File, Loader2 } from "lucide-react";
-import { useState } from "react";
-
-interface UploadProgress {
-   [fileIndex: number]: {
-      fileName: string;
-      progress: number;
-      completed: boolean;
-   };
-}
 
 const UploadFile = () => {
    const { bucket, path } = useBucketContext();
    const { gridRef, gridReady } = useGridContext();
    const serverId = useSessionStore((state) => state.serverId);
-   const [uploadProgress, setUploadProgress] = useState<UploadProgress>({});
-   const uploadFilesMutation = useUploadFiles();
+   const { isUploading, startUpload, setOnUploadComplete } = useUploadStore();
 
    const handleUpload = (files: File[]) => {
       if (!bucket?.Name || !serverId) {
@@ -27,45 +17,20 @@ const UploadFile = () => {
          return;
       }
 
-      setUploadProgress({});
       const prefix = path.length > 0 ? path.join("/") + "/" : "";
 
-      uploadFilesMutation.mutate(
-         {
-            files: Array.from(files),
-            bucketName: bucket.Name,
-            serverId,
-            prefix,
-            onProgress: (fileIndex, progress, fileName) => {
-               setUploadProgress((prev) => ({
-                  ...prev,
-                  [fileIndex]: {
-                     fileName,
-                     progress,
-                     completed: false,
-                  },
-               }));
-            },
-            onFileComplete: (fileIndex, fileName) => {
-               setUploadProgress((prev) => ({
-                  ...prev,
-                  [fileIndex]: {
-                     fileName,
-                     progress: 100,
-                     completed: true,
-                  },
-               }));
-            },
-         },
-         {
-            onSuccess: () => {
-               console.log("🔵 Upload successful");
-               if (gridReady && gridRef.current?.api) {
-                  gridRef.current.api.purgeInfiniteCache();
-               }
-            },
+      setOnUploadComplete(() => {
+         if (gridReady && gridRef.current?.api) {
+            gridRef.current.api.purgeInfiniteCache();
          }
-      );
+      });
+
+      startUpload({
+         files: Array.from(files),
+         bucketName: bucket.Name,
+         serverId,
+         prefix,
+      });
    };
 
    const handleUploadClick = () => {
@@ -84,15 +49,10 @@ const UploadFile = () => {
       input.click();
    };
 
-   const isUploading = uploadFilesMutation.isPending;
-
    return (
       <DropdownMenuItem
          className="flex items-center gap-2 cursor-pointer size-full"
-         onSelect={(e) => {
-            e.preventDefault(); // COME BACK HERE AND FIX THIS W REFATOR
-            handleUploadClick();
-         }}
+         onClick={handleUploadClick}
          disabled={isUploading || !bucket?.Name || !serverId}
       >
          {isUploading ? (
