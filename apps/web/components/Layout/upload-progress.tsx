@@ -10,8 +10,13 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 const UploadProgressSheet = () => {
-   const { uploadProgress, cancelFile, isUploading, reset, cancelAllUploads } =
-      useUploadStore();
+   const {
+      uploadProgress,
+      cancelUpload,
+      isUploading,
+      reset,
+      cancelAllUploads,
+   } = useUploadStore();
    const [isExpanded, setIsExpanded] = useState(false);
    const progressSheetRef = useRef<HTMLDivElement>(null);
    const totalUploads = Object.keys(uploadProgress).length;
@@ -174,7 +179,7 @@ const UploadProgressSheet = () => {
                               <div
                                  className="flex gap-2"
                                  onClick={() => {
-                                    cancelFile(fileIndex);
+                                    cancelUpload(fileIndex);
                                  }}
                                  hidden={file.completed || file.cancelled}
                               >

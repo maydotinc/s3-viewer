@@ -60,6 +60,7 @@ type UploadStoreActions = {
       bucketName: string;
       serverId: string;
       prefix: string;
+      stopAllPendingUploads?: () => void;
    }) => void;
    setProgress: (
       fileIndex: number,
@@ -77,8 +78,9 @@ type UploadStoreActions = {
       cancelFn: () => void,
       fileSize: number
    ) => void;
-   cancelFile: (fileIndex: number) => void;
+   cancelUpload: (fileIndex: number) => void;
    cancelAllUploads: () => void;
+   stopAllPendingUploads: () => void;
    reset: () => void;
 };
 
@@ -217,7 +219,7 @@ const useUploadStore = create<UploadStore>()(
          });
       },
 
-      cancelFile: (fileIndex) => {
+      cancelUpload: (fileIndex) => {
          const { uploadProgress } = get();
          const fileUpload = uploadProgress[fileIndex];
 
@@ -248,6 +250,17 @@ const useUploadStore = create<UploadStore>()(
                if (!file.completed) {
                   file.cancelled = true;
                   file.progress = 0;
+               }
+            });
+         });
+      },
+
+      stopAllPendingUploads: () => {
+         set((state) => {
+            Object.entries(state.uploadProgress).forEach(([_, fileUpload]) => {
+               if (!fileUpload.completed) {
+                  fileUpload.cancelled = true;
+                  fileUpload.progress = 0;
                }
             });
          });

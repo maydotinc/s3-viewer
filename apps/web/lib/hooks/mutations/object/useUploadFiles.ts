@@ -25,6 +25,7 @@ interface UploadFilesParams {
       cancelFn: () => void,
       fileSize: number
    ) => void;
+   stopAllPendingUploads?: () => void;
 }
 
 const useUploadFiles = () => {
@@ -39,6 +40,7 @@ const useUploadFiles = () => {
          onProgress,
          onFileComplete,
          onCancelReady,
+         stopAllPendingUploads,
       }: UploadFilesParams): Promise<{
          message: string;
          filesUploaded: number;
@@ -68,7 +70,7 @@ const useUploadFiles = () => {
                      currentServerId
                   );
 
-                  const { promise, cancel } = uploadToUrl(
+                  const { upload, cancel } = uploadToUrl(
                      url,
                      file,
                      (progress: number) =>
@@ -76,14 +78,22 @@ const useUploadFiles = () => {
                   );
                   onCancelReady?.(i, cancel, file.size);
 
-                  await promise;
-                  onFileComplete?.(i, file.name, file.size);
-
-                  return {
-                     success: true,
-                     fileName: file.name,
-                     fileIndex: i,
-                  };
+                  const result = await upload();
+                  if (result.success) {
+                     onFileComplete?.(i, file.name, file.size);
+                     return {
+                        success: true,
+                        fileName: file.name,
+                        fileIndex: i,
+                     };
+                  } else {
+                     return {
+                        success: false,
+                        fileName: file.name,
+                        fileIndex: i,
+                        error: result.error || "Upload failed",
+                     };
+                  }
                } catch (error) {
                   if (
                      error instanceof Error &&
@@ -156,28 +166,62 @@ const useUploadFiles = () => {
          };
       },
 
-      onSuccess: (data) => {
-         if (data.filesUploaded > 1) {
-            toast.success(`${data.filesUploaded} files uploaded successfully`);
-         } else if (data.filesUploaded === 1) {
-            toast.success("File uploaded successfully");
-         }
+      onSuccess: (data, variables) => {
+         variables.stopAllPendingUploads?.();
+         const totalFiles =
+            data.filesUploaded + data.filesSkipped + data.errors.length;
 
-         if (data.errors.length > 0) {
-            if (data.filesUploaded === 0) {
-               toast.error(
-                  `Upload failed: ${data.errors.slice(0, 2).join(", ")}${data.errors.length > 2 ? "..." : ""}`
-               );
-            } else {
-               toast.error(
-                  `Some uploads failed: ${data.errors.slice(0, 2).join(", ")}${data.errors.length > 2 ? "..." : ""}`
-               );
+         // All files succeeded
+         if (data.filesUploaded === totalFiles) {
+            if (data.filesUploaded === 1) {
+               toast.success("File uploaded successfully");
+               return;
             }
+            toast.success(
+               `All ${data.filesUploaded} files uploaded successfully`
+            );
+            return;
          }
-      },
 
-      onError: (error: Error) => {
-         toast.error(error.message);
+         // All files failed
+         if (data.errors.length === totalFiles) {
+            toast.error(
+               `All uploads failed: ${data.errors.slice(0, 2).join(", ")}${data.errors.length > 2 ? "..." : ""}`
+            );
+            return;
+         }
+
+         // All files cancelled
+         if (data.filesSkipped === totalFiles) {
+            toast.warning("All uploads were cancelled");
+            return;
+         }
+
+         // Partial success with failures
+         if (data.filesUploaded > 0 && data.errors.length > 0) {
+            toast.success(`${data.filesUploaded} files uploaded successfully`);
+            toast.error(`${data.errors.length} files failed to upload`);
+            return;
+         }
+
+         // Success with some cancelled
+         if (data.filesUploaded > 0 && data.filesSkipped > 0) {
+            toast.success(`${data.filesUploaded} files uploaded successfully`);
+            toast.warning(`${data.filesSkipped} files were cancelled`);
+            return;
+         }
+
+         // Some failed, rest cancelled
+         if (data.errors.length > 0) {
+            toast.error(`${data.errors.length} files failed to upload`);
+            if (data.filesSkipped > 0) {
+               toast.warning(`${data.filesSkipped} files were cancelled`);
+            }
+            return;
+         }
+
+         // Edge case fallback
+         toast.info("Upload operation completed");
       },
    });
 };

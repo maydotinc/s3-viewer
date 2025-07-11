@@ -9,7 +9,12 @@ const UploadFile = () => {
    const { bucket, path } = useBucketContext();
    const { gridRef, gridReady } = useGridContext();
    const serverId = useSessionStore((state) => state.serverId);
-   const { isUploading, startUpload, setOnUploadComplete } = useUploadStore();
+   const {
+      isUploading,
+      startUpload,
+      setOnUploadComplete,
+      stopAllPendingUploads,
+   } = useUploadStore();
 
    const handleUpload = (files: File[]) => {
       if (!bucket?.Name || !serverId) {
@@ -30,6 +35,7 @@ const UploadFile = () => {
          bucketName: bucket.Name,
          serverId,
          prefix,
+         stopAllPendingUploads,
       });
    };
 
