@@ -132,7 +132,6 @@ const useUploadStore = create<UploadStore>()(
             },
             {
                onSuccess: (data, variables) => {
-                  console.log("🔵 Upload successful (from store)");
                   set((state) => {
                      state.isUploading = false;
                   });

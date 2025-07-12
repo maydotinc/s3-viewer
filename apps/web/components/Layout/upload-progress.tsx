@@ -1,4 +1,5 @@
 import useUploadStore from "@/lib/stores/uploadStore";
+import { formatFileSize } from "@/lib/utils/fileUtils";
 import {
    CheckCircle,
    ChevronUp,
@@ -67,8 +68,8 @@ const UploadProgressSheet = () => {
          <div
             className={`bg-white border border-viewerborder box-border rounded-t-2xl  w-[400px] shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${
                isExpanded
-                  ? "h-[calc(var(--content-height)+var(--header-height))]"
-                  : "h-[var(--header-height)]"
+                  ? "max-h-[calc(var(--content-height)+var(--header-height))]"
+                  : "max-h-[var(--header-height)]"
             }`}
          >
             <div
@@ -110,30 +111,13 @@ const UploadProgressSheet = () => {
 
             <div
                className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                  isExpanded ? "h-[var(--content-height)]" : "h-0"
+                  isExpanded ? "max-h-[var(--content-height)]" : "max-h-0"
                }`}
             >
                <div className="flex flex-col overflow-y-auto max-h-[var(--content-height)] gap-2 p-2">
                   {Object.values(uploadProgress).map((file, fileIndex) => {
-                     let fileSizeFormatted = file.fileSize;
-                     let suffix = "";
-                     if (file.fileSize > 1024 * 1024 * 1024) {
-                        fileSizeFormatted = Math.round(
-                           file.fileSize / (1024 * 1024 * 1024)
-                        );
-                        suffix = "GB";
-                     } else if (file.fileSize > 1024 * 1024) {
-                        fileSizeFormatted = Math.round(
-                           file.fileSize / (1024 * 1024)
-                        );
-                        suffix = "MB";
-                     } else if (file.fileSize > 1024) {
-                        fileSizeFormatted = Math.round(file.fileSize / 1024);
-                        suffix = "KB";
-                     } else {
-                        fileSizeFormatted = file.fileSize;
-                        suffix = "B";
-                     }
+                     const { value: fileSizeFormatted, unit: suffix } =
+                        formatFileSize(file.fileSize);
                      const uploadedSize = Math.round(
                         (fileSizeFormatted * file.progress) / 100
                      );

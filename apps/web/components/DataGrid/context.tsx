@@ -10,6 +10,7 @@ type GridContextType = {
    onGridReady: (params: GridReadyEvent) => void;
    totalPages: number | "many";
    currentPage: number;
+   setTotalPages: (pages: number) => void;
 };
 
 const GridContext = createContext<GridContextType | null>(null);
@@ -59,6 +60,7 @@ const GridProvider = ({ children }: GridProviderProps) => {
       onGridReady,
       totalPages,
       currentPage,
+      setTotalPages,
    };
    return <GridContext.Provider value={value}>{children}</GridContext.Provider>;
 };

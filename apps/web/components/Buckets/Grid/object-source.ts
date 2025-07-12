@@ -14,7 +14,6 @@ const MakeObjectSource = (
    blockSize: number,
    serverId: string
 ): IDatasource => {
-   console.log("Creating new object source");
    const pageCache: Record<number, PageMeta> = {};
 
    const getRows = async (params: IGetRowsParams) => {

@@ -1,5 +1,9 @@
 import useSessionStore from "@/lib/stores/sessionStore";
 import getPresignedUrl from "@/lib/utils/s3/getPresignedUrl";
+import {
+   MULTIPART_THRESHOLD,
+   uploadFileMultipart,
+} from "@/lib/utils/s3/multipartUpload";
 import uploadToUrl from "@/lib/utils/s3/uploadToUrl";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
@@ -22,7 +26,7 @@ interface UploadFilesParams {
    ) => void;
    onCancelReady?: (
       fileIndex: number,
-      cancelFn: () => void,
+      cancelFn: () => void | Promise<void>,
       fileSize: number
    ) => void;
    stopAllPendingUploads?: () => void;
@@ -61,38 +65,77 @@ const useUploadFiles = () => {
 
             const uploadPromise = async () => {
                try {
-                  const objectKey = `${prefix}${file.name}`;
+                  const objectKey = `${prefix}${file.webkitRelativePath || file.name}`;
 
-                  const { url } = await getPresignedUrl(
-                     bucketName,
-                     objectKey,
-                     file.type,
-                     currentServerId
-                  );
+                  if (file.size > MULTIPART_THRESHOLD) {
+                     console.log(
+                        "Uploading file",
+                        file.name,
+                        "with multipart upload"
+                     );
+                     const { upload, cancel } = uploadFileMultipart(
+                        file,
+                        bucketName,
+                        objectKey,
+                        currentServerId!,
+                        (progress: number) =>
+                           onProgress?.(i, progress, file.name, file.size)
+                     );
+                     onCancelReady?.(i, cancel, file.size);
 
-                  const { upload, cancel } = uploadToUrl(
-                     url,
-                     file,
-                     (progress: number) =>
-                        onProgress?.(i, progress, file.name, file.size)
-                  );
-                  onCancelReady?.(i, cancel, file.size);
-
-                  const result = await upload();
-                  if (result.success) {
-                     onFileComplete?.(i, file.name, file.size);
-                     return {
-                        success: true,
-                        fileName: file.name,
-                        fileIndex: i,
-                     };
+                     const result = await upload();
+                     if (result.success) {
+                        onFileComplete?.(i, file.name, file.size);
+                        return {
+                           success: true,
+                           fileName: file.name,
+                           fileIndex: i,
+                        };
+                     } else {
+                        return {
+                           success: false,
+                           fileName: file.name,
+                           fileIndex: i,
+                           error: result.error || "Multipart upload failed",
+                        };
+                     }
                   } else {
-                     return {
-                        success: false,
-                        fileName: file.name,
-                        fileIndex: i,
-                        error: result.error || "Upload failed",
-                     };
+                     console.log(
+                        "Uploading file",
+                        file.name,
+                        "with single-part upload"
+                     );
+                     const { url } = await getPresignedUrl(
+                        bucketName,
+                        objectKey,
+                        file.type,
+                        currentServerId!
+                     );
+
+                     const { upload, cancel } = uploadToUrl(
+                        url,
+                        file,
+                        (progress: number) =>
+                           onProgress?.(i, progress, file.name, file.size)
+                     );
+                     onCancelReady?.(i, cancel, file.size);
+
+                     const result = await upload();
+                     if (result.success) {
+                        onFileComplete?.(i, file.name, file.size);
+                        return {
+                           success: true,
+                           fileName: file.name,
+                           fileIndex: i,
+                        };
+                     } else {
+                        return {
+                           success: false,
+                           fileName: file.name,
+                           fileIndex: i,
+                           error: result.error || "Upload failed",
+                        };
+                     }
                   }
                } catch (error) {
                   if (
@@ -171,7 +214,6 @@ const useUploadFiles = () => {
          const totalFiles =
             data.filesUploaded + data.filesSkipped + data.errors.length;
 
-         // All files succeeded
          if (data.filesUploaded === totalFiles) {
             if (data.filesUploaded === 1) {
                toast.success("File uploaded successfully");
@@ -183,7 +225,6 @@ const useUploadFiles = () => {
             return;
          }
 
-         // All files failed
          if (data.errors.length === totalFiles) {
             toast.error(
                `All uploads failed: ${data.errors.slice(0, 2).join(", ")}${data.errors.length > 2 ? "..." : ""}`
@@ -191,27 +232,23 @@ const useUploadFiles = () => {
             return;
          }
 
-         // All files cancelled
          if (data.filesSkipped === totalFiles) {
             toast.warning("All uploads were cancelled");
             return;
          }
 
-         // Partial success with failures
          if (data.filesUploaded > 0 && data.errors.length > 0) {
             toast.success(`${data.filesUploaded} files uploaded successfully`);
             toast.error(`${data.errors.length} files failed to upload`);
             return;
          }
 
-         // Success with some cancelled
          if (data.filesUploaded > 0 && data.filesSkipped > 0) {
             toast.success(`${data.filesUploaded} files uploaded successfully`);
             toast.warning(`${data.filesSkipped} files were cancelled`);
             return;
          }
 
-         // Some failed, rest cancelled
          if (data.errors.length > 0) {
             toast.error(`${data.errors.length} files failed to upload`);
             if (data.filesSkipped > 0) {
@@ -220,7 +257,6 @@ const useUploadFiles = () => {
             return;
          }
 
-         // Edge case fallback
          toast.info("Upload operation completed");
       },
    });

@@ -42,8 +42,8 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
    if (
       !gridReady ||
       !gridRef.current?.api ||
-      (gridRef.current?.api.paginationIsLastPageFound() &&
-         gridRef.current?.api.paginationGetTotalPages() === 0)
+      totalPages === 1 ||
+      totalPages === 0
    ) {
       return null;
    }
@@ -54,15 +54,9 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
          gridRef.current?.api.paginationGetTotalPages() - 1;
    const backwardDisabled =
       gridRef.current?.api.paginationGetCurrentPage() <= 0;
-   const onlyOnePage =
-      gridRef.current?.api.paginationGetTotalPages() === 1 &&
-      gridRef.current?.api.paginationIsLastPageFound();
 
    return (
-      <div
-         className="flex gap-2 mx-auto"
-         hidden={!gridReady || !gridRef.current?.api || onlyOnePage}
-      >
+      <div className="flex gap-2 mx-auto">
          <Button
             onClick={() => {
                gridRef.current?.api.paginationGoToFirstPage();

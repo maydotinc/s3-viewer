@@ -1,9 +1,15 @@
 import {
+   AbortMultipartUploadCommand,
+   CompleteMultipartUploadCommand,
    CopyObjectCommand,
+   CreateMultipartUploadCommand,
    DeleteObjectCommand,
    GetObjectCommand,
    ListObjectsV2Command,
+   ListPartsCommand,
    PutObjectCommand,
+   S3ServiceException,
+   UploadPartCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Request, Response, Router } from "express";
@@ -186,6 +192,174 @@ objectRouter.get(
          res.status(200).json({
             objects: [...(folders || []), ...(files || [])],
             nextToken,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+// Multipart Upload Endpoints
+
+objectRouter.post(
+   "/multipart/create",
+   requireUploadObject(),
+   async (req: Request, res: Response) => {
+      const { bucketName, objectKey, contentType, serverId } = req.body;
+
+      try {
+         const s3Client = await getS3Client(serverId);
+         const command = new CreateMultipartUploadCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+            ContentType: contentType,
+         });
+
+         const response = await s3Client.send(command);
+
+         res.status(200).json({
+            uploadId: response.UploadId,
+            bucketName: response.Bucket,
+            objectKey: response.Key,
+            message: `Multipart upload initiated for ${objectKey}`,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+objectRouter.get(
+   "/multipart/:uploadId/part/:partNumber/presigned-url",
+   requireUploadObject(),
+   async (req: Request, res: Response) => {
+      const { uploadId, partNumber } = req.params;
+      const { bucketName, objectKey, serverId } = req.query;
+
+      if (!serverId || !bucketName || !objectKey) {
+         res.status(400).json({
+            error: "serverId, bucketName, and objectKey are required",
+         });
+         return;
+      }
+
+      if (!partNumber || !uploadId) {
+         res.status(400).json({
+            error: "partNumber and uploadId are required",
+         });
+         return;
+      }
+
+      try {
+         const s3Client = await getS3Client(serverId as string);
+         const command = new UploadPartCommand({
+            Bucket: bucketName as string,
+            Key: objectKey as string,
+            UploadId: uploadId,
+            PartNumber: parseInt(partNumber),
+         });
+
+         const url = await getSignedUrl(s3Client, command, { expiresIn: 900 }); // 15 minutes
+
+         res.status(200).json({
+            url,
+            uploadId,
+            partNumber: parseInt(partNumber),
+            message: `Presigned URL generated for part ${partNumber}`,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+objectRouter.post(
+   "/multipart/:uploadId/complete",
+   requireUploadObject(),
+   async (req: Request, res: Response) => {
+      const { uploadId } = req.params;
+      const { bucketName, objectKey, serverId } = req.body;
+
+      console.log("Completing multipart upload:", {
+         uploadId,
+         bucketName,
+         objectKey,
+         serverId,
+      });
+
+      try {
+         const s3Client = await getS3Client(serverId);
+
+         // List all uploaded parts to get their ETags
+         const listPartsCommand = new ListPartsCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+            UploadId: uploadId,
+         });
+         const { Parts } = await s3Client.send(listPartsCommand);
+
+         if (!Parts || Parts.length === 0) {
+            throw new Error("No parts found for this multipart upload.");
+         }
+
+         const command = new CompleteMultipartUploadCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+            UploadId: uploadId,
+            MultipartUpload: {
+               Parts: Parts.map((part) => ({
+                  ETag: part.ETag,
+                  PartNumber: part.PartNumber,
+               })),
+            },
+         });
+
+         const response = await s3Client.send(command);
+
+         res.status(200).json({
+            location: response.Location,
+            bucketName: response.Bucket,
+            objectKey: response.Key,
+            etag: response.ETag,
+            message: `Multipart upload completed for ${objectKey}`,
+         });
+      } catch (error: any) {
+         if (error instanceof S3ServiceException) {
+            console.log("S3ServiceException details:", {
+               name: error.name,
+               message: error.message,
+               $fault: error.$fault,
+               $metadata: error.$metadata,
+            });
+            res.status(501).json({ error: error.message });
+         } else {
+            console.log("General error:", error);
+            res.status(500).json({ error: error.message });
+         }
+      }
+   }
+);
+
+objectRouter.delete(
+   "/multipart/:uploadId/abort",
+   requireUploadObject(),
+   async (req: Request, res: Response) => {
+      const { uploadId } = req.params;
+      const { bucketName, objectKey, serverId } = req.body;
+
+      try {
+         const s3Client = await getS3Client(serverId);
+         const command = new AbortMultipartUploadCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+            UploadId: uploadId,
+         });
+
+         await s3Client.send(command);
+
+         res.status(200).json({
+            uploadId,
+            message: `Multipart upload ${uploadId} aborted successfully`,
          });
       } catch (error: any) {
          res.status(500).json({ error: error.message });
