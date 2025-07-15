@@ -1,4 +1,5 @@
 import useSessionStore from "@/lib/stores/sessionStore";
+import { UploadParams } from "@/lib/stores/uploadStore";
 import getPresignedUrl from "@/lib/utils/s3/getPresignedUrl";
 import {
    MULTIPART_THRESHOLD,
@@ -7,30 +8,6 @@ import {
 import uploadToUrl from "@/lib/utils/s3/uploadToUrl";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
-
-interface UploadFilesParams {
-   files: File[];
-   bucketName: string;
-   serverId?: string;
-   prefix?: string;
-   onProgress?: (
-      fileIndex: number,
-      progress: number,
-      fileName: string,
-      fileSize: number
-   ) => void;
-   onFileComplete?: (
-      fileIndex: number,
-      fileName: string,
-      fileSize: number
-   ) => void;
-   onCancelReady?: (
-      fileIndex: number,
-      cancelFn: () => void | Promise<void>,
-      fileSize: number
-   ) => void;
-   stopAllPendingUploads?: () => void;
-}
 
 const useUploadFiles = () => {
    const sessionServerId = useSessionStore((state) => state.serverId);
@@ -44,8 +21,7 @@ const useUploadFiles = () => {
          onProgress,
          onFileComplete,
          onCancelReady,
-         stopAllPendingUploads,
-      }: UploadFilesParams): Promise<{
+      }: UploadParams): Promise<{
          message: string;
          filesUploaded: number;
          filesSkipped: number;
@@ -55,7 +31,7 @@ const useUploadFiles = () => {
          const uploadPromises: Promise<{
             success: boolean;
             fileName: string;
-            fileIndex: number;
+            filePath: string;
             error?: string;
          }>[] = [];
 
@@ -66,6 +42,7 @@ const useUploadFiles = () => {
             const uploadPromise = async () => {
                try {
                   const objectKey = `${prefix}${file.webkitRelativePath || file.name}`;
+                  const filePath = file.webkitRelativePath || file.name;
 
                   if (file.size > MULTIPART_THRESHOLD) {
                      console.log(
@@ -79,23 +56,28 @@ const useUploadFiles = () => {
                         objectKey,
                         currentServerId!,
                         (progress: number) =>
-                           onProgress?.(i, progress, file.name, file.size)
+                           onProgress?.(
+                              filePath,
+                              progress,
+                              file.name,
+                              file.size
+                           )
                      );
-                     onCancelReady?.(i, cancel, file.size);
+                     onCancelReady?.(filePath, cancel, file.size);
 
                      const result = await upload();
                      if (result.success) {
-                        onFileComplete?.(i, file.name, file.size);
+                        onFileComplete?.(filePath, file.name, file.size);
                         return {
                            success: true,
                            fileName: file.name,
-                           fileIndex: i,
+                           filePath,
                         };
                      } else {
                         return {
                            success: false,
                            fileName: file.name,
-                           fileIndex: i,
+                           filePath,
                            error: result.error || "Multipart upload failed",
                         };
                      }
@@ -116,28 +98,34 @@ const useUploadFiles = () => {
                         url,
                         file,
                         (progress: number) =>
-                           onProgress?.(i, progress, file.name, file.size)
+                           onProgress?.(
+                              filePath,
+                              progress,
+                              file.name,
+                              file.size
+                           )
                      );
-                     onCancelReady?.(i, cancel, file.size);
+                     onCancelReady?.(filePath, cancel, file.size);
 
                      const result = await upload();
                      if (result.success) {
-                        onFileComplete?.(i, file.name, file.size);
+                        onFileComplete?.(filePath, file.name, file.size);
                         return {
                            success: true,
                            fileName: file.name,
-                           fileIndex: i,
+                           filePath,
                         };
                      } else {
                         return {
                            success: false,
                            fileName: file.name,
-                           fileIndex: i,
+                           filePath,
                            error: result.error || "Upload failed",
                         };
                      }
                   }
                } catch (error) {
+                  const filePath = file.webkitRelativePath || file.name;
                   if (
                      error instanceof Error &&
                      error.message === "Upload cancelled"
@@ -146,7 +134,7 @@ const useUploadFiles = () => {
                      return {
                         success: false,
                         fileName: file.name,
-                        fileIndex: i,
+                        filePath,
                         error: "Upload cancelled",
                      };
                   } else {
@@ -154,7 +142,7 @@ const useUploadFiles = () => {
                      return {
                         success: false,
                         fileName: file.name,
-                        fileIndex: i,
+                        filePath,
                         error:
                            error instanceof Error
                               ? error.message
@@ -210,7 +198,6 @@ const useUploadFiles = () => {
       },
 
       onSuccess: (data, variables) => {
-         variables.stopAllPendingUploads?.();
          const totalFiles =
             data.filesUploaded + data.filesSkipped + data.errors.length;
 

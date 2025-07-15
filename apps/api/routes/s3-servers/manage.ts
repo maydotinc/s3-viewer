@@ -22,7 +22,6 @@ manageRouter.post("/establish", async (req: Request, res: Response) => {
    const s3Client = getS3ClientFromCredentials(credentials);
    try {
       const response = await s3Client.send(new ListBucketsCommand({}));
-      console.log(response);
       if (response.Buckets) {
          res.status(200).json({
             message: "Server connected established successfully",

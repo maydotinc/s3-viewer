@@ -2,35 +2,35 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 interface UploadProgress {
-   [fileIndex: number]: {
+   [filePath: string]: {
       fileName: string;
       progress: number;
       fileSize: number;
       completed: boolean;
       cancelled?: boolean;
-      cancelFn?: () => void;
+      cancelFn?: () => void | Promise<void>;
    };
 }
 
-interface UploadParams {
+export interface UploadParams {
    files: File[];
    bucketName: string;
    serverId?: string;
    prefix?: string;
    onProgress?: (
-      fileIndex: number,
+      filePath: string,
       progress: number,
       fileName: string,
       fileSize: number
    ) => void;
    onFileComplete?: (
-      fileIndex: number,
+      filePath: string,
       fileName: string,
       fileSize: number
    ) => void;
    onCancelReady?: (
-      fileIndex: number,
-      cancelFn: () => void,
+      filePath: string,
+      cancelFn: () => void | Promise<void>,
       fileSize: number
    ) => void;
 }
@@ -60,25 +60,24 @@ type UploadStoreActions = {
       bucketName: string;
       serverId: string;
       prefix: string;
-      stopAllPendingUploads?: () => void;
    }) => void;
    setProgress: (
-      fileIndex: number,
+      filePath: string,
       progress: number,
       fileName: string,
       fileSize: number
    ) => void;
    setFileComplete: (
-      fileIndex: number,
+      filePath: string,
       fileName: string,
       fileSize: number
    ) => void;
    setCancelFunction: (
-      fileIndex: number,
-      cancelFn: () => void,
+      filePath: string,
+      cancelFn: () => void | Promise<void>,
       fileSize: number
    ) => void;
-   cancelUpload: (fileIndex: number) => void;
+   cancelUpload: (filePath: string) => void;
    cancelAllUploads: () => void;
    stopAllPendingUploads: () => void;
    reset: () => void;
@@ -120,14 +119,14 @@ const useUploadStore = create<UploadStore>()(
          mutate(
             {
                ...params,
-               onProgress: (fileIndex, progress, fileName, fileSize) => {
-                  get().setProgress(fileIndex, progress, fileName, fileSize);
+               onProgress: (filePath, progress, fileName, fileSize) => {
+                  get().setProgress(filePath, progress, fileName, fileSize);
                },
-               onFileComplete: (fileIndex, fileName, fileSize) => {
-                  get().setFileComplete(fileIndex, fileName, fileSize);
+               onFileComplete: (filePath, fileName, fileSize) => {
+                  get().setFileComplete(filePath, fileName, fileSize);
                },
-               onCancelReady: (fileIndex, cancelFn, fileSize) => {
-                  get().setCancelFunction(fileIndex, cancelFn, fileSize);
+               onCancelReady: (filePath, cancelFn, fileSize) => {
+                  get().setCancelFunction(filePath, cancelFn, fileSize);
                },
             },
             {
@@ -136,6 +135,7 @@ const useUploadStore = create<UploadStore>()(
                      state.isUploading = false;
                   });
                   onUploadComplete?.();
+                  get().stopAllPendingUploads();
                },
                onError: (error) => {
                   console.error("Upload failed from store:", error);
@@ -166,46 +166,46 @@ const useUploadStore = create<UploadStore>()(
          );
       },
 
-      setProgress: (fileIndex, progress, fileName, fileSize) => {
+      setProgress: (filePath, progress, fileName, fileSize) => {
          set((state) => {
-            if (!state.uploadProgress[fileIndex]) {
-               state.uploadProgress[fileIndex] = {
+            if (!state.uploadProgress[filePath]) {
+               state.uploadProgress[filePath] = {
                   fileName,
                   progress,
                   fileSize,
                   completed: false,
                };
             } else {
-               state.uploadProgress[fileIndex].fileName = fileName;
-               state.uploadProgress[fileIndex].progress = progress;
-               state.uploadProgress[fileIndex].fileSize = fileSize;
-               state.uploadProgress[fileIndex].completed = false;
+               state.uploadProgress[filePath].fileName = fileName;
+               state.uploadProgress[filePath].progress = progress;
+               state.uploadProgress[filePath].fileSize = fileSize;
+               state.uploadProgress[filePath].completed = false;
             }
          });
       },
 
-      setFileComplete: (fileIndex, fileName, fileSize) => {
+      setFileComplete: (filePath, fileName, fileSize) => {
          set((state) => {
-            if (!state.uploadProgress[fileIndex]) {
-               state.uploadProgress[fileIndex] = {
+            if (!state.uploadProgress[filePath]) {
+               state.uploadProgress[filePath] = {
                   fileName,
                   progress: 100,
                   fileSize,
                   completed: true,
                };
             } else {
-               state.uploadProgress[fileIndex].fileName = fileName;
-               state.uploadProgress[fileIndex].progress = 100;
-               state.uploadProgress[fileIndex].fileSize = fileSize;
-               state.uploadProgress[fileIndex].completed = true;
+               state.uploadProgress[filePath].fileName = fileName;
+               state.uploadProgress[filePath].progress = 100;
+               state.uploadProgress[filePath].fileSize = fileSize;
+               state.uploadProgress[filePath].completed = true;
             }
          });
       },
 
-      setCancelFunction: (fileIndex, cancelFn, fileSize) => {
+      setCancelFunction: (filePath, cancelFn, fileSize) => {
          set((state) => {
-            if (!state.uploadProgress[fileIndex]) {
-               state.uploadProgress[fileIndex] = {
+            if (!state.uploadProgress[filePath]) {
+               state.uploadProgress[filePath] = {
                   fileName: "",
                   progress: 0,
                   fileSize,
@@ -213,22 +213,32 @@ const useUploadStore = create<UploadStore>()(
                   cancelFn,
                };
             } else {
-               state.uploadProgress[fileIndex].cancelFn = cancelFn;
+               state.uploadProgress[filePath].cancelFn = cancelFn;
             }
          });
       },
 
-      cancelUpload: (fileIndex) => {
+      cancelUpload: (filePath) => {
          const { uploadProgress } = get();
-         const fileUpload = uploadProgress[fileIndex];
+         const fileUpload = uploadProgress[filePath];
 
          if (fileUpload?.cancelFn && !fileUpload.completed) {
-            fileUpload.cancelFn();
+            const result = fileUpload.cancelFn();
+
+            // Handle potential Promise return
+            if (result instanceof Promise) {
+               result.catch((error) => {
+                  console.error(
+                     `Error cancelling upload for file ${filePath}:`,
+                     error
+                  );
+               });
+            }
 
             set((state) => {
-               if (state.uploadProgress[fileIndex]) {
-                  state.uploadProgress[fileIndex].cancelled = true;
-                  state.uploadProgress[fileIndex].progress = 0;
+               if (state.uploadProgress[filePath]) {
+                  state.uploadProgress[filePath].cancelled = true;
+                  state.uploadProgress[filePath].progress = 0;
                }
             });
          }
@@ -237,15 +247,25 @@ const useUploadStore = create<UploadStore>()(
       cancelAllUploads: () => {
          const { uploadProgress } = get();
 
-         Object.entries(uploadProgress).forEach(([fileIndex, fileUpload]) => {
+         Object.entries(uploadProgress).forEach(([filePath, fileUpload]) => {
             if (fileUpload.cancelFn && !fileUpload.completed) {
-               fileUpload.cancelFn();
+               const result = fileUpload.cancelFn();
+
+               // Handle potential Promise return
+               if (result instanceof Promise) {
+                  result.catch((error) => {
+                     console.error(
+                        `Error cancelling upload for file ${filePath}:`,
+                        error
+                     );
+                  });
+               }
             }
          });
 
          set((state) => {
             state.isUploading = false;
-            Object.entries(state.uploadProgress).forEach(([index, file]) => {
+            Object.entries(state.uploadProgress).forEach(([filePath, file]) => {
                if (!file.completed) {
                   file.cancelled = true;
                   file.progress = 0;

@@ -115,7 +115,7 @@ const UploadProgressSheet = () => {
                }`}
             >
                <div className="flex flex-col overflow-y-auto max-h-[var(--content-height)] gap-2 p-2">
-                  {Object.values(uploadProgress).map((file, fileIndex) => {
+                  {Object.entries(uploadProgress).map(([filePath, file]) => {
                      const { value: fileSizeFormatted, unit: suffix } =
                         formatFileSize(file.fileSize);
                      const uploadedSize = Math.round(
@@ -139,7 +139,7 @@ const UploadProgressSheet = () => {
 
                      return (
                         <div
-                           key={fileIndex}
+                           key={filePath}
                            className="flex flex-col justify-center gap-2 p-2 rounded-xl border border-viewerborder"
                         >
                            <div className="flex justify-between">
@@ -163,7 +163,7 @@ const UploadProgressSheet = () => {
                               <div
                                  className="flex gap-2"
                                  onClick={() => {
-                                    cancelUpload(fileIndex);
+                                    cancelUpload(filePath);
                                  }}
                                  hidden={file.completed || file.cancelled}
                               >

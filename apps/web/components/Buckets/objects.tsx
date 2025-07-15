@@ -13,7 +13,7 @@ import MakeObjectSource from "./Grid/object-source";
 
 const Objects = () => {
    const { path, bucket } = useBucketContext();
-   const { gridRef, gridReady, setTotalPages } = useGridContext();
+   const { gridRef, gridReady } = useGridContext();
    const serverId = useSessionStore((state) => state.serverId);
    const blockSize = 1000;
 
@@ -31,7 +31,6 @@ const Objects = () => {
 
    useEffect(() => {
       if (gridReady && gridRef.current?.api && objectDatasource) {
-         setTotalPages(0);
          gridRef.current.api.setGridOption("datasource", objectDatasource);
       }
    }, [objectDatasource, gridReady]);

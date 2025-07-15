@@ -8,9 +8,10 @@ type GridContextType = {
    pageSize: number;
    setPageSize: (size: number) => void;
    onGridReady: (params: GridReadyEvent) => void;
-   totalPages: number | "many";
-   currentPage: number;
-   setTotalPages: (pages: number) => void;
+   onGridDestroy: () => void;
+   totalPages: number | "many" | null;
+   currentPage: number | null;
+   setCurrentPage: (page: number) => void;
 };
 
 const GridContext = createContext<GridContextType | null>(null);
@@ -22,34 +23,46 @@ type GridProviderProps = {
 const GridProvider = ({ children }: GridProviderProps) => {
    const gridRef = useRef<AgGridReact>(null);
    const [gridReady, setGridReady] = useState(false);
-   const [pageSize, setPageSize] = useState(25);
-   const [totalPages, setTotalPages] = useState<number | "many">(0);
-   const [currentPage, setCurrentPage] = useState(0);
+   const [pageSize, setPageSize] = useState(100);
+   const [totalPages, setTotalPages] = useState<number | "many" | null>(null);
+   const [currentPage, setCurrentPage] = useState<number | null>(null);
+
+   const paginationChangeHandler = () => {
+      if (!gridRef.current?.api) return;
+      const api = gridRef.current.api;
+      console.log("Setting current page and total pages");
+      setCurrentPage(api.paginationGetCurrentPage() ?? 1);
+      setTotalPages(
+         api.paginationIsLastPageFound()
+            ? (api.paginationGetTotalPages() ?? 1)
+            : "many"
+      );
+   };
 
    useEffect(() => {
       if (!gridReady || !gridRef.current?.api) return;
       const api = gridRef.current.api;
-      const handler = () => {
-         setCurrentPage(api.paginationGetCurrentPage() ?? 1);
-         setTotalPages(
-            api.paginationIsLastPageFound()
-               ? (api.paginationGetTotalPages() ?? 1)
-               : "many"
-         );
-      };
-
-      handler();
-      api.addEventListener("paginationChanged", handler);
-
-      return () => {
-         if (!api.isDestroyed()) {
-            api.removeEventListener("paginationChanged", handler);
-         }
-      };
+      api.addEventListener("paginationChanged", paginationChangeHandler);
+      return () => {};
    }, [gridReady]);
 
    const onGridReady = (params: GridReadyEvent) => {
+      console.log("Grid ready");
       setGridReady(true);
+   };
+
+   const onGridDestroy = () => {
+      console.log("Grid getting destroyed");
+      if (gridRef.current?.api) {
+         gridRef.current.api.removeEventListener(
+            "paginationChanged",
+            paginationChangeHandler
+         );
+      }
+
+      setTotalPages(null);
+      setCurrentPage(null);
+      setGridReady(false);
    };
 
    const value = {
@@ -58,9 +71,10 @@ const GridProvider = ({ children }: GridProviderProps) => {
       pageSize,
       setPageSize,
       onGridReady,
+      onGridDestroy,
       totalPages,
       currentPage,
-      setTotalPages,
+      setCurrentPage,
    };
    return <GridContext.Provider value={value}>{children}</GridContext.Provider>;
 };

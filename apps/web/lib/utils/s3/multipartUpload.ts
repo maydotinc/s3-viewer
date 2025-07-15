@@ -75,7 +75,7 @@ const getPartPresignedUrl = async (
    return await response.json();
 };
 
-export const uploadPart = (
+const uploadPart = (
    presignedUrl: string,
    partData: Blob,
    onProgress?: (progress: number) => void

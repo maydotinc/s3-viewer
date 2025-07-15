@@ -1,14 +1,14 @@
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
-import { testBuckets } from "@/lib/utils/test-data";
 import { S3Bucket } from "@s3-viewer/types";
 import { ColDef } from "ag-grid-community";
 import { CustomCellRendererProps } from "ag-grid-react";
 import Link from "next/link";
+import { useEffect } from "react";
 import Filter from "../DataGrid/Actions/filter";
 import PaginationControls from "../DataGrid/Actions/page-controls";
 import Pagination from "../DataGrid/Actions/pagination";
 import QuickSearch from "../DataGrid/Actions/quick-search";
-import { GridProvider } from "../DataGrid/context";
+import { GridProvider, useGridContext } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
 import BucketActions from "./actions";
 
@@ -36,8 +36,15 @@ const columns: ColDef<S3Bucket>[] = [
    },
 ];
 
-const Buckets = () => {
-   const { buckets } = useBuckets();
+const BucketsGrid = () => {
+   const { buckets, isBucketsLoading } = useBuckets();
+   const { gridRef, gridReady } = useGridContext();
+
+   useEffect(() => {
+      if (!gridReady || !gridRef.current?.api || isBucketsLoading) return;
+      const api = gridRef.current.api;
+      api.setGridOption("rowData", buckets ?? []);
+   }, [buckets, gridReady, isBucketsLoading, gridRef.current?.api]);
 
    const noRowsOverlayComponent = () => {
       return (
@@ -53,6 +60,19 @@ const Buckets = () => {
    };
 
    return (
+      <BaseGrid
+         colDefs={columns}
+         className="flex-1"
+         rowModel={{
+            type: "clientSide",
+         }}
+         noRowsOverlayComponent={noRowsOverlayComponent}
+      />
+   );
+};
+
+const Buckets = () => {
+   return (
       <GridProvider>
          <section className="flex flex-col p-8 w-full h-full">
             <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
@@ -64,15 +84,7 @@ const Buckets = () => {
                <BucketActions />
             </div>
             <div className="flex flex-col flex-1 gap-2">
-               <BaseGrid
-                  rowData={buckets ?? testBuckets}
-                  colDefs={columns}
-                  className="flex-1"
-                  rowModel={{
-                     type: "clientSide",
-                  }}
-                  noRowsOverlayComponent={noRowsOverlayComponent}
-               />
+               <BucketsGrid />
                <PaginationControls />
             </div>
          </section>

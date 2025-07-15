@@ -36,14 +36,18 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
    };
 
    useEffect(() => {
-      setPageInput(currentPage + 1);
+      if (currentPage) {
+         setPageInput(currentPage + 1);
+      }
    }, [currentPage, gridReady]);
 
+   // Don't show pagination if grid isn't ready, has no data, or only has 1 page
    if (
       !gridReady ||
       !gridRef.current?.api ||
-      totalPages === 1 ||
-      totalPages === 0
+      totalPages === null ||
+      totalPages === 0 ||
+      totalPages === 1
    ) {
       return null;
    }
@@ -79,7 +83,7 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
                disabled={!gridRef.current?.api.paginationIsLastPageFound()}
             >
                <Button>
-                  {`Page ${currentPage + 1} of ${totalPages}`}
+                  {`Page ${currentPage ? currentPage + 1 : 1} of ${totalPages}`}
                   <ChevronUp
                      className={cn(
                         "size-4 text-gray-600 transition-transform duration-200",
