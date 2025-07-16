@@ -1,6 +1,7 @@
 import { formatFileSize } from "@/lib/utils/fileUtils";
 import { S3Object } from "@s3-viewer/types";
 import { ColDef, ValueFormatterParams } from "ag-grid-community";
+import ActionsCell from "./action-cell";
 import FolderCell from "./folder-cell";
 
 const columns: ColDef<S3Object>[] = [
@@ -39,6 +40,16 @@ const columns: ColDef<S3Object>[] = [
          return new Date(params.value).toLocaleDateString();
       },
       sortable: false,
+   },
+   {
+      headerName: "",
+      flex: 0.5,
+      sortable: false,
+      cellRenderer: ActionsCell,
+      cellStyle: {
+         paddingRight: "0px",
+         paddingLeft: "0px",
+      },
    },
 ];
 

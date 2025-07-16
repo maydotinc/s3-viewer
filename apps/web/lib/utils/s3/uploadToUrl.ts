@@ -13,7 +13,6 @@ const uploadToUrl = (
    const upload = (): Promise<{ success: boolean; error?: string }> => {
       xhr = new XMLHttpRequest();
 
-      // Set up progress tracking
       if (onProgress) {
          xhr.upload.onprogress = (event) => {
             if (event.lengthComputable) {
@@ -23,11 +22,9 @@ const uploadToUrl = (
          };
       }
 
-      // Configure and start upload
       xhr.open("PUT", presignedUrl);
       xhr.setRequestHeader("Content-Type", file.type);
 
-      // Return the promise directly
       return new Promise<{ success: boolean; error?: string }>((resolve) => {
          xhr.onload = () => {
             if (xhr.status >= 200 && xhr.status < 300) {

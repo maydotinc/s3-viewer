@@ -33,7 +33,7 @@ const Pagination = ({ className }: PaginationProps) => {
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
          <DropdownMenuTrigger asChild>
             <Button>
-               {`Rows (${currentPageSize ?? 25})`}
+               {`Rows (${currentPageSize ?? 100})`}
                <ChevronDown
                   className={cn(
                      "size-4 text-gray-600 transition-transform duration-200",

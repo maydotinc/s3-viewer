@@ -30,7 +30,6 @@ const GridProvider = ({ children }: GridProviderProps) => {
    const paginationChangeHandler = () => {
       if (!gridRef.current?.api) return;
       const api = gridRef.current.api;
-      console.log("Setting current page and total pages");
       setCurrentPage(api.paginationGetCurrentPage() ?? 1);
       setTotalPages(
          api.paginationIsLastPageFound()
@@ -42,6 +41,7 @@ const GridProvider = ({ children }: GridProviderProps) => {
    useEffect(() => {
       if (!gridReady || !gridRef.current?.api) return;
       const api = gridRef.current.api;
+      paginationChangeHandler();
       api.addEventListener("paginationChanged", paginationChangeHandler);
       return () => {};
    }, [gridReady]);

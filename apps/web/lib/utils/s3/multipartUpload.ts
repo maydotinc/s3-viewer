@@ -246,18 +246,19 @@ const uploadFileMultipart = (
             const partResult = await partUpload();
 
             if (!partResult.success) {
-               throw new Error(
-                  partResult.error || `Part ${partNumber} upload failed`
-               );
+               return { partNumber, success: false, error: partResult.error };
             }
 
             return { partNumber, success: true };
          });
 
-         // Wait for all parts to complete
-         await Promise.all(partUploadPromises);
+         const partResults = await Promise.all(partUploadPromises);
 
-         // Complete multipart upload - S3 will auto-assemble by part number
+         const failedParts = partResults.filter((result) => !result.success);
+         if (failedParts.length > 0) {
+            return { success: false, error: "Part upload failed" };
+         }
+
          await completeMultipartUpload(
             uploadId,
             bucketName,
@@ -282,10 +283,6 @@ const uploadFileMultipart = (
             } catch (abortError) {
                console.error("Failed to abort multipart upload:", abortError);
             }
-         }
-
-         if (error instanceof Error) {
-            return { success: false, error: error.message };
          }
          return { success: false, error: "Multipart upload failed" };
       }

@@ -1,7 +1,7 @@
 import { useBucketContext } from "@/components/Buckets/Context";
 import { useGridContext } from "@/components/DataGrid/context";
 import useSessionStore from "@/lib/stores/sessionStore";
-import useUploadStore from "@/lib/stores/uploadStore";
+import useUploadStore from "@/lib/stores/upload-store/uploadStore";
 import { DropdownMenuItem } from "@s3-viewer/ui/components/dropdown-menu";
 import { Folder, Loader2 } from "lucide-react";
 

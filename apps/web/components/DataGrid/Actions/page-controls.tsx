@@ -41,7 +41,6 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
       }
    }, [currentPage, gridReady]);
 
-   // Don't show pagination if grid isn't ready, has no data, or only has 1 page
    if (
       !gridReady ||
       !gridRef.current?.api ||
