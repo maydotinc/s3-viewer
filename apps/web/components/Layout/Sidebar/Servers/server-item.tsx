@@ -1,7 +1,8 @@
 import useSessionStore from "@/lib/stores/sessionStore";
 import { ServerInfo } from "@s3-viewer/types";
-import { CircleIcon, ServerIcon } from "lucide-react";
+import { CircleIcon } from "lucide-react";
 import ServerActions from "./server-actions";
+import ServerLogo from "./server-logo";
 
 type ServerItemProps = {
    server: ServerInfo;
@@ -18,7 +19,7 @@ const ServerItem = ({ server }: ServerItemProps) => {
             <CircleIcon className="size-4 text-viewerborder" />
          )}
          <div className="flex gap-2 items-center flex-1">
-            <ServerIcon className="size-4" />
+            <ServerLogo provider={server.provider} variant="small" />
             <p className="max-w-[105px] truncate">{server.name}</p>
          </div>
          <div

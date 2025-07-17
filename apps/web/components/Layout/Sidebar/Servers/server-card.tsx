@@ -1,5 +1,6 @@
 import { ServerInfo } from "@s3-viewer/types";
-import { ChevronsLeftRight, ServerIcon, UserPen } from "lucide-react";
+import { ChevronsLeftRight, UserPen } from "lucide-react";
+import ServerLogo from "./server-logo";
 
 type ServerCardProps = {
    server: ServerInfo | undefined;
@@ -19,7 +20,7 @@ const ServerCard = ({ server }: ServerCardProps) => {
    return (
       <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 cursor-pointer select-none">
          <div className="flex gap-2 items-center">
-            <ServerIcon className="size-4" />
+            <ServerLogo provider={server.provider} variant="small" />
             <p className="text-md font-semibold md:max-w-[100px] truncate">
                {server.name}
             </p>
