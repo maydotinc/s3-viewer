@@ -1,3 +1,4 @@
+import detectProvider from "@/lib/utils/detect-provider.js";
 import { ListBucketsCommand } from "@aws-sdk/client-s3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
@@ -47,6 +48,7 @@ manageRouter.post("/create", async (req: Request, res: Response) => {
       serverCredentials: ServerCredentials;
       serverName: string;
    };
+   const provider = detectProvider(serverCredentials);
 
    try {
       const server = await prisma.server.create({
@@ -54,6 +56,7 @@ manageRouter.post("/create", async (req: Request, res: Response) => {
             credentials: JSON.stringify(serverCredentials),
             name: serverName,
             ownerId: req.user!.id,
+            provider,
             serverAccess: {
                create: {
                   userId: req.user!.id,

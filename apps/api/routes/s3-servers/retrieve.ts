@@ -19,6 +19,7 @@ retrieveRouter.get("/get-servers", async (req: Request, res: Response) => {
                   id: true,
                   name: true,
                   storageUsed: true,
+                  provider: true,
                },
             },
          },

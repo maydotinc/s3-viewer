@@ -6,6 +6,12 @@ enum Role {
    VIEWER = "VIEWER",
 }
 
+enum Provider {
+   S3 = "S3",
+   R2 = "R2",
+   Other = "Other",
+}
+
 type ServerCredentials = {
    endpoint: string;
    region: string;
@@ -17,6 +23,7 @@ type ServerInfo = {
    id: string;
    name: string;
    userRole: Role;
+   provider: Provider;
 };
 
 type ServerUser = {
@@ -53,7 +60,7 @@ type S3Object = {
    Size: number | null;
 };
 
-export { Role };
+export { Provider, Role };
 export type {
    S3Bucket,
    S3Object,

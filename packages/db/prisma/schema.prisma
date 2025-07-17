@@ -76,6 +76,7 @@ model Verification {
 model Server {
   id          String   @id @default(cuid())
   name        String
+  provider    Provider @default(Other)
   credentials Json // Encrypted AWS credentials
   storageUsed Float    @default(0) // Total storage used in bytes
   createdAt   DateTime @default(now())
@@ -135,4 +136,10 @@ enum Role {
   ADMIN
   EDITOR
   VIEWER
+}
+
+enum Provider {
+  S3
+  R2
+  Other
 }
