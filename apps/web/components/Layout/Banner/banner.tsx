@@ -1,4 +1,7 @@
+import { useModalContext } from "@/lib/contexts/ModalContext";
 import { authClient } from "@s3-viewer/auth/client";
+import { Button } from "@s3-viewer/ui/components/button";
+import { LogInIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import ProfileDropdown from "./profile-dropdown";
@@ -9,7 +12,7 @@ export default function ViewerBanner({
    children: React.ReactNode;
 }) {
    const { data: session } = authClient.useSession();
-
+   const { openAuthModal } = useModalContext();
    return (
       <div className="flex flex-col size-full">
          <header className="flex justify-between sticky top-0 w-full h-[var(--header-height)] z-50 bg-viewergray border-b border-viewerborder">
@@ -30,9 +33,16 @@ export default function ViewerBanner({
                   S3Viewer
                </span>
             </Link>
-            {session && (
+            {session ? (
                <div className="flex items-center mr-10">
                   <ProfileDropdown />
+               </div>
+            ) : (
+               <div className="flex items-center mr-10">
+                  <Button onClick={() => openAuthModal()}>
+                     <LogInIcon className="size-4" />
+                     Login
+                  </Button>
                </div>
             )}
          </header>

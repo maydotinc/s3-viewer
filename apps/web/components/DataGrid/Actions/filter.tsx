@@ -25,7 +25,8 @@ const Filter = ({ className }: FilterProps) => {
       if (gridReady) {
          const rawColumns = gridRef.current?.api?.getColumns() ?? [];
          const columns = rawColumns.filter(
-            (col) => col.getColId() !== "actions"
+            (col) =>
+               col.getColId() !== "actions" && col.getColId() !== "selector"
          );
          setAllColumns(columns);
          setFilteredColumns(columns);
