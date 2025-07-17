@@ -3,6 +3,7 @@ import {
    AllCommunityModule,
    ColDef,
    ModuleRegistry,
+   RowSelectionOptions,
    themeQuartz,
    ValidationModule,
 } from "ag-grid-community";
@@ -50,6 +51,7 @@ type BaseGridProps = {
       bucketName: string;
       path: string[];
    };
+   rowSelection?: RowSelectionOptions;
 };
 
 const BaseGrid = ({
@@ -58,6 +60,7 @@ const BaseGrid = ({
    rowModel,
    noRowsOverlayComponent,
    routeContext,
+   rowSelection,
 }: BaseGridProps) => {
    const { gridRef, pageSize, onGridReady, onGridDestroy } = useGridContext();
 
@@ -97,6 +100,7 @@ const BaseGrid = ({
             noRowsOverlayComponent={noRowsOverlayComponent}
             loadingOverlayComponent={loadingOverlayComponent}
             context={routeContext}
+            rowSelection={rowSelection}
             {...rowModelProps}
          />
       </div>

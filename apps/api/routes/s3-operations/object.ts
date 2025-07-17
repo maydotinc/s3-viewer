@@ -4,6 +4,7 @@ import {
    CopyObjectCommand,
    CreateMultipartUploadCommand,
    DeleteObjectCommand,
+   DeleteObjectsCommand,
    GetObjectCommand,
    ListObjectsV2Command,
    ListPartsCommand,
@@ -58,9 +59,15 @@ objectRouter.get(
 
       try {
          const s3Client = await getS3Client(serverId as string);
+
+         const filename = (objectKey as string).split("/").pop() || "download";
+         const encodedFilename = encodeURIComponent(filename);
+         const contentDisposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`;
+
          const command = new GetObjectCommand({
             Bucket: bucketName as string,
             Key: objectKey as string,
+            ResponseContentDisposition: contentDisposition,
          });
 
          const url = await getSignedUrl(s3Client, command, { expiresIn: 900 }); // 15 minutes
@@ -80,16 +87,38 @@ objectRouter.delete(
    requireDeleteObject(),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, serverId } = req.body;
-
-      const s3Client = await getS3Client(serverId);
-      const command = new DeleteObjectCommand({
-         Bucket: bucketName,
-         Key: objectKey,
-      });
       try {
+         const s3Client = await getS3Client(serverId);
+         const command = new DeleteObjectCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+         });
          await s3Client.send(command);
          res.status(200).json({
             message: `Object ${objectKey} deleted successfully`,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+objectRouter.delete(
+   "/delete-multiple",
+   requireDeleteObject(),
+   async (req: Request, res: Response) => {
+      const { bucketName, objectKeys, serverId } = req.body;
+      try {
+         const s3Client = await getS3Client(serverId);
+         const command = new DeleteObjectsCommand({
+            Bucket: bucketName,
+            Delete: {
+               Objects: objectKeys.map((key: string) => ({ Key: key })),
+            },
+         });
+         await s3Client.send(command);
+         res.status(200).json({
+            message: `${objectKeys.length} objects deleted successfully`,
          });
       } catch (error: any) {
          res.status(500).json({ error: error.message });
@@ -200,7 +229,6 @@ objectRouter.get(
 );
 
 // Multipart Upload Endpoints
-
 objectRouter.post(
    "/multipart/create",
    requireUploadObject(),

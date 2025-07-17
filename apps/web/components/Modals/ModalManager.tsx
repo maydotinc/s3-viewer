@@ -1,5 +1,6 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import AuthModal from "./AuthModal";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import ConnectModal from "./ConnectModal";
 import CreateBucketModal from "./CreateBucketModal";
 import DisconnectModal from "./DisonnectModal";
@@ -36,6 +37,14 @@ const ModalManager = () => {
                         key={`rename-${index}`}
                         {...modal.props}
                         onClose={() => closeModal("rename")}
+                     />
+                  );
+               case "confirmDelete":
+                  return (
+                     <ConfirmDeleteModal
+                        key={`confirmDelete-${index}`}
+                        {...modal.props}
+                        onClose={() => closeModal("confirmDelete")}
                      />
                   );
                case "disconnect":

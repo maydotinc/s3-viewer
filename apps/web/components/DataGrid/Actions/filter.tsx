@@ -23,9 +23,12 @@ const Filter = ({ className }: FilterProps) => {
 
    useEffect(() => {
       if (gridReady) {
-         const cols = gridRef.current?.api?.getColumns() ?? [];
-         setAllColumns(cols);
-         setFilteredColumns(cols);
+         const rawColumns = gridRef.current?.api?.getColumns() ?? [];
+         const columns = rawColumns.filter(
+            (col) => col.getColId() !== "actions"
+         );
+         setAllColumns(columns);
+         setFilteredColumns(columns);
       }
    }, [gridReady]);
 

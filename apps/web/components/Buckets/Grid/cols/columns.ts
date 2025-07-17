@@ -1,10 +1,12 @@
 import { formatFileSize } from "@/lib/utils/fileUtils";
 import { S3Object } from "@s3-viewer/types";
 import { ColDef, ValueFormatterParams } from "ag-grid-community";
-import ActionsCell from "./action-cell";
+import ActionCell from "./action-cell";
 import FolderCell from "./folder-cell";
+import { selectorColumn } from "./selection-col";
 
 const columns: ColDef<S3Object>[] = [
+   selectorColumn,
    {
       field: "Key",
       headerName: "Name",
@@ -15,6 +17,12 @@ const columns: ColDef<S3Object>[] = [
       suppressHeaderFilterButton: true,
       suppressHeaderMenuButton: true,
       suppressFiltersToolPanel: true,
+      cellStyle: {
+         paddingLeft: "4px",
+      },
+      headerStyle: {
+         paddingLeft: "4px",
+      },
    },
    {
       field: "Size",
@@ -43,9 +51,10 @@ const columns: ColDef<S3Object>[] = [
    },
    {
       headerName: "",
+      colId: "actions",
       flex: 0.5,
       sortable: false,
-      cellRenderer: ActionsCell,
+      cellRenderer: ActionCell,
       cellStyle: {
          paddingRight: "0px",
          paddingLeft: "0px",

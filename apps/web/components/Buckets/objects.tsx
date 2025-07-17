@@ -9,6 +9,7 @@ import BaseGrid from "../DataGrid/grid";
 import ObjectActions from "./Actions";
 import { useBucketContext } from "./Context";
 import columns from "./Grid/cols/columns";
+import { rowSelection } from "./Grid/cols/selection-col";
 import MakeObjectSource from "./Grid/object-source";
 
 const Objects = () => {
@@ -72,6 +73,7 @@ const Objects = () => {
                   bucketName: bucket?.Name ?? "",
                   path,
                }}
+               rowSelection={rowSelection}
             />
             <PaginationControls />
          </div>

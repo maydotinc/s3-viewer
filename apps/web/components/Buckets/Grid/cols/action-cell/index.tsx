@@ -1,23 +1,28 @@
 import {
    DropdownMenu,
    DropdownMenuContent,
-   DropdownMenuItem,
    DropdownMenuSeparator,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { ICellRendererParams } from "ag-grid-community";
-import {
-   Download,
-   EllipsisVertical,
-   Pencil,
-   Replace,
-   Trash2,
-} from "lucide-react";
+import { EllipsisVertical, Loader2 } from "lucide-react";
+import { useState } from "react";
+import DeleteObject from "./delete";
+import DownloadObject from "./download";
 
-const ActionsCell = (params: ICellRendererParams) => {
+const ActionCell = (params: ICellRendererParams) => {
+   const [isLoading, setIsLoading] = useState(false);
    const fileName = params.data?.Key;
    if (fileName === undefined || fileName.endsWith("/")) {
       return <></>;
+   }
+
+   if (isLoading) {
+      return (
+         <div className="flex items-center justify-end size-full pr-5">
+            <Loader2 className="size-5 text-inherit animate-spin" />
+         </div>
+      );
    }
 
    return (
@@ -27,27 +32,21 @@ const ActionsCell = (params: ICellRendererParams) => {
                <EllipsisVertical className="size-5 text-inherit" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-50 p-2">
-               <DropdownMenuItem>
-                  <Download className="size-4 text-inherit" />
-                  Download
-               </DropdownMenuItem>
-               <DropdownMenuItem>
+               <DownloadObject params={params} setIsLoading={setIsLoading} />
+               {/* <DropdownMenuItem>
                   <Pencil className="size-4 text-inherit" />
                   Rename
                </DropdownMenuItem>
                <DropdownMenuItem>
                   <Replace className="size-4 text-inherit" />
                   Move
-               </DropdownMenuItem>
+               </DropdownMenuItem> */}
                <DropdownMenuSeparator className="mx-auto" />
-               <DropdownMenuItem variant="destructive">
-                  <Trash2 className="size-4 text-inherit" />
-                  Delete
-               </DropdownMenuItem>
+               <DeleteObject params={params} />
             </DropdownMenuContent>
          </DropdownMenu>
       </div>
    );
 };
 
-export default ActionsCell;
+export default ActionCell;

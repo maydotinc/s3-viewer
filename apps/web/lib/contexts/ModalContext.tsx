@@ -1,11 +1,12 @@
 import { ServerInfo } from "@s3-viewer/types";
+import { GridApi } from "ag-grid-community";
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
 type ModalType =
    | "auth"
    | "connect"
    | "createBucket"
-   | "createObject"
+   | "confirmDelete"
    | "rename"
    | "disconnect"
    | "share"
@@ -15,9 +16,11 @@ type ModalPropsMap = {
    auth: {};
    connect: {};
    createBucket: { serverId?: string };
-   createObject: {
-      serverId?: string;
-      bucketName?: string;
+   confirmDelete: {
+      serverId: string;
+      bucketName: string;
+      fileNames: string[];
+      gridApi: GridApi | null;
    };
    rename: {
       server: ServerInfo;
@@ -113,8 +116,8 @@ export const useModalContext = () => {
       openConnectModal: () => context.openModal("connect", {}),
       openCreateBucketModal: (props: ModalPropsMap["createBucket"]) =>
          context.openModal("createBucket", props),
-      openCreateObjectModal: (props: ModalPropsMap["createObject"]) =>
-         context.openModal("createObject", props),
+      openConfirmDeleteModal: (props: ModalPropsMap["confirmDelete"]) =>
+         context.openModal("confirmDelete", props),
       openRenameModal: (props: ModalPropsMap["rename"]) =>
          context.openModal("rename", props),
       openDisconnectModal: (props: ModalPropsMap["disconnect"]) =>

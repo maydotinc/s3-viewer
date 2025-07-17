@@ -1,16 +1,16 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
 
-interface PresignedUploadResponse {
+interface PresignedUploadUrlResponse {
    url: string;
    message: string;
 }
 
-const getPresignedUrl = async (
+const getPresignedUploadUrl = async (
    bucketName: string,
    objectKey: string,
    contentType: string,
    serverId: string
-): Promise<PresignedUploadResponse> => {
+): Promise<PresignedUploadUrlResponse> => {
    const params = new URLSearchParams({
       bucketName,
       objectKey,
@@ -32,4 +32,4 @@ const getPresignedUrl = async (
    return await response.json();
 };
 
-export default getPresignedUrl;
+export default getPresignedUploadUrl;

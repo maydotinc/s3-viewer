@@ -12,8 +12,8 @@ const createApiRequest = async (
 };
 
 const handleApiError = async (response: Response): Promise<never> => {
-   const { message } = await response.json().catch(() => ({}));
-   throw new Error(message ?? `Request failed (${response.status})`);
+   const { message, error } = await response.json().catch(() => ({}));
+   throw new Error(error ?? message ?? `Request failed (${response.status})`);
 };
 
 export { createApiRequest, handleApiError };

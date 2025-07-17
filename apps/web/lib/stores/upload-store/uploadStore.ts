@@ -1,4 +1,4 @@
-import getPresignedUrl from "@/lib/utils/s3/getPresignedUrl";
+import getPresignedUploadUrl from "@/lib/utils/s3/getPresignedUploadUrl";
 import {
    MULTIPART_THRESHOLD,
    uploadFileMultipart,
@@ -80,7 +80,7 @@ const useUploadStore = create<UploadStore>()(
 
                response = await upload();
             } else {
-               const { url } = await getPresignedUrl(
+               const { url } = await getPresignedUploadUrl(
                   bucketName,
                   `${prefix}${filePath}`,
                   file.type,
