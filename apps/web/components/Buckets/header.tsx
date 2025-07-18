@@ -1,5 +1,6 @@
 import {
    Breadcrumb,
+   BreadcrumbEllipsis,
    BreadcrumbItem,
    BreadcrumbLink,
    BreadcrumbList,
@@ -15,6 +16,10 @@ import { useBucketContext } from "./Context";
 const BucketHeader = () => {
    const { bucket, path } = useBucketContext();
 
+   const shouldCollapse = path.length > 3;
+   const visiblePath = shouldCollapse ? path.slice(-3) : path;
+   const hiddenSegments = shouldCollapse ? path.length - 3 : 0;
+
    if (!bucket) {
       return (
          <div className="flex flex-col w-full h-35 border-b border-viewerborder px-8 py-4 items-center justify-center">
@@ -22,8 +27,9 @@ const BucketHeader = () => {
          </div>
       );
    }
+
    return (
-      <div className="flex md:flex-row flex-col w-full border-b border-viewerborder px-8 py-4 md:justify-between justify-start gap-2">
+      <div className="flex md:flex-row h-[var(--header-height)] box-border flex-col w-full border-b border-viewerborder px-8 py-4 md:justify-between justify-start gap-2">
          <div className="flex-1 flex items-center justify-start">
             <Breadcrumb>
                <BreadcrumbList>
@@ -48,32 +54,42 @@ const BucketHeader = () => {
                         </BreadcrumbPage>
                      )}
                   </BreadcrumbItem>
-                  {path.map((item, index) => {
-                     if (index === path.length - 1) {
-                        return (
-                           <div key={index} className="contents">
-                              <BreadcrumbSeparator />
-                              <BreadcrumbItem>
+                  {shouldCollapse && (
+                     <>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                           <BreadcrumbEllipsis />
+                        </BreadcrumbItem>
+                     </>
+                  )}
+                  {visiblePath.map((item, index) => {
+                     const isLast = index === visiblePath.length - 1;
+                     const actualIndex = shouldCollapse
+                        ? hiddenSegments + index
+                        : index;
+
+                     return (
+                        <div
+                           key={`${actualIndex}-${item}`}
+                           className="contents"
+                        >
+                           <BreadcrumbSeparator />
+                           <BreadcrumbItem>
+                              {isLast ? (
                                  <BreadcrumbPage className="text-viewerblack font-semibold">
                                     {item}
                                  </BreadcrumbPage>
-                              </BreadcrumbItem>
-                           </div>
-                        );
-                     }
-                     return (
-                        <div key={index} className="contents">
-                           <BreadcrumbSeparator />
-                           <BreadcrumbItem>
-                              <BreadcrumbLink asChild>
-                                 <Link
-                                    href={`/buckets/${bucket?.Name}/${path
-                                       .slice(0, index + 1)
-                                       .join("/")}`}
-                                 >
-                                    {item}
-                                 </Link>
-                              </BreadcrumbLink>
+                              ) : (
+                                 <BreadcrumbLink asChild>
+                                    <Link
+                                       href={`/buckets/${bucket?.Name}/${path
+                                          .slice(0, actualIndex + 1)
+                                          .join("/")}`}
+                                    >
+                                       {item}
+                                    </Link>
+                                 </BreadcrumbLink>
+                              )}
                            </BreadcrumbItem>
                         </div>
                      );

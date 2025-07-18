@@ -11,13 +11,9 @@ import { ChevronDown, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useGridContext } from "../context";
 
-type PaginationProps = {
-   className?: string;
-};
-
 const sizes = [25, 50, 100];
 
-const Pagination = ({ className }: PaginationProps) => {
+const Pagination = () => {
    const { gridRef, gridReady, setPageSize } = useGridContext();
    const [currentPageSize, setCurrentPageSize] = useState<number | null>(null);
    const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +28,7 @@ const Pagination = ({ className }: PaginationProps) => {
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
          <DropdownMenuTrigger asChild>
-            <Button>
+            <Button className="flex-initial">
                {`Rows (${currentPageSize ?? 100})`}
                <ChevronDown
                   className={cn(

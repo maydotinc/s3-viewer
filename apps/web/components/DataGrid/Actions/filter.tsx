@@ -10,11 +10,7 @@ import { ListFilter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useGridContext } from "../context";
 
-type FilterProps = {
-   className?: string;
-};
-
-const Filter = ({ className }: FilterProps) => {
+const Filter = () => {
    const { gridRef, gridReady } = useGridContext();
    const [allColumns, setAllColumns] = useState<Column[] | null>(null);
    const [filteredColumns, setFilteredColumns] = useState<Column[] | null>(
@@ -48,7 +44,7 @@ const Filter = ({ className }: FilterProps) => {
    return (
       <DropdownMenu>
          <DropdownMenuTrigger asChild>
-            <Button>
+            <Button className="flex-initial">
                <ListFilter className="size-4" />
                Filter
             </Button>

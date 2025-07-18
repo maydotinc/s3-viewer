@@ -75,11 +75,11 @@ const Buckets = () => {
    return (
       <GridProvider>
          <section className="flex flex-col p-8 w-full h-full">
-            <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
-               <div className="flex gap-2">
-                  <QuickSearch className="flex-2/3" />
-                  <Filter className="flex-1/3" />
-                  <Pagination className="flex-1/3" />
+            <div className="flex flex-wrap pb-6 justify-between gap-2">
+               <div className="flex gap-2 flex-1">
+                  <QuickSearch />
+                  <Filter />
+                  <Pagination />
                </div>
                <BucketActions />
             </div>

@@ -6,16 +6,20 @@ const BucketActions = () => {
    const { openShareModal, openCreateBucketModal } = useModalContext();
 
    return (
-      <div className="flex gap-2">
-         <Button onClick={() => openShareModal({})}>
+      <div className="flex gap-2 flex-1 justify-end">
+         <Button onClick={() => openShareModal({})} className="flex-initial">
             <UserRoundPlus className="size-4" />
             Share
          </Button>
-         <Button>
+         <Button className="flex-initial">
             <CodeXml className="size-4" />
             API
          </Button>
-         <Button variant="secondary" onClick={() => openCreateBucketModal({})}>
+         <Button
+            variant="secondary"
+            onClick={() => openCreateBucketModal({})}
+            className="flex-initial"
+         >
             <Plus className="size-4" />
             Create Bucket
          </Button>

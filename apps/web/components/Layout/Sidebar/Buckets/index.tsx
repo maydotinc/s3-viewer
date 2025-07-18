@@ -38,7 +38,9 @@ const BucketList = () => {
                         className="flex-1 flex gap-2 p-2 rounded-md items-center justify-start text-viewertext cursor-pointer hover:text-viewerblue hover:bg-viewergray"
                      >
                         <Folder className="size-4 text-viewerblue" />
-                        <span className="text-inherit">{bucketCard?.Name}</span>
+                        <span className="text-inherit truncate max-w-[150px]">
+                           {bucketCard?.Name}
+                        </span>
                      </Link>
                   </div>
                );

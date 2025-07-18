@@ -20,7 +20,7 @@ const ServerInfo = () => {
    }
 
    return (
-      <div className="w-full hidden sm:flex max-h-20 bg-viewerwhite px-8 py-4 gap-4 justify-between items-center">
+      <div className="w-full hidden box-border border-b border-viewerborder sm:flex h-[var(--header-height)] bg-viewerwhite px-8 py-4 gap-4 justify-between items-center">
          <div className="flex gap-2 items-center">
             <ServerLogo provider={currentServer.provider} />
             <div className="flex flex-col items-start justify-between">
