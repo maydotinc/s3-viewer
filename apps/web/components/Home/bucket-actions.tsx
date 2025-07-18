@@ -6,7 +6,7 @@ const BucketActions = () => {
    const { openShareModal, openCreateBucketModal } = useModalContext();
 
    return (
-      <div className="flex gap-2 flex-1 justify-end">
+      <div className="flex gap-2 justify-end">
          <Button onClick={() => openShareModal({})} className="flex-initial">
             <UserRoundPlus className="size-4" />
             Share

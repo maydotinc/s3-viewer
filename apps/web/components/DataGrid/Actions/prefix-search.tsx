@@ -47,12 +47,7 @@ const PrefixSearch = ({ className }: PrefixSearchProps) => {
    }, [debouncedPrefixSearch]);
 
    return (
-      <div
-         className={cn(
-            "relative flex-1 md:min-w-1/2 items-center flex",
-            className
-         )}
-      >
+      <div className={cn("relative flex-initial items-center flex", className)}>
          <SearchIcon className="absolute left-3 text-viewertext size-4" />
          <Input
             disabled={!gridReady}

@@ -13,7 +13,11 @@ import { useGridContext } from "../context";
 
 const sizes = [25, 50, 100];
 
-const Pagination = () => {
+type PaginationProps = {
+   className?: string;
+};
+
+const Pagination = ({ className }: PaginationProps) => {
    const { gridRef, gridReady, setPageSize } = useGridContext();
    const [currentPageSize, setCurrentPageSize] = useState<number | null>(null);
    const [isOpen, setIsOpen] = useState(false);
@@ -28,7 +32,7 @@ const Pagination = () => {
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
          <DropdownMenuTrigger asChild>
-            <Button className="flex-initial">
+            <Button className={cn("flex-initial", className)}>
                {`Rows (${currentPageSize ?? 100})`}
                <ChevronDown
                   className={cn(

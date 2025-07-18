@@ -5,12 +5,17 @@ import {
    DropdownMenuContent,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { Column } from "ag-grid-community";
 import { ListFilter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useGridContext } from "../context";
 
-const Filter = () => {
+type FilterProps = {
+   className?: string;
+};
+
+const Filter = ({ className }: FilterProps) => {
    const { gridRef, gridReady } = useGridContext();
    const [allColumns, setAllColumns] = useState<Column[] | null>(null);
    const [filteredColumns, setFilteredColumns] = useState<Column[] | null>(
@@ -44,7 +49,7 @@ const Filter = () => {
    return (
       <DropdownMenu>
          <DropdownMenuTrigger asChild>
-            <Button className="flex-initial">
+            <Button className={cn("flex-initial", className)}>
                <ListFilter className="size-4" />
                Filter
             </Button>

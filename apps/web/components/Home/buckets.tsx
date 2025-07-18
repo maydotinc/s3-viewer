@@ -4,13 +4,11 @@ import { ColDef } from "ag-grid-community";
 import { CustomCellRendererProps } from "ag-grid-react";
 import Link from "next/link";
 import { useEffect } from "react";
-import Filter from "../DataGrid/Actions/filter";
 import PaginationControls from "../DataGrid/Actions/page-controls";
-import Pagination from "../DataGrid/Actions/pagination";
-import QuickSearch from "../DataGrid/Actions/quick-search";
 import { GridProvider, useGridContext } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
-import BucketActions from "./actions";
+import BucketActions from "./bucket-actions";
+import GridActions from "./grid-actions";
 
 const columns: ColDef<S3Bucket>[] = [
    {
@@ -76,11 +74,7 @@ const Buckets = () => {
       <GridProvider>
          <section className="flex flex-col p-8 w-full h-full">
             <div className="flex flex-wrap pb-6 justify-between gap-2">
-               <div className="flex gap-2 flex-1">
-                  <QuickSearch />
-                  <Filter />
-                  <Pagination />
-               </div>
+               <GridActions />
                <BucketActions />
             </div>
             <div className="flex flex-col flex-1 gap-2">

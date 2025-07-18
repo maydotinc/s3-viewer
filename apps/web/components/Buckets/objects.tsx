@@ -1,13 +1,11 @@
 import useSessionStore from "@/lib/stores/sessionStore";
 import { useEffect, useMemo } from "react";
-import Filter from "../DataGrid/Actions/filter";
 import PaginationControls from "../DataGrid/Actions/page-controls";
-import Pagination from "../DataGrid/Actions/pagination";
-import PrefixSearch from "../DataGrid/Actions/prefix-search";
 import { useGridContext } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
 import ObjectActions from "./Actions";
 import { useBucketContext } from "./Context";
+import GridActions from "./Grid/actions";
 import columns from "./Grid/cols/columns";
 import { rowSelection } from "./Grid/cols/selection-col";
 import MakeObjectSource from "./Grid/object-source";
@@ -51,12 +49,8 @@ const Objects = () => {
 
    return (
       <section className="flex flex-col p-8 w-full h-full">
-         <div className="flex lg:flex-row flex-col pb-6 justify-between gap-2">
-            <div className="flex gap-2">
-               <PrefixSearch className="flex-2/3" />
-               <Filter className="flex-1/3" />
-               <Pagination className="flex-1/3" />
-            </div>
+         <div className="flex flex-wrap pb-6 justify-between gap-2">
+            <GridActions />
             <ObjectActions />
          </div>
          <div className="flex flex-col flex-1 gap-2">
