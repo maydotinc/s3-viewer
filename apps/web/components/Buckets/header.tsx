@@ -29,8 +29,8 @@ const BucketHeader = () => {
    }
 
    return (
-      <div className="flex md:flex-row h-[var(--header-height)] box-border flex-col w-full border-b border-viewerborder px-8 py-4 md:justify-between justify-start gap-2">
-         <div className="flex-1 flex items-center justify-start">
+      <div className="flex flex-row h-[var(--header-height)] max-lg:h-auto box-border max-lg:flex-col w-full border-b border-viewerborder px-8 py-4 justify-between max-lg:justify-start gap-2 max-lg:gap-4">
+         <div className="flex items-center">
             <Breadcrumb>
                <BreadcrumbList>
                   <BreadcrumbItem>
@@ -97,12 +97,12 @@ const BucketHeader = () => {
                </BreadcrumbList>
             </Breadcrumb>
          </div>
-         <div className="flex flex-1 w-fit items-center justify-end gap-2">
-            <Button>
+         <div className="flex items-center gap-2 max-lg:order-first max-lg:w-full">
+            <Button className="max-lg:flex-1">
                <Link2 className="size-4" />
                Custom Domain
             </Button>
-            <Button>
+            <Button className="max-lg:flex-1">
                <Link2 className="size-4" />
                Public URL
             </Button>
