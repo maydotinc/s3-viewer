@@ -10,7 +10,7 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { Plus, RefreshCcw, Trash, UserRoundPlus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useBucketContext } from "../Context";
 
 const ObjectActions = () => {
@@ -43,54 +43,67 @@ const ObjectActions = () => {
       };
    }, [gridReady]);
 
+   const showDeleteButton = useMemo(() => {
+      return (
+         rowsSelected.length > 0 &&
+         serverId &&
+         bucket?.Name &&
+         gridRef.current?.api &&
+         gridReady
+      );
+   }, [rowsSelected, serverId, bucket, gridReady]);
+
    return (
-      <div className="flex gap-2">
-         {rowsSelected.length > 0 &&
-            serverId &&
-            bucket?.Name &&
-            gridRef.current?.api &&
-            gridReady && (
-               <Button
-                  variant="destructive"
-                  onClick={() => {
-                     openConfirmDeleteModal({
-                        serverId,
-                        bucketName: bucket.Name,
-                        fileNames: rowsSelected,
-                        gridApi: gridRef.current?.api ?? null,
-                     });
-                  }}
-               >
-                  <Trash className="size-4" />
-                  Delete {rowsSelected.length}
-               </Button>
-            )}
+      <div className="flex gap-2 @max-3xl/actions:flex-1">
          <Button
             disabled={!gridReady}
             onClick={() => gridRef.current?.api?.refreshInfiniteCache()}
+            className="@max-3xl/actions:flex-1"
          >
             <RefreshCcw className="size-4" />
             Refresh
          </Button>
-         <Button onClick={() => openShareModal({})}>
+         <Button
+            onClick={() => openShareModal({})}
+            className="@max-3xl/actions:flex-1"
+         >
             <UserRoundPlus className="size-4" />
             Share
          </Button>
-         <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-               <Button
-                  variant="secondary"
-                  onClick={() => openCreateBucketModal({})}
-               >
-                  <Plus className="size-4" />
-                  New
-               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-50">
-               <UploadFolder />
-               <UploadFile />
-            </DropdownMenuContent>
-         </DropdownMenu>
+         {showDeleteButton ? (
+            <Button
+               variant="destructive"
+               onClick={() => {
+                  openConfirmDeleteModal({
+                     serverId,
+                     bucketName: bucket!.Name,
+                     fileNames: rowsSelected,
+                     gridApi: gridRef.current?.api ?? null,
+                  });
+               }}
+               className="w-[100px] @max-3xl/actions:flex-1"
+            >
+               <Trash className="size-4" />
+               Delete {rowsSelected.length}
+            </Button>
+         ) : (
+            <DropdownMenu>
+               <DropdownMenuTrigger asChild>
+                  <Button
+                     variant="secondary"
+                     onClick={() => openCreateBucketModal({})}
+                     className="w-[100px] @max-3xl/actions:flex-1"
+                  >
+                     <Plus className="size-4" />
+                     New
+                  </Button>
+               </DropdownMenuTrigger>
+               <DropdownMenuContent align="end" className="w-50">
+                  <UploadFolder />
+                  <UploadFile />
+               </DropdownMenuContent>
+            </DropdownMenu>
+         )}
       </div>
    );
 };

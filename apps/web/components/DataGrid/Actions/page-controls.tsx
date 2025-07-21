@@ -59,7 +59,7 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
       gridRef.current?.api.paginationGetCurrentPage() <= 0;
 
    return (
-      <div className="flex gap-2 mx-auto">
+      <div className={cn("flex gap-2 mx-auto", className)}>
          <Button
             onClick={() => {
                gridRef.current?.api.paginationGoToFirstPage();

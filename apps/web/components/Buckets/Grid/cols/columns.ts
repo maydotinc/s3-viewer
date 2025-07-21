@@ -36,6 +36,12 @@ const columns: ColDef<S3Object>[] = [
          const { value, unit } = formatFileSize(params.value);
          return `${value} ${unit}`;
       },
+      cellStyle: {
+         paddingLeft: "4px",
+      },
+      headerStyle: {
+         paddingLeft: "4px",
+      },
    },
    {
       field: "LastModified",
@@ -48,6 +54,12 @@ const columns: ColDef<S3Object>[] = [
          return new Date(params.value).toLocaleDateString();
       },
       sortable: false,
+      cellStyle: {
+         paddingLeft: "4px",
+      },
+      headerStyle: {
+         paddingLeft: "4px",
+      },
    },
    {
       headerName: "",
