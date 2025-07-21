@@ -136,7 +136,7 @@ const ProfileDropdown: React.FC = () => {
                            />
                            <Button
                               variant="ghost"
-                              className="w-full items-start hover:bg-viewergray flex items-center justify-start gap-2 text-black"
+                              className="w-full hover:bg-viewergray flex items-center justify-start gap-2 text-black"
                               onClick={() => handleOptionSelect(option.id)}
                            >
                               {option.icon}
@@ -147,7 +147,7 @@ const ProfileDropdown: React.FC = () => {
                         <Button
                            variant="ghost"
                            key={option.id}
-                           className="w-full items-start hover:bg-viewergray flex items-center justify-start gap-2 text-black"
+                           className="w-full hover:bg-viewergray flex items-center justify-start gap-2 text-black"
                            onClick={() => handleOptionSelect(option.id)}
                         >
                            {option.icon}
