@@ -19,6 +19,7 @@ import SubmitButton from "./buttons/submit";
 import useAuthStore from "@/lib/stores/authStore";
 import { Button } from "@s3-viewer/ui/components/button";
 import { MailCheck, UserRoundCheck, UserRoundPlus } from "lucide-react";
+import { useEffect } from "react";
 import TermsButton from "./buttons/terms";
 
 type AuthModalProps = {
@@ -26,7 +27,19 @@ type AuthModalProps = {
 };
 
 const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
-   const { authType, toggleAuthType, otpSent: isVerificationStage, email, reset } = useAuthStore();
+   const {
+      authType,
+      toggleAuthType,
+      otpSent: isVerificationStage,
+      email,
+      reset,
+      error,
+      setError,
+   } = useAuthStore();
+
+   useEffect(() => {
+      setError(null);
+   }, [authType]);
 
    const getDialogText = () => {
       if (isVerificationStage) {
@@ -88,7 +101,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
       return (
          <div className="flex items-center justify-center text-sm text-black">
             <span className="font-normal">
-               {authType === "signin" ? "Don't have an account?" : "Already have an account?"}
+               {authType === "signin"
+                  ? "Don't have an account?"
+                  : "Already have an account?"}
             </span>
             <Button
                variant="link"
@@ -103,14 +118,18 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
    return (
       <Dialog open={true} onOpenChange={onClose}>
-         <DialogContent className="max-w-[95%] xs:max-w-lg sm:max-w-md overflow-hidden">
+         <DialogContent className="max-w-[95%] xs:max-w-lg sm:max-w-md overflow-hidden pb-2 gap-2">
             <DialogHeader className="flex flex-col items-center text-center gap-2">
                <DialogTitle>{title}</DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
                   <span>{description}</span>
                </DialogDescription>
             </DialogHeader>
-            <div className={isVerificationStage ? "hidden" : "flex flex-col gap-4"}>
+            <div
+               className={
+                  isVerificationStage ? "hidden" : "flex flex-col gap-4"
+               }
+            >
                {authType === "signup" && (
                   <>
                      <NameInput />
@@ -138,6 +157,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                   <SubmitButton />
                </>
             )}
+            <div className="flex w-full h-[10px]">
+               <span className="text-red-500 text-xs">{error}</span>
+            </div>
             <DialogFooter className="flex justify-center">
                <BottomText />
             </DialogFooter>

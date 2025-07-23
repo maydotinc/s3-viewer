@@ -45,37 +45,41 @@ const signOut = async (successUrl?: string) => {
    });
    if (error) {
       toast.error(error.message ?? error.statusText);
-      return { success: false, data: null, error: error.message ?? error.statusText };
+      return {
+         success: false,
+         data: null,
+         error: error.message ?? error.statusText,
+      };
    }
    return { success: true, data, error: null };
 };
 
-const sendVerificationOtp = async (type: "signin" | "signup", email: string) => {
+const sendVerificationOtp = async (
+   type: "signin" | "signup",
+   email: string
+) => {
    const { exists, error } = await doesUserExist(email);
 
    if (error) {
-      toast.error(error);
       return { success: false, error: error };
    }
 
    if (type === "signup") {
       if (exists) {
-         toast.error("User already exists");
          return { success: false, error: "User already exists" };
       }
    } else {
       if (!exists) {
-         toast.error("User does not exist, please sign up");
          return { success: false, error: "User does not exist" };
       }
    }
 
-   const { data, error: otpError } = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: "sign-in",
-   });
+   const { data, error: otpError } =
+      await authClient.emailOtp.sendVerificationOtp({
+         email,
+         type: "sign-in",
+      });
    if (otpError) {
-      toast.error(otpError.message ?? otpError.statusText);
       return { success: false, error: otpError.message ?? otpError.statusText };
    }
    return { success: true, data, error: null };
@@ -95,8 +99,11 @@ const verifyOtp = async (email: string, otp: string, successUrl?: string) => {
    });
    if (error) {
       console.dir(error, { depth: null });
-      toast.error(error.message ?? error.statusText);
-      return { success: false, data: null, error: error.message ?? error.statusText };
+      return {
+         success: false,
+         data: null,
+         error: error.message ?? error.statusText,
+      };
    }
    return { success: true, data, error: null };
 };

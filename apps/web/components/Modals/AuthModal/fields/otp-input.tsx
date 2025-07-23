@@ -8,7 +8,7 @@ interface OTPInputProps {
 }
 
 const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
-   const { email, name, setVerifying, authType } = useAuthStore();
+   const { email, name, setVerifying, authType, setError } = useAuthStore();
    const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -27,7 +27,13 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
       }
 
       try {
-         await verifyOtp(email, code, "/home");
+         const { error } = await verifyOtp(email, code, "/home");
+         if (error) {
+            setError(error);
+            return;
+         }
+
+         setError(null);
          if (authType === "signup") {
             authClient.updateUser({
                name,
@@ -39,6 +45,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
    };
 
    const handleChange = (element: HTMLInputElement, index: number) => {
+      setError(null);
       const value = element.value.replace(/\D/g, "").slice(0, 1);
 
       const newOtp = [...otp];
@@ -54,7 +61,10 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
       }
    };
 
-   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+   const handleKeyDown = (
+      e: React.KeyboardEvent<HTMLInputElement>,
+      index: number
+   ) => {
       if (e.key === "Backspace" && !otp[index] && index > 0) {
          inputRefs.current[index - 1]?.focus();
       } else if (e.key === "Enter") {
@@ -64,9 +74,15 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
 
    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
       e.preventDefault();
-      const pastedData = e.clipboardData.getData("text/plain").replace(/\D/g, "").slice(0, length);
+      const pastedData = e.clipboardData
+         .getData("text/plain")
+         .replace(/\D/g, "")
+         .slice(0, length);
 
-      const newOtp = [...pastedData.split(""), ...Array(length - pastedData.length).fill("")];
+      const newOtp = [
+         ...pastedData.split(""),
+         ...Array(length - pastedData.length).fill(""),
+      ];
       setOtp(newOtp);
 
       if (newOtp.every((digit) => digit !== "")) {

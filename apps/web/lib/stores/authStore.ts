@@ -15,11 +15,13 @@ type AuthState = {
    verifying: boolean;
    otpSent: boolean;
    invalidFields: InvalidField[];
+   error: string | null;
    setInvalidFields: (invalidFields: InvalidField[]) => void;
 };
 
 type AuthActions = {
    toggleAuthType: () => void;
+   setError: (error: string | null) => void;
    setName: (name: string) => void;
    setEmail: (email: string) => void;
    setIsValidEmail: (isValidEmail: boolean) => void;
@@ -42,10 +44,12 @@ const useAuthStore = create<AuthStore>()(
       verifying: false,
       otpSent: false,
       invalidFields: [],
-
+      error: null,
       setInvalidFields: (invalidFields) => set({ invalidFields }),
       toggleAuthType: () =>
-         set((state) => ({ authType: state.authType === "signin" ? "signup" : "signin" })),
+         set((state) => ({
+            authType: state.authType === "signin" ? "signup" : "signin",
+         })),
       setName: (name) => set({ name }),
       setEmail: (email) => set({ email }),
       setIsValidEmail: (isValidEmail) => set({ isValidEmail }),
@@ -67,6 +71,7 @@ const useAuthStore = create<AuthStore>()(
       },
       setOtpSent: (otpSent) => set({ otpSent }),
       setVerifying: (verifying) => set({ verifying }),
+      setError: (error) => set({ error }),
       reset: () =>
          set((state) => ({
             authType: state.authType,
@@ -77,6 +82,7 @@ const useAuthStore = create<AuthStore>()(
             verifying: false,
             otpSent: false,
             invalidFields: [],
+            error: null,
          })),
    }))
 );

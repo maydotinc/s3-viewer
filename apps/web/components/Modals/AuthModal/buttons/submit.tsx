@@ -16,14 +16,20 @@ const SubmitButton = () => {
       invalidFields,
       setInvalidFields,
       verifying,
+      setError,
    } = useAuthStore();
-   const buttonText = otpSent ? "Verify" : authType === "signin" ? "Send Code" : "Register";
+   const buttonText = otpSent
+      ? "Verify"
+      : authType === "signin"
+        ? "Send Code"
+        : "Register";
 
    const handleSubmit = async () => {
       setLoading(true);
       if (authType === "signup") {
          if (!name) {
             setInvalidFields([...invalidFields, "name"]);
+            setError("Name is required");
             setLoading(false);
             return;
          } else {
@@ -32,6 +38,7 @@ const SubmitButton = () => {
       }
       if (!isValidEmail(email)) {
          setInvalidFields([...invalidFields, "email"]);
+         setError("Invalid email");
          setLoading(false);
          return;
       } else {
@@ -39,12 +46,14 @@ const SubmitButton = () => {
       }
       const { success, error } = await sendVerificationOtp(authType, email);
       if (error) {
+         setError(error);
          setLoading(false);
          return;
       }
       if (success) {
          setOtpSent(true);
          setLoading(false);
+         setError(null);
          return;
       }
       setLoading(false);
@@ -58,7 +67,11 @@ const SubmitButton = () => {
             variant="secondary"
             onClick={handleSubmit}
          >
-            {loading || verifying ? <LoaderCircle className="animate-spin" /> : buttonText}
+            {loading || verifying ? (
+               <LoaderCircle className="animate-spin" />
+            ) : (
+               buttonText
+            )}
          </Button>
       </div>
    );
