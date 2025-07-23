@@ -1,6 +1,5 @@
 import useSessionStore from "@/lib/stores/sessionStore";
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const useCreateBucket = (serverId: string) => {
@@ -24,14 +23,8 @@ const useCreateBucket = (serverId: string) => {
       },
 
       onSuccess: () => {
-         toast.success("Bucket created successfully");
          queryClient.invalidateQueries({
             queryKey: ["buckets", currentServerId],
-         });
-      },
-      onError: (error: Error) => {
-         toast.error("Unable to create bucket", {
-            description: error.message,
          });
       },
    });

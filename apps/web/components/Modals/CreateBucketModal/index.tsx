@@ -58,8 +58,10 @@ const CreateBucketModal: React.FC<CreateBucketModalProps> = ({
                   setError={setError}
                   onClose={onClose}
                />
+               <div className="flex w-full h-[14px]">
+                  <span className="text-red-500 text-xs">{error}</span>
+               </div>
             </DialogFooter>
-            {error && <span className="text-red-500 text-sm">{error}</span>}
          </DialogContent>
       </Dialog>
    );
