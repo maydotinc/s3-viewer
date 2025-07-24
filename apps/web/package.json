@@ -18,6 +18,7 @@
       "@tanstack/react-query": "^5.77.2",
       "@tanstack/react-virtual": "^3.13.12",
       "@types/lodash": "^4.17.16",
+      "@zootools/email-spell-checker": "^1.12.0",
       "ag-grid-community": "^33.3.2",
       "ag-grid-react": "^33.3.2",
       "better-auth": "^1.2.8",

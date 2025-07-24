@@ -111,6 +111,9 @@ importers:
       '@types/lodash':
         specifier: ^4.17.16
         version: 4.17.17
+      '@zootools/email-spell-checker':
+        specifier: ^1.12.0
+        version: 1.12.0
       ag-grid-community:
         specifier: ^33.3.2
         version: 33.3.2
@@ -2582,6 +2585,10 @@ packages:
   '@typescript-eslint/visitor-keys@8.33.1':
     resolution: {integrity: sha512-3i8NrFcZeeDHJ+7ZUuDkGT+UHq+XoFGsymNK2jZCOHcfEzRQ0BdpRtdpSx/Iyf3MHLWIcLS0COuOPibKQboIiQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+
+  '@zootools/email-spell-checker@1.12.0':
+    resolution: {integrity: sha512-yM0lH4yjg+jZG5QubtvpHE+ahSnsHbw9ilnQgKgOF3fk6OBVQLRsEq4NR+/nRvrwG8Vo+29bzKwhXk5y1b/FwA==}
+    engines: {node: '>=12.0'}
 
   accepts@2.0.0:
     resolution: {integrity: sha512-5cvg6CtKwfgdmVqY1WIiXKc3Q1bkRqGLi+2W/6ao+6Y7gu/RCwRuAhGEzh5B4KlszSuTLgZYuqFqo5bImjNKng==}
@@ -8027,6 +8034,8 @@ snapshots:
     dependencies:
       '@typescript-eslint/types': 8.33.1
       eslint-visitor-keys: 4.2.0
+
+  '@zootools/email-spell-checker@1.12.0': {}
 
   accepts@2.0.0:
     dependencies:
