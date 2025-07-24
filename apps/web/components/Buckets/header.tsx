@@ -7,9 +7,8 @@ import {
    BreadcrumbPage,
    BreadcrumbSeparator,
 } from "@s3-viewer/ui/components/breadcrumb";
-import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { House, Link2 } from "lucide-react";
+import { House } from "lucide-react";
 import Link from "next/link";
 import { useBucketContext } from "./Context";
 
@@ -29,84 +28,69 @@ const BucketHeader = () => {
    }
 
    return (
-      <div className="flex flex-row h-[var(--header-height)] max-lg:h-auto box-border max-lg:flex-col w-full border-b border-viewerborder px-8 py-4 justify-between max-lg:justify-start gap-2 max-lg:gap-4">
-         <div className="flex items-center">
-            <Breadcrumb>
-               <BreadcrumbList>
-                  <BreadcrumbItem>
+      <div className="flex min-h-[var(--header-height)] box-border w-full border-b border-viewerborder px-8 py-4 gap-2 max-lg:gap-4 items-center">
+         <Breadcrumb>
+            <BreadcrumbList>
+               <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                     <Link href="/home">
+                        <House className="size-5" />
+                     </Link>
+                  </BreadcrumbLink>
+               </BreadcrumbItem>
+               <BreadcrumbSeparator />
+               <BreadcrumbItem>
+                  {path.length > 0 ? (
                      <BreadcrumbLink asChild>
-                        <Link href="/home">
-                           <House className="size-5" />
+                        <Link href={`/buckets/${bucket?.Name}`}>
+                           {bucket?.Name}
                         </Link>
                      </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                     {path.length > 0 ? (
-                        <BreadcrumbLink asChild>
-                           <Link href={`/buckets/${bucket?.Name}`}>
-                              {bucket?.Name}
-                           </Link>
-                        </BreadcrumbLink>
-                     ) : (
-                        <BreadcrumbPage className="text-viewerblack font-semibold">
-                           {bucket?.Name}
-                        </BreadcrumbPage>
-                     )}
-                  </BreadcrumbItem>
-                  {shouldCollapse && (
-                     <>
+                  ) : (
+                     <BreadcrumbPage className="text-viewerblack font-semibold">
+                        {bucket?.Name}
+                     </BreadcrumbPage>
+                  )}
+               </BreadcrumbItem>
+               {shouldCollapse && (
+                  <>
+                     <BreadcrumbSeparator />
+                     <BreadcrumbItem>
+                        <BreadcrumbEllipsis />
+                     </BreadcrumbItem>
+                  </>
+               )}
+               {visiblePath.map((item, index) => {
+                  const isLast = index === visiblePath.length - 1;
+                  const actualIndex = shouldCollapse
+                     ? hiddenSegments + index
+                     : index;
+
+                  return (
+                     <div key={`${actualIndex}-${item}`} className="contents">
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
-                           <BreadcrumbEllipsis />
-                        </BreadcrumbItem>
-                     </>
-                  )}
-                  {visiblePath.map((item, index) => {
-                     const isLast = index === visiblePath.length - 1;
-                     const actualIndex = shouldCollapse
-                        ? hiddenSegments + index
-                        : index;
-
-                     return (
-                        <div
-                           key={`${actualIndex}-${item}`}
-                           className="contents"
-                        >
-                           <BreadcrumbSeparator />
-                           <BreadcrumbItem>
-                              {isLast ? (
-                                 <BreadcrumbPage className="text-viewerblack font-semibold">
+                           {isLast ? (
+                              <BreadcrumbPage className="text-viewerblack font-semibold">
+                                 {item}
+                              </BreadcrumbPage>
+                           ) : (
+                              <BreadcrumbLink asChild>
+                                 <Link
+                                    href={`/buckets/${bucket?.Name}/${path
+                                       .slice(0, actualIndex + 1)
+                                       .join("/")}`}
+                                 >
                                     {item}
-                                 </BreadcrumbPage>
-                              ) : (
-                                 <BreadcrumbLink asChild>
-                                    <Link
-                                       href={`/buckets/${bucket?.Name}/${path
-                                          .slice(0, actualIndex + 1)
-                                          .join("/")}`}
-                                    >
-                                       {item}
-                                    </Link>
-                                 </BreadcrumbLink>
-                              )}
-                           </BreadcrumbItem>
-                        </div>
-                     );
-                  })}
-               </BreadcrumbList>
-            </Breadcrumb>
-         </div>
-         <div className="flex items-center gap-2 max-lg:order-first max-lg:w-full">
-            <Button className="max-lg:flex-1">
-               <Link2 className="size-4" />
-               Custom Domain
-            </Button>
-            <Button className="max-lg:flex-1">
-               <Link2 className="size-4" />
-               Public URL
-            </Button>
-         </div>
+                                 </Link>
+                              </BreadcrumbLink>
+                           )}
+                        </BreadcrumbItem>
+                     </div>
+                  );
+               })}
+            </BreadcrumbList>
+         </Breadcrumb>
       </div>
    );
 };

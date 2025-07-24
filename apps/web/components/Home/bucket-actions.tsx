@@ -1,27 +1,23 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import { Button } from "@s3-viewer/ui/components/button";
-import { CodeXml, Plus, UserRoundPlus } from "lucide-react";
+import { Plus, UserRoundPlus } from "lucide-react";
 
 const BucketActions = () => {
    const { openShareModal, openCreateBucketModal } = useModalContext();
 
    return (
-      <div className="flex gap-2 justify-end @max-3xl/actions:flex-1">
+      <div className="flex gap-2 justify-end @max-2xl/actions:flex-1">
          <Button
             onClick={() => openShareModal({})}
-            className="flex-initial @max-3xl/actions:flex-1"
+            className="flex-initial @max-2xl/actions:flex-1"
          >
             <UserRoundPlus className="size-4" />
             Share
          </Button>
-         <Button className="flex-initial @max-3xl/actions:flex-1">
-            <CodeXml className="size-4" />
-            API
-         </Button>
          <Button
             variant="secondary"
             onClick={() => openCreateBucketModal({})}
-            className="flex-initial @max-3xl/actions:flex-1"
+            className="flex-initial @max-2xl/actions:flex-1"
          >
             <Plus className="size-4" />
             Create Bucket

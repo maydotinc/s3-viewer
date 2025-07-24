@@ -4,10 +4,10 @@ import QuickSearch from "../DataGrid/Actions/quick-search";
 
 const GridActions = () => {
    return (
-      <div className="flex gap-2 @max-3xl/actions:flex-1">
-         <QuickSearch className="@max-3xl/actions:flex-2" />
-         <Filter className="@max-3xl/actions:flex-1" />
-         <Pagination className="@max-3xl/actions:flex-1" />
+      <div className="flex gap-2 @max-2xl/actions:flex-1">
+         <QuickSearch className="@max-2xl/actions:flex-2" />
+         <Filter className="@max-2xl/actions:flex-1" />
+         <Pagination className="@max-2xl/actions:flex-1" />
       </div>
    );
 };
