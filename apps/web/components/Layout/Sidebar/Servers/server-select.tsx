@@ -1,6 +1,7 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
+import { authClient } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -21,12 +22,23 @@ const ServerSelector = () => {
    const { servers, currentServer, isServerListLoading, serverError } =
       useServers();
    const setServerId = useSessionStore((state) => state.setServerId);
+   const { data: session, isPending } = authClient.useSession();
 
    const handleServerSelect = (newServerId: string) => {
       setServerId(newServerId);
    };
 
-   if (isServerListLoading) {
+   if (!session && !isPending) {
+      return (
+         <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
+            <p className="text-viewertext text-center">
+               Please login to connect a server
+            </p>
+         </div>
+      );
+   }
+
+   if (isServerListLoading || !currentServer || isPending) {
       return (
          <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
       );
@@ -53,12 +65,6 @@ const ServerSelector = () => {
                Add new server
             </Button>
          </div>
-      );
-   }
-
-   if (!currentServer) {
-      return (
-         <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
       );
    }
 
