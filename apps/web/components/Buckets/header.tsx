@@ -28,7 +28,7 @@ const BucketHeader = () => {
    }
 
    return (
-      <div className="flex min-h-[var(--header-height)] box-border w-full border-b border-viewerborder px-8 py-4 gap-2 max-lg:gap-4 items-center">
+      <div className="flex h-[var(--header-height)] max-md:h-auto box-border w-full border-b border-viewerborder px-8 py-4 gap-2 max-lg:gap-4 items-center">
          <Breadcrumb>
             <BreadcrumbList>
                <BreadcrumbItem>
