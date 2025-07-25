@@ -1,12 +1,12 @@
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { Folder } from "lucide-react";
+import { Folder, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
 
 const BucketList = () => {
    const containerRef = useRef<HTMLDivElement>(null);
-   const { buckets, isBucketsLoading, bucketsError } = useBuckets();
+   const { buckets, bucketsError, isBucketsLoading } = useBuckets();
    const virtualizer = useVirtualizer({
       count: buckets.length,
       getScrollElement: () => containerRef.current,
@@ -14,6 +14,14 @@ const BucketList = () => {
    });
 
    const virtualItems = virtualizer.getVirtualItems();
+
+   if (isBucketsLoading) {
+      return (
+         <div className="w-full flex items-center justify-center overflow-hidden pb-2">
+            <Loader2 className="size-4 animate-spin text-viewerblue" />
+         </div>
+      );
+   }
 
    return (
       <div className="w-full overflow-auto px-2 pb-2" ref={containerRef}>
