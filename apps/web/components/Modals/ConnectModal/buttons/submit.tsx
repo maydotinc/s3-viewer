@@ -2,6 +2,7 @@ import useCreateServer from "@/lib/hooks/mutations/server/useCreateServer";
 import useEstablishConnection from "@/lib/hooks/mutations/server/useEstablishConnection";
 import useConnectStore from "@/lib/stores/connectStore";
 import useSessionStore from "@/lib/stores/sessionStore";
+import { encryptCredentials } from "@/lib/utils/encryption";
 import { Button } from "@s3-viewer/ui/components/button";
 import { LoaderCircle } from "lucide-react";
 
@@ -28,33 +29,41 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
    const establishConnectionMutation = useEstablishConnection();
    const setServerId = useSessionStore((state) => state.setServerId);
 
-   const handleSubmit = () => {
+   const handleSubmit = async () => {
       if (serverFound) {
-         createServerMutation.mutate(
-            {
-               serverCredentials: {
-                  endpoint,
-                  region,
-                  accessKey,
-                  secretKey,
+         try {
+            // Encrypt credentials before sending
+            const encryptedCredentials = await encryptCredentials({
+               endpoint,
+               region,
+               accessKey,
+               secretKey,
+            });
+
+            createServerMutation.mutate(
+               {
+                  encryptedCredentials,
+                  serverName,
                },
-               serverName,
-            },
-            {
-               onSuccess: (data) => {
-                  setError(null);
-                  setSearching(false);
-                  setServerFound(true);
-                  setServerId(data.serverId);
-                  onClose();
-                  reset();
-               },
-               onError: (error) => {
-                  setError(error.message);
-                  setSearching(false);
-               },
-            }
-         );
+               {
+                  onSuccess: (data) => {
+                     setError(null);
+                     setSearching(false);
+                     setServerFound(true);
+                     setServerId(data.serverId);
+                     onClose();
+                     reset();
+                  },
+                  onError: (error) => {
+                     setError(error.message);
+                     setSearching(false);
+                  },
+               }
+            );
+         } catch (error) {
+            setError("Failed to encrypt credentials");
+            setSearching(false);
+         }
          return;
       }
 
@@ -64,14 +73,17 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
       }
 
       setSearching(true);
-      establishConnectionMutation.mutate(
-         {
+
+      try {
+         // Encrypt credentials before sending
+         const encryptedCredentials = await encryptCredentials({
             endpoint,
             region,
             accessKey,
             secretKey,
-         },
-         {
+         });
+
+         establishConnectionMutation.mutate(encryptedCredentials, {
             onSuccess: (data) => {
                setServerFound(true);
                setError(null);
@@ -82,8 +94,11 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
                setError(error.message);
                setSearching(false);
             },
-         }
-      );
+         });
+      } catch (error) {
+         setError("Failed to encrypt credentials");
+         setSearching(false);
+      }
    };
 
    const isLoading =

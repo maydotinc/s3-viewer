@@ -1,5 +1,4 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { ServerCredentials } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -8,15 +7,15 @@ const useCreateServer = () => {
 
    return useMutation({
       mutationFn: async ({
-         serverCredentials,
+         encryptedCredentials,
          serverName,
       }: {
-         serverCredentials: ServerCredentials;
+         encryptedCredentials: string;
          serverName: string;
       }): Promise<{ message: string; serverId: string }> => {
          const response = await createApiRequest("/server/manage/create", {
             method: "POST",
-            body: JSON.stringify({ serverCredentials, serverName }),
+            body: JSON.stringify({ encryptedCredentials, serverName }),
          });
 
          if (!response.ok) {

@@ -1,6 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
 import { ServerCredentials } from "@s3-viewer/types";
+import { decryptCredentials } from "./encryption.js";
 
 const getS3Client = async (serverId: string) => {
    try {
@@ -16,9 +17,10 @@ const getS3Client = async (serverId: string) => {
          throw new Error("Server not found");
       }
 
-      const credentials: ServerCredentials = JSON.parse(
+      const credentials: ServerCredentials = decryptCredentials(
          server.credentials as string
       );
+
       return new S3Client({
          credentials: {
             accessKeyId: credentials.accessKey,

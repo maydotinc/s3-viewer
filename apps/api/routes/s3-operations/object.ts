@@ -133,13 +133,13 @@ objectRouter.post(
       const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } =
          req.body;
 
-      const s3Client = await getS3Client(serverId);
-      const command = new CopyObjectCommand({
-         Bucket: targetBucket,
-         Key: targetKey,
-         CopySource: `${sourceBucket}/${sourceKey}`,
-      });
       try {
+         const s3Client = await getS3Client(serverId);
+         const command = new CopyObjectCommand({
+            Bucket: targetBucket,
+            Key: targetKey,
+            CopySource: `${sourceBucket}/${sourceKey}`,
+         });
          await s3Client.send(command);
          res.status(200).json({
             message: `Object ${sourceKey} copied to ${targetBucket}/${targetKey}`,
@@ -157,17 +157,17 @@ objectRouter.post(
       const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } =
          req.body;
 
-      const s3Client = await getS3Client(serverId);
-      const command = new CopyObjectCommand({
-         Bucket: targetBucket,
-         Key: targetKey,
-         CopySource: `${sourceBucket}/${sourceKey}`,
-      });
-      const deleteCommand = new DeleteObjectCommand({
-         Bucket: sourceBucket,
-         Key: sourceKey,
-      });
       try {
+         const s3Client = await getS3Client(serverId);
+         const command = new CopyObjectCommand({
+            Bucket: targetBucket,
+            Key: targetKey,
+            CopySource: `${sourceBucket}/${sourceKey}`,
+         });
+         const deleteCommand = new DeleteObjectCommand({
+            Bucket: sourceBucket,
+            Key: sourceKey,
+         });
          await s3Client.send(command);
          await s3Client.send(deleteCommand);
          res.status(200).json({

@@ -38,7 +38,7 @@ const ServerSelector = () => {
       );
    }
 
-   if (isServerListLoading || !currentServer || isPending) {
+   if (isServerListLoading || isPending) {
       return (
          <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
       );
@@ -52,7 +52,7 @@ const ServerSelector = () => {
       );
    }
 
-   if (servers.length === 0) {
+   if (servers.length === 0 || !currentServer) {
       return (
          <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
             <p className="text-viewertext text-center">No servers connected</p>

@@ -38,9 +38,9 @@ bucketRouter.delete(
    async (req: Request, res: Response) => {
       const { bucketName, serverId } = req.body;
 
-      const s3Client = await getS3Client(serverId);
-      const command = new DeleteBucketCommand({ Bucket: bucketName });
       try {
+         const s3Client = await getS3Client(serverId);
+         const command = new DeleteBucketCommand({ Bucket: bucketName });
          await s3Client.send(command);
          res.status(200).json({
             message: `Bucket ${bucketName} deleted successfully`,
@@ -60,9 +60,9 @@ bucketRouter.get(
       const buckets: S3Bucket[] = [];
       try {
          let contToken: string | undefined;
+         const s3Client = await getS3Client(serverId);
          // Loop through all buckets then return
          do {
-            const s3Client = await getS3Client(serverId);
             const command = new ListBucketsCommand({
                // MaxBuckets: 10000, this is not supported by all S3 providers but needed for high bucket quota accounts
                ...(contToken && { ContinuationToken: contToken }),

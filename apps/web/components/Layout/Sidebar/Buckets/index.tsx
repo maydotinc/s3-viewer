@@ -6,13 +6,12 @@ import { useRef } from "react";
 
 const BucketList = () => {
    const containerRef = useRef<HTMLDivElement>(null);
-   const { buckets, bucketsError, isBucketsLoading } = useBuckets();
+   const { buckets } = useBuckets();
    const virtualizer = useVirtualizer({
       count: buckets.length,
       getScrollElement: () => containerRef.current,
       estimateSize: () => 40,
    });
-
    const virtualItems = virtualizer.getVirtualItems();
 
    return (
