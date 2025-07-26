@@ -14,7 +14,7 @@ const ServerLogo = ({ provider, variant = "large" }: ServerLogoProps) => {
          <img
             src="/icons/s3.svg"
             alt="S3"
-            className={cn("w-6 h-6", variant === "small" && "w-4 h-4")}
+            className={cn("w-5 h-5", variant === "small" && "w-4 h-4")}
          />
       );
    } else if (provider === Provider.R2) {
@@ -22,14 +22,14 @@ const ServerLogo = ({ provider, variant = "large" }: ServerLogoProps) => {
          <img
             src="/icons/r2.svg"
             alt="R2"
-            className={cn("w-6 h-6", variant === "small" && "w-4 h-4")}
+            className={cn("w-5 h-5", variant === "small" && "w-4 h-4")}
          />
       );
    } else {
       icon = (
          <ServerIcon
             className={cn(
-               "text-viewerblack w-6 h-6",
+               "text-viewerblack w-5 h-5",
                variant === "small" && "w-4 h-4"
             )}
          />
@@ -39,7 +39,7 @@ const ServerLogo = ({ provider, variant = "large" }: ServerLogoProps) => {
    return (
       <div
          className={cn(
-            "bg-viewerwhite border border-xs rounded-lg p-2",
+            "bg-viewerwhite border border-xs rounded-lg p-2 flex-none",
             variant === "small" && "p-1 rounded-sm"
          )}
       >

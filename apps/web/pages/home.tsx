@@ -1,11 +1,11 @@
 import Buckets from "@/components/Home/buckets";
-import ServerInfo from "@/components/Home/info";
+import ServerHeader from "@/components/Home/header";
 import ViewerDashboard from "@/components/Layout/dashboard";
 
 const HomePage = () => {
    return (
       <div className="size-full flex flex-col items-center bg-viewerwhite">
-         <ServerInfo />
+         <ServerHeader />
          <Buckets />
       </div>
    );
