@@ -72,7 +72,7 @@ const BucketsGrid = () => {
 const Buckets = () => {
    return (
       <GridProvider>
-         <section className="flex flex-col p-8 w-full h-full @container/actions">
+         <section className="flex flex-col p-8 pt-6 w-full h-full @container/actions">
             <div className="@max-2xl/actions:flex-col flex flex-row pb-6 justify-between gap-2">
                <GridActions />
                <BucketActions />
