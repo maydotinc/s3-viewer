@@ -25,14 +25,14 @@ const DemoBlock = () => {
                </h2>
             </div>
          </div>
-         <div className="w-full px-[120px] pb-[60px] flex gap-6">
+         <div className="w-full px-[120px] py-[60px] flex gap-6">
             <div className="flex-1 flex flex-col gap-6">
                <div className="w-full bg-viewergray flex-1 border border-viewerborder px-8">
                   <Lottie
                      animationData={serverConnectAnimation}
                      loop
                      autoplay
-                     style={{ width: "100%", height: 300 }}
+                     style={{ width: "100%", height: "100%" }}
                   />
                </div>
                <div className="flex flex-col gap-2">
@@ -51,7 +51,7 @@ const DemoBlock = () => {
                      animationData={serverSelectAnimation}
                      loop
                      autoplay
-                     style={{ width: "100%", height: 300 }}
+                     style={{ width: "100%", height: "100%" }}
                   />
                </div>
                <div className="flex flex-col gap-2">

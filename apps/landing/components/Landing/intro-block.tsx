@@ -6,7 +6,7 @@ const IntroBlock = () => {
    return (
       <div className="w-full px-[120px] py-[60px] flex">
          <div className="bg-viewergray flex-1 border border-viewerborder">
-            <div className="flex flex-col flex-1 gap-6 p-6">
+            <div className="flex flex-col justify-between h-full p-6 gap-6">
                <a
                   href="https://github.com/maydotinc/s3-viewer"
                   target="_blank"
@@ -41,7 +41,7 @@ const IntroBlock = () => {
             <Image
                src="/landing/bucketview.png"
                alt="Intro Block"
-               width={500}
+               width={600}
                height={500}
             />
          </div>
