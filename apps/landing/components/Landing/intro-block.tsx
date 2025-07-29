@@ -1,9 +1,10 @@
 import { Button } from "@s3-viewer/ui/components/button";
 import { Github } from "lucide-react";
+import Image from "next/image";
 
 const IntroBlock = () => {
    return (
-      <div className="w-full px-[120px] py-[60px] flex justify-center items-center">
+      <div className="w-full px-[120px] py-[60px] flex">
          <div className="bg-viewergray flex-1 border border-viewerborder">
             <div className="flex flex-col flex-1 gap-6 p-6">
                <a
@@ -35,6 +36,14 @@ const IntroBlock = () => {
                   </a>
                </Button>
             </div>
+         </div>
+         <div className="flex-1 bg-viewerblue bg-[url('/landing/grain-filter.svg')] bg-blend-multiply p-8 flex justify-center items-center">
+            <Image
+               src="/landing/bucketview.png"
+               alt="Intro Block"
+               width={500}
+               height={500}
+            />
          </div>
       </div>
    );

@@ -11,18 +11,19 @@
    },
    "dependencies": {
       "@s3-viewer/ui": "workspace:*",
+      "lottie-react": "^2.4.1",
       "lucide-react": "^0.475.0",
+      "next": "15.4.4",
       "react": "19.1.0",
-      "react-dom": "19.1.0",
-      "next": "15.4.4"
+      "react-dom": "19.1.0"
    },
    "devDependencies": {
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
+      "@tailwindcss/postcss": "^4",
       "@types/node": "^20",
       "@types/react": "^19",
       "@types/react-dom": "^19",
-      "@tailwindcss/postcss": "^4",
       "tailwindcss": "^4"
    }
 }
