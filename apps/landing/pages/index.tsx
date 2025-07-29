@@ -1,7 +1,12 @@
 import Layout from "@/components/Layout";
+import IntroBlock from "../components/Landing/intro-block";
 
 const Home = () => {
-   return <div className="text-viewerblue">Landing Page</div>;
+   return (
+      <div className="size-full">
+         <IntroBlock />
+      </div>
+   );
 };
 
 Home.getLayout = (page: React.ReactNode) => {
