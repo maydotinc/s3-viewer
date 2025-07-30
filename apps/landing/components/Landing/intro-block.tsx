@@ -1,10 +1,11 @@
 import { Button } from "@s3-viewer/ui/components/button";
 import { Github } from "lucide-react";
 import Image from "next/image";
+import BasicBlock from "../basic-block";
 
 const IntroBlock = () => {
    return (
-      <div className="w-full px-[120px] py-[60px] flex">
+      <BasicBlock className="flex-row gap-0">
          <div className="bg-viewergray flex-1 border border-viewerborder">
             <div className="flex flex-col justify-between h-full p-6 gap-6">
                <a
@@ -47,7 +48,7 @@ const IntroBlock = () => {
                priority
             />
          </div>
-      </div>
+      </BasicBlock>
    );
 };
 

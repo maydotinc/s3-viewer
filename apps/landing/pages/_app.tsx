@@ -18,5 +18,5 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
    const getLayout = Component.getLayout ?? ((page) => page);
    const page: ReactNode = getLayout(<Component {...pageProps} />);
 
-   return <div className={`${inter.className}`}>{page}</div>;
+   return <div className={`${inter.className} bg-viewerwhite`}>{page}</div>;
 }

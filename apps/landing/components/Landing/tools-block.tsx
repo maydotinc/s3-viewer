@@ -1,6 +1,8 @@
+import BasicBlock from "../basic-block";
+
 const ToolsBlock = () => {
    return (
-      <div className="w-full px-[120px] py-[80px] flex flex-col gap-6">
+      <BasicBlock className="py-20">
          <div className="flex flex-col gap-2 items-center">
             <h1 className="text-4xl text-viewerblack font-semibold">
                Built with modern tools
@@ -10,8 +12,8 @@ const ToolsBlock = () => {
                industry
             </h2>
          </div>
-         <div className="bg-viewergray border border-viewerborder px-8 h-100" />
-      </div>
+         <div className="bg-viewergray border border-viewerborder px-8 h-100 w-full" />
+      </BasicBlock>
    );
 };
 

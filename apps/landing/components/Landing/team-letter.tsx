@@ -1,8 +1,9 @@
 import Image from "next/image";
+import BasicBlock from "../basic-block";
 
 const TeamLetter = () => {
    return (
-      <div className="w-full px-50 py-28 flex items-center justify-center">
+      <BasicBlock className="px-50 py-28">
          <div className="flex flex-1 items-center justify-center border-4 border-viewerblue/10 p-4 relative rounded-sm">
             <div className="absolute bottom-0 left-0 size-2 bg-viewerwhite -translate-x-1/2 translate-y-1/2" />
             <div className="absolute top-0 right-0 size-2 bg-viewerwhite translate-x-1/2 -translate-y-1/2" />
@@ -73,7 +74,7 @@ const TeamLetter = () => {
                </div>
             </div>
          </div>
-      </div>
+      </BasicBlock>
    );
 };
 
