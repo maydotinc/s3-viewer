@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const Header = () => {
    return (
-      <div className="flex justify-between w-full items-center h-[111px] top-0 bg-viewergray border-b border-viewerborder px-[120px]">
+      <div className="flex justify-between w-full items-center h-26 top-0 bg-viewergray border-b border-viewerborder px-30 max-xl:px-15 max-md:px-7">
          <div className="flex items-center gap-2">
             <Link href="/">
                <Image
@@ -18,7 +18,12 @@ const Header = () => {
                />
             </Link>
          </div>
-         <div className="flex items-center gap-2">
+         <Button size="lg" className="h-12 text-md md:hidden" asChild>
+            <a href="https://github.com/maydotinc/s3-viewer" target="_blank">
+               Dashboard <ChevronRight className="size-5" />
+            </a>
+         </Button>
+         <div className="flex items-center gap-2 max-md:hidden">
             <Button size="lg" className="h-12 text-md" asChild>
                <a href="https://github.com/maydotinc/s3-viewer" target="_blank">
                   <GithubIcon className="size-5" /> Github
