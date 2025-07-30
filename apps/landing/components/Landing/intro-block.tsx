@@ -41,7 +41,7 @@ const IntroBlock = () => {
          <div className="flex-1 bg-viewerblue bg-[url('/landing/grain-filter.svg')] bg-blend-multiply p-8 flex justify-center items-center">
             <Image
                src="/landing/bucketview.png"
-               alt="Intro Block"
+               alt="Home Overview"
                width={600}
                height={500}
                quality={100}
