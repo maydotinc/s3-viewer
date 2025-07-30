@@ -8,7 +8,12 @@ type BasicBlockProps = {
 
 const BasicBlock = ({ children, className }: BasicBlockProps) => {
    return (
-      <div className={cn("w-full px-30 py-15 flex flex-col gap-6", className)}>
+      <div
+         className={cn(
+            "w-full px-30 py-15 flex flex-col gap-6 max-xl:px-15 max-md:px-4 max-md:py-8",
+            className
+         )}
+      >
          {children}
       </div>
    );

@@ -15,7 +15,7 @@ const TosContentItem = ({
 
 const TosContent = () => {
    return (
-      <div className="flex flex-col gap-10 sm:px-40">
+      <div className="flex flex-col gap-10 md:px-20 xl:px-40">
          <TosContentItem title="Acceptance of Terms">
             By accessing and using the services provided by Crayo AI, you agree
             to be bound by these Terms of Service ("TOS"). If you do not agree

@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const Header = () => {
    return (
-      <div className="flex justify-between w-full items-center h-26 top-0 bg-viewergray border-b border-viewerborder px-30 max-xl:px-15 max-md:px-7">
+      <div className="flex justify-between w-full gap-4 items-center h-26 top-0 bg-viewergray border-b border-viewerborder px-30 max-xl:px-15 max-md:px-4">
          <div className="flex items-center gap-2">
             <Link href="/">
                <Image
@@ -18,7 +18,12 @@ const Header = () => {
                />
             </Link>
          </div>
-         <Button size="lg" className="h-12 text-md md:hidden" asChild>
+         <Button
+            size="lg"
+            variant="secondary"
+            className="h-12 text-md md:hidden"
+            asChild
+         >
             <a href="https://github.com/maydotinc/s3-viewer" target="_blank">
                Dashboard <ChevronRight className="size-5" />
             </a>

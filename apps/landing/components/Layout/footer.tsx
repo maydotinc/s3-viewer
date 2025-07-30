@@ -11,8 +11,8 @@ import Link from "next/link";
 
 const Footer = () => {
    return (
-      <div className="flex h-[273px] w-full flex-col items-center bottom-0">
-         <div className="flex-1 flex flex-wrap items-center justify-between bg-viewerblue w-full px-[64px]">
+      <div className="flex min-h-68 w-full flex-col items-center bottom-0">
+         <div className="flex-1 flex flex-wrap items-center justify-between bg-viewerblue w-full px-16 max-md:px-6">
             <Image
                src="/icons/whiteviewer.svg"
                alt="S3 Viewer"

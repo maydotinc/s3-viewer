@@ -1,13 +1,14 @@
+import BasicBlock from "@/components/basic-block";
 import Layout from "@/components/Layout";
 import TosContent from "@/components/Tos/content";
 import TosHeader from "@/components/Tos/header";
 
 const TosPage = () => {
    return (
-      <div className="size-full px-[120px] py-[60px] gap-[120px] flex flex-col">
+      <BasicBlock className="gap-30 max-md:gap-15 max-xl:gap-20">
          <TosHeader />
          <TosContent />
-      </div>
+      </BasicBlock>
    );
 };
 
