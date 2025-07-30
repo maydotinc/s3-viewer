@@ -15,13 +15,14 @@ const TeamLetter = () => {
                   height={78}
                   className="absolute top-0 right-0 -translate-x-1/2 translate-y-1/2"
                />
-               <Image
-                  src="/icons/builtbymay.svg"
-                  alt="viewer-logo"
-                  width={150}
-                  height={150}
-                  className="absolute bottom-0 right-0 translate-x-1/2 translate-y-1/2"
-               />
+               <div className="absolute bottom-0 right-0 md:translate-x-1/2 md:translate-y-1/2 max-md:size-25 max-xl:size-30">
+                  <Image
+                     src="/icons/builtbymay.svg"
+                     alt="viewer-logo"
+                     width={150}
+                     height={150}
+                  />
+               </div>
                <span className="text-xs text-viewertext">A LETTER</span>
                <h1 className="text-3xl text-viewerblue font-semibold">
                   From the team

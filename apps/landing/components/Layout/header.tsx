@@ -6,7 +6,7 @@ import Link from "next/link";
 const Header = () => {
    return (
       <div className="flex justify-between w-full gap-4 items-center h-26 top-0 bg-viewergray border-b border-viewerborder px-30 max-xl:px-15 max-md:px-4">
-         <div className="flex items-center gap-2">
+         <div className="flex items-center">
             <Link href="/">
                <Image
                   src="/icons/viewer.svg"
