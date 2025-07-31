@@ -13,14 +13,16 @@ const TeamLetter = () => {
                   alt="viewer-cube"
                   width={63}
                   height={78}
-                  className="absolute top-0 right-0 -translate-x-1/2 translate-y-1/2"
+                  className="absolute top-0 right-0 -translate-x-1/2 translate-y-1/2 select-none"
+                  draggable={false}
                />
-               <div className="absolute bottom-0 right-0 md:translate-x-1/2 md:translate-y-1/2 max-md:size-25 max-xl:size-30">
+               <div className="absolute bottom-0 right-0 md:translate-x-1/2 md:translate-y-1/2 max-md:size-25 max-xl:size-30 select-none">
                   <Image
                      src="/icons/builtbymay.svg"
                      alt="viewer-logo"
                      width={150}
                      height={150}
+                     draggable={false}
                   />
                </div>
                <span className="text-xs text-viewertext">A LETTER</span>
@@ -28,16 +30,16 @@ const TeamLetter = () => {
                   From the team
                </h1>
                <p className="text-base text-viewertext max-w-1/2">
-                  Lorem Ipsum is simply dummy text of the printing and
-                  typesetting industry. Lorem Ipsum has been the industry's
-                  standard dummy text ever since the 1500s, when an unknown
-                  printer took a galley of type and scrambled it to make a type
-                  specimen book. It has survived not only five centuries
+                  We built S3-Viewer because we were frustrated with the
+                  complexity of existing object storage interfaces. Managing
+                  data across different S3 providers shouldn't require learning
+                  new tools or switching between multiple dashboards. We wanted
+                  something that just works - intuitive, fast, and reliable.
                </p>
                <div className="h-[1px] w-1/4 bg-viewerborder my-2" />
                <span className="text-base text-viewertext max-w-1/2">
-                  but also the leap into electronic typesetting, remaining
-                  essentially unchanged.
+                  Our mission is to make object storage as accessible as your
+                  local file system, regardless of your technical background.
                </span>
                <div className="flex flex-col gap-2 mt-5">
                   <div className="flex items-center -space-x-2">

@@ -17,10 +17,10 @@ const RepBlock = () => {
             </h2>
          </div>
          <div className="flex justify-between">
-            <span className="text-xl text-viewertext">Dummy Sponsor</span>
-            <span className="text-xl text-viewertext">Dummy Sponsor</span>
-            <span className="text-xl text-viewertext">Dummy Sponsor</span>
-            <span className="text-xl text-viewertext">Dummy Sponsor</span>
+            <span className="text-xl text-viewertext">Startups</span>
+            <span className="text-xl text-viewertext">Enterprise Teams</span>
+            <span className="text-xl text-viewertext">DevOps Engineers</span>
+            <span className="text-xl text-viewertext">Cloud Architects</span>
          </div>
       </BasicBlock>
    );

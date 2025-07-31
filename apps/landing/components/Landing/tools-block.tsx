@@ -8,8 +8,8 @@ const ToolsBlock = () => {
                Built with modern tools
             </h1>
             <h2 className="text-xl text-viewertext">
-               Lorem Ipsum is simply dummy text of the printing and typesetting
-               industry
+               Powered by Next.js, TypeScript, and modern web technologies for
+               optimal performance and developer experience
             </h2>
          </div>
          <div className="bg-viewergray border border-viewerborder px-8 h-100 w-full" />

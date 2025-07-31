@@ -8,7 +8,7 @@ const Header = () => {
       <header className="flex w-full items-center justify-center bg-viewergray border-b border-viewerborder ">
          <div className="flex w-full max-w-screen-2xl justify-between items-center h-26 px-30 max-xl:px-15 max-md:px-4">
             <div className="flex items-center">
-               <Link href="/">
+               <Link href="/" className="select-none" draggable={false}>
                   <Image
                      src="/icons/viewer.svg"
                      alt="S3 Viewer"
@@ -16,6 +16,8 @@ const Header = () => {
                      height={46}
                      priority
                      quality={100}
+                     draggable={false}
+                     className="select-none"
                   />
                </Link>
             </div>
@@ -26,7 +28,7 @@ const Header = () => {
                asChild
             >
                <a href="https://github.com/maydotinc/s3-viewer" target="_blank">
-                  Dashboard <ChevronRight className="size-5" />
+                  <ChevronRight className="size-5" />
                </a>
             </Button>
             <div className="flex items-center gap-2 max-md:hidden">

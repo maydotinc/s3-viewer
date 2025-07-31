@@ -13,6 +13,8 @@ const Footer = () => {
                height={47}
                priority
                quality={100}
+               draggable={false}
+               className="select-none"
             />
             <div className="flex gap-4 text-viewerwhite text-sm">
                <a

@@ -21,8 +21,8 @@ const DemoBlock = () => {
                   S3 Viewer that works like a file browser
                </h1>
                <h2 className="text-xl text-viewertext">
-                  Lorem Ipsum is simply dummy text of the printing and
-                  typesetting industry
+                  Navigate your S3 buckets with the familiar file explorer
+                  interface you already know and love
                </h2>
             </div>
          </BasicBlock>
@@ -41,8 +41,8 @@ const DemoBlock = () => {
                      One - Click Server Connect
                   </h1>
                   <h2 className="text-xl text-viewertext">
-                     Lorem Ipsum is simply dummy text of the printing and
-                     typesetting industry
+                     Connect to any S3-compatible storage provider instantly
+                     with auto-detection and secure credential management
                   </h2>
                </div>
             </div>
@@ -60,8 +60,8 @@ const DemoBlock = () => {
                      Switch between servers
                   </h1>
                   <h2 className="text-xl text-viewertext">
-                     Lorem Ipsum is simply dummy text of the printing and
-                     typesetting industry
+                     Manage multiple S3 providers seamlessly - AWS S3,
+                     Cloudflare R2, MinIO, and more from one dashboard
                   </h2>
                </div>
             </div>

@@ -22,14 +22,16 @@ const ExploreBlock = () => {
                alt="viewer-cube"
                width={104}
                height={105}
+               draggable={false}
+               className="select-none"
             />
             <div className="flex flex-col gap-2 items-center">
                <h1 className="text-4xl text-viewerblack font-semibold">
                   Explore Awesome S3 - Viewer Experience
                </h1>
                <h2 className="text-xl text-viewertext">
-                  Lorem Ipsum is simply dummy text of the printing and
-                  typesetting industry
+                  Experience the future of object storage management with our
+                  intuitive, fast, and secure S3 browser
                </h2>
             </div>
             <Button

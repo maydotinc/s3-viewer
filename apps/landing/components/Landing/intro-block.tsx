@@ -46,6 +46,8 @@ const IntroBlock = () => {
                height={500}
                quality={100}
                priority
+               draggable={false}
+               className="select-none"
             />
          </div>
       </BasicBlock>
