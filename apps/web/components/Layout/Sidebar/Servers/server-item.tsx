@@ -20,7 +20,7 @@ const ServerItem = ({ server }: ServerItemProps) => {
          )}
          <div className="flex gap-2 items-center flex-1">
             <ServerLogo provider={server.provider} variant="small" />
-            <p className="max-w-[105px] truncate">{server.name}</p>
+            <p className="max-w-[100px] truncate">{server.name}</p>
          </div>
          <div
             onClick={(e) => e.preventDefault()}
