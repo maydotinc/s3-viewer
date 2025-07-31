@@ -4,7 +4,7 @@ import Link from "next/link";
 
 const Footer = () => {
    return (
-      <footer className="flex  w-full justify-center items-center bg-viewerblue">
+      <footer className="flex w-full justify-center items-center bg-viewerblue">
          <div className="flex w-full flex-wrap max-w-screen-2xl justify-between items-center gap-6 max-md:min-h-40 min-h-60 max-md:px-4 px-16 py-6">
             <Image
                src="/icons/whiteviewer.svg"

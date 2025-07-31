@@ -2,10 +2,20 @@ import { Button } from "@s3-viewer/ui/components/button";
 import Image from "next/image";
 import BasicBlock from "../basic-block";
 
+const WrapperBg = () => {
+   return (
+      <div className="absolute bottom-0 inset-x-0 h-3/5 -z-1 bg-[linear-gradient(to_top,transparent_0%,#f7f7f7),linear-gradient(to_right,#e1e4ea_1px,transparent_1px),linear-gradient(to_top,#e1e4ea_1px,transparent_1px)] bg-[size:100%_100%,60px_60px,60px_60px]" />
+   );
+};
+
 const ExploreBlock = () => {
    return (
-      <BasicBlock className="relative z-1 bg-viewergray">
-         <div className="absolute inset-0 -z-1 bg-[linear-gradient(to_top,transparent_0%,#f7f7f7),linear-gradient(to_right,#e1e4ea_1px,transparent_1px),linear-gradient(to_top,#e1e4ea_1px,transparent_1px)] bg-[size:100%_100%,60px_60px,60px_60px]" />
+      <BasicBlock
+         wrapperbg={{
+            className: "bg-viewergray z-1 relative",
+            component: <WrapperBg />,
+         }}
+      >
          <div className="flex flex-col gap-6 items-center">
             <Image
                src="/icons/viewerblue.svg"

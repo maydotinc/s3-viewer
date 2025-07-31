@@ -2,7 +2,12 @@ import BasicBlock from "../basic-block";
 
 const RepBlock = () => {
    return (
-      <BasicBlock className="gap-15 bg-viewergray">
+      <BasicBlock
+         className="gap-15"
+         wrapperbg={{
+            className: "bg-viewergray",
+         }}
+      >
          <div className="flex flex-col gap-2 items-center">
             <h1 className="text-4xl text-viewerblue font-semibold">
                World-class developers use S3-Viewer
