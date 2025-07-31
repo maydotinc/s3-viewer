@@ -1,18 +1,11 @@
-import {
-   Facebook,
-   GithubIcon,
-   Instagram,
-   Linkedin,
-   Twitter,
-   Youtube,
-} from "lucide-react";
+import { GithubIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
 const Footer = () => {
    return (
-      <div className="flex min-h-68 w-full flex-col items-center bottom-0">
-         <div className="flex-1 flex flex-wrap items-center justify-between gap-4 bg-viewerblue w-full px-16 max-md:px-6">
+      <footer className="flex  w-full justify-center items-center bg-viewerblue">
+         <div className="flex w-full flex-wrap max-w-screen-2xl justify-between items-center gap-6 max-md:min-h-40 min-h-60 max-md:px-4 px-16 py-6">
             <Image
                src="/icons/whiteviewer.svg"
                alt="S3 Viewer"
@@ -21,41 +14,23 @@ const Footer = () => {
                priority
                quality={100}
             />
-            <a
-               href="https://github.com/maydotinc/s3-viewer"
-               target="_blank"
-               className="flex items-center gap-1 text-viewerwhite"
-            >
-               <GithubIcon className="size-5" /> Github
-            </a>
-            <div className="flex flex-col items-start gap-1 text-viewerwhite">
-               <Link href="/tos" className="text-md underline">
+            <div className="flex gap-4 text-viewerwhite text-sm">
+               <a
+                  href="https://github.com/maydotinc/s3-viewer"
+                  target="_blank"
+                  className="flex items-center gap-1 order-last"
+               >
+                  <GithubIcon className="size-5" /> Github
+               </a>
+               <Link href="/tos" className="underline">
                   Terms of Service
                </Link>
-               <Link href="/" className="text-md underline">
+               <Link href="/" className="underline order-first">
                   Privacy Policy
                </Link>
             </div>
-            <div className="flex items-center gap-2 text-viewerwhite">
-               <a href="/" className="text-md">
-                  <Facebook className="size-5" />
-               </a>
-               <a href="/" className="text-md">
-                  <Instagram className="size-5" />
-               </a>
-               <a href="/" className="text-md">
-                  <Twitter className="size-5" />
-               </a>
-               <a href="/" className="text-md">
-                  <Linkedin className="size-5" />
-               </a>
-               <a href="/" className="text-md">
-                  <Youtube className="size-5" />
-               </a>
-            </div>
          </div>
-         <div className="h-[31px] w-full bg-viewerdarkblue" />
-      </div>
+      </footer>
    );
 };
 
