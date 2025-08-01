@@ -5,7 +5,7 @@ import BasicBlock from "../basic-block";
 
 const IntroBlock = () => {
    return (
-      <BasicBlock className="flex-row gap-0">
+      <BasicBlock className="md:flex-row gap-0 max-md:py-5 max-md:border-b max-md:border-viewerborder">
          <div className="bg-viewergray flex-1 border border-viewerborder">
             <div className="flex flex-col justify-between h-full p-6 gap-6">
                <a
@@ -16,10 +16,10 @@ const IntroBlock = () => {
                   <Github className="size-4" />
                   <span className="text-md">OPEN SOURCE</span>
                </a>
-               <h1 className="text-5xl font-semibold text-viewerblack">
+               <h1 className="md:text-5xl text-4xl font-semibold text-viewerblack">
                   A Fast, Open-Source S3 Viewer That Just Works
                </h1>
-               <h2 className="text-xl text-viewertext">
+               <h2 className="md:text-xl text-lg text-viewertext">
                   T3Chat but for Object Storage - it's time for web to be fast
                   again
                </h2>

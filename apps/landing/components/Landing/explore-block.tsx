@@ -17,19 +17,21 @@ const ExploreBlock = () => {
          }}
       >
          <div className="flex flex-col gap-6 items-center">
-            <Image
-               src="/icons/viewerblue.svg"
-               alt="viewer-cube"
-               width={104}
-               height={105}
-               draggable={false}
-               className="select-none"
-            />
+            <div className="select-none max-md:size-18">
+               <Image
+                  src="/icons/viewerblue.svg"
+                  alt="viewer-cube"
+                  width={104}
+                  height={105}
+                  draggable={false}
+                  className="select-none"
+               />
+            </div>
             <div className="flex flex-col gap-2 items-center">
-               <h1 className="text-4xl text-viewerblack font-semibold">
+               <h1 className="md:text-4xl text-3xl text-viewerblack font-semibold text-center">
                   Explore Awesome S3 - Viewer Experience
                </h1>
-               <h2 className="text-xl text-viewertext">
+               <h2 className="md:text-xl text-base text-viewertext text-center">
                   Experience the future of object storage management with our
                   intuitive, fast, and secure S3 browser
                </h2>
