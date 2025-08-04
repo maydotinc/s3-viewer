@@ -1,20 +1,34 @@
+import objectUploadAnimation from "@/public/landing/objectupload.json";
+import serverConnectAnimation from "@/public/landing/serverconnect.json";
+import serverSelectAnimation from "@/public/landing/serverselect.json";
 import Lottie from "lottie-react";
-import objectUploadAnimation from "../../public/landing/objectupload.json";
-import serverConnectAnimation from "../../public/landing/serverconnect.json";
-import serverSelectAnimation from "../../public/landing/serverselect.json";
+import Image from "next/image";
 import BasicBlock from "../basic-block";
 
 const DemoBlock = () => {
    return (
       <>
          <BasicBlock className="max-md:border-b max-md:border-viewerborder">
-            <div className="bg-viewergray flex-1 border border-viewerborder px-8 flex">
-               <Lottie
-                  animationData={objectUploadAnimation}
-                  loop
-                  autoplay
-                  style={{ width: "100%", height: "100%" }}
-               />
+            <div className="bg-viewergray flex-1 border border-viewerborder px-8 flex max-md:flex-col max-md:px-4">
+               <div className="flex-1 max-md:w-full select-none flex items-end justify-center">
+                  <Image
+                     src="/landing/objectview.png"
+                     alt="Object View"
+                     width={3465}
+                     height={1917}
+                     className="select-none"
+                     draggable={false}
+                  />
+               </div>
+               <div className="select-none max-md:order-first flex-1">
+                  <Lottie
+                     animationData={objectUploadAnimation}
+                     loop
+                     autoplay
+                     style={{ width: "100%", height: "100%" }}
+                     alt="Object Upload Animation"
+                  />
+               </div>
             </div>
             <div className="flex flex-col items-start w-full gap-2">
                <h1 className="md:text-4xl text-3xl text-viewerblack font-semibold">
