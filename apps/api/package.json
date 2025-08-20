@@ -3,7 +3,8 @@
    "version": "0.0.0",
    "type": "module",
    "scripts": {
-      "dev": "tsup --watch"
+      "dev": "tsup --watch",
+      "build": "tsup"
    },
    "dependencies": {
       "@aws-sdk/client-s3": "^3.802.0",

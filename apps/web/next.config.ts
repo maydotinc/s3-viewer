@@ -9,12 +9,6 @@ const nextConfig: NextConfig = {
       "@s3-viewer/permissions",
       "@s3-viewer/types",
    ],
-   typescript: {
-      ignoreBuildErrors: true,
-   },
-   eslint: {
-      ignoreDuringBuilds: true,
-   },
    images: {
       unoptimized: false,
       remotePatterns: [],

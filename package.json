@@ -7,7 +7,7 @@
     "build": "pnpm --filter @s3-viewer/db db:generate && turbo run build",
     "format": "prettier --write ."
   },
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.15.0",
   "devDependencies": {
     "prettier": "^3.5.3",
     "prisma": "^6.8.2",

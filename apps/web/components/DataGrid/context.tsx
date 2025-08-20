@@ -47,12 +47,10 @@ const GridProvider = ({ children }: GridProviderProps) => {
    }, [gridReady]);
 
    const onGridReady = (params: GridReadyEvent) => {
-      console.log("Grid ready");
       setGridReady(true);
    };
 
    const onGridDestroy = () => {
-      console.log("Grid getting destroyed");
       if (gridRef.current?.api) {
          gridRef.current.api.removeEventListener(
             "paginationChanged",

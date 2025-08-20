@@ -13,12 +13,6 @@ const authGuard = async (req: Request, res: Response, next: NextFunction) => {
          return;
       }
 
-      //=== Maybe dont need this ===//
-      // if (!isSessionIpValid(session.session, req)) {
-      //    console.warn("Mismatching IP address");
-      //    return res.status(401).json({ error: "Unauthorized" });
-      // }
-
       req.user = session.user;
       next();
    } catch (e: any) {

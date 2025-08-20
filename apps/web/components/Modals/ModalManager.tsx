@@ -3,7 +3,7 @@ import AuthModal from "./AuthModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import ConnectModal from "./ConnectModal";
 import CreateBucketModal from "./CreateBucketModal";
-import DisconnectModal from "./DisonnectModal";
+import DisconnectModal from "./DisconnectModal";
 import InvitesModal from "./InvitesModal";
 import RenameModal from "./RenameModal";
 import ShareModal from "./ShareModal";
