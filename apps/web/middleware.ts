@@ -9,7 +9,7 @@ function middleware(request: NextRequest) {
 
    // rewrite '/' to 'crayo-lp.vercel.app'
    if (pathname === "/") {
-      url.hostname = "s3-viewer-lp.onrender.com";
+      url.hostname = "s3-viewer.onrender.com";
       url.protocol = "https";
       url.port = "";
 
@@ -20,7 +20,7 @@ function middleware(request: NextRequest) {
       pathname.startsWith("/tos") ||
       pathname.startsWith("/terms-conditions")
    ) {
-      url.hostname = "s3-viewer-lp.onrender.com";
+      url.hostname = "s3-viewer.onrender.com";
       url.protocol = "https";
       url.port = "";
       url.pathname = "/tos";
@@ -29,7 +29,7 @@ function middleware(request: NextRequest) {
    }
 
    if (pathname === "/privacy" || pathname.startsWith("/privacy-policy")) {
-      url.hostname = "s3-viewer-lp.onrender.com";
+      url.hostname = "s3-viewer.onrender.com";
       url.protocol = "https";
       url.port = "";
       url.pathname = "/privacy-policy";
