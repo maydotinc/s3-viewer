@@ -27,7 +27,7 @@ app.disable("x-powered-by");
 app.use(urlencoded({ extended: true }));
 app.use(
    cors({
-      origin: process.env.FRONTEND_URL || "http://localhost:3000",
+      origin: process.env.NEXT_PUBLIC_FRONTEND_URL,
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       credentials: true,
    })

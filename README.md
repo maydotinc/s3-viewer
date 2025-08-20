@@ -52,8 +52,8 @@ openssl rsa -pubout -in private_key.pem -out public_key.pem
 DATABASE_URL="postgresql://user:pass@localhost:5432/s3viewer"
 BETTER_AUTH_SECRET=your_secret_here
 ENCRYPTION_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
-FRONTEND_URL=http://localhost:3000
-PRODUCTION_URL=http://localhost:5001
+NEXT_PUBLIC_FRONTEND_URL=http://localhost:3000
+NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
 ```
 
 **apps/web/.env:**
