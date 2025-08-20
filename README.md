@@ -59,7 +59,7 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
 **apps/web/.env:**
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:5001
+NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
 NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----..."
 ```
 
