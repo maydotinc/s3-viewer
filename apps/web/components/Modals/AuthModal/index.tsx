@@ -20,7 +20,6 @@ import useAuthStore from "@/lib/stores/authStore";
 import { Button } from "@s3-viewer/ui/components/button";
 import { MailCheck, UserRoundCheck, UserRoundPlus } from "lucide-react";
 import { useEffect } from "react";
-import TermsButton from "./buttons/terms";
 
 type AuthModalProps = {
    onClose: () => void;
@@ -135,7 +134,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                      <NameInput />
                      <EmailInput />
                      <div className="flex flex-col gap-5">
-                        <TermsButton />
                         <SubmitButton />
                         {/* <GoogleButton /> */}
                      </div>
