@@ -5,6 +5,7 @@
    "scripts": {
       "dev": "tsup --watch",
       "build": "tsup",
+      "start": "node dist/server.js",
       "db:generate": "pnpx prisma generate --schema=../../packages/db/prisma/schema.prisma",
       "db:migrate": "pnpx prisma migrate dev --schema=../../packages/db/prisma/schema.prisma"
    },
