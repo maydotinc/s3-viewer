@@ -2,7 +2,8 @@ import { toast } from "@s3-viewer/ui/components/toast";
 import { emailOTPClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
-export const baseURL = process.env.AUTH_SERVER_URL || "http://localhost:5001";
+export const baseURL =
+   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
 
 const authClient = createAuthClient({
    baseURL: baseURL,

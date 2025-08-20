@@ -1,39 +1,84 @@
-# S3Viewer
+# S3Viewer 🪣
 
-## Package manager and Shadcn
+A web-based S3-compatible object storage browser that allows users to manage multiple S3 servers through a modern interface, enabling basic operations on objects with the familiarity of a traditional file explorer.
 
-This project uses pnpm as its package manger and shadcn components for modularity.
-To add other shadcn components: cd packages/ui && pnpm dlx shadcn@latest add [component]
+## 📝 Features
+
+- Connect to multiple S3-compatible providers (AWS S3, Cloudflare R2, MinIO, etc.)
+- Secure credential encryption and storage
+- Server sharing and collaboration
+- Multi-user support with role-based permissions
+- File upload/download with progress tracking
+
+## 🧬 Architecture
+
+- **Frontend**: Next.js with shadcn/ui components
+- **Backend**: Express.js API
+- **Database**: PostgreSQL with Prisma ORM
+- **Authentication**: Better Auth
+- **Monorepo**: Turborepo with pnpm workspaces
+
+## ✅ Prerequisites
+
+- Node.js 18+
+- pnpm
+- PostgreSQL database
+- OpenSSL (for key generation)
+
+## 🚀 Quick Start
+
+### 1. Clone and Install
+
+```bash
+git clone <repo>
+cd s3-viewer
+pnpm install
+```
+
+### 2. Generate Encryption Keys
+
 For server credential encryption, an RSA key pair must be generated and stored in the respective env variables (see below). This RSA key must also have a max payload large enough to handle server credentials, so it is recommended you use at least a 4096-bit key. To generate this key pair, you can use the openssl library:
 
-```
+```bash
 openssl genrsa -out private_key.pem 4096
 openssl rsa -pubout -in private_key.pem -out public_key.pem
 ```
 
-### ENV VARIABLES SETUP
+### 3. Environment Variables
 
-**apps/api .env**
+**apps/api/.env:**
 
-```
-BETTER_AUTH_SECRET=(Generate from better-auth.com, used for encryption and generating hashes)
-ENCRYPTION_PRIVATE_KEY=(openssl generated priv key)
-
-AWS_ENDPOINT=your_endpoint
-AWS_ACCESS_KEY_ID=your_access_key_here
-AWS_SECRET_ACCESS_KEY=your_secret_key_here
-AWS_REGION=us-east-1
+```env
+DATABASE_URL="postgresql://user:pass@localhost:5432/s3viewer"
+BETTER_AUTH_SECRET=your_secret_here
+ENCRYPTION_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
+FRONTEND_URL=http://localhost:3000
+PRODUCTION_URL=http://localhost:5001
 ```
 
-**apps/web .env**
+**apps/web/.env:**
 
-```
+```env
 NEXT_PUBLIC_API_URL=http://localhost:5001
-NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY=(openssl generated pub key from priv key)
+NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----..."
 ```
 
-**packages/db .env**
+### 4. Database Setup
 
+```bash
+cd apps/api
+pnpm run db:migrate
 ```
-DATABASE_URL="postgresql..."
+
+### 5. Development
+
+```bash
+pnpm dev
+```
+
+## Adding UI Components
+
+```bash
+cd packages/ui
+pnpm dlx shadcn@latest add [component]
 ```

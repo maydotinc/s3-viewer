@@ -3,21 +3,14 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 
-/*
- * This is needed here as this code is called from apps/api/server.ts
- * and will use the .env file in the api directory.
- */
-import dotenv from "dotenv";
-dotenv.config();
-
-// .env vars found in apps/api/.env, not in root or packages. No need to import dotenv here.
+// .env vars found in apps/api/.env, not in root or packages.
 export const auth = betterAuth({
-   baseUrl: process.env.AUTH_SERVER_URL || "http://localhost:5001",
+   baseUrl: process.env.PRODUCTION_URL || "http://localhost:5001",
    basePath: "/auth",
    database: prismaAdapter(prisma, {
       provider: "postgresql",
    }),
-   trustedOrigins: [process.env.WEB_URL || "http://localhost:3000"],
+   trustedOrigins: [process.env.FRONTEND_URL || "http://localhost:3000"],
    socialProviders: {
       google: {
          enabled: false,
