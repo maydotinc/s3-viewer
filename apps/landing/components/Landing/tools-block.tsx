@@ -19,6 +19,8 @@ const ToolsBlock = () => {
                alt="Tools Used"
                width={1000}
                height={1000}
+               draggable={false}
+               className="select-none"
             />
          </div>
       </BasicBlock>

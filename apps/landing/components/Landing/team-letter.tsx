@@ -40,34 +40,23 @@ const TeamLetter = () => {
                      width={63}
                      height={78}
                      draggable={false}
+                     className="select-none"
                   />
                </div>
                <div className="flex flex-col gap-2 mt-5">
                   <div className="flex items-center -space-x-2">
-                     <Image
-                        src="/landing/profiles/aleem.png"
-                        alt="viewer-cube"
-                        width={40}
-                        height={40}
-                        className="border border-viewerwhite rounded-full"
-                        quality={100}
-                     />
-                     <Image
-                        src="/landing/profiles/mike.png"
-                        alt="viewer-cube"
-                        width={40}
-                        height={40}
-                        className="border border-viewerwhite rounded-full"
-                        quality={100}
-                     />
-                     <Image
-                        src="/landing/profiles/vinit.png"
-                        alt="viewer-cube"
-                        width={40}
-                        height={40}
-                        className="border border-viewerwhite rounded-full"
-                        quality={100}
-                     />
+                     {["aleem", "mike", "vinit"].map((profile) => (
+                        <Image
+                           key={profile}
+                           src={`/landing/profiles/${profile}.png`}
+                           alt="viewer-cube"
+                           width={40}
+                           height={40}
+                           className="border border-viewerwhite rounded-full select-none"
+                           quality={100}
+                           draggable={false}
+                        />
+                     ))}
                   </div>
                   <h3 className="text-base leading-none font-semibold text-viewerblack">
                      S3 - Viewer

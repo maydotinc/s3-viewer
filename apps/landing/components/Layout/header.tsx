@@ -6,7 +6,7 @@ import Link from "next/link";
 const Header = () => {
    return (
       <header className="flex w-full items-center justify-center bg-viewergray border-b border-viewerborder sticky top-0 z-50">
-         <div className="flex w-full max-w-screen-2xl justify-between items-center h-26 px-30 max-xl:px-15 max-md:px-4">
+         <div className="flex w-full max-w-screen-2xl justify-between items-center h-20 px-30 max-xl:px-15 max-md:px-4">
             <div className="flex items-center select-none max-md:w-36">
                <Link href="/" draggable={false}>
                   <Image
