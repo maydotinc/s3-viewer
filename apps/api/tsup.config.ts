@@ -5,6 +5,7 @@ export default defineConfig((options: Options) => ({
    format: ["esm"],
    clean: true,
    noExternal: [/@s3-viewer\/.*/],
+   external: ["resend"],
    onSuccess: options.watch ? "tsx dist/server.js" : undefined,
    ...options,
 }));
