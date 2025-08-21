@@ -30,7 +30,7 @@ A web-based S3-compatible object storage browser that allows users to manage mul
 ### 1. Clone and Install
 
 ```bash
-git clone <repo>
+git clone https://github.com/maydotinc/s3-viewer
 cd s3-viewer
 pnpm install
 ```

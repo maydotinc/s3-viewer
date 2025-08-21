@@ -1,5 +1,6 @@
 import { BucketProvider } from "@/components/Buckets/Context";
 import BucketHeader from "@/components/Buckets/header";
+import ObjectView from "@/components/Buckets/object-view";
 import Objects from "@/components/Buckets/objects";
 import { GridProvider } from "@/components/DataGrid/context";
 import ViewerDashboard from "@/components/Layout/dashboard";
@@ -7,7 +8,7 @@ import { useRouter } from "next/router";
 
 const BucketPage = () => {
    const router = useRouter();
-   const { slug } = router.query;
+   const { slug, view } = router.query;
    const slugArray = Array.isArray(slug) ? slug : [];
    const bucketName = slugArray[0];
    const path = slugArray.slice(1);
@@ -17,7 +18,7 @@ const BucketPage = () => {
          <GridProvider>
             <div className="flex flex-col size-full">
                <BucketHeader />
-               <Objects />
+               {view === "object" ? <ObjectView /> : <Objects />}
             </div>
          </GridProvider>
       </BucketProvider>

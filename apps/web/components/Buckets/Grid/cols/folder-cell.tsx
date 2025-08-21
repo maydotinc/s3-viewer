@@ -1,11 +1,14 @@
 import { ICellRendererParams } from "ag-grid-community";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 
 const FolderCell = (params: ICellRendererParams) => {
+   const router = useRouter();
+
    if (params.value === undefined) {
       return (
-         <div className="flex items-center justify-center h-full">
+         <div className="flex items-center h-full">
             <Loader2 className="animate-spin" />
          </div>
       );
@@ -35,7 +38,26 @@ const FolderCell = (params: ICellRendererParams) => {
       );
    }
 
-   return <span className="text-viewertext">{normalizedValue}</span>;
+   return (
+      <span
+         className="text-viewertext hover:cursor-pointer hover:text-viewerblack"
+         onClick={() => {
+            router.push({
+               pathname: "/buckets/[[...slug]]",
+               query: {
+                  slug: [
+                     bucketName,
+                     ...(params.context?.path || []),
+                     normalizedValue,
+                  ],
+                  view: "object",
+               },
+            });
+         }}
+      >
+         {normalizedValue}
+      </span>
+   );
 };
 
 export default FolderCell;

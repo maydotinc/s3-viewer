@@ -6,6 +6,7 @@ import {
    DeleteObjectCommand,
    DeleteObjectsCommand,
    GetObjectCommand,
+   HeadObjectCommand,
    ListObjectsV2Command,
    ListPartsCommand,
    PutObjectCommand,
@@ -75,6 +76,63 @@ objectRouter.get(
          res.status(200).json({
             url,
             message: `Presigned download URL generated for ${objectKey}`,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+objectRouter.get(
+   "/metadata",
+   requireListObjects(),
+   async (req: Request, res: Response) => {
+      const { bucketName, objectKey, serverId } = req.query;
+
+      try {
+         const s3Client = await getS3Client(serverId as string);
+         const command = new HeadObjectCommand({
+            Bucket: bucketName as string,
+            Key: objectKey as string,
+         });
+
+         const response = await s3Client.send(command);
+
+         res.status(200).json({
+            contentType: response.ContentType,
+            contentLength: response.ContentLength,
+            lastModified: response.LastModified,
+            storageClass: response.StorageClass || "STANDARD",
+         });
+      } catch (error: any) {
+         if (error.name === "NotFound") {
+            res.status(404).json({ error: "Object not found" });
+         } else {
+            res.status(500).json({ error: error.message });
+         }
+      }
+   }
+);
+
+objectRouter.get(
+   "/preview",
+   requireDownloadObject(),
+   async (req: Request, res: Response) => {
+      const { bucketName, objectKey, serverId, contentType } = req.query;
+
+      try {
+         const s3Client = await getS3Client(serverId as string);
+         const command = new GetObjectCommand({
+            Bucket: bucketName as string,
+            Key: objectKey as string,
+            ResponseContentType: contentType as string,
+         });
+
+         const url = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+
+         res.status(200).json({
+            url,
+            contentType,
          });
       } catch (error: any) {
          res.status(500).json({ error: error.message });

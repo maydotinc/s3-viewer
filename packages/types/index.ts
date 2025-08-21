@@ -60,10 +60,24 @@ type S3Object = {
    Size: number | null;
 };
 
+type S3ObjectMetadata = {
+   contentType?: string;
+   contentLength?: number;
+   lastModified?: Date;
+   storageClass?: string;
+};
+
+type S3ObjectPreviewResponse = {
+   url: string;
+   contentType: string;
+};
+
 export { Provider, Role };
 export type {
    S3Bucket,
    S3Object,
+   S3ObjectMetadata,
+   S3ObjectPreviewResponse,
    ServerCredentials,
    ServerInfo,
    ServerInvite,
