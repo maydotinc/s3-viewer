@@ -40,7 +40,6 @@ next-env.d.ts
 # database
 **/*.db
 *.db
-sqlite.db
 
 # vscode
 .vscode

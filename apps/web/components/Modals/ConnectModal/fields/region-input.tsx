@@ -8,6 +8,7 @@ import {
 } from "@s3-viewer/ui/components/select";
 
 const AWS_REGIONS = [
+   "auto",
    "us-east-1",
    "us-east-2",
    "us-west-1",
@@ -37,7 +38,10 @@ const RegionInput = () => {
 
    return (
       <div className="flex flex-col">
-         <label htmlFor="region" className="text-sm font-medium text-black flex items-center gap-1">
+         <label
+            htmlFor="region"
+            className="text-sm font-medium text-black flex items-center gap-1"
+         >
             Region<span className="text-lg text-viewerblue">*</span>
          </label>
          <Select value={region} onValueChange={setRegion}>

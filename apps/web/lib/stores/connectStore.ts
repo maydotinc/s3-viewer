@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
 type AWSRegion =
+   | "auto"
    | "us-east-1"
    | "us-east-2"
    | "us-west-1"

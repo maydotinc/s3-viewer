@@ -6,7 +6,6 @@
       "@s3-viewer/db": "workspace:*",
       "@s3-viewer/ui": "workspace:*",
       "better-auth": "^1.2.8",
-      "better-sqlite3": "^11.10.0",
       "dotenv": "^16.5.0",
       "resend": "^6.0.1"
    },
@@ -14,8 +13,7 @@
       "@better-auth/cli": "^1.2.8",
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
-      "@s3-viewer/ui": "workspace:*",
-      "@types/better-sqlite3": "^7.6.13"
+      "@s3-viewer/ui": "workspace:*"
    },
    "exports": {
       ".": "./lib/auth.ts",
