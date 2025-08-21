@@ -22,16 +22,18 @@ const TeamLetter = () => {
                   From the team
                </h1>
                <p className="text-base text-viewertext md:max-w-1/2">
-                  We built S3-Viewer because we were frustrated with the
-                  complexity of existing object storage interfaces. Managing
-                  data across different S3 providers shouldn't require learning
-                  new tools or switching between multiple dashboards. We wanted
-                  something that just works - intuitive, fast, and reliable.
+                  We built S3-Viewer because we were tired of being locked into
+                  provider-specific interfaces. AWS won't let you view your R2
+                  buckets. Cloudflare won't show your S3 data. And other
+                  providers keep your data siloed in their own dashboards. We
+                  wanted one viewer that works everywhere - a single interface
+                  for all your object storage, regardless of where it lives.
                </p>
                <div className="h-[1px] w-1/4 bg-viewerborder my-2 max-md:hidden" />
                <span className="text-base text-viewertext md:max-w-1/2">
-                  Our mission is to make object storage as accessible as your
-                  local file system, regardless of your technical background.
+                  Our mission is to make object storage as accessible, fast and
+                  simple as your local file system, regardless of your technical
+                  background.
                </span>
                <div className="md:absolute md:top-0 max-md:size-10 md:right-0 md:-translate-x-1/2 md:translate-y-1/2 select-none">
                   <Image
@@ -45,13 +47,16 @@ const TeamLetter = () => {
                </div>
                <div className="flex flex-col gap-2 mt-5">
                   <div className="flex items-center -space-x-2">
-                     {["aleem", "mike", "vinit"].map((profile) => (
+                     {["mike", "vinit", "aleem"].map((profile, i) => (
                         <Image
                            key={profile}
                            src={`/landing/profiles/${profile}.png`}
                            alt="viewer-cube"
                            width={40}
                            height={40}
+                           style={{
+                              zIndex: 10 - i,
+                           }}
                            className="border border-viewerwhite rounded-full select-none"
                            quality={100}
                            draggable={false}
@@ -59,10 +64,10 @@ const TeamLetter = () => {
                      ))}
                   </div>
                   <h3 className="text-base leading-none font-semibold text-viewerblack">
-                     S3 - Viewer
+                     S3-Viewer
                   </h3>
                   <span className="text-xs leading-none text-viewertext">
-                     Aleem, Mike, Vinit
+                     Mike, Vinit, Aleem
                   </span>
                </div>
             </div>

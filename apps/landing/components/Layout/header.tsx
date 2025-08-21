@@ -1,7 +1,8 @@
 import { Button } from "@s3-viewer/ui/components/button";
-import { ChevronRight, GithubIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { FaGithub } from "react-icons/fa";
 
 const Header = () => {
    return (
@@ -30,16 +31,15 @@ const Header = () => {
                   <ChevronRight className="size-5" />
                </a>
             </Button>
+
             <div className="flex items-center gap-2 max-md:hidden">
-               <Button size="lg" className="h-12 text-md" asChild>
-                  <a
-                     href="https://github.com/maydotinc/s3-viewer"
-                     target="_blank"
-                  >
-                     <GithubIcon className="size-5" /> Github
-                     <ChevronRight className="size-5" />
-                  </a>
-               </Button>
+               <Link
+                  className="h-12 text-md bg-black text-white rounded-lg px-4 py-2 flex items-center gap-2"
+                  href="https://github.com/maydotinc/s3-viewer"
+                  target="_blank"
+               >
+                  <FaGithub className="size-5" /> View on Github
+               </Link>
                <Button
                   variant="secondary"
                   size="lg"
@@ -50,7 +50,7 @@ const Header = () => {
                      href="https://github.com/maydotinc/s3-viewer"
                      target="_blank"
                   >
-                     Go To Dashboard <ChevronRight className="size-5" />
+                     Open Viewer <ChevronRight className="size-5" />
                   </a>
                </Button>
             </div>

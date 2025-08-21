@@ -8,9 +8,9 @@ const IntroBlock = () => {
       <BasicBlock className="md:flex-row gap-0 max-md:py-5 max-md:border-b max-md:border-viewerborder">
          <div className="bg-viewergray flex-1 border border-viewerborder">
             <div className="flex flex-col justify-between h-full p-6 gap-6">
-               <div className="flex cursor-default items-center gap-1 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite">
+               <div className="flex cursor-default items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite">
                   <FaGithub className="size-4" />
-                  <span className="text-md">OPEN SOURCE</span>
+                  <span className="text-md">1-Click Self-Host</span>
                </div>
                <h1 className="md:text-5xl text-4xl font-semibold text-viewerblack">
                   A Fast, Open-Source S3 Viewer That Just Works
