@@ -4,8 +4,19 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
 import S3ViewerEmailOTP from "@s3-viewer/ui/emails/auth-otp";
 
-import { Resend } from "resend";
-const resend = new Resend(process.env.RESEND_KEY);
+// Remove the immediate Resend import and initialization
+// import { Resend } from "resend";
+// const resend = new Resend(process.env.RESEND_KEY);
+
+// Lazy load Resend to avoid ESM/CommonJS issues
+let resendInstance: any = null;
+async function getResend() {
+   if (!resendInstance) {
+      const { Resend } = await import("resend");
+      resendInstance = new Resend(process.env.RESEND_KEY);
+   }
+   return resendInstance;
+}
 
 // .env vars found in apps/api/.env, not in root or packages.
 export const auth = betterAuth({
@@ -23,6 +34,7 @@ export const auth = betterAuth({
                console.log(`Sending OTP to ${email}: ${otp}`);
             } else {
                try {
+                  const resend = await getResend();
                   const { error } = await resend.emails.send({
                      from: "S3 Viewer <auth@s3-viewer.com>",
                      to: [email],
