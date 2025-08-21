@@ -1,5 +1,5 @@
 import { Button } from "@s3-viewer/ui/components/button";
-import { Github } from "lucide-react";
+import { FaGithub } from "react-icons/fa";
 import Image from "next/image";
 import BasicBlock from "../basic-block";
 
@@ -8,14 +8,10 @@ const IntroBlock = () => {
       <BasicBlock className="md:flex-row gap-0 max-md:py-5 max-md:border-b max-md:border-viewerborder">
          <div className="bg-viewergray flex-1 border border-viewerborder">
             <div className="flex flex-col justify-between h-full p-6 gap-6">
-               <a
-                  href="https://github.com/maydotinc/s3-viewer"
-                  target="_blank"
-                  className="flex items-center gap-1 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite"
-               >
-                  <Github className="size-4" />
+               <div className="flex cursor-default items-center gap-1 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite">
+                  <FaGithub className="size-4" />
                   <span className="text-md">OPEN SOURCE</span>
-               </a>
+               </div>
                <h1 className="md:text-5xl text-4xl font-semibold text-viewerblack">
                   A Fast, Open-Source S3 Viewer That Just Works
                </h1>

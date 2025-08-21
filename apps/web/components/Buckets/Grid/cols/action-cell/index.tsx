@@ -33,14 +33,7 @@ const ActionCell = (params: ICellRendererParams) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-50 p-2">
                <DownloadObject params={params} setIsLoading={setIsLoading} />
-               {/* <DropdownMenuItem>
-                  <Pencil className="size-4 text-inherit" />
-                  Rename
-               </DropdownMenuItem>
-               <DropdownMenuItem>
-                  <Replace className="size-4 text-inherit" />
-                  Move
-               </DropdownMenuItem> */}
+
                <DropdownMenuSeparator className="mx-auto" />
                <DeleteObject params={params} />
             </DropdownMenuContent>
