@@ -1,4 +1,3 @@
-import { GithubIcon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -17,17 +16,10 @@ const Footer = () => {
                className="select-none"
             />
             <div className="flex gap-4 text-viewerwhite text-sm">
-               <a
-                  href="https://github.com/maydotinc/s3-viewer"
-                  target="_blank"
-                  className="flex items-center gap-1 order-last"
-               >
-                  <GithubIcon className="size-5" /> Github
-               </a>
                <Link href="/tos" className="underline">
                   Terms of Service
                </Link>
-               <Link href="/" className="underline order-first">
+               <Link href="/privacy-policy" className="underline order-first">
                   Privacy Policy
                </Link>
             </div>
