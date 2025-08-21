@@ -32,10 +32,6 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
    const [deleteError, setDeleteError] = useState<string | null>(null);
 
    const handleDelete = () => {
-      if (!gridApi) {
-         console.error("Grid API is null, cannot delete objects");
-         return;
-      }
       if (!bucketName || !serverId) {
          console.error(
             "Bucket name and server Id are required, cannot delete objects"

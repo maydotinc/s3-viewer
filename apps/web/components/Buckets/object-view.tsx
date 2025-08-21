@@ -1,26 +1,29 @@
+import { useModalContext } from "@/lib/contexts/ModalContext";
 import useObjectMetadata from "@/lib/hooks/queries/s3/useObjectMetadata";
 import useObjectPreview from "@/lib/hooks/queries/s3/useObjectPreview";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { formatFileSize } from "@/lib/utils/fileUtils";
+import getPresignedDownloadUrl from "@/lib/utils/s3/getPresignedDownloadUrl";
 import { getPreviewType } from "@/lib/utils/s3/previewHelpers";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { ArrowLeft, Download, Eye, Trash2 } from "lucide-react";
 import { useRouter } from "next/router";
+import { useState } from "react";
 import { useBucketContext } from "./Context";
+
 const ObjectView = () => {
    const router = useRouter();
+   const [isLoading, setIsLoading] = useState(false);
+   const { openConfirmDeleteModal } = useModalContext();
    const serverId = useSessionStore((state) => state.serverId);
    const { path, bucket } = useBucketContext();
    const objectKey = path.join("/");
-
-   // Use the bucketName from props which comes from URL
    const { data: metadata, isLoading: metadataLoading } = useObjectMetadata(
       serverId,
       bucket?.Name || "",
       objectKey
    );
-
    const { data: preview } = useObjectPreview(
       serverId,
       bucket?.Name || "",
@@ -32,49 +35,94 @@ const ObjectView = () => {
    const objectName = objectKey.split("/").pop() || objectKey;
 
    const handleBack = () => {
-      // Remove object view query param
-      const { view, ...restQuery } = router.query;
+      const slug = router.query.slug;
+      if (!Array.isArray(slug) || slug.length === 0) {
+         router.push("/buckets");
+         return;
+      }
+      const newSlug = slug.slice(0, -1);
       router.push({
          pathname: router.pathname,
-         query: restQuery,
+         query: {
+            slug: newSlug,
+         },
       });
    };
 
-   if (!bucket?.Name) {
-      return (
-         <section className="flex flex-col p-8 pt-6 w-full h-full items-center justify-center">
-            <p>Invalid bucket name</p>
-         </section>
-      );
-   }
+   const handleDownload = async () => {
+      setIsLoading(true);
+      console.log("Downloading file", objectKey);
+      if (!bucket?.Name || !serverId || !objectKey) {
+         console.error(
+            "Missing bucket name, server ID, file name, or file size"
+         );
+         setIsLoading(false);
+         return;
+      }
+      try {
+         const { url } = await getPresignedDownloadUrl(
+            bucket?.Name,
+            objectKey,
+            serverId
+         );
+         if (!url) {
+            console.error("No URL returned from presigned download URL");
+            setIsLoading(false);
+            return;
+         }
+
+         window.open(url, "_blank");
+      } catch (error) {
+         console.error("Unable to download file", error);
+      } finally {
+         setIsLoading(false);
+      }
+   };
+
+   const handleDelete = async () => {
+      if (!bucket?.Name || !serverId) {
+         console.error(
+            "Missing bucket name or server ID, cannot delete object"
+         );
+         return;
+      }
+      openConfirmDeleteModal({
+         serverId,
+         bucketName: bucket?.Name,
+         fileNames: [objectKey],
+         gridApi: null,
+      });
+   };
 
    return (
-      <section className="flex flex-col flex-1 overflow-hidden">
-         {/* Action Bar */}
-         <div className="flex items-center justify-between px-8 py-4 border-b">
-            <div className="flex items-center gap-4">
-               <Button variant="ghost" size="icon" onClick={handleBack}>
-                  <ArrowLeft className="h-4 w-4" />
+      <section className="flex flex-col p-8 pt-6 w-full h-full overflow-hidden">
+         <div className="flex pb-6 gap-4 w-full justify-between max-w-full max-lg:flex-col max-lg:justify-start">
+            <div className="flex items-center gap-4 min-w-0">
+               <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleBack}
+                  className="flex items-center"
+               >
+                  <ArrowLeft className="size-5" />
                </Button>
-               <h1 className="text-lg font-medium">{objectName}</h1>
+               <h1 className="truncate text-lg max-w-[400px]">{objectName}</h1>
             </div>
-
             <div className="flex gap-2">
-               <Button variant="outline" size="sm">
-                  <Download className="mr-2 h-4 w-4" />
+               <Button variant="outline" onClick={handleDownload}>
+                  <Download className="size-4" />
                   Download
                </Button>
-               <Button variant="destructive" size="sm">
-                  <Trash2 className="mr-2 h-4 w-4" />
+               <Button variant="destructive" onClick={handleDelete}>
+                  <Trash2 className="size-4" />
                   Delete
                </Button>
             </div>
          </div>
 
-         <div className="flex flex-1 overflow-hidden">
-            {/* Metadata Panel */}
-            <div className="w-80 border-r p-6 overflow-y-auto bg-gray-50/50">
-               <h2 className="text-base font-semibold mb-4">Object Details</h2>
+         <div className="flex flex-1 overflow-hidden max-lg:flex-col gap-4">
+            <div className="w-80 overflow-y-auto">
+               <h1 className="font-semibold mb-4">Object Details</h1>
                {metadataLoading ? (
                   <div className="space-y-3">
                      {[...Array(4)].map((_, i) => (
@@ -124,8 +172,7 @@ const ObjectView = () => {
                )}
             </div>
 
-            {/* Preview Area */}
-            <div className="flex-1 p-8 flex items-center justify-center bg-gray-50">
+            <div className="flex-1 p-8 flex items-center justify-center bg-gray-50 rounded-xl">
                {preview?.url && previewType === "image" ? (
                   <img
                      src={preview.url}

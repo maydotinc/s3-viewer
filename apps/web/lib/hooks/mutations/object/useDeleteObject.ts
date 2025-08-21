@@ -9,11 +9,12 @@ const useDeleteObject = () => {
          serverId,
          bucketName,
          fileNames,
+         gridApi,
       }: {
          serverId: string;
          bucketName: string;
          fileNames: string[];
-         gridApi: GridApi;
+         gridApi: GridApi | null;
       }): Promise<{ message: string }> => {
          if (fileNames.length === 0) {
             console.error("No files specified for deletion");
@@ -72,8 +73,10 @@ const useDeleteObject = () => {
             `${isMultiple ? `${fileCount} objects` : "Object"} deleted successfully`
          );
 
-         gridApi.purgeInfiniteCache();
-         gridApi.deselectAll();
+         if (gridApi) {
+            gridApi.purgeInfiniteCache();
+            gridApi.deselectAll();
+         }
       },
 
       onError: (error: Error) => {

@@ -22,7 +22,7 @@ const useObjectPreview = (
          });
 
          const response = await createApiRequest(
-            `/s3/objects/preview?${params}`,
+            `/s3/object/preview?${params}`,
             {
                method: "GET",
             }

@@ -7,8 +7,6 @@ const useObjectMetadata = (
    bucketName: string,
    objectKey: string
 ) => {
-   console.log(!!serverId, !!bucketName, !!objectKey);
-   console.log(serverId, bucketName, objectKey);
    return useQuery<S3ObjectMetadata>({
       queryKey: ["object-metadata", serverId, bucketName, objectKey],
       queryFn: async () => {
@@ -18,7 +16,7 @@ const useObjectMetadata = (
             objectKey,
          });
          const response = await createApiRequest(
-            `/s3/objects/metadata?${params}`,
+            `/s3/object/metadata?${params}`,
             {
                method: "GET",
             }
