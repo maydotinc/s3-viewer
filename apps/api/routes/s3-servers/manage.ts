@@ -37,6 +37,8 @@ manageRouter.post("/establish", async (req: Request, res: Response) => {
             bucketCount: response.Buckets?.length,
          });
       } else {
+         console.log("line 40 manage.ts error with response");
+         console.log(JSON.stringify(response, null, 2));
          res.status(400).json({
             message:
                "Server connection failed, are you sure you're using the correct credentials?",
