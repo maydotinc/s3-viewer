@@ -21,6 +21,7 @@
       "cors": "^2.8.5",
       "dotenv": "^16.5.0",
       "express": "^5.1.0",
+      "resend": "^6.0.1",
       "web": "workspace:*",
       "zod": "^3.25.67"
    },
