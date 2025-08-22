@@ -19,6 +19,11 @@ const PREVIEWABLE_TYPES = [
    "text/x-markdown",
    "application/javascript",
    "application/typescript",
+   "video/mp4",
+   "video/webm",
+   "video/ogg",
+   "video/quicktime",
+   "video/x-msvideo",
 ];
 
 const isPreviewable = (contentType?: string): boolean => {
@@ -28,12 +33,15 @@ const isPreviewable = (contentType?: string): boolean => {
    );
 };
 
-const getPreviewType = (contentType?: string): "image" | "iframe" | "none" => {
+const getPreviewType = (
+   contentType?: string
+): "image" | "video" | "iframe" | "none" => {
    if (!contentType) return "none";
 
    const lowerType = contentType.toLowerCase();
 
    if (lowerType.startsWith("image/")) return "image";
+   if (lowerType.startsWith("video/")) return "video";
    return "iframe";
 };
 

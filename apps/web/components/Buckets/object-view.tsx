@@ -7,7 +7,7 @@ import getPresignedDownloadUrl from "@/lib/utils/s3/getPresignedDownloadUrl";
 import { getPreviewType } from "@/lib/utils/s3/previewHelpers";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { ArrowLeft, Download, Eye, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Eye, Loader2, Trash2 } from "lucide-react";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { useBucketContext } from "./Context";
@@ -24,7 +24,12 @@ const ObjectView = () => {
       bucket?.Name || "",
       objectKey
    );
-   const { data: preview } = useObjectPreview(
+   const {
+      data: preview,
+      isFetching: previewFetching,
+      isLoading: previewLoading,
+      isError: previewError,
+   } = useObjectPreview(
       serverId,
       bucket?.Name || "",
       objectKey,
@@ -90,7 +95,7 @@ const ObjectView = () => {
          serverId,
          bucketName: bucket?.Name,
          fileNames: [objectKey],
-         gridApi: null,
+         onDeleteSuccess: handleBack,
       });
    };
 
@@ -109,11 +114,19 @@ const ObjectView = () => {
                <h1 className="truncate text-lg max-w-[400px]">{objectName}</h1>
             </div>
             <div className="flex gap-2">
-               <Button variant="outline" onClick={handleDownload}>
+               <Button
+                  variant="outline"
+                  onClick={handleDownload}
+                  disabled={isLoading}
+               >
                   <Download className="size-4" />
                   Download
                </Button>
-               <Button variant="destructive" onClick={handleDelete}>
+               <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={isLoading}
+               >
                   <Trash2 className="size-4" />
                   Delete
                </Button>
@@ -173,12 +186,41 @@ const ObjectView = () => {
             </div>
 
             <div className="flex-1 p-8 flex items-center justify-center bg-gray-50 rounded-xl">
-               {preview?.url && previewType === "image" ? (
-                  <img
+               {preview === undefined && !previewError ? (
+                  <div className="flex flex-col items-center justify-center">
+                     <Loader2 className="h-12 w-12 animate-spin" />
+                  </div>
+               ) : preview?.url && previewType === "image" ? (
+                  metadata?.contentLength &&
+                  metadata.contentLength > 50 * 1024 * 1024 ? (
+                     <div className="flex flex-col items-center justify-center text-center gap-4">
+                        <p>
+                           Large image (
+                           {formatFileSize(metadata.contentLength).value}{" "}
+                           {formatFileSize(metadata.contentLength).unit})
+                        </p>
+                        <Button
+                           variant="outline"
+                           onClick={() => window.open(preview.url, "_blank")}
+                        >
+                           Open in new tab
+                        </Button>
+                     </div>
+                  ) : (
+                     <img
+                        src={preview.url}
+                        alt={objectName}
+                        className="max-w-full max-h-full object-contain"
+                     />
+                  )
+               ) : preview?.url && previewType === "video" ? (
+                  <video
                      src={preview.url}
-                     alt={objectName}
-                     className="max-w-full max-h-full object-contain"
-                  />
+                     controls
+                     className="max-w-full max-h-full"
+                  >
+                     Your browser does not support video playback.
+                  </video>
                ) : preview?.url && previewType === "iframe" ? (
                   <iframe
                      src={preview.url}

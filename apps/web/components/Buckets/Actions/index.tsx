@@ -78,7 +78,10 @@ const ObjectActions = () => {
                      serverId,
                      bucketName: bucket!.Name,
                      fileNames: rowsSelected,
-                     gridApi: gridRef.current?.api ?? null,
+                     onDeleteSuccess: () => {
+                        gridRef.current?.api?.purgeInfiniteCache();
+                        gridRef.current?.api?.deselectAll();
+                     },
                   });
                }}
                className="w-[100px] @max-3xl/actions:flex-1"
