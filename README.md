@@ -2,7 +2,7 @@
 
 A web-based S3-compatible object storage browser that allows users to manage multiple S3 servers through a modern interface, enabling basic operations on objects with the familiarity of a traditional file explorer.
 
-<img src="./apps/landing/public/landing/bucketview.png" alt="Viewer image" width="35%">
+<img src="./apps/landing/public/landing/bucketview.png" alt="Viewer image" width="65%">
 
 ## 📝 Features
 
