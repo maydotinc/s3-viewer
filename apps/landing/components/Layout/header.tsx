@@ -27,7 +27,7 @@ const Header = () => {
                className="h-12 text-md md:hidden"
                asChild
             >
-               <a href="https://github.com/maydotinc/s3-viewer" target="_blank">
+               <a href="https://s3-viewer.com/dashboard" target="_blank">
                   <ChevronRight className="size-5" />
                </a>
             </Button>
@@ -46,10 +46,7 @@ const Header = () => {
                   className="h-12 text-md"
                   asChild
                >
-                  <a
-                     href="https://github.com/maydotinc/s3-viewer"
-                     target="_blank"
-                  >
+                  <a href="https://s3-viewer.com/dashboard" target="_blank">
                      Open Viewer <ChevronRight className="size-5" />
                   </a>
                </Button>

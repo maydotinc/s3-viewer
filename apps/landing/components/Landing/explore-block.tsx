@@ -41,7 +41,7 @@ const ExploreBlock = () => {
                size="lg"
                className="h-12 w-fit text-md bg-viewerblack border-viewerblack text-viewerwhite hover:bg-viewerblack/80 rounded-xl"
             >
-               <a href="https://github.com/maydotinc/s3-viewer" target="_blank">
+               <a href="https://s3-viewer.com/dashboard" target="_blank">
                   Open Viewer
                </a>
             </Button>
