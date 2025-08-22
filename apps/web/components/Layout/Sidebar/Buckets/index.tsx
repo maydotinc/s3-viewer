@@ -1,10 +1,13 @@
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Folder } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import { useRef } from "react";
 
 const BucketList = () => {
+   const router = useRouter();
    const containerRef = useRef<HTMLDivElement>(null);
    const { buckets } = useBuckets();
    const virtualizer = useVirtualizer({
@@ -12,6 +15,10 @@ const BucketList = () => {
       getScrollElement: () => containerRef.current,
       estimateSize: () => 40,
    });
+   const selectedBucket =
+      router.pathname.startsWith("/buckets") && router.query.slug
+         ? (router.query.slug[0] as string)
+         : null;
    const virtualItems = virtualizer.getVirtualItems();
 
    return (
@@ -34,7 +41,11 @@ const BucketList = () => {
                   >
                      <Link
                         href={`/buckets/${bucketCard?.Name}`}
-                        className="flex-1 flex gap-2 p-2 rounded-md items-center justify-start text-viewertext cursor-pointer hover:text-viewerblue hover:bg-viewergray"
+                        className={cn(
+                           "flex-1 flex gap-2 p-2 rounded-md items-center justify-start text-viewertext cursor-pointer hover:text-viewerblue hover:bg-viewergray",
+                           selectedBucket === bucketCard?.Name &&
+                              "bg-viewergray"
+                        )}
                      >
                         <Folder className="size-4 text-viewerblue" />
                         <span className="text-inherit truncate max-w-[150px]">
