@@ -16,7 +16,10 @@ export default function ViewerBanner({
    return (
       <div className="flex flex-col size-full">
          <header className="flex justify-between sticky top-0 w-full h-[var(--header-height)] z-50 bg-viewergray border-b border-viewerborder">
-            <Link href="/home" className="flex items-center gap-2 ml-10 my-4">
+            <Link
+               href="/dashboard"
+               className="flex items-center gap-2 ml-10 my-4"
+            >
                <Image
                   src="/icons/viewer.svg"
                   alt="S3 Viewer"

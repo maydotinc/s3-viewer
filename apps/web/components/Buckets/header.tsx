@@ -33,7 +33,7 @@ const BucketHeader = () => {
             <BreadcrumbList>
                <BreadcrumbItem>
                   <BreadcrumbLink asChild>
-                     <Link href="/home">
+                     <Link href="/dashboard">
                         <House className="size-5" />
                      </Link>
                   </BreadcrumbLink>

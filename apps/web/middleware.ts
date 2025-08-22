@@ -36,11 +36,6 @@ function middleware(request: NextRequest) {
 
       return NextResponse.rewrite(url.toString());
    }
-
-   if (pathname === "/dashboard") {
-      url.pathname = "/";
-      return NextResponse.rewrite(url.toString());
-   }
 }
 
 export default middleware;
