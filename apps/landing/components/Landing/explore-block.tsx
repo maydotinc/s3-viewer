@@ -1,5 +1,6 @@
 import { Button } from "@s3-viewer/ui/components/button";
 import Image from "next/image";
+import Link from "next/link";
 import BasicBlock from "../basic-block";
 
 const WrapperBg = () => {
@@ -41,9 +42,9 @@ const ExploreBlock = () => {
                size="lg"
                className="h-12 w-fit text-md bg-viewerblack border-viewerblack text-viewerwhite hover:bg-viewerblack/80 rounded-xl"
             >
-               <a href="https://s3-viewer.com/dashboard" target="_blank">
+               <Link href="https://s3-viewer.com/dashboard" target="_blank">
                   Open Viewer
-               </a>
+               </Link>
             </Button>
          </div>
       </BasicBlock>

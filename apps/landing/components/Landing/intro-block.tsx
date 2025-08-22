@@ -1,5 +1,6 @@
 import { Button } from "@s3-viewer/ui/components/button";
 import Image from "next/image";
+import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
 import BasicBlock from "../basic-block";
 
@@ -25,9 +26,9 @@ const IntroBlock = () => {
                   className="h-12 text-md w-fit"
                   asChild
                >
-                  <a href="https://s3-viewer.com/dashboard" target="_blank">
+                  <Link href="https://s3-viewer.com/dashboard" target="_blank">
                      Connect your server
-                  </a>
+                  </Link>
                </Button>
             </div>
          </div>

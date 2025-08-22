@@ -27,9 +27,9 @@ const Header = () => {
                className="h-12 text-md md:hidden"
                asChild
             >
-               <a href="https://s3-viewer.com/dashboard" target="_blank">
+               <Link href="https://s3-viewer.com/dashboard" target="_blank">
                   <ChevronRight className="size-5" />
-               </a>
+               </Link>
             </Button>
 
             <div className="flex items-center gap-2 max-md:hidden">
@@ -46,9 +46,9 @@ const Header = () => {
                   className="h-12 text-md"
                   asChild
                >
-                  <a href="https://s3-viewer.com/dashboard" target="_blank">
+                  <Link href="https://s3-viewer.com/dashboard" target="_blank">
                      Open Viewer <ChevronRight className="size-5" />
-                  </a>
+                  </Link>
                </Button>
             </div>
          </div>
