@@ -1,5 +1,4 @@
 import { ServerInfo } from "@s3-viewer/types";
-import { GridApi } from "ag-grid-community";
 import React, { createContext, ReactNode, useContext, useState } from "react";
 
 type ModalType =
@@ -20,7 +19,7 @@ type ModalPropsMap = {
       serverId: string;
       bucketName: string;
       fileNames: string[];
-      gridApi: GridApi | null;
+      onDeleteSuccess?: () => void;
    };
    rename: {
       server: ServerInfo;

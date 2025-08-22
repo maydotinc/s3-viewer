@@ -9,7 +9,6 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@s3-viewer/ui/components/dialog";
-import { GridApi } from "ag-grid-community";
 import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
@@ -18,7 +17,7 @@ type ConfirmDeleteModalProps = {
    serverId: string;
    bucketName: string;
    fileNames: string[];
-   gridApi: GridApi | null;
+   onDeleteSuccess?: () => void;
 };
 
 const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
@@ -26,16 +25,12 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
    serverId,
    bucketName,
    fileNames,
-   gridApi,
+   onDeleteSuccess,
 }) => {
    const deleteObjectMutation = useDeleteObject();
    const [deleteError, setDeleteError] = useState<string | null>(null);
 
    const handleDelete = () => {
-      if (!gridApi) {
-         console.error("Grid API is null, cannot delete objects");
-         return;
-      }
       if (!bucketName || !serverId) {
          console.error(
             "Bucket name and server Id are required, cannot delete objects"
@@ -43,10 +38,11 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
          return;
       }
       deleteObjectMutation.mutate(
-         { serverId, bucketName, fileNames, gridApi },
+         { serverId, bucketName, fileNames },
          {
             onSuccess: () => {
                setDeleteError(null);
+               onDeleteSuccess?.();
                onClose();
             },
             onError: (error: Error) => {

@@ -22,7 +22,10 @@ const DeleteObject = ({ params }: DeleteObjectProps) => {
          serverId,
          bucketName,
          fileNames: [fileName],
-         gridApi: params.api,
+         onDeleteSuccess: () => {
+            params.api?.purgeInfiniteCache();
+            params.api?.deselectAll();
+         },
       });
    };
 

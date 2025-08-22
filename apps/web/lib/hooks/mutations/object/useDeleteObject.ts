@@ -1,7 +1,6 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
-import { GridApi } from "ag-grid-community";
 
 const useDeleteObject = () => {
    return useMutation({
@@ -13,7 +12,6 @@ const useDeleteObject = () => {
          serverId: string;
          bucketName: string;
          fileNames: string[];
-         gridApi: GridApi;
       }): Promise<{ message: string }> => {
          if (fileNames.length === 0) {
             console.error("No files specified for deletion");
@@ -64,16 +62,13 @@ const useDeleteObject = () => {
          }
       },
 
-      onSuccess: (_, { gridApi, fileNames }) => {
+      onSuccess: (_, { fileNames }) => {
          const fileCount = fileNames.length;
          const isMultiple = fileCount > 1;
 
          toast.success(
             `${isMultiple ? `${fileCount} objects` : "Object"} deleted successfully`
          );
-
-         gridApi.purgeInfiniteCache();
-         gridApi.deselectAll();
       },
 
       onError: (error: Error) => {

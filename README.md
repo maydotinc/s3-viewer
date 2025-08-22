@@ -2,6 +2,8 @@
 
 A web-based S3-compatible object storage browser that allows users to manage multiple S3 servers through a modern interface, enabling basic operations on objects with the familiarity of a traditional file explorer.
 
+<img src="./apps/landing/public/landing/bucketview.png" alt="Viewer image" width="100%">
+
 ## 📝 Features
 
 - Connect to multiple S3-compatible providers (AWS S3, Cloudflare R2, MinIO, etc.)
@@ -30,7 +32,7 @@ A web-based S3-compatible object storage browser that allows users to manage mul
 ### 1. Clone and Install
 
 ```bash
-git clone <repo>
+git clone https://github.com/maydotinc/s3-viewer
 cd s3-viewer
 pnpm install
 ```

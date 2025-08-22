@@ -27,7 +27,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
       }
 
       try {
-         const { error } = await verifyOtp(email, code, "/home");
+         const { error } = await verifyOtp(email, code, "/dashboard");
          if (error) {
             setError(error);
             return;
