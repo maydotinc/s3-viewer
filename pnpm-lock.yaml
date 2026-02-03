@@ -12,7 +12,7 @@ importers:
         specifier: ^3.5.3
         version: 3.5.3
       prisma:
-        specifier: ^6.8.2
+        specifier: ^6.1.0
         version: 6.8.2(typescript@5.8.3)
       turbo:
         specifier: ^2.5.4

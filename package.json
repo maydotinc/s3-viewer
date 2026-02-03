@@ -10,7 +10,7 @@
   "packageManager": "pnpm@10.15.0",
   "devDependencies": {
     "prettier": "^3.5.3",
-    "prisma": "^6.8.2",
+    "prisma": "^6.1.0",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
   }
