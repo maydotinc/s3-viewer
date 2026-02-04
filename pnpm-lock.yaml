@@ -30,7 +30,7 @@ importers:
         specifier: ^3.821.0
         version: 3.821.0
       '@prisma/client':
-        specifier: ^6.8.2
+        specifier: ^6.1.0
         version: 6.8.2(prisma@6.8.2(typescript@5.8.3))(typescript@5.8.3)
       '@s3-viewer/auth':
         specifier: workspace:*
@@ -259,14 +259,14 @@ importers:
   packages/db:
     dependencies:
       '@prisma/client':
-        specifier: ^6.8.2
+        specifier: ^6.1.0
         version: 6.8.2(prisma@6.8.2(typescript@5.8.3))(typescript@5.8.3)
     devDependencies:
       '@s3-viewer/ts-config':
         specifier: workspace:*
         version: link:../ts-config
       prisma:
-        specifier: ^6.8.2
+        specifier: ^6.1.0
         version: 6.8.2(typescript@5.8.3)
 
   packages/eslint-config:
