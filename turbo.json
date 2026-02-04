@@ -3,8 +3,12 @@
    "globalDependencies": ["**/.env.*local", "**/.env"],
    "ui": "stream",
    "tasks": {
+     "db:generate": {
+        "cache": false,
+        "inputs": ["prisma/schema.prisma", "prisma/**/*.prisma", "prisma/migrations/**", ".env*", "$TURBO_DEFAULT$"]
+     },
       "build": {
-         "dependsOn": ["^build"],
+         "dependsOn": ["^db:generate", "^build"],
          "outputs": [".next/**", "!.next/cache/**", "dist/**"],
          "inputs": [".env*", "$TURBO_DEFAULT$"]
       },

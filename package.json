@@ -4,13 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "turbo run dev --force",
-    "build": "pnpm --filter @s3-viewer/db db:generate && turbo run build",
+    "build": "turbo run build",
     "format": "prettier --write ."
   },
   "packageManager": "pnpm@10.28.2",
   "devDependencies": {
     "prettier": "^3.5.3",
-    "prisma": "^6.1.0",
     "turbo": "^2.5.4",
     "typescript": "^5.8.3"
   }

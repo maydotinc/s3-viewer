@@ -5,9 +5,7 @@
    "scripts": {
       "dev": "tsup --watch",
       "build": "tsup",
-      "start": "pnpm --filter @s3-viewer/db exec prisma generate --schema=prisma/schema.prisma && node dist/server.js",
-      "db:generate": "pnpm --filter @s3-viewer/db exec prisma generate --schema=prisma/schema.prisma",
-      "db:migrate": "pnpm --filter @s3-viewer/db exec prisma migrate dev --schema=prisma/schema.prisma"
+      "start": "pnpm --filter @s3-viewer/db db:generate && node dist/server.js"
    },
    "dependencies": {
       "@aws-sdk/client-s3": "^3.802.0",
