@@ -5,11 +5,16 @@
    "exports": {
       ".": "./src/client.ts"
    },
+   "scripts": {
+      "db:generate": "pnpm exec prisma generate --schema=prisma/schema.prisma",
+      "db:migrate": "pnpm exec prisma migrate dev --schema=prisma/schema.prisma"
+   },
    "dependencies": {
       "@prisma/client": "^6.1.0"
    },
    "devDependencies": {
       "@s3-viewer/ts-config": "workspace:*",
+      "@types/node": "^20.17.57",
       "prisma": "^6.1.0"
    }
 }
