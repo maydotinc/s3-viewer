@@ -3,8 +3,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@s3-viewer/auth/*": ["./*"]
+      "@s3-viewer/auth/*": [
+        "./*"
+      ]
     }
   },
-  "include": ["."]
+  "include": [
+    "."
+  ]
 }

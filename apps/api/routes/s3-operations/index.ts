@@ -1,6 +1,6 @@
 import { Router } from "express";
-import bucketRouter from "./bucket.js";
-import objectRouter from "./object.js";
+import bucketRouter from "./bucket";
+import objectRouter from "./object";
 
 const s3Router: Router = Router();
 s3Router.use("/bucket", bucketRouter);

@@ -1,14 +1,12 @@
 import { prisma } from "@s3-viewer/db";
+import S3ViewerEmailOTP from "@s3-viewer/ui/emails/auth-otp";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { emailOTP } from "better-auth/plugins";
-import S3ViewerEmailOTP from "@s3-viewer/ui/emails/auth-otp";
+import { validateEnv } from "./utils";
 
-// Remove the immediate Resend import and initialization
-// import { Resend } from "resend";
-// const resend = new Resend(process.env.RESEND_KEY);
+validateEnv();
 
-// Lazy load Resend to avoid ESM/CommonJS issues
 let resendInstance: any = null;
 async function getResend() {
    if (!resendInstance) {
@@ -18,14 +16,15 @@ async function getResend() {
    return resendInstance;
 }
 
-// .env vars found in apps/api/.env, not in root or packages.
 export const auth = betterAuth({
    baseUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
    basePath: "/auth",
    database: prismaAdapter(prisma, {
       provider: "postgresql",
    }),
-   trustedOrigins: [process.env.NEXT_PUBLIC_FRONTEND_URL as string],
+   trustedOrigins: [process.env.NEXT_PUBLIC_FRONTEND_URL as string].filter(
+      Boolean
+   ),
    plugins: [
       emailOTP({
          sendVerificationOnSignUp: true,

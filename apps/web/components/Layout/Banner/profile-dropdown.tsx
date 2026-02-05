@@ -63,7 +63,7 @@ const ProfileDropdown: React.FC = () => {
             console.log("help");
             break;
          case "terms":
-            console.log("terms");
+            window.open("https://s3-viewer.com/tos", "_blank")
             break;
          case "invites":
             openInvitesModal();
