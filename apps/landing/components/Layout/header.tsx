@@ -2,7 +2,6 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { FaGithub } from "react-icons/fa";
 
 const Header = () => {
    return (
@@ -33,13 +32,6 @@ const Header = () => {
             </Button>
 
             <div className="flex items-center gap-2 max-md:hidden">
-               <Link
-                  className="h-12 text-md bg-black text-white rounded-lg px-4 py-2 flex items-center gap-2"
-                  href="https://github.com/maydotinc/s3-viewer"
-                  target="_blank"
-               >
-                  <FaGithub className="size-5" /> View on Github
-               </Link>
                <Button
                   variant="secondary"
                   size="lg"
