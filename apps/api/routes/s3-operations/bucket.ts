@@ -1,16 +1,16 @@
 import {
+   requireCreateBucket,
+   requireDeleteBucket,
+   requireListBuckets,
+} from "@/lib/middleware/permissions";
+import { getS3Client } from "@/lib/utils/s3-client";
+import {
    CreateBucketCommand,
    DeleteBucketCommand,
    ListBucketsCommand,
 } from "@aws-sdk/client-s3";
 import { S3Bucket } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
-import {
-   requireCreateBucket,
-   requireDeleteBucket,
-   requireListBuckets,
-} from "../../lib/middleware/permissions.js";
-import { getS3Client } from "../../lib/utils/s3-client.js";
 
 const bucketRouter: Router = Router();
 

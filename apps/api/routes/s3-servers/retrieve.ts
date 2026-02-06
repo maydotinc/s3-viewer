@@ -1,7 +1,7 @@
+import { requireListBuckets } from "@/lib/middleware/permissions";
 import { prisma } from "@s3-viewer/db";
 import { Role, ServerInfo, ServerUser } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
-import { requireListBuckets } from "../../lib/middleware/permissions.js";
 
 const retrieveRouter: Router = Router();
 

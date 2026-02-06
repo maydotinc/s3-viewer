@@ -1,4 +1,12 @@
 import {
+   requireDeleteObject,
+   requireDownloadObject,
+   requireListObjects,
+   requireMoveObject,
+   requireUploadObject,
+} from "@/lib/middleware/permissions";
+import { getS3Client } from "@/lib/utils/s3-client";
+import {
    AbortMultipartUploadCommand,
    CompleteMultipartUploadCommand,
    CopyObjectCommand,
@@ -15,14 +23,6 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Request, Response, Router } from "express";
-import {
-   requireDeleteObject,
-   requireDownloadObject,
-   requireListObjects,
-   requireMoveObject,
-   requireUploadObject,
-} from "../../lib/middleware/permissions.js";
-import { getS3Client } from "../../lib/utils/s3-client.js";
 
 const objectRouter: Router = Router();
 
