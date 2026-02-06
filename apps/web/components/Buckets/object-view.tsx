@@ -7,7 +7,7 @@ import getPresignedDownloadUrl from "@/lib/utils/s3/getPresignedDownloadUrl";
 import { getPreviewType } from "@/lib/utils/s3/previewHelpers";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { ArrowLeft, Download, Eye, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Eye, Loader, Trash2 } from "lucide-react";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import { useBucketContext } from "./Context";
@@ -188,7 +188,7 @@ const ObjectView = () => {
             <div className="flex-1 p-8 flex items-center justify-center bg-gray-50 rounded-xl">
                {preview === undefined && !previewError ? (
                   <div className="flex flex-col items-center justify-center">
-                     <Loader2 className="h-12 w-12 animate-spin" />
+                     <Loader className="h-12 w-12 animate-spin" />
                   </div>
                ) : preview?.url && previewType === "image" ? (
                   metadata?.contentLength &&
@@ -210,7 +210,8 @@ const ObjectView = () => {
                      <img
                         src={preview.url}
                         alt={objectName}
-                        className="max-w-full max-h-full object-contain"
+                        className="max-w-full max-h-full object-contain select-none"
+                        draggable={false}
                      />
                   )
                ) : preview?.url && previewType === "video" ? (
@@ -224,8 +225,9 @@ const ObjectView = () => {
                ) : preview?.url && previewType === "iframe" ? (
                   <iframe
                      src={preview.url}
-                     className="w-full h-full border rounded bg-white"
+                     className="w-full h-full border rounded bg-white select-none"
                      title={`Preview of ${objectName}`}
+                     draggable={false}
                   />
                ) : (
                   <div className="flex flex-col items-center justify-center text-gray-500">
