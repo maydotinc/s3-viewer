@@ -65,11 +65,11 @@ NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
 NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----..."
 ```
 
-### 4. Database Setup
+### 4. Database Setup (Careful, this could wipe all existing data)
 
 ```bash
-cd apps/api
-pnpm run db:migrate
+cd packages/db
+pnpm db:migrate
 ```
 
 ### 5. Development
