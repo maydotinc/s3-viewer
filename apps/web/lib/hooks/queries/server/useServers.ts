@@ -8,8 +8,6 @@ const useServers = (serverId?: string) => {
    const { data: session, isPending: isSessionPending } =
       authClient.useSession();
    const sessionServerId = useSessionStore((state) => state.serverId);
-
-   // Use provided serverId or fall back to session store
    const currentServerId = serverId || sessionServerId;
 
    const {
