@@ -89,17 +89,10 @@ const sendVerificationOtp = async (
    return { success: true, data, error: null };
 };
 
-const verifyOtp = async (email: string, otp: string, successUrl?: string) => {
+const verifyOtp = async (email: string, otp: string) => {
    const { data, error } = await authClient.signIn.emailOtp({
       email,
       otp,
-      fetchOptions: {
-         onSuccess: () => {
-            if (successUrl) {
-               window.location.href = successUrl;
-            }
-         },
-      },
    });
    if (error) {
       console.dir(error, { depth: null });
