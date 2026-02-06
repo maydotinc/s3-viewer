@@ -33,9 +33,9 @@ const isPreviewable = (contentType?: string): boolean => {
    );
 };
 
-const getPreviewType = (
-   contentType?: string
-): "image" | "video" | "iframe" | "none" => {
+type PreviewType = "image" | "video" | "iframe" | "none";
+
+const getPreviewType = (contentType?: string): PreviewType => {
    if (!contentType) return "none";
 
    const lowerType = contentType.toLowerCase();
@@ -46,3 +46,4 @@ const getPreviewType = (
 };
 
 export { getPreviewType, isPreviewable };
+export type { PreviewType };
