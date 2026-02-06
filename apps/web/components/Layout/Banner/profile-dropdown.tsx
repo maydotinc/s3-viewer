@@ -12,7 +12,7 @@ import {
    User,
 } from "lucide-react";
 import Image from "next/image";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const SETTINGS_OPTIONS = [
    { id: "help", title: "Help & Support", icon: <Headset /> },
@@ -54,31 +54,32 @@ const ProfileDropdown: React.FC = () => {
       };
    }, []);
 
-   const handleOptionSelect = async (
-      optionId: "help" | "terms" | "invites" | "logout"
-   ) => {
-      setIsOpen(false);
-      switch (optionId) {
-         case "help":
-            console.log("help");
-            break;
-         case "terms":
-            window.open("https://s3-viewer.com/tos", "_blank")
-            break;
-         case "invites":
-            openInvitesModal();
-            break;
-         case "logout":
-            await signOut();
-            break;
-      }
-   };
+   const handleOptionSelect = useCallback(
+      async (optionId: "help" | "terms" | "invites" | "logout") => {
+         setIsOpen(false);
+         switch (optionId) {
+            case "help":
+               console.log("help");
+               break;
+            case "terms":
+               window.open("https://s3-viewer.com/tos", "_blank");
+               break;
+            case "invites":
+               openInvitesModal();
+               break;
+            case "logout":
+               await signOut();
+               break;
+         }
+      },
+      [openInvitesModal, signOut]
+   );
 
    return (
       <div ref={dropdownRef} className="relative">
          <Button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex max-w-[150px] items-center justify-between gap-2 rounded-full border border-gray-300 bg-viewerwhite !pl-0.5 hover:bg-gray-100 focus:outline-none"
+            className="flex h-10 w-auto items-center space-x-4 rounded-full border border-gray-300 bg-white p-1 !px-2 hover:bg-gray-100 focus:outline-none sm:p-2 md:h-11 md:space-x-2.5"
          >
             {user?.image ? (
                <Image
@@ -100,7 +101,7 @@ const ProfileDropdown: React.FC = () => {
             />
          </Button>
          {isOpen && (
-            <div className="absolute flex flex-col gap-2 right-0 mt-1 min-w-[300px] rounded-xl p-2 border border-viewerborder bg-viewerwhite shadow-lg animate-in fade-in-80 slide-in-from-top-5">
+            <div className="absolute right-0 mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in-80 slide-in-from-top-5 sm:mt-2 sm:w-60">
                <div className="flex flex-row items-center gap-2 w-full p-2">
                   {user?.image ? (
                      <Image
@@ -111,53 +112,33 @@ const ProfileDropdown: React.FC = () => {
                   ) : (
                      <User className="size-10 rounded-full bg-blue-400 p-1 min-w-10 text-viewergray" />
                   )}
-                  <div className="flex flex-col items-start justify-start">
-                     <p className="truncate max-w-[200px] text-black">
-                        {user?.name}
+                  <div className="flex flex-col items-start justify-start min-w-0 w-full">
+                     <p className="truncate text-black max-w-full">
+                        {user?.name || "User"}
                      </p>
-                     <p className="text-xs max-w-[200px] truncate text-gray-500">
-                        {user?.email}
+                     <p className="text-xs max-w-full truncate text-gray-500">
+                        {user?.email || "No email found"}
                      </p>
                   </div>
                </div>
 
                <Separator orientation="horizontal" className="w-full" />
 
-               <div className="flex w-full flex-col gap-2">
-                  {SETTINGS_OPTIONS.map((option) =>
-                     option.id === "logout" ? (
-                        <div
-                           key={option.id}
-                           className="w-full flex flex-col gap-2"
-                        >
-                           <Separator
-                              orientation="horizontal"
-                              className="w-full"
-                           />
-                           <Button
-                              variant="ghost"
-                              className="w-full hover:bg-viewergray flex items-center justify-start gap-2 text-black"
-                              onClick={() => handleOptionSelect(option.id)}
-                           >
-                              {option.icon}
-                              {option.title}
-                           </Button>
-                        </div>
-                     ) : (
-                        <Button
-                           variant="ghost"
-                           key={option.id}
-                           className="w-full hover:bg-viewergray flex items-center justify-start gap-2 text-black"
-                           onClick={() => handleOptionSelect(option.id)}
-                        >
-                           {option.icon}
-                           {option.title}
-                        </Button>
-                     )
-                  )}
-                  <span className="text-xs text-gray-500 p-2">
-                     v0.0.0 - S3 Viewer
-                  </span>
+               <div className="flex w-full flex-col">
+                  {SETTINGS_OPTIONS.map((option) => (
+                     <Button
+                        variant="ghost"
+                        className={cn(
+                           "w-full hover:bg-viewergray flex items-center justify-start gap-2 text-gray-800 rounded-none",
+                           option.id === "logout" &&
+                              "text-red-500 rounded-b-lg hover:text-red-500"
+                        )}
+                        onClick={() => handleOptionSelect(option.id)}
+                     >
+                        {option.icon}
+                        {option.title}
+                     </Button>
+                  ))}
                </div>
             </div>
          )}
