@@ -12,7 +12,8 @@ const useServers = (serverId?: string) => {
 
    const {
       data: servers = [],
-      isPending: isServerListLoading,
+      isLoading: isServerListLoading,
+      isFetching: isServerListFetching,
       error: serverError,
       refetch,
    } = useQuery<ServerInfo[]>({
@@ -46,6 +47,7 @@ const useServers = (serverId?: string) => {
       servers,
       currentServer,
       isServerListLoading,
+      isServerListFetching,
       serverError,
       refreshServers: refetch,
    };

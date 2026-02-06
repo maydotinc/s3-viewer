@@ -105,6 +105,7 @@ const ProfileDropdown: React.FC = () => {
                               "text-red-500 rounded-b-lg hover:text-red-500"
                         )}
                         onClick={() => handleOptionSelect(option.id)}
+                        key={option.id}
                      >
                         {option.icon}
                         {option.title}
