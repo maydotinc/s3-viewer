@@ -22,9 +22,7 @@ export const auth = betterAuth({
    database: prismaAdapter(prisma, {
       provider: "postgresql",
    }),
-   trustedOrigins: [process.env.NEXT_PUBLIC_FRONTEND_URL as string].filter(
-      Boolean
-   ),
+   trustedOrigins: [process.env.NEXT_PUBLIC_FRONTEND_URL as string],
    plugins: [
       emailOTP({
          sendVerificationOnSignUp: true,
