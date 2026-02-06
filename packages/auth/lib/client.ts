@@ -105,4 +105,21 @@ const verifyOtp = async (email: string, otp: string) => {
    return { success: true, data, error: null };
 };
 
-export { authClient, sendVerificationOtp, signOut, verifyOtp };
+const signInWithGithub = async () => {
+   const { data, error } = await authClient.signIn.social({
+      provider: "github",
+      callbackURL: `${window.location.origin}/dashboard`,
+   });
+   if (error) {
+      return { success: false, error: error.message ?? error.statusText };
+   }
+   return { success: true, error: null };
+};
+
+export {
+   authClient,
+   sendVerificationOtp,
+   signInWithGithub,
+   signOut,
+   verifyOtp,
+};
