@@ -57,7 +57,7 @@ const ObjectActions = () => {
       <div className="flex gap-2 @max-3xl/actions:flex-1">
          <Button
             disabled={!gridReady}
-            onClick={() => gridRef.current?.api?.refreshInfiniteCache()}
+            onClick={() => gridRef.current?.api?.purgeInfiniteCache()}
             className="@max-3xl/actions:flex-1"
          >
             <RefreshCcw className="size-4" />
