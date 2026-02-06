@@ -4,7 +4,6 @@ import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import ConnectModal from "./ConnectModal";
 import CreateBucketModal from "./CreateBucketModal";
 import DisconnectModal from "./DisconnectModal";
-import InvitesModal from "./InvitesModal";
 import RenameModal from "./RenameModal";
 import ShareModal from "./ShareModal";
 
@@ -61,14 +60,6 @@ const ModalManager = () => {
                         key={`share-${index}`}
                         {...modal.props}
                         onClose={() => closeModal("share")}
-                     />
-                  );
-               case "invites":
-                  return (
-                     <InvitesModal
-                        key={`invites-${index}`}
-                        {...modal.props}
-                        onClose={() => closeModal("invites")}
                      />
                   );
                case "createBucket":

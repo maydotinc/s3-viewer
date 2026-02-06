@@ -35,9 +35,6 @@ const useSessionStore = create<SessionStore>()(
       {
          name: "session-storage",
          storage: createJSONStorage(() => localStorage),
-         onRehydrateStorage: () => (state) => {
-            console.log("Session state loaded from localStorage:", state);
-         },
       }
    )
 );

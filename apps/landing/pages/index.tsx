@@ -1,14 +1,18 @@
-import TeamLetter from "@/components/Landing/team-letter";
+import {
+   DemoBlock,
+   EncryptionBlock,
+   ExploreBlock,
+   IntroBlock,
+   TeamLetter,
+   ToolsBlock,
+} from "@/components/Landing";
 import Layout from "@/components/Layout";
-import DemoBlock from "../components/Landing/demo-block";
-import ExploreBlock from "../components/Landing/explore-block";
-import IntroBlock from "../components/Landing/intro-block";
-import ToolsBlock from "../components/Landing/tools-block";
 
 const Home = () => {
    return (
       <div className="size-full">
          <IntroBlock />
+         <EncryptionBlock />
          <DemoBlock />
          <ToolsBlock />
          <TeamLetter />

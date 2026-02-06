@@ -1,16 +1,35 @@
 {
    "$schema": "https://turborepo.com/schema.json",
-   "globalDependencies": ["**/.env.*local", "**/.env"],
-   "ui": "stream",
+   "globalDependencies": [
+      "**/.env.*local",
+      "**/.env"
+   ],
+   "ui": "tui",
    "tasks": {
-     "db:generate": {
-        "cache": false,
-        "inputs": ["prisma/schema.prisma", "prisma/**/*.prisma", "prisma/migrations/**", ".env*", "$TURBO_DEFAULT$"]
-     },
+      "db:generate": {
+         "cache": false,
+         "inputs": [
+            "prisma/schema.prisma",
+            "prisma/**/*.prisma",
+            "prisma/migrations/**",
+            ".env*",
+            "$TURBO_DEFAULT$"
+         ]
+      },
       "build": {
-         "dependsOn": ["^db:generate", "^build"],
-         "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-         "inputs": [".env*", "$TURBO_DEFAULT$"]
+         "dependsOn": [
+            "^db:generate",
+            "^build"
+         ],
+         "outputs": [
+            ".next/**",
+            "!.next/cache/**",
+            "dist/**"
+         ],
+         "inputs": [
+            ".env*",
+            "$TURBO_DEFAULT$"
+         ]
       },
       "dev": {
          "persistent": true,

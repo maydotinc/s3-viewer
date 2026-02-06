@@ -2,7 +2,11 @@ import { toast } from "@s3-viewer/ui/components/toast";
 import { emailOTPClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 
-export const baseURL = process.env.NEXT_PUBLIC_BACKEND_URL;
+const baseURL = process.env.NEXT_PUBLIC_BACKEND_URL;
+
+if (!baseURL) {
+   throw new Error("NEXT_PUBLIC_BACKEND_URL is not set");
+}
 
 const authClient = createAuthClient({
    baseURL: baseURL,

@@ -1,7 +1,7 @@
 import {
    requireManagePermission,
    requireRevokePermission,
-} from "@/lib/middleware/permissions.js";
+} from "@/lib/middleware/permissions";
 import { prisma } from "@s3-viewer/db";
 import { Role, ServerInvite } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";

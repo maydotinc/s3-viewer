@@ -1,7 +1,7 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
 import { ServerCredentials } from "@s3-viewer/types";
-import { decryptCredentials } from "./encryption.js";
+import { decryptCredentials } from "./encryption";
 
 const getS3Client = async (serverId: string) => {
    try {

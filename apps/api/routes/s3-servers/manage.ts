@@ -1,15 +1,15 @@
-import detectProvider from "@/lib/utils/detect-provider.js";
-import { decryptCredentials } from "@/lib/utils/encryption.js";
-import { ListBucketsCommand } from "@aws-sdk/client-s3";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@s3-viewer/db";
-import { Request, Response, Router } from "express";
 import {
    requireListBuckets,
    requireRenameServer,
    requireServerOwner,
-} from "../../lib/middleware/permissions.js";
-import { getS3ClientFromCredentials } from "../../lib/utils/s3-client.js";
+} from "@/lib/middleware/permissions";
+import detectProvider from "@/lib/utils/detect-provider";
+import { decryptCredentials } from "@/lib/utils/encryption";
+import { getS3ClientFromCredentials } from "@/lib/utils/s3-client";
+import { ListBucketsCommand } from "@aws-sdk/client-s3";
+import { Prisma } from "@prisma/client";
+import { prisma } from "@s3-viewer/db";
+import { Request, Response, Router } from "express";
 
 const manageRouter: Router = Router();
 

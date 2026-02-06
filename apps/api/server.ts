@@ -1,14 +1,16 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import { auth } from "@s3-viewer/auth";
 import { Role } from "@s3-viewer/types";
 import { User } from "better-auth";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
-import dotenv from "dotenv";
 import express, { urlencoded } from "express";
-import authGuard from "./lib/middleware/auth.js";
-import s3Router from "./routes/s3-operations/index.js";
-import serverRouter from "./routes/s3-servers/index.js";
-import userRouter from "./routes/users/user-manage.js";
+import authGuard from "./lib/middleware/auth";
+import s3Router from "./routes/s3-operations/index";
+import serverRouter from "./routes/s3-servers/index";
+import userRouter from "./routes/users/user-manage";
 
 declare global {
    namespace Express {
@@ -18,8 +20,6 @@ declare global {
       }
    }
 }
-
-dotenv.config();
 
 const app = express();
 

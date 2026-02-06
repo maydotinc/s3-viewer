@@ -1,7 +1,7 @@
 import { Router } from "express";
-import inviteRouter from "./invites.js";
-import manageRouter from "./manage.js";
-import retrieveRouter from "./retrieve.js";
+import inviteRouter from "./invites";
+import manageRouter from "./manage";
+import retrieveRouter from "./retrieve";
 
 const serverRouter: Router = Router();
 

@@ -48,7 +48,7 @@ const SentInvites: React.FC = () => {
 
    if (sentInvites.length === 0) {
       return (
-         <div className="flex flex-col items-center justify-center gap-2 p-4 text-center">
+         <div className="flex flex-col items-center justify-center gap-2 p-4 text-center size-full">
             <Mail className="size-12 text-viewerblue" />
             <h3 className="text-lg text-viewerblack">No invites sent</h3>
             <p className="text-viewertext">
@@ -59,7 +59,7 @@ const SentInvites: React.FC = () => {
    }
 
    return (
-      <div className="overflow-y-auto flex flex-col gap-2 max-h-[60vh]">
+      <div className="overflow-y-auto flex flex-col gap-2">
          {sentInvites.map((invite) => {
             const isInviteProcessing = processingInviteId === invite.id;
             const isInviteExpired = isExpired(invite.expiresAt);
