@@ -12,7 +12,7 @@ const ServerInfo = ({ server }: ServerInfoProps) => {
          <div className="flex gap-2 border border-viewerborder rounded-xl p-2 items-center">
             <ServerLogo provider={server.provider} />
             <div className="flex flex-col items-start gap-1">
-               <span className="text-viewertext text-sm leading-none">
+               <span className="text-viewertext text-xs leading-none">
                   Provider
                </span>
                <span className="text-viewerblack text-md font-semibold leading-none max-w-[150px] truncate">
@@ -25,7 +25,7 @@ const ServerInfo = ({ server }: ServerInfoProps) => {
                <UserIcon className="size-5 text-viewerblue" />
             </div>
             <div className="flex flex-col items-start gap-1">
-               <span className="text-viewertext text-sm leading-none">
+               <span className="text-viewertext text-xs leading-none">
                   Role
                </span>
                <span className="text-viewerblack text-md font-semibold leading-none max-w-[150px] truncate">
