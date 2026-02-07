@@ -7,11 +7,25 @@ function middleware(request: NextRequest) {
    // get pathname of request [/cool]
    const { pathname } = request.nextUrl;
 
-   // rewrite '/' to 'crayo-lp.vercel.app'
+   const isProd = process.env.NODE_ENV === "production";
+   const landingOrigin = {
+      hostname: isProd ? "s3-viewer.onrender.com" : "localhost",
+      protocol: isProd ? "https" : "http",
+      port: isProd ? "" : "3001",
+   };
+
+   // Rewrite /landing/* to the landing origin for CSS url() references
+   if (pathname.startsWith("/landing/")) {
+      url.hostname = landingOrigin.hostname;
+      url.protocol = landingOrigin.protocol;
+      url.port = landingOrigin.port;
+      return NextResponse.rewrite(url.toString());
+   }
+
    if (pathname === "/") {
-      url.hostname = "s3-viewer.onrender.com";
-      url.protocol = "https";
-      url.port = "";
+      url.hostname = landingOrigin.hostname;
+      url.protocol = landingOrigin.protocol;
+      url.port = landingOrigin.port;
 
       return NextResponse.rewrite(url.toString());
    }
@@ -20,22 +34,24 @@ function middleware(request: NextRequest) {
       pathname.startsWith("/tos") ||
       pathname.startsWith("/terms-conditions")
    ) {
-      url.hostname = "s3-viewer.onrender.com";
-      url.protocol = "https";
-      url.port = "";
+      url.hostname = landingOrigin.hostname;
+      url.protocol = landingOrigin.protocol;
+      url.port = landingOrigin.port;
       url.pathname = "/tos";
 
       return NextResponse.rewrite(url.toString());
    }
 
    if (pathname === "/privacy" || pathname.startsWith("/privacy-policy")) {
-      url.hostname = "s3-viewer.onrender.com";
-      url.protocol = "https";
-      url.port = "";
+      url.hostname = landingOrigin.hostname;
+      url.protocol = landingOrigin.protocol;
+      url.port = landingOrigin.port;
       url.pathname = "/privacy-policy";
 
       return NextResponse.rewrite(url.toString());
    }
+
+   return NextResponse.next();
 }
 
 export default middleware;

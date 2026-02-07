@@ -1,4 +1,5 @@
 import type { ServerInfo } from "@s3-viewer/types";
+import { Provider } from "@s3-viewer/types";
 import { UserIcon } from "lucide-react";
 import ServerLogo from "../../Layout/Sidebar/Servers/server-logo";
 
@@ -16,7 +17,11 @@ const ServerInfo = ({ server }: ServerInfoProps) => {
                   Provider
                </span>
                <span className="text-viewerblack text-md font-semibold leading-none max-w-[150px] truncate">
-                  {server?.name}
+                  {server.provider === Provider.S3
+                     ? "AWS"
+                     : server.provider === Provider.R2
+                       ? "Cloudflare"
+                       : "Other"}
                </span>
             </div>
          </div>
