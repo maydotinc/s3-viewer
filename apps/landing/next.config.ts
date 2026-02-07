@@ -13,6 +13,23 @@ const nextConfig: NextConfig = {
       process.env.NODE_ENV === "production"
          ? "https://s3-viewer.onrender.com"
          : "http://localhost:3001",
+   async headers() {
+      const isProd = process.env.NODE_ENV === "production";
+      const allowedOrigin = isProd
+         ? "https://s3-viewer.com"
+         : "http://localhost:3000";
+      return [
+         // Fonts are fetched with CORS when served cross-origin (e.g. page on
+         // localhost:3000 / s3-viewer.com but assets from localhost:3001 / s3-viewer.onrender.com).
+         {
+            source: "/_next/static/:path*",
+            headers: [
+               { key: "Access-Control-Allow-Origin", value: allowedOrigin },
+               { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+            ],
+         },
+      ];
+   },
    images: {
       loader: "custom",
       loaderFile: "./image-loader.js",
