@@ -1,2 +1,5 @@
 NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
 NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----..."
+
+# Base URL for SEO (canonical URLs, robots, etc.)
+NEXT_PUBLIC_SITE_URL=https://s3-viewer.com

@@ -7,18 +7,15 @@ import {
    DialogTitle,
 } from "@s3-viewer/ui/components/dialog";
 
-// Fields
 import EmailInput from "./fields/email-input";
 import NameInput from "./fields/name-input";
 import OTPInput from "./fields/otp-input";
 
-// Buttons
 import GithubButton from "./buttons/github";
 import SubmitButton from "./buttons/submit";
 
-// Auth utils
-import useAuthStore from "@/lib/stores/authStore";
 import { Button } from "@s3-viewer/ui/components/button";
+import useAuthStore from "@/lib/stores/authStore";
 import { MailCheck, UserRoundCheck, UserRoundPlus } from "lucide-react";
 import { useEffect } from "react";
 
@@ -134,19 +131,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
                   <>
                      <NameInput />
                      <EmailInput />
-                     <div className="flex w-full gap-2 items-center">
-                        <SubmitButton />
-                        <GithubButton />
+                     <SubmitButton />
+                     <div className="flex items-center gap-2 w-full">
+                        <div className="flex-1 h-[1px] bg-gray-300" />
+                        <span className="text-sm text-gray-500">OR</span>
+                        <div className="flex-1 h-[1px] bg-gray-300" />
                      </div>
+                     <GithubButton />
                   </>
                )}
                {authType === "signin" && (
                   <>
                      <EmailInput />
-                     <div className="flex w-full gap-2 items-center">
-                        <SubmitButton />
-                        <GithubButton />
+                     <SubmitButton />
+                     <div className="flex items-center gap-2 w-full">
+                        <div className="flex-1 h-[1px] bg-gray-300" />
+                        <span className="text-sm text-gray-500">OR</span>
+                        <div className="flex-1 h-[1px] bg-gray-300" />
                      </div>
+                     <GithubButton />
                   </>
                )}
             </div>

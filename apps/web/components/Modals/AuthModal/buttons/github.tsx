@@ -21,9 +21,6 @@ const GithubIcon = ({ className }: { className?: string }) => {
 };
 
 const GithubButton = () => {
-   const { authType } = useAuthStore();
-   const buttonText = authType === "signin" ? "Sign in" : "Sign up";
-
    const handleClick = useCallback(async () => {
       const { success, error } = await signInWithGithub();
       if (error || !success) {
@@ -33,16 +30,14 @@ const GithubButton = () => {
    }, []);
 
    return (
-      <div className="flex flex-col gap-0">
-         <Button
-            variant="outline"
-            className="flex items-center gap-2"
-            onClick={handleClick}
-         >
-            <GithubIcon className="size-4" />
-            {buttonText}
-         </Button>
-      </div>
+      <Button
+         variant="default"
+         className="w-full flex items-center justify-center gap-2 bg-black hover:bg-gray-900 text-white"
+         onClick={handleClick}
+      >
+         <GithubIcon className="size-5" />
+         Continue with GitHub
+      </Button>
    );
 };
 

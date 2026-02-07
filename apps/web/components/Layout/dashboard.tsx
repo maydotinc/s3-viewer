@@ -1,3 +1,4 @@
+import Seo from "@/components/Seo";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { authClient } from "@s3-viewer/auth/client";
 import { Loader } from "lucide-react";
@@ -29,6 +30,12 @@ const ViewerDashboard = ({
 
    return (
       <ViewerBanner>
+         <Seo
+            title="Dashboard"
+            description="Browse and manage your S3-compatible storage buckets."
+            canonical="/dashboard"
+            noindex={true}
+         />
          <div className="flex size-full">
             <ViewerSidebar mobileStrategy={mobileStrategy} />
             <div className="flex-1 w-full h-full">

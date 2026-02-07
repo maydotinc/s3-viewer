@@ -35,7 +35,7 @@ const IntroBlock = () => {
          <div className="flex-1 bg-viewerblue bg-[url('/landing/grain-filter.svg')] bg-blend-multiply p-8 flex justify-center items-center">
             <Image
                src="/landing/bucketview.png"
-               alt="Home Overview"
+               alt="S3 Viewer dashboard showing buckets and object browser"
                width={4320}
                height={2700}
                quality={100}

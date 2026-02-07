@@ -62,7 +62,7 @@ const SubmitButton = () => {
    return (
       <Button
          disabled={loading || verifying}
-         className="flex-1"
+         className="w-full"
          variant="secondary"
          onClick={handleSubmit}
       >

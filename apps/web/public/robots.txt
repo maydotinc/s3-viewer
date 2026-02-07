@@ -1,0 +1,15 @@
+# S3 Viewer Web App - User-specific content
+# This app contains user-specific data and should not be indexed
+
+User-agent: *
+Disallow: /
+
+# Allow search engines to crawl static assets if needed
+Allow: /icons/
+Allow: /*.svg$
+Allow: /*.png$
+Allow: /*.jpg$
+Allow: /*.jpeg$
+
+# Sitemap (if you add one later)
+# Sitemap: https://app.s3viewer.com/sitemap.xml
