@@ -25,6 +25,7 @@ export default function ViewerBanner({
                   alt="S3 Viewer"
                   width={150}
                   height={32}
+                  style={{ width: "auto", height: "auto" }}
                   priority
                   quality={100}
                />
