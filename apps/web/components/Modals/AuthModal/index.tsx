@@ -13,6 +13,7 @@ import NameInput from "./fields/name-input";
 import OTPInput from "./fields/otp-input";
 
 // Buttons
+import GithubButton from "./buttons/github";
 import SubmitButton from "./buttons/submit";
 
 // Auth utils
@@ -126,25 +127,25 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
             </DialogHeader>
             <div
                className={
-                  isVerificationStage ? "hidden" : "flex flex-col gap-4"
+                  isVerificationStage ? "hidden" : "flex flex-col w-full gap-4"
                }
             >
                {authType === "signup" && (
                   <>
                      <NameInput />
                      <EmailInput />
-                     <div className="flex flex-col gap-5">
+                     <div className="flex w-full gap-2 items-center">
                         <SubmitButton />
-                        {/* <GoogleButton /> */}
+                        <GithubButton />
                      </div>
                   </>
                )}
                {authType === "signin" && (
                   <>
                      <EmailInput />
-                     <div className="flex flex-col gap-5">
+                     <div className="flex w-full gap-2 items-center">
                         <SubmitButton />
-                        {/* <GoogleButton /> */}
+                        <GithubButton />
                      </div>
                   </>
                )}

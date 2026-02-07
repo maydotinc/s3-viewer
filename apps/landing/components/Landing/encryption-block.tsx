@@ -61,13 +61,14 @@ const EncryptionBlock = () => {
                </div>
             </div>
          </div>
-         <div className="flex-1 relative min-h-[300px] max-md:hidden">
+         <div className="flex-1 flex items-center justify-center relative max-md:hidden">
             <Image
                src="/landing/encryption.png"
-               fill
+               width={850}
+               height={1222}
                alt="Encryption Image"
                draggable={false}
-               className="select-none object-contain"
+               className="select-none object-contain max-h-[400px] min-h-[300px]"
             />
          </div>
       </BasicBlock>

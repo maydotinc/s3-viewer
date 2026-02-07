@@ -89,17 +89,10 @@ const sendVerificationOtp = async (
    return { success: true, data, error: null };
 };
 
-const verifyOtp = async (email: string, otp: string, successUrl?: string) => {
+const verifyOtp = async (email: string, otp: string) => {
    const { data, error } = await authClient.signIn.emailOtp({
       email,
       otp,
-      fetchOptions: {
-         onSuccess: () => {
-            if (successUrl) {
-               window.location.href = successUrl;
-            }
-         },
-      },
    });
    if (error) {
       console.dir(error, { depth: null });
@@ -112,4 +105,21 @@ const verifyOtp = async (email: string, otp: string, successUrl?: string) => {
    return { success: true, data, error: null };
 };
 
-export { authClient, sendVerificationOtp, signOut, verifyOtp };
+const signInWithGithub = async () => {
+   const { error } = await authClient.signIn.social({
+      provider: "github",
+      callbackURL: `${process.env.NODE_ENV === "development" ? "http://localhost:3000/dashboard" : "https://s3-viewer.com/dashboard"}`,
+   });
+   if (error) {
+      return { success: false, error: error.message ?? error.statusText };
+   }
+   return { success: true, error: null };
+};
+
+export {
+   authClient,
+   sendVerificationOtp,
+   signInWithGithub,
+   signOut,
+   verifyOtp,
+};

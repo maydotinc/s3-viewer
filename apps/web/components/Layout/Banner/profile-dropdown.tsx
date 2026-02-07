@@ -2,8 +2,7 @@ import { authClient, signOut } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Separator } from "@s3-viewer/ui/components/separator";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { ChevronDown, FileText, LogOut, Mail, User } from "lucide-react";
-import Image from "next/image";
+import { ChevronDown, FileText, LogOut, Mail } from "lucide-react";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
@@ -71,17 +70,8 @@ const ProfileDropdown: React.FC = () => {
       <div ref={dropdownRef} className="relative">
          <Button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex h-10 w-auto items-center space-x-4 rounded-full border border-gray-300 bg-white p-1 !px-2 hover:bg-gray-100 focus:outline-none sm:p-2 md:h-11 md:space-x-2.5"
+            className="flex h-10 w-auto items-center rounded-full border border-gray-300 bg-white p-1 !px-2 hover:bg-gray-100 focus:outline-none sm:p-2 md:h-11"
          >
-            {user?.image ? (
-               <Image
-                  src={user.image}
-                  alt="Profile"
-                  className="size-8 rounded-full object-cover"
-               />
-            ) : (
-               <User className="size-8 rounded-full bg-blue-400 p-1 text-viewergray" />
-            )}
             <span className="text-black truncate">{user?.name}</span>
             <ChevronDown
                className={cn(
@@ -94,24 +84,13 @@ const ProfileDropdown: React.FC = () => {
          </Button>
          {isOpen && (
             <div className="absolute right-0 mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in-80 slide-in-from-top-5 sm:mt-2 sm:w-60">
-               <div className="flex flex-row items-center gap-2 w-full p-2">
-                  {user?.image ? (
-                     <Image
-                        src={user.image}
-                        alt="Profile"
-                        className="size-10 rounded-full object-cover min-w-10"
-                     />
-                  ) : (
-                     <User className="size-10 rounded-full bg-blue-400 p-1 min-w-10 text-viewergray" />
-                  )}
-                  <div className="flex flex-col items-start justify-start min-w-0 w-full">
-                     <p className="truncate text-black max-w-full">
-                        {user?.name || "User"}
-                     </p>
-                     <p className="text-xs max-w-full truncate text-gray-500">
-                        {user?.email || "No email found"}
-                     </p>
-                  </div>
+               <div className="flex flex-col items-start justify-start min-w-0 w-full px-3 py-2">
+                  <p className="truncate text-black max-w-full">
+                     {user?.name || "User"}
+                  </p>
+                  <p className="text-xs max-w-full truncate text-gray-500">
+                     {user?.email || "No email found"}
+                  </p>
                </div>
 
                <Separator orientation="horizontal" className="w-full" />
@@ -121,11 +100,12 @@ const ProfileDropdown: React.FC = () => {
                      <Button
                         variant="ghost"
                         className={cn(
-                           "w-full hover:bg-viewergray flex items-center justify-start gap-2 text-gray-800 rounded-none",
+                           "w-full hover:bg-viewergray flex items-center justify-start gap-2 text-gray-800 rounded-none h-10",
                            option.id === "logout" &&
                               "text-red-500 rounded-b-lg hover:text-red-500"
                         )}
                         onClick={() => handleOptionSelect(option.id)}
+                        key={option.id}
                      >
                         {option.icon}
                         {option.title}

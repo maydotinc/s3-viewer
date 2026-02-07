@@ -40,7 +40,7 @@ const ServerSelector = () => {
 
    if (isServerListLoading || isPending) {
       return (
-         <Skeleton className="bg-viewergray rounded-md w-full border-none h-10" />
+         <Skeleton className="bg-viewergray rounded-xl w-full border-none h-[80px]" />
       );
    }
 

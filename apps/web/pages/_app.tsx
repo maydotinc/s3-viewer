@@ -4,6 +4,7 @@ import SessionManager from "@/components/Session/session-manager";
 import { ModalProvider } from "@/lib/contexts/ModalContext";
 import { queryClient } from "@/lib/queryClient";
 import { authClient } from "@s3-viewer/auth/client";
+import LoadingAnimation from "@s3-viewer/ui/components/LoadingAnimation";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
 import "@s3-viewer/ui/globals.css";
@@ -12,7 +13,6 @@ import { NextPage } from "next";
 import type { AppProps } from "next/app";
 import { Inter } from "next/font/google";
 import { ReactElement, ReactNode } from "react";
-import LoadingAnimation from "@s3-viewer/ui/components/LoadingAnimation";
 
 export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
    getLayout?: (page: ReactElement) => ReactNode;

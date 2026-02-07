@@ -1,5 +1,5 @@
 import { ICellRendererParams } from "ag-grid-community";
-import { Loader2 } from "lucide-react";
+import { Loader } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 
@@ -9,7 +9,7 @@ const FolderCell = (params: ICellRendererParams) => {
    if (params.value === undefined) {
       return (
          <div className="flex items-center h-full">
-            <Loader2 className="animate-spin" />
+            <Loader className="animate-spin size-4" />
          </div>
       );
    }

@@ -36,8 +36,8 @@ const IntroBlock = () => {
             <Image
                src="/landing/bucketview.png"
                alt="Home Overview"
-               width={600}
-               height={500}
+               width={4320}
+               height={2700}
                quality={100}
                priority
                draggable={false}

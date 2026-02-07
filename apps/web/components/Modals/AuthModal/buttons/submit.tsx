@@ -60,20 +60,18 @@ const SubmitButton = () => {
    };
 
    return (
-      <div className="flex flex-col gap-0">
-         <Button
-            disabled={loading || verifying}
-            className="w-full"
-            variant="secondary"
-            onClick={handleSubmit}
-         >
-            {loading || verifying ? (
-               <LoaderCircle className="animate-spin" />
-            ) : (
-               buttonText
-            )}
-         </Button>
-      </div>
+      <Button
+         disabled={loading || verifying}
+         className="flex-1"
+         variant="secondary"
+         onClick={handleSubmit}
+      >
+         {loading || verifying ? (
+            <LoaderCircle className="animate-spin" />
+         ) : (
+            buttonText
+         )}
+      </Button>
    );
 };
 

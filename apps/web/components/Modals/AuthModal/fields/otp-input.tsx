@@ -1,6 +1,8 @@
+import { useModalContext } from "@/lib/contexts/ModalContext";
 import useAuthStore from "@/lib/stores/authStore";
 import { authClient, verifyOtp } from "@s3-viewer/auth/client";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import { useRouter } from "next/router";
 import React, { useEffect, useRef, useState } from "react";
 
 interface OTPInputProps {
@@ -8,6 +10,8 @@ interface OTPInputProps {
 }
 
 const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
+   const router = useRouter();
+   const { closeModal } = useModalContext();
    const { email, name, setVerifying, authType, setError } = useAuthStore();
    const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -27,7 +31,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
       }
 
       try {
-         const { error } = await verifyOtp(email, code, "/dashboard");
+         const { error } = await verifyOtp(email, code);
          if (error) {
             setError(error);
             return;
@@ -35,10 +39,17 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
 
          setError(null);
          if (authType === "signup") {
-            authClient.updateUser({
+            const { error: updateError } = await authClient.updateUser({
                name,
             });
+            if (updateError) {
+               setError(updateError.message ?? updateError.statusText);
+               return;
+            }
          }
+
+         closeModal("auth");
+         await router.push("/dashboard");
       } finally {
          setVerifying(false);
       }
