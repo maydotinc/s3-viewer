@@ -13,9 +13,9 @@ const DemoBlock = () => {
                   <Image
                      src="/landing/objectview.png"
                      alt="Object View"
-                     width={3465}
-                     height={1917}
-                     className="select-none object-contain translate-y-[8%]"
+                     width={3064}
+                     height={1561}
+                     className="select-none object-contain translate-y-[8%] border rounded-xl"
                      draggable={false}
                   />
                </div>
