@@ -1,6 +1,5 @@
 import objectUploadAnimation from "@/public/landing/objectupload.json";
 import serverConnectAnimation from "@/public/landing/serverconnect.json";
-import serverSelectAnimation from "@/public/landing/serverselect.json";
 import Lottie from "lottie-react";
 import Image from "next/image";
 import BasicBlock from "../basic-block";
@@ -9,24 +8,24 @@ const DemoBlock = () => {
    return (
       <>
          <BasicBlock className="max-md:border-b max-md:border-viewerborder">
-            <div className="bg-viewergray flex-1 border border-viewerborder px-8 flex max-md:flex-col max-md:px-4">
-               <div className="flex-1 max-md:w-full select-none flex items-end justify-center">
+            <div className="bg-viewergray flex-1 border border-viewerborder px-8 flex max-md:flex-col max-md:px-4 overflow-hidden relative">
+               <div className="md:flex-1 max-md:w-full flex items-end justify-center relative md:pt-[5%]">
                   <Image
                      src="/landing/objectview.png"
                      alt="Object View"
                      width={3465}
                      height={1917}
-                     className="select-none"
+                     className="select-none object-contain translate-y-[8%]"
                      draggable={false}
                   />
                </div>
-               <div className="select-none max-md:order-first flex-1">
+               <div className="select-none max-md:order-first md:flex-1 flex items-center justify-center relative max-md:items-start max-md:-my-[10%]">
                   <Lottie
                      animationData={objectUploadAnimation}
                      loop
                      autoplay
-                     style={{ width: "100%", height: "100%" }}
                      alt="Object Upload Animation"
+                     className="object-contain md:absolute max-md:scale-[1.1]"
                   />
                </div>
             </div>
@@ -42,12 +41,12 @@ const DemoBlock = () => {
          </BasicBlock>
          <BasicBlock className="md:flex-row max-md:border-b max-md:border-viewerborder">
             <div className="flex-1 flex flex-col gap-6">
-               <div className="w-full bg-viewergray flex-1 border border-viewerborder px-8">
+               <div className="w-full bg-viewergray flex-1 border border-viewerborder px-8 flex items-center justify-center">
                   <Lottie
                      animationData={serverConnectAnimation}
                      loop
                      autoplay
-                     style={{ width: "100%", height: "100%" }}
+                     className="object-contain size-full"
                   />
                </div>
                <div className="flex flex-col gap-2">
@@ -61,12 +60,14 @@ const DemoBlock = () => {
                </div>
             </div>
             <div className="flex-1 flex flex-col gap-6">
-               <div className="w-full bg-viewergray flex-1 border border-viewerborder px-8">
-                  <Lottie
-                     animationData={serverSelectAnimation}
-                     loop
-                     autoplay
-                     style={{ width: "100%", height: "100%" }}
+               <div className="w-full bg-viewergray flex-1 border border-viewerborder p-8 flex items-center justify-center">
+                  <Image
+                     src="/landing/serverselect.png"
+                     alt="Object View"
+                     width={756}
+                     height={815}
+                     className="select-none max-h-[270px] object-contain"
+                     draggable={false}
                   />
                </div>
                <div className="flex flex-col gap-2">

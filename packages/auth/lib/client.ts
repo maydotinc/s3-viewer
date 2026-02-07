@@ -106,9 +106,9 @@ const verifyOtp = async (email: string, otp: string) => {
 };
 
 const signInWithGithub = async () => {
-   const { data, error } = await authClient.signIn.social({
+   const { error } = await authClient.signIn.social({
       provider: "github",
-      callbackURL: `${window.location.origin}/dashboard`,
+      callbackURL: `${process.env.NODE_ENV === "development" ? "http://localhost:3000/dashboard" : "https://s3-viewer.com/dashboard"}`,
    });
    if (error) {
       return { success: false, error: error.message ?? error.statusText };
