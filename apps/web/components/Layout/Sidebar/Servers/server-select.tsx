@@ -1,18 +1,18 @@
+import { authClient } from "@s3-viewer/auth/client";
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
-import { authClient } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import {
    DropdownMenu,
+   DropdownMenuTrigger,
    DropdownMenuContent,
-   DropdownMenuItem,
    DropdownMenuRadioGroup,
    DropdownMenuRadioItem,
+   DropdownMenuItem,
    DropdownMenuSeparator,
-   DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { CirclePlus, ChevronsLeftRight } from "lucide-react";
 import ServerCard from "./server-card";
 import ServerItem from "./server-item";
@@ -32,7 +32,7 @@ const ServerSelector = () => {
       return (
          <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
             <p className="text-viewertext text-center">
-               Please login to connect a server
+               Login to connect a server
             </p>
          </div>
       );
