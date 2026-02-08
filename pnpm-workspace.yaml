@@ -1,13 +1,14 @@
 packages:
-   - apps/*
-   - packages/*
+  - apps/*
+  - packages/*
 
 onlyBuiltDependencies:
-   - "@prisma/client"
-   - "@prisma/engines"
-   - "@tailwindcss/oxide"
-   - core-js-pure
-   - esbuild
-   - prisma
-   - sharp
-   - unrs-resolver
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@tailwindcss/oxide'
+  - better-sqlite3
+  - core-js-pure
+  - esbuild
+  - prisma
+  - sharp
+  - unrs-resolver

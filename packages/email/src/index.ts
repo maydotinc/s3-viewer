@@ -32,10 +32,10 @@ const isProductionEmailEnabled = () => {
 };
 
 const sendOtpEmail = async ({ to, otp }: SendOtpEmailInput) => {
-   // if (!isProductionEmailEnabled()) {
-   //    console.log(`[email] OTP to ${to}: ${otp}`);
-   //    return;
-   // }
+   if (!isProductionEmailEnabled()) {
+      console.log(`[email] OTP to ${to}: ${otp}`);
+      return;
+   }
 
    try {
       const resend = await getResend();
@@ -63,12 +63,12 @@ const sendServerInviteEmail = async ({
    expiresAt,
    invitesUrl,
 }: SendServerInviteEmailInput) => {
-   // if (!isProductionEmailEnabled()) {
-   //    console.log(
-   //       `[email] Invite to ${to}: server=${serverName} role=${role} invitedBy=${invitedByEmail} expiresAt=${expiresAt.toISOString()} url=${invitesUrl}`
-   //    );
-   //    return;
-   // }
+   if (!isProductionEmailEnabled()) {
+      console.log(
+         `[email] Invite to ${to}: server=${serverName} role=${role} invitedBy=${invitedByEmail} expiresAt=${expiresAt.toISOString()} url=${invitesUrl}`
+      );
+      return;
+   }
 
    try {
       const resend = await getResend();

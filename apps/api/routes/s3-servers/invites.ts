@@ -2,8 +2,8 @@ import {
    requireManagePermission,
    requireRevokePermission,
 } from "@/lib/middleware/permissions";
-import { sendServerInviteEmail } from "@s3-viewer/email";
 import { prisma } from "@s3-viewer/db";
+import { sendServerInviteEmail } from "@s3-viewer/email";
 import { Role, ServerInvite } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 
@@ -123,6 +123,27 @@ inviteRouter.post(
          });
          return;
       }
+
+      const numberOfExistingServerUsers = await prisma.serverAccess.count({
+         where: {
+            serverId,
+         },
+      });
+
+      if (numberOfExistingServerUsers >= 10) {
+         res.status(400).json({
+            message: "Server already has the maximum number (10) of users",
+         });
+         return;
+      } else if (numberOfExistingServerUsers + emails.length > 10) {
+         res.status(400).json({
+            message:
+               "Server would exceed the maximum number (10) of users by " +
+               (numberOfExistingServerUsers + emails.length - 10),
+         });
+         return;
+      }
+
       const expiresAtDate = new Date(expiresAt);
       const invitations = emails.map((email) => ({
          serverId,
