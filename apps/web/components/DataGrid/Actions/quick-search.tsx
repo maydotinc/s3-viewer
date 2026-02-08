@@ -1,3 +1,4 @@
+import { authClient } from "@s3-viewer/auth/client";
 import { Input } from "@s3-viewer/ui/components/input";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Search as SearchIcon } from "lucide-react";
@@ -9,6 +10,7 @@ type QuickSearchProps = {
 };
 
 const QuickSearch = ({ className }: QuickSearchProps) => {
+   const { data: session, isPending } = authClient.useSession();
    const { gridRef, gridReady } = useGridContext();
    const [searchText, setSearchText] = useState("");
 
@@ -24,7 +26,7 @@ const QuickSearch = ({ className }: QuickSearchProps) => {
       <div className={cn("relative flex-initial items-center flex", className)}>
          <SearchIcon className="absolute left-3 text-viewertext size-4" />
          <Input
-            disabled={!gridReady}
+            disabled={!gridReady || (!session && !isPending)}
             placeholder="Search..."
             className="pl-10"
             value={searchText}
