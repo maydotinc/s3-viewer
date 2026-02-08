@@ -26,9 +26,7 @@ const IntroBlock = () => {
                   className="h-12 text-md w-fit"
                   asChild
                >
-                  <Link href="https://s3-viewer.com/dashboard" target="_blank">
-                     Connect your server
-                  </Link>
+                  <Link href="/dashboard">Connect your server</Link>
                </Button>
             </div>
          </div>

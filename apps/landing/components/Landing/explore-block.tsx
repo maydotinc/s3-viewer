@@ -42,9 +42,7 @@ const ExploreBlock = () => {
                size="lg"
                className="h-12 w-fit text-md bg-viewerblack border-viewerblack text-viewerwhite hover:bg-viewerblack/80 rounded-xl"
             >
-               <Link href="https://s3-viewer.com/dashboard" target="_blank">
-                  Open Viewer
-               </Link>
+               <Link href="/dashboard">Open Viewer</Link>
             </Button>
          </div>
       </BasicBlock>
