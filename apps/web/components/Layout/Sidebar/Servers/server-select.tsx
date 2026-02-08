@@ -27,17 +27,7 @@ const ServerSelector = () => {
       setServerId(newServerId);
    };
 
-   if (!session && !isPending) {
-      return (
-         <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
-            <p className="text-viewertext text-center">
-               Login to connect a server
-            </p>
-         </div>
-      );
-   }
-
-   if (isLoading) {
+   if (isLoading || (!session && !isPending)) {
       return (
          <div
             className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 min-h-[74px]"
@@ -45,7 +35,7 @@ const ServerSelector = () => {
          >
             <div className="flex gap-2 items-center">
                <div className="bg-viewerwhite border border-xs rounded-sm p-1 flex-none">
-                  <Skeleton className="size-4 rounded" />
+                  <Skeleton className="size-4 rounded bg-transparent" />
                </div>
                <div className="md:max-w-[100px] min-w-0">
                   <Skeleton className="h-5 w-[100px] rounded" />

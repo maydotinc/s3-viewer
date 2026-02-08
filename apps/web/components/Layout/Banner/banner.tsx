@@ -6,11 +6,11 @@ import Image from "next/image";
 import Link from "next/link";
 import ProfileDropdown from "./profile-dropdown";
 
-export default function ViewerBanner({
-   children,
-}: {
+type ViewerBannerProps = {
    children: React.ReactNode;
-}) {
+};
+
+export default function ViewerBanner({ children }: ViewerBannerProps) {
    const { data: session } = authClient.useSession();
    const { openAuthModal } = useModalContext();
    return (
