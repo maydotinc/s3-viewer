@@ -1,3 +1,4 @@
+import * as React from "react";
 import {
    Body,
    Container,
@@ -31,39 +32,41 @@ const S3ViewerServerInviteEmail = ({
          : invitedByEmail;
 
    return (
-      <Html>
-         <Head />
-         <Body style={main}>
-            <Container style={container}>
-               <Heading style={h1}>You&apos;re invited to {serverName}</Heading>
-               <Text style={{ ...text, marginBottom: "14px" }}>
-                  {inviterLabel} invited you to join <b>{serverName}</b> with{" "}
-                  <b>{role}</b> access.
-               </Text>
-               <Text style={{ ...text, marginTop: "0", marginBottom: "14px" }}>
-                  This invite expires at{" "}
-                  <code style={inlineCode}>{expiresAtIso}</code>.
-               </Text>
-               <Text style={{ ...text, marginTop: "0", marginBottom: "16px" }}>
-                  Open your invites page to accept or reject:
-               </Text>
-               <Link href={invitesUrl} style={link}>
-                  View invites
-               </Link>
-               <Text
-                  style={{
-                     ...text,
-                     color: "#ababab",
-                     marginTop: "18px",
-                     marginBottom: "0",
-                  }}
-               >
-                  If you weren&apos;t expecting this invite, you can safely
-                  ignore this email.
-               </Text>
-            </Container>
-         </Body>
-      </Html>
+      <React.Fragment>
+         <Html>
+            <Head />
+            <Body style={main}>
+               <Container style={container}>
+                  <Heading style={h1}>You&apos;re invited to {serverName}</Heading>
+                  <Text style={{ ...text, marginBottom: "14px" }}>
+                     {inviterLabel} invited you to join <b>{serverName}</b> with{" "}
+                     <b>{role}</b> access.
+                  </Text>
+                  <Text style={{ ...text, marginTop: "0", marginBottom: "14px" }}>
+                     This invite expires at{" "}
+                     <code style={inlineCode}>{expiresAtIso}</code>.
+                  </Text>
+                  <Text style={{ ...text, marginTop: "0", marginBottom: "16px" }}>
+                     Open your invites page to accept or reject:
+                  </Text>
+                  <Link href={invitesUrl} style={link}>
+                     View invites
+                  </Link>
+                  <Text
+                     style={{
+                        ...text,
+                        color: "#ababab",
+                        marginTop: "18px",
+                        marginBottom: "0",
+                     }}
+                  >
+                     If you weren&apos;t expecting this invite, you can safely
+                     ignore this email.
+                  </Text>
+               </Container>
+            </Body>
+         </Html>
+      </React.Fragment>
    );
 };
 

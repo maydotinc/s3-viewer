@@ -44,7 +44,10 @@ const SessionManager = () => {
    // Redirect to home dashboard whenever serverId changes
    // This can cause some redirects that may not be intended, esp on first load when state is getting hydrated
    useEffect(() => {
-      if (serverId) router.push("/dashboard");
+      if (serverId && router.pathname !== "/invites") {
+         console.log("Redirecting to dashboard");
+         router.push("/dashboard");
+      }
    }, [serverId]);
 
    return null;
