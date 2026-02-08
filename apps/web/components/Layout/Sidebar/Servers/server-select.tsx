@@ -19,8 +19,7 @@ import ServerItem from "./server-item";
 
 const ServerSelector = () => {
    const { openConnectModal } = useModalContext();
-   const { servers, currentServer, isServerListLoading, serverError } =
-      useServers();
+   const { servers, currentServer, isLoading, serverError } = useServers();
    const setServerId = useSessionStore((state) => state.setServerId);
    const { data: session, isPending } = authClient.useSession();
 
@@ -38,7 +37,7 @@ const ServerSelector = () => {
       );
    }
 
-   if (isServerListLoading || isPending) {
+   if (isLoading) {
       return (
          <div
             className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 min-h-[74px]"

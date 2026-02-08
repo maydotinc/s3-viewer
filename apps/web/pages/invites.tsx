@@ -1,21 +1,13 @@
 import Invites from "@/components/Invites";
 import ViewerDashboard from "@/components/Layout/dashboard";
 import Seo from "@/components/Seo";
-import { authClient } from "@s3-viewer/auth/client";
 
 const InvitesPage = () => {
-   const { data: session } = authClient.useSession();
-   const isAuthenticated = !!session;
-   
    return (
       <>
          <Seo
-            title={isAuthenticated ? "Invites" : "Login Required - S3 Viewer"}
-            description={
-               isAuthenticated 
-                  ? "Manage team invites and shared access to your S3 servers."
-                  : "Sign in to manage team invitations and shared access to your cloud storage."
-            }
+            title="Invites"
+            description="Manage team invites and shared access to your S3 servers."
             canonical="/invites"
             noindex={true}
          />

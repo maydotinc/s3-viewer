@@ -3,12 +3,13 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import { ServerIcon } from "lucide-react";
 
 type ServerLogoProps = {
-   provider: Provider;
+   provider: Provider | undefined;
    variant?: "small" | "large";
 };
 
 const ServerLogo = ({ provider, variant = "large" }: ServerLogoProps) => {
    let icon;
+
    if (provider === Provider.S3) {
       icon = (
          <img

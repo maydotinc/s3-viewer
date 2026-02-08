@@ -23,9 +23,7 @@ const useServers = (serverId?: string) => {
       }: QueryFunctionContext): Promise<ServerInfo[]> => {
          const response = await createApiRequest(
             "/server/retrieve/get-servers",
-            {
-               signal,
-            }
+            { signal }
          );
 
          if (!response.ok) {
@@ -37,17 +35,23 @@ const useServers = (serverId?: string) => {
          };
          return serversList;
       },
+
       enabled: !isSessionPending && !!session?.user,
    });
 
    const currentServer =
       servers.find((server) => server.id === currentServerId) || null;
 
+   const isLoading =
+      isSessionPending || isServerListLoading || isServerListFetching;
+
    return {
       servers,
       currentServer,
+      isSessionPending,
       isServerListLoading,
       isServerListFetching,
+      isLoading,
       serverError,
       refreshServers: refetch,
    };
