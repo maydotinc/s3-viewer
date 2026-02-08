@@ -9,6 +9,7 @@ import { GridProvider, useGridContext } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
 import BucketActions from "./bucket-actions";
 import GridActions from "./grid-actions";
+import { authClient } from "@s3-viewer/auth/client";
 
 const columns: ColDef<S3Bucket>[] = [
    {
@@ -35,6 +36,7 @@ const columns: ColDef<S3Bucket>[] = [
 ];
 
 const BucketsGrid = () => {
+   const { data: session } = authClient.useSession();
    const { buckets, isBucketsLoading } = useBuckets();
    const { gridRef, gridReady } = useGridContext();
 
@@ -43,6 +45,16 @@ const BucketsGrid = () => {
       const api = gridRef.current.api;
       api.setGridOption("rowData", buckets ?? []);
    }, [buckets, gridReady, isBucketsLoading, gridRef.current?.api]);
+
+   if (!session) {
+      return (
+         <div className="flex flex-col items-center justify-center pt-24">
+            <p className="text-sm text-viewertext">
+               Login to view your buckets
+            </p>
+         </div>
+      );
+   }
 
    const noRowsOverlayComponent = () => {
       return (

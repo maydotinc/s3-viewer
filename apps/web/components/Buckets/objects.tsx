@@ -9,8 +9,10 @@ import GridActions from "./Grid/actions";
 import columns from "./Grid/cols/columns";
 import { rowSelection } from "./Grid/cols/selection-col";
 import MakeObjectSource from "./Grid/object-source";
+import { authClient } from "@s3-viewer/auth/client";
 
 const Objects = () => {
+   const { data: session, isPending } = authClient.useSession();
    const { path, bucket } = useBucketContext();
    const { gridRef, gridReady } = useGridContext();
    const serverId = useSessionStore((state) => state.serverId);
@@ -33,6 +35,16 @@ const Objects = () => {
          gridRef.current.api.setGridOption("datasource", objectDatasource);
       }
    }, [objectDatasource, gridReady]);
+
+   if (isPending) return null;
+   if (!session)
+      return (
+         <div className="flex flex-col items-center justify-center pt-24">
+            <p className="text-sm text-viewertext">
+               Login to view your objects
+            </p>
+         </div>
+      );
 
    const noRowsOverlayComponent = () => {
       return (
