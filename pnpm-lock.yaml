@@ -35,6 +35,9 @@ importers:
       '@s3-viewer/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@s3-viewer/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@s3-viewer/permissions':
         specifier: workspace:*
         version: link:../../packages/permissions
@@ -53,9 +56,6 @@ importers:
       express:
         specifier: ^5.1.0
         version: 5.1.0
-      resend:
-        specifier: ^6.0.1
-        version: 6.0.1(@react-email/render@1.2.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0))
       web:
         specifier: workspace:*
         version: link:../web
@@ -227,6 +227,9 @@ importers:
       '@s3-viewer/db':
         specifier: workspace:*
         version: link:../db
+      '@s3-viewer/email':
+        specifier: workspace:*
+        version: link:../email
       '@s3-viewer/ui':
         specifier: workspace:*
         version: link:../ui
@@ -236,9 +239,6 @@ importers:
       dotenv:
         specifier: ^16.5.0
         version: 16.5.0
-      resend:
-        specifier: ^6.0.1
-        version: 6.0.1(@react-email/render@1.2.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0))
     devDependencies:
       '@better-auth/cli':
         specifier: ^1.2.8
@@ -265,6 +265,31 @@ importers:
       prisma:
         specifier: ^6.1.0
         version: 6.8.2(typescript@5.8.3)
+
+  packages/email:
+    dependencies:
+      '@s3-viewer/ui':
+        specifier: workspace:*
+        version: link:../ui
+      resend:
+        specifier: ^6.0.1
+        version: 6.0.1(@react-email/render@1.2.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0))
+    devDependencies:
+      '@s3-viewer/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@s3-viewer/ts-config':
+        specifier: workspace:*
+        version: link:../ts-config
+      '@types/node':
+        specifier: ^20
+        version: 20.17.57
+      eslint:
+        specifier: ^9.28.0
+        version: 9.28.0(jiti@2.4.2)
+      typescript:
+        specifier: ^5.8.3
+        version: 5.8.3
 
   packages/eslint-config:
     devDependencies:

@@ -2,6 +2,7 @@ import {
    requireManagePermission,
    requireRevokePermission,
 } from "@/lib/middleware/permissions";
+import { sendServerInviteEmail } from "@s3-viewer/email";
 import { prisma } from "@s3-viewer/db";
 import { Role, ServerInvite } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
@@ -122,18 +123,57 @@ inviteRouter.post(
          });
          return;
       }
+      const expiresAtDate = new Date(expiresAt);
       const invitations = emails.map((email) => ({
          serverId,
          email,
          role,
-         expiresAt: new Date(expiresAt),
+         expiresAt: expiresAtDate,
          invitedById: req.user!.id,
       }));
 
       try {
+         const server = await prisma.server.findUnique({
+            where: { id: serverId },
+            select: { name: true },
+         });
+
          await prisma.pendingInvitation.createMany({
             data: invitations,
          });
+
+         const frontendUrl =
+            process.env.NEXT_PUBLIC_FRONTEND_URL || process.env.FRONTEND_URL;
+         const invitesUrl = (() => {
+            if (!frontendUrl) return "/invites";
+            try {
+               return new URL("/invites", frontendUrl).toString();
+            } catch {
+               return `${frontendUrl.replace(/\/$/, "")}/invites`;
+            }
+         })();
+
+         const results = await Promise.allSettled(
+            emails.map((email) =>
+               sendServerInviteEmail({
+                  to: email,
+                  serverName: server?.name ?? "a server",
+                  role,
+                  invitedByEmail: req.user!.email,
+                  invitedByName: req.user!.name || undefined,
+                  expiresAt: expiresAtDate,
+                  invitesUrl,
+               })
+            )
+         );
+
+         const failures = results.filter((r) => r.status === "rejected");
+         if (failures.length > 0) {
+            console.warn(
+               `Invite emails: ${failures.length}/${results.length} failed to send`
+            );
+         }
+
          res.status(200).json({ message: "Invitations sent successfully" });
       } catch (error) {
          console.error("Error sending invitations:", error);

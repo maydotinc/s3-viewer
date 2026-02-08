@@ -6,7 +6,6 @@ import {
    Html,
    Text,
 } from "@react-email/components";
-import * as React from "react";
 
 interface S3ViewerEmailOTPProps {
    loginCode?: string;

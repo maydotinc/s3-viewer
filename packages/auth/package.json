@@ -4,10 +4,10 @@
    "type": "module",
    "dependencies": {
       "@s3-viewer/db": "workspace:*",
+      "@s3-viewer/email": "workspace:*",
       "@s3-viewer/ui": "workspace:*",
       "better-auth": "^1.2.8",
-      "dotenv": "^16.5.0",
-      "resend": "^6.0.1"
+      "dotenv": "^16.5.0"
    },
    "devDependencies": {
       "@better-auth/cli": "^1.2.8",
