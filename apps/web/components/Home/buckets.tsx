@@ -36,7 +36,7 @@ const columns: ColDef<S3Bucket>[] = [
 ];
 
 const BucketsGrid = () => {
-   const { data: session } = authClient.useSession();
+   const { data: session, isPending } = authClient.useSession();
    const { buckets, isBucketsLoading } = useBuckets();
    const { gridRef, gridReady } = useGridContext();
 
@@ -46,7 +46,8 @@ const BucketsGrid = () => {
       api.setGridOption("rowData", buckets ?? []);
    }, [buckets, gridReady, isBucketsLoading, gridRef.current?.api]);
 
-   if (!session) {
+   if (isPending) return null;
+   if (!session && !isPending) {
       return (
          <div className="flex flex-col items-center justify-center pt-24">
             <p className="text-sm text-viewertext">
