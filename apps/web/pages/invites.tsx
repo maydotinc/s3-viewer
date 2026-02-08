@@ -1,5 +1,5 @@
 import Invites from "@/components/Invites";
-import ViewerDashboard from "@/components/Layout/dashboard";
+import ViewerLayout from "@/components/Layout";
 import Seo from "@/components/Seo";
 import { authClient } from "@s3-viewer/auth/client";
 
@@ -26,9 +26,9 @@ const InvitesPage = () => {
 
 InvitesPage.getLayout = (page: React.ReactNode) => {
    return (
-      <ViewerDashboard requireServer={false} mobileStrategy="hidden">
+      <ViewerLayout requireServer={false} mobileStrategy="hidden">
          {page}
-      </ViewerDashboard>
+      </ViewerLayout>
    );
 };
 
