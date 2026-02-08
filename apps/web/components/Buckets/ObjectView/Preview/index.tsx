@@ -1,5 +1,5 @@
 import { PreviewType } from "@/lib/utils/s3/previewHelpers";
-import { Eye, Loader } from "lucide-react";
+import { Eye, Loader, Loader2 } from "lucide-react";
 import RenderPreview from "./RenderPreview";
 
 interface ObjectPreviewProps {
@@ -23,13 +23,15 @@ const ObjectPreview = ({
       <div className="flex-1 p-8 flex items-center justify-center bg-gray-50 rounded-xl">
          {previewLoading ? (
             <div className="flex flex-col items-center justify-center">
-               <Loader className="h-12 w-12 animate-spin" />
+               <Loader2 className="size-6 animate-spin" />
             </div>
          ) : previewError || !preview?.url ? (
             <div className="flex flex-col items-center justify-center text-gray-500">
                <Eye className="h-12 w-12 mb-4 opacity-50" />
                <p>
-                  {previewError ? "Error loading preview" : "Preview not available"}
+                  {previewError
+                     ? "Error loading preview"
+                     : "Preview not available"}
                </p>
             </div>
          ) : (

@@ -10,7 +10,7 @@ interface ObjectMetadataProps {
 const ObjectMetadata = ({ metadata, isLoading }: ObjectMetadataProps) => {
    return (
       <div className="w-80 overflow-y-auto">
-         <h1 className="font-semibold mb-4">Object Details</h1>
+         <h1 className="font-medium mb-4">Object Details</h1>
          {isLoading ? (
             <div className="space-y-3">
                {[...Array(4)].map((_, i) => (

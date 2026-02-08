@@ -115,7 +115,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
 
    return (
       <Dialog open={true} onOpenChange={onClose}>
-         <DialogContent className="max-w-[95%] xs:max-w-lg sm:max-w-md overflow-hidden pb-2 gap-2">
+         <DialogContent
+            animate={false}
+            className="max-w-[95%] xs:max-w-lg sm:max-w-md overflow-hidden pb-2 gap-2"
+         >
             <DialogHeader className="flex flex-col items-center text-center gap-2">
                <DialogTitle>{title}</DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
