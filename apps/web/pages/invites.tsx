@@ -25,7 +25,11 @@ const InvitesPage = () => {
 };
 
 InvitesPage.getLayout = (page: React.ReactNode) => {
-   return <ViewerDashboard mobileStrategy="hidden">{page}</ViewerDashboard>;
+   return (
+      <ViewerDashboard requireServer={false} mobileStrategy="hidden">
+         {page}
+      </ViewerDashboard>
+   );
 };
 
 export default InvitesPage;
