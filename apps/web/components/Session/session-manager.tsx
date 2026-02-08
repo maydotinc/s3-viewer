@@ -41,11 +41,11 @@ const SessionManager = () => {
       }
    }, [servers.length]);
 
-   // Redirect to home dashboard whenever serverId changes
-   // This can cause some redirects that may not be intended, esp on first load when state is getting hydrated
    useEffect(() => {
-      if (serverId) router.push("/dashboard");
-   }, [serverId]);
+      if (isPending || !session?.user || !serverId) return;
+      if (router.pathname.startsWith("/buckets")) return;
+      router.push("/dashboard");
+   }, [serverId, router.pathname, session?.user, isPending]);
 
    return null;
 };

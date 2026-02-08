@@ -21,8 +21,10 @@ const BucketHeader = () => {
 
    if (!bucket) {
       return (
-         <div className="flex flex-col w-full h-35 border-b border-viewerborder px-8 py-4 items-center justify-center">
-            <Skeleton className="size-full" />
+         <div className="flex min-h-[var(--header-height)] w-full border-b border-viewerborder px-8 py-4 gap-2 items-center">
+            <Skeleton className="size-5 shrink-0 rounded" />
+            <span className="text-viewerborder">/</span>
+            <Skeleton className="h-4 w-28 rounded" />
          </div>
       );
    }
