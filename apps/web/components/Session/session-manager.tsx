@@ -44,6 +44,7 @@ const SessionManager = () => {
    useEffect(() => {
       if (isPending || !session?.user || !serverId) return;
       if (router.pathname.startsWith("/buckets")) return;
+      if (router.pathname === "/invites" || router.pathname === "/dashboard") return;
       router.push("/dashboard");
    }, [serverId, router.pathname, session?.user, isPending]);
 
