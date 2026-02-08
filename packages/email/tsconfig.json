@@ -3,18 +3,10 @@
    "compilerOptions": {
       "baseUrl": ".",
       "paths": {
-         "@s3-viewer/email/*": [
-            "src/*"
-         ]
+         "@s3-viewer/email/*": ["src/*"]
       },
       "rootDir": "src"
    },
-   "include": [
-      "src"
-   ],
-   "exclude": [
-      "dist",
-      "build",
-      "node_modules"
-   ]
+   "include": ["src"],
+   "exclude": ["dist", "build", "node_modules"]
 }

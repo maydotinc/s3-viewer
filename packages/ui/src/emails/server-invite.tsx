@@ -41,7 +41,8 @@ const S3ViewerServerInviteEmail = ({
                   <b>{role}</b> access.
                </Text>
                <Text style={{ ...text, marginTop: "0", marginBottom: "14px" }}>
-                  This invite expires at <code style={inlineCode}>{expiresAtIso}</code>.
+                  This invite expires at{" "}
+                  <code style={inlineCode}>{expiresAtIso}</code>.
                </Text>
                <Text style={{ ...text, marginTop: "0", marginBottom: "16px" }}>
                   Open your invites page to accept or reject:
@@ -126,4 +127,3 @@ const link = {
 };
 
 export default S3ViewerServerInviteEmail;
-
