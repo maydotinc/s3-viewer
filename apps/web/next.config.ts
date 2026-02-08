@@ -3,7 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
    reactStrictMode: true,
    async rewrites() {
-      return [{ source: "/robots.txt", destination: "/api/robots" }];
+      return [
+         { source: "/robots.txt", destination: "/api/robots" },
+         { source: "/sitemap.xml", destination: "/api/sitemap" },
+      ];
    },
    transpilePackages: [
       "@s3-viewer/ui",

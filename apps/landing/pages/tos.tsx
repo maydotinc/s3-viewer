@@ -71,13 +71,13 @@ const TosPage = () => {
       <BasicBlock className="gap-30 max-md:gap-15 max-xl:gap-20">
          <Seo
             title="Terms of Service"
-            description="Terms of Service for S3-Viewer. Read our terms before using our S3 object storage viewing and management services."
+            description="Terms of Service for S3 Viewer. Read our terms before using our S3 object storage viewing and management services."
             canonical="/tos"
             type="article"
          />
          <LegalLayout
             title="Terms of Service"
-            description="Please read these terms carefully before using S3-Viewer services"
+            description="Please read these terms carefully before using S3 Viewer services"
             content={tosContent}
          />
       </BasicBlock>

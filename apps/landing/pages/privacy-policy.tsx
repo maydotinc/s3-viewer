@@ -76,13 +76,13 @@ const PrivacyPage = () => {
       <BasicBlock className="gap-30 max-md:gap-15 max-xl:gap-20">
          <Seo
             title="Privacy Policy"
-            description="Learn how S3-Viewer collects, uses, and protects your information. Your S3 credentials are encrypted and we never store copies of your objects."
+            description="Learn how S3 Viewer collects, uses, and protects your information. Your S3 credentials are encrypted and we never store copies of your objects."
             canonical="/privacy-policy"
             type="article"
          />
          <LegalLayout
             title="Privacy Policy"
-            description="Learn how we collect, use, and protect your information when using S3-Viewer"
+            description="Learn how we collect, use, and protect your information when using S3 Viewer"
             content={privacyContent}
          />
       </BasicBlock>
