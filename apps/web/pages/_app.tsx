@@ -3,8 +3,6 @@ import AuthGuard from "@/components/Session/Auth/auth-guard";
 import SessionManager from "@/components/Session/session-manager";
 import { ModalProvider } from "@/lib/contexts/ModalContext";
 import { queryClient } from "@/lib/queryClient";
-import { authClient } from "@s3-viewer/auth/client";
-import LoadingAnimation from "@s3-viewer/ui/components/LoadingAnimation";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
 import "@s3-viewer/ui/globals.css";
@@ -27,12 +25,6 @@ const inter = Inter({ subsets: ["latin"] });
 export default function MyApp({ Component, pageProps }: AppPropsWithLayout) {
    const getLayout = Component.getLayout ?? ((page) => page);
    const page: ReactNode = getLayout(<Component {...pageProps} />);
-
-   const { isPending } = authClient.useSession();
-
-   if (isPending) {
-      return <LoadingAnimation />;
-   }
 
    return (
       <QueryClientProvider client={queryClient}>

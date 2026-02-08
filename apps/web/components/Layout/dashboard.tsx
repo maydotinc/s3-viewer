@@ -1,7 +1,7 @@
 import Seo from "@/components/Seo";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { authClient } from "@s3-viewer/auth/client";
-import { Loader } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 import ViewerBanner from "./Banner/banner";
 import { ViewerSidebar } from "./sidebar";
 import UploadProgressSheet from "./upload-progress";
@@ -47,7 +47,7 @@ const ViewerDashboard = ({
                   </div>
                ) : isServerListFetching ? (
                   <div className="flex flex-col items-center justify-center h-full">
-                     <Loader className="size-10 animate-spin text-viewerblue" />
+                     <LoaderCircle className="animate-spin" />
                   </div>
                ) : (
                   <>
