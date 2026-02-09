@@ -117,12 +117,22 @@ inviteRouter.post(
          expiresAt: string;
       };
 
-      if (!emails || !role || !expiresAt) {
+      if (
+         !Array.isArray(emails) ||
+         emails.length === 0 ||
+         !role ||
+         !expiresAt
+      ) {
          res.status(400).json({
             message: "Emails, role and expiration date are required",
          });
          return;
       }
+
+      const normalizedEmails = emails
+         .map((email) => email?.trim().toLowerCase())
+         .filter((email) => Boolean(email));
+      const uniqueEmails = Array.from(new Set(normalizedEmails));
 
       const numberOfExistingServerUsers = await prisma.serverAccess.count({
          where: {
@@ -135,17 +145,17 @@ inviteRouter.post(
             message: "Server already has the maximum number (10) of users",
          });
          return;
-      } else if (numberOfExistingServerUsers + emails.length > 10) {
+      } else if (numberOfExistingServerUsers + uniqueEmails.length > 10) {
          res.status(400).json({
             message:
                "Server would exceed the maximum number (10) of users by " +
-               (numberOfExistingServerUsers + emails.length - 10),
+               (numberOfExistingServerUsers + uniqueEmails.length - 10),
          });
          return;
       }
 
       const expiresAtDate = new Date(expiresAt);
-      const invitations = emails.map((email) => ({
+      const invitations = uniqueEmails.map((email) => ({
          serverId,
          email,
          role,
@@ -161,6 +171,7 @@ inviteRouter.post(
 
          await prisma.pendingInvitation.createMany({
             data: invitations,
+            skipDuplicates: true,
          });
 
          const frontendUrl =
@@ -175,7 +186,7 @@ inviteRouter.post(
          })();
 
          const results = await Promise.allSettled(
-            emails.map((email) =>
+            uniqueEmails.map((email) =>
                sendServerInviteEmail({
                   to: email,
                   serverName: server?.name ?? "a server",
@@ -212,7 +223,7 @@ inviteRouter.post("/accept", async (req: Request, res: Response) => {
    }
 
    try {
-      await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
          const invite = await tx.pendingInvitation.findFirst({
             where: {
                id: inviteId,
@@ -224,10 +235,62 @@ inviteRouter.post("/accept", async (req: Request, res: Response) => {
          });
 
          if (!invite) {
-            res.status(404).json({
-               message: "Invite not found or has expired",
+            return {
+               status: 404 as const,
+               body: { message: "Invite not found or has expired" },
+            };
+         }
+
+         const existingAccess = await tx.serverAccess.findUnique({
+            where: {
+               userId_serverId: {
+                  userId: req.user!.id,
+                  serverId: invite.serverId,
+               },
+            },
+            select: { id: true, role: true },
+         });
+         if (existingAccess) {
+            const nextRole =
+               existingAccess.role === "OWNER"
+                  ? existingAccess.role
+                  : invite.role;
+            await tx.serverAccess.update({
+               where: {
+                  userId_serverId: {
+                     userId: req.user!.id,
+                     serverId: invite.serverId,
+                  },
+               },
+               data: {
+                  role: nextRole,
+               },
             });
-            return;
+            await tx.pendingInvitation.delete({ where: { id: inviteId } });
+            return {
+               status: 200 as const,
+               body: { message: "Invite accepted successfully" },
+            };
+         }
+
+         // Serialize accepts per-server to enforce the cap under concurrency.
+         await tx.$executeRaw`
+            SELECT 1 FROM "server"
+            WHERE id = ${invite.serverId}
+            FOR UPDATE
+         `;
+
+         const numberOfExistingServerUsers = await tx.serverAccess.count({
+            where: { serverId: invite.serverId },
+         });
+         if (numberOfExistingServerUsers >= 10) {
+            return {
+               status: 400 as const,
+               body: {
+                  message:
+                     "Server already has the maximum number (10) of users",
+               },
+            };
          }
 
          await tx.serverAccess.create({
@@ -241,9 +304,13 @@ inviteRouter.post("/accept", async (req: Request, res: Response) => {
          await tx.pendingInvitation.delete({
             where: { id: inviteId },
          });
+         return {
+            status: 200 as const,
+            body: { message: "Invite accepted successfully" },
+         };
       });
 
-      res.status(200).json({ message: "Invite accepted successfully" });
+      res.status(result.status).json(result.body);
    } catch (error) {
       console.error("Error accepting invite:", error);
       res.status(500).json({ message: "Internal server error" });
@@ -259,7 +326,7 @@ inviteRouter.post("/reject", async (req: Request, res: Response) => {
    }
 
    try {
-      await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx) => {
          const invite = await tx.pendingInvitation.findFirst({
             where: {
                id: inviteId,
@@ -268,18 +335,22 @@ inviteRouter.post("/reject", async (req: Request, res: Response) => {
          });
 
          if (!invite) {
-            res.status(404).json({
-               message: "Invite not found",
-            });
-            return;
+            return {
+               status: 404 as const,
+               body: { message: "Invite not found" },
+            };
          }
 
          await tx.pendingInvitation.delete({
             where: { id: inviteId },
          });
+         return {
+            status: 200 as const,
+            body: { message: "Invite rejected successfully" },
+         };
       });
 
-      res.status(200).json({ message: "Invite rejected successfully" });
+      res.status(result.status).json(result.body);
    } catch (error) {
       console.error("Error rejecting invite:", error);
       res.status(500).json({ message: "Internal server error" });
