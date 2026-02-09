@@ -4,6 +4,7 @@ import {
 } from "@/lib/middleware/permissions";
 import { prisma } from "@s3-viewer/db";
 import { sendServerInviteEmail } from "@s3-viewer/email";
+import { maxRole } from "@s3-viewer/permissions";
 import { Role, ServerInvite } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 
@@ -131,8 +132,22 @@ inviteRouter.post(
 
       const normalizedEmails = emails
          .map((email) => email?.trim().toLowerCase())
-         .filter((email) => Boolean(email));
+         .filter((email): email is string => Boolean(email));
       const uniqueEmails = Array.from(new Set(normalizedEmails));
+
+      if (uniqueEmails.length === 0) {
+         res.status(400).json({
+            message: "At least one valid email is required",
+         });
+         return;
+      }
+
+      if (uniqueEmails.length > 5) {
+         res.status(400).json({
+            message: "You can only invite up to 5 users at a time",
+         });
+         return;
+      }
 
       const numberOfExistingServerUsers = await prisma.serverAccess.count({
          where: {
@@ -251,21 +266,22 @@ inviteRouter.post("/accept", async (req: Request, res: Response) => {
             select: { id: true, role: true },
          });
          if (existingAccess) {
-            const nextRole =
-               existingAccess.role === "OWNER"
-                  ? existingAccess.role
-                  : invite.role;
-            await tx.serverAccess.update({
-               where: {
-                  userId_serverId: {
-                     userId: req.user!.id,
-                     serverId: invite.serverId,
+            const existingRole = existingAccess.role as Role;
+            const invitedRole = invite.role as Role;
+            const nextRole = maxRole(existingRole, invitedRole);
+            if (nextRole !== existingRole) {
+               await tx.serverAccess.update({
+                  where: {
+                     userId_serverId: {
+                        userId: req.user!.id,
+                        serverId: invite.serverId,
+                     },
                   },
-               },
-               data: {
-                  role: nextRole,
-               },
-            });
+                  data: {
+                     role: nextRole,
+                  },
+               });
+            }
             await tx.pendingInvitation.delete({ where: { id: inviteId } });
             return {
                status: 200 as const,
