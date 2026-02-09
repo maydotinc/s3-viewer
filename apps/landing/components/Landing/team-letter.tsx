@@ -29,7 +29,7 @@ const TeamLetter = () => {
                   wanted one viewer that works everywhere - a single interface
                   for all your object storage, regardless of where it lives.
                </p>
-               <div className="h-[1px] w-1/4 bg-viewerborder my-2 max-md:hidden" />
+               <div className="h-[1px] w-1/2 bg-viewerborder my-2 max-md:hidden" />
                <span className="text-base text-viewertext md:max-w-1/2">
                   Our mission is to make object storage as accessible, fast and
                   simple as your local file system, regardless of your technical
