@@ -19,7 +19,6 @@ const InvitesPage = () => {
 InvitesPage.getLayout = (page: React.ReactNode) => {
    return (
       <ViewerLayout
-         requireServer={false}
          mobileStrategy="hidden"
          dashboardOnServerChange={false}
       >

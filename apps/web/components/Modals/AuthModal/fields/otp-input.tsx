@@ -15,6 +15,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
    const { email, name, setVerifying, authType, setError } = useAuthStore();
    const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+   const { refetch: refetchSession } = authClient.useSession();
 
    useEffect(() => {
       if (inputRefs.current[0]) {
@@ -48,6 +49,7 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
             }
          }
 
+         refetchSession();
          closeModal("auth");
          await router.push("/dashboard");
       } finally {

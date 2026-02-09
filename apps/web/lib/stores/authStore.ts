@@ -74,8 +74,8 @@ const useAuthStore = create<AuthStore>()(
       setError: (error) => set({ error }),
       reset: () =>
          set((state) => ({
-            authType: state.authType,
-            name: state.name,
+            authType: "signin",
+            name: "",
             email: "",
             isValidEmail: false,
             loading: false,

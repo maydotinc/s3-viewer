@@ -1,4 +1,5 @@
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
+import { authClient } from "@s3-viewer/auth/client";
 import { S3Bucket } from "@s3-viewer/types";
 import { ColDef } from "ag-grid-community";
 import { CustomCellRendererProps } from "ag-grid-react";
@@ -9,7 +10,6 @@ import { GridProvider, useGridContext } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
 import BucketActions from "./bucket-actions";
 import GridActions from "./grid-actions";
-import { authClient } from "@s3-viewer/auth/client";
 
 const columns: ColDef<S3Bucket>[] = [
    {
