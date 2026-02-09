@@ -67,6 +67,21 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
    ],
 };
 
+const ROLE_RANK: Record<Role, number> = {
+   [Role.VIEWER]: 0,
+   [Role.EDITOR]: 1,
+   [Role.ADMIN]: 2,
+   [Role.OWNER]: 3,
+};
+
+const compareRoles = (a: Role, b: Role): number => {
+   return ROLE_RANK[a] - ROLE_RANK[b];
+};
+
+const isRoleHigher = (a: Role, b: Role): boolean => compareRoles(a, b) > 0;
+
+const maxRole = (a: Role, b: Role): Role => (isRoleHigher(a, b) ? a : b);
+
 const hasPermissions = (role: Role, permissions: Permission[]): boolean => {
    return permissions.every((permission) =>
       ROLE_PERMISSIONS[role].includes(permission)
@@ -88,4 +103,11 @@ const getManagePermissionForRole = (role: Role): Permission | null => {
    }
 };
 
-export { getManagePermissionForRole, hasPermissions, Permission };
+export {
+   compareRoles,
+   getManagePermissionForRole,
+   hasPermissions,
+   isRoleHigher,
+   maxRole,
+   Permission,
+};

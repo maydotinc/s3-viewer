@@ -1,0 +1,12 @@
+{
+   "extends": "@s3-viewer/ts-config/react-library",
+   "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+         "@s3-viewer/email/*": ["src/*"]
+      },
+      "rootDir": "src"
+   },
+   "include": ["src"],
+   "exclude": ["dist", "build", "node_modules"]
+}

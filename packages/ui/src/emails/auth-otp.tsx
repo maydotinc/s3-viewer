@@ -1,3 +1,4 @@
+import * as React from "react";
 import {
    Body,
    Container,
@@ -6,36 +7,37 @@ import {
    Html,
    Text,
 } from "@react-email/components";
-import * as React from "react";
 
 interface S3ViewerEmailOTPProps {
    loginCode?: string;
 }
 
 export const S3ViewerEmailOTP = ({ loginCode }: S3ViewerEmailOTPProps) => (
-   <Html>
-      <Head />
-      <Body style={main}>
-         <Container style={container}>
-            <Heading style={h1}>Sign in to s3-viewer</Heading>
-            <Text style={{ ...text, marginBottom: "14px" }}>
-               This code will expire in 10 minutes and can only be used once.
-            </Text>
-            <code style={code}>{loginCode}</code>
-            <Text
-               style={{
-                  ...text,
-                  color: "#ababab",
-                  marginTop: "14px",
-                  marginBottom: "16px",
-               }}
-            >
-               If you didn&apos;t try to login, you can safely ignore this
-               email.
-            </Text>
-         </Container>
-      </Body>
-   </Html>
+   <React.Fragment>
+      <Html>
+         <Head />
+         <Body style={main}>
+            <Container style={container}>
+               <Heading style={h1}>Sign in to s3-viewer</Heading>
+               <Text style={{ ...text, marginBottom: "14px" }}>
+                  This code will expire in 10 minutes and can only be used once.
+               </Text>
+               <code style={code}>{loginCode}</code>
+               <Text
+                  style={{
+                     ...text,
+                     color: "#ababab",
+                     marginTop: "14px",
+                     marginBottom: "16px",
+                  }}
+               >
+                  If you weren&apos;t trying to login, you can safely ignore this
+                  email.
+               </Text>
+            </Container>
+         </Body>
+      </Html>
+   </React.Fragment>
 );
 
 S3ViewerEmailOTP.PreviewProps = {

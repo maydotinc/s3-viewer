@@ -1,11 +1,11 @@
-import { useRouter } from "next/router";
 import { BucketProvider } from "@/components/Buckets/Context";
-import { GridProvider } from "@/components/DataGrid/context";
 import BucketHeader from "@/components/Buckets/header";
 import Objects from "@/components/Buckets/objects";
 import ObjectView from "@/components/Buckets/ObjectView";
-import ViewerDashboard from "@/components/Layout/dashboard";
+import { GridProvider } from "@/components/DataGrid/context";
+import ViewerLayout from "@/components/Layout";
 import Seo from "@/components/Seo";
+import { useRouter } from "next/router";
 
 const BucketPage = () => {
    const router = useRouter();
@@ -40,7 +40,7 @@ const BucketPage = () => {
 };
 
 BucketPage.getLayout = (page: React.ReactNode) => {
-   return <ViewerDashboard mobileStrategy="hidden">{page}</ViewerDashboard>;
+   return <ViewerLayout mobileStrategy="hidden">{page}</ViewerLayout>;
 };
 
 export default BucketPage;

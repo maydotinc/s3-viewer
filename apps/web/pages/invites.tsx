@@ -1,5 +1,5 @@
 import Invites from "@/components/Invites";
-import ViewerDashboard from "@/components/Layout/dashboard";
+import ViewerLayout from "@/components/Layout";
 import Seo from "@/components/Seo";
 
 const InvitesPage = () => {
@@ -17,7 +17,14 @@ const InvitesPage = () => {
 };
 
 InvitesPage.getLayout = (page: React.ReactNode) => {
-   return <ViewerDashboard mobileStrategy="hidden">{page}</ViewerDashboard>;
+   return (
+      <ViewerLayout
+         mobileStrategy="hidden"
+         dashboardOnServerChange={false}
+      >
+         {page}
+      </ViewerLayout>
+   );
 };
 
 export default InvitesPage;

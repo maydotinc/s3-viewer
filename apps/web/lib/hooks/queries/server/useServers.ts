@@ -9,6 +9,7 @@ const useServers = (serverId?: string) => {
       authClient.useSession();
    const sessionServerId = useSessionStore((state) => state.serverId);
    const currentServerId = serverId || sessionServerId;
+   const userId = session?.user?.id;
 
    const {
       data: servers = [],
@@ -17,7 +18,7 @@ const useServers = (serverId?: string) => {
       error: serverError,
       refetch,
    } = useQuery<ServerInfo[]>({
-      queryKey: ["servers"],
+      queryKey: ["servers", userId],
       queryFn: async ({
          signal,
       }: QueryFunctionContext): Promise<ServerInfo[]> => {
@@ -35,8 +36,7 @@ const useServers = (serverId?: string) => {
          };
          return serversList;
       },
-
-      enabled: !isSessionPending && !!session?.user,
+      enabled: !isSessionPending && Boolean(userId),
    });
 
    const currentServer =

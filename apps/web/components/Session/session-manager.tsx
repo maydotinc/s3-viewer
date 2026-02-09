@@ -4,9 +4,9 @@ import { authClient } from "@s3-viewer/auth/client";
 import { useEffect } from "react";
 
 const SessionManager = () => {
-   const { data: session, isPending } = authClient.useSession();
-   const { servers } = useServers();
    const { serverId, setUserId, setServerId, clearSession } = useSessionStore();
+   const { data: session, isPending } = authClient.useSession();
+   const { servers, isLoading: isServersLoading } = useServers();
 
    useEffect(() => {
       if (isPending) return;
@@ -16,10 +16,11 @@ const SessionManager = () => {
       } else {
          clearSession();
       }
-   }, [session, isPending, clearSession]);
+   }, [session?.user?.id, isPending, setUserId, clearSession]);
 
    useEffect(() => {
       if (!session?.user) return;
+      if (isServersLoading) return;
 
       if (servers.length === 0) {
          if (serverId !== "") {
@@ -35,7 +36,7 @@ const SessionManager = () => {
             setServerId(firstServer.id);
          }
       }
-   }, [servers.length]);
+   }, [session?.user?.id, isServersLoading, servers, serverId, setServerId]);
 
    return null;
 };
