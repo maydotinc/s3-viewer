@@ -1,3 +1,4 @@
+import { authClient } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -18,6 +19,7 @@ type PaginationProps = {
 };
 
 const Pagination = ({ className }: PaginationProps) => {
+   const { data: session, isPending } = authClient.useSession();
    const { gridRef, gridReady, setPageSize } = useGridContext();
    const [currentPageSize, setCurrentPageSize] = useState<number | null>(null);
    const [isOpen, setIsOpen] = useState(false);
@@ -32,7 +34,10 @@ const Pagination = ({ className }: PaginationProps) => {
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
          <DropdownMenuTrigger asChild>
-            <Button className={cn("flex-initial", className)}>
+            <Button
+               className={cn("flex-initial", className)}
+               disabled={!session && !isPending}
+            >
                {`Rows (${currentPageSize ?? 100})`}
                <ChevronDown
                   className={cn(

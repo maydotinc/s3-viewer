@@ -1,3 +1,4 @@
+import { authClient } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -16,6 +17,7 @@ type FilterProps = {
 };
 
 const Filter = ({ className }: FilterProps) => {
+   const { data: session, isPending } = authClient.useSession();
    const { gridRef, gridReady } = useGridContext();
    const [allColumns, setAllColumns] = useState<Column[] | null>(null);
    const [filteredColumns, setFilteredColumns] = useState<Column[] | null>(
@@ -49,7 +51,10 @@ const Filter = ({ className }: FilterProps) => {
    return (
       <DropdownMenu>
          <DropdownMenuTrigger asChild>
-            <Button className={cn("flex-initial", className)}>
+            <Button
+               className={cn("flex-initial", className)}
+               disabled={!session && !isPending}
+            >
                <ListFilter className="size-4" />
                Filter
             </Button>

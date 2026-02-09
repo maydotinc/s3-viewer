@@ -19,7 +19,10 @@ const NameInput = () => {
       [setInvalidFields, invalidFields, name, setName]
    );
 
-   const debouncedValidateName = useMemo(() => debounce(validateName, 100), [validateName]);
+   const debouncedValidateName = useMemo(
+      () => debounce(validateName, 100),
+      [validateName]
+   );
 
    useEffect(() => {
       return () => {
@@ -35,12 +38,15 @@ const NameInput = () => {
 
    return (
       <div className="flex flex-col">
-         <label htmlFor="name" className="text-sm font-medium text-black flex items-center gap-1">
+         <label
+            htmlFor="name"
+            className="text-sm font-medium text-black flex items-center gap-1"
+         >
             Name<span className="text-lg text-viewerblue">*</span>
          </label>
          <Input
             type="text"
-            placeholder="James Brown"
+            placeholder="Miley Cyrus"
             className={cn(
                "w-full transition-colors duration-300 text-black",
                invalidFields.includes("name") && "border-red-500"

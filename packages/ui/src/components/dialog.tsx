@@ -29,14 +29,19 @@ function DialogClose({
 }
 
 function DialogOverlay({
+   animate = true,
    className,
    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+}: React.ComponentProps<typeof DialogPrimitive.Overlay> & {
+   animate?: boolean;
+}) {
    return (
       <DialogPrimitive.Overlay
          data-slot="dialog-overlay"
          className={cn(
-            "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 backdrop-blur-[4px]",
+            "fixed inset-0 z-50 backdrop-blur-[4px]",
+            animate &&
+               "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             className
          )}
          {...props}
@@ -45,20 +50,24 @@ function DialogOverlay({
 }
 
 function DialogContent({
+   animate = true,
    className,
    children,
    showCloseButton = true,
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
    showCloseButton?: boolean;
+   animate?: boolean;
 }) {
    return (
       <DialogPortal data-slot="dialog-portal">
-         <DialogOverlay />
+         <DialogOverlay animate={animate} />
          <DialogPrimitive.Content
             data-slot="dialog-content"
             className={cn(
-               "bg-background outline-none focus-visible:outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border p-6 shadow-lg duration-200 sm:max-w-lg",
+               "bg-background outline-none focus-visible:outline-none fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-2xl border p-6 shadow-lg duration-200 sm:max-w-lg",
+               animate &&
+                  "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95",
                className
             )}
             {...props}

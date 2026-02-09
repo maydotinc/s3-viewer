@@ -1,7 +1,7 @@
 import { authClient, signOut } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Separator } from "@s3-viewer/ui/components/separator";
-import { cn } from "@s3-viewer/ui/lib/utils";
+import { cn, stringToColor } from "@s3-viewer/ui/lib/utils";
 import { ChevronDown, FileText, LogOut, Mail } from "lucide-react";
 import { useRouter } from "next/router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -70,25 +70,30 @@ const ProfileDropdown: React.FC = () => {
       <div ref={dropdownRef} className="relative">
          <Button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex h-10 w-auto items-center rounded-full border border-gray-300 bg-white p-1 !px-2 hover:bg-gray-100 focus:outline-none sm:p-2 md:h-11"
+            className="flex h-10 w-auto items-center gap-2 rounded-full border border-gray-300 bg-white p-1 !px-2 hover:bg-gray-100 focus:outline-none sm:p-2 md:h-11"
          >
-            <span className="text-black truncate">{user?.name}</span>
+            <span
+               className="flex text-xs items-center justify-center rounded-full w-8 h-8 font-bold text-white"
+               style={{
+                  backgroundColor: stringToColor(user?.email ?? ""),
+               }}
+            >
+               {user?.email?.slice(0, 2).toUpperCase() ?? "??"}
+            </span>
             <ChevronDown
                className={cn(
                   "h-3 w-3 text-gray-600 transition-transform duration-200 sm:h-4 sm:w-4",
-                  {
-                     "rotate-180": isOpen,
-                  }
+                  { "rotate-180": isOpen }
                )}
             />
          </Button>
          {isOpen && (
             <div className="absolute right-0 mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in-80 slide-in-from-top-5 sm:mt-2 sm:w-60">
                <div className="flex flex-col items-start justify-start min-w-0 w-full px-3 py-2">
-                  <p className="truncate text-black max-w-full">
-                     {user?.name || "User"}
+                  <p className="text-xs text-gray-500 max-w-full truncate">
+                     Signed in as
                   </p>
-                  <p className="text-xs max-w-full truncate text-gray-500">
+                  <p className="truncate text-black max-w-full">
                      {user?.email || "No email found"}
                   </p>
                </div>

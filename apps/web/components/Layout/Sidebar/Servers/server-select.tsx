@@ -1,26 +1,25 @@
+import { authClient } from "@s3-viewer/auth/client";
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
-import { authClient } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import {
    DropdownMenu,
+   DropdownMenuTrigger,
    DropdownMenuContent,
-   DropdownMenuItem,
    DropdownMenuRadioGroup,
    DropdownMenuRadioItem,
+   DropdownMenuItem,
    DropdownMenuSeparator,
-   DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
-import { CirclePlus } from "lucide-react";
+import { CirclePlus, ChevronsLeftRight } from "lucide-react";
 import ServerCard from "./server-card";
 import ServerItem from "./server-item";
 
 const ServerSelector = () => {
    const { openConnectModal } = useModalContext();
-   const { servers, currentServer, isServerListLoading, serverError } =
-      useServers();
+   const { servers, currentServer, isLoading, serverError } = useServers();
    const setServerId = useSessionStore((state) => state.setServerId);
    const { data: session, isPending } = authClient.useSession();
 
@@ -28,19 +27,28 @@ const ServerSelector = () => {
       setServerId(newServerId);
    };
 
-   if (!session && !isPending) {
+   if (isLoading || (!session && !isPending)) {
       return (
-         <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
-            <p className="text-viewertext text-center">
-               Please login to connect a server
-            </p>
+         <div
+            className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 min-h-[74px]"
+            aria-hidden
+         >
+            <div className="flex gap-2 items-center">
+               <div className="bg-viewerwhite border border-xs rounded-sm p-1 flex-none">
+                  <Skeleton className="size-4 rounded bg-transparent" />
+               </div>
+               <div className="md:max-w-[100px] min-w-0">
+                  <Skeleton className="h-5 w-[100px] rounded" />
+               </div>
+               <div className="flex gap-2 items-center ml-auto border border-viewerborder rounded-full p-1.5 bg-viewerwhite">
+                  <ChevronsLeftRight className="size-4 rotate-90 text-viewertext" />
+               </div>
+            </div>
+            <div className="flex gap-2 items-center text-viewertext">
+               <Skeleton className="size-4 shrink-0 rounded" />
+               <Skeleton className="h-5 w-14 rounded" />
+            </div>
          </div>
-      );
-   }
-
-   if (isServerListLoading || isPending) {
-      return (
-         <Skeleton className="bg-viewergray rounded-xl w-full border-none h-[80px]" />
       );
    }
 

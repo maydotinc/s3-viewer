@@ -54,6 +54,7 @@
       "./lib/*": "./src/lib/*.ts",
       "./components/*": "./src/components/*.tsx",
       "./hooks/*": "./src/hooks/*.ts",
-      "./emails/*": "./src/emails/*.tsx"
+      "./emails/*": "./src/emails/*.tsx",
+      "./ErrorPage": "./src/ErrorPage.tsx"
    }
 }

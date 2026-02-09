@@ -6,12 +6,9 @@ import { GridProvider } from "@/components/DataGrid/context";
 import ViewerLayout from "@/components/Layout";
 import Seo from "@/components/Seo";
 import { useRouter } from "next/router";
-import { authClient } from "@s3-viewer/auth/client";
 
 const BucketPage = () => {
    const router = useRouter();
-   const { data: session } = authClient.useSession();
-   const isAuthenticated = !!session;
    const { slug, view } = router.query;
    const slugArray = Array.isArray(slug) ? slug : [];
    const bucketName = slugArray[0];
@@ -25,17 +22,9 @@ const BucketPage = () => {
    return (
       <>
          <Seo
-            title={isAuthenticated ? pageTitle : "Login Required - S3 Viewer"}
-            description={
-               isAuthenticated 
-                  ? "Browse objects and manage files in your S3 bucket."
-                  : "Sign in to access your S3 buckets and manage your cloud storage files."
-            }
-            canonical={
-               bucketName
-                  ? "/buckets/" + [bucketName, ...path].join("/")
-                  : "/buckets"
-            }
+            title={pageTitle}
+            description="Browse objects and manage files in your S3 bucket."
+            canonical="/buckets"
             noindex={true}
          />
          <BucketProvider bucketName={bucketName as string} path={path}>

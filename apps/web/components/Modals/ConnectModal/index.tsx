@@ -28,10 +28,10 @@ type ConnectModalProps = {
 
 const ConnectModal: React.FC<ConnectModalProps> = ({ onClose }) => {
    const { serverFound, error: connectError } = useConnectStore();
-   const { servers, isServerListLoading } = useServers();
+   const { servers, isLoading } = useServers();
 
    const getDialogText = () => {
-      if (isServerListLoading || !servers || servers.length === 0) {
+      if (isLoading || !servers || servers.length === 0) {
          return "Connect server to get started";
       }
       return "Connect new server";

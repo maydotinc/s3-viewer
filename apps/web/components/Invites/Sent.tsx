@@ -48,7 +48,7 @@ const SentInvites: React.FC = () => {
 
    if (sentInvites.length === 0) {
       return (
-         <div className="flex flex-col items-center justify-center gap-2 p-4 text-center size-full">
+         <div className="flex flex-col items-center justify-center gap-2 p-4 pt-8 text-center size-full">
             <Mail className="size-12 text-viewerblue" />
             <h3 className="text-lg text-viewerblack">No invites sent</h3>
             <p className="text-viewertext">

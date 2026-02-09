@@ -32,6 +32,7 @@ const GithubButton = () => {
    return (
       <Button
          variant="default"
+         size="lg"
          className="w-full flex items-center justify-center gap-2 bg-black hover:bg-gray-900 text-white"
          onClick={handleClick}
       >

@@ -11,18 +11,24 @@ import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { House } from "lucide-react";
 import Link from "next/link";
 import { useBucketContext } from "./Context";
+import { authClient } from "@s3-viewer/auth/client";
 
 const BucketHeader = () => {
+   const { data: session, isPending } = authClient.useSession();
    const { bucket, path } = useBucketContext();
 
    const shouldCollapse = path.length > 3;
    const visiblePath = shouldCollapse ? path.slice(-3) : path;
    const hiddenSegments = shouldCollapse ? path.length - 3 : 0;
 
-   if (!bucket) {
+   if (!session && !isPending) return null;
+
+   if (!bucket || isPending) {
       return (
-         <div className="flex flex-col w-full h-35 border-b border-viewerborder px-8 py-4 items-center justify-center">
-            <Skeleton className="size-full" />
+         <div className="flex min-h-[var(--header-height)] w-full border-b border-viewerborder px-8 py-4 gap-2 items-center">
+            <Skeleton className="size-5 shrink-0 rounded" />
+            <span className="text-viewerborder">/</span>
+            <Skeleton className="h-4 w-28 rounded" />
          </div>
       );
    }

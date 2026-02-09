@@ -50,6 +50,7 @@ export default function Seo({
          <meta property="og:title" content={fullTitle} />
          <meta property="og:description" content={description} />
          <meta property="og:image" content={image} />
+         <meta property="og:image:secure_url" content={image} />
          <meta property="og:image:alt" content={imageAlt} />
          <meta property="og:site_name" content="S3 Viewer" />
          <meta property="og:locale" content="en_US" />

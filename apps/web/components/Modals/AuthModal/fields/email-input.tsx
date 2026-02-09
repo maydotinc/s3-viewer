@@ -77,7 +77,7 @@ const EmailInput = () => {
             <Input
                id="email"
                type="email"
-               placeholder={"hello@gmail.com"}
+               placeholder={"mileycyrus@may.inc"}
                autoComplete="email"
                className={cn(
                   "w-full transition-colors duration-300 text-black",

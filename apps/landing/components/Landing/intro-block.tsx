@@ -8,17 +8,17 @@ const IntroBlock = () => {
    return (
       <BasicBlock className="md:flex-row gap-0 max-md:py-5 max-md:border-b max-md:border-viewerborder">
          <div className="bg-viewergray flex-1 border border-viewerborder">
-            <div className="flex flex-col justify-between h-full p-6 gap-6">
+            <div className="flex flex-col justify-center h-full p-6 gap-6">
                <div className="flex cursor-default items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite">
                   <FaGithub className="size-4" />
-                  <span className="text-md">1-Click Self-Host</span>
+                  <span className="text-md">OPEN SOURCE</span>
                </div>
-               <h1 className="md:text-5xl text-4xl font-semibold text-viewerblack">
-                  A Fast, Open-Source S3 Viewer That Just Works
+               <h1 className="md:text-[42px] text-4xl font-semibold text-viewerblack">
+                  Explore S3-compatible Object Storage Online
                </h1>
                <h2 className="md:text-xl text-lg text-viewertext">
-                  T3Chat but for Object Storage - it's time for web to be fast
-                  again
+                  Manage all your buckets in one place, with a Google Drive like
+                  interface that just works.
                </h2>
                <Button
                   variant="secondary"
@@ -26,9 +26,7 @@ const IntroBlock = () => {
                   className="h-12 text-md w-fit"
                   asChild
                >
-                  <Link href="https://s3-viewer.com/dashboard" target="_blank">
-                     Connect your server
-                  </Link>
+                  <Link href="/dashboard">Connect your server</Link>
                </Button>
             </div>
          </div>

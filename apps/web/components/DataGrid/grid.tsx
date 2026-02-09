@@ -8,8 +8,8 @@ import {
    ValidationModule,
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
-import { Loader } from "lucide-react";
 import { useGridContext } from "./context";
+import { LoaderCircle } from "lucide-react";
 ModuleRegistry.registerModules([AllCommunityModule, ValidationModule]);
 
 const viewerGridTheme = themeQuartz.withParams({
@@ -80,7 +80,7 @@ const BaseGrid = ({
    const loadingOverlayComponent = () => {
       return (
          <div className="flex flex-col items-center justify-center h-full">
-            <Loader className="size-10 animate-spin text-viewerblue" />
+            <LoaderCircle className="animate-spin" />
          </div>
       );
    };

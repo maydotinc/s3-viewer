@@ -28,40 +28,89 @@ const TabsListWithIndicator = React.forwardRef<
    const [indicatorStyle, setIndicatorStyle] = React.useState({
       left: 0,
       width: 0,
+      opacity: 0,
    });
+   const [showTransition, setShowTransition] = React.useState(false);
+   const initialRenderComplete = React.useRef(false);
+   const initialTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
+      null
+   );
    const listRef = React.useRef<HTMLDivElement>(null);
 
-   React.useEffect(() => {
-      const updateIndicator = () => {
-         if (!listRef.current) return;
+   const updateIndicatorPosition = React.useCallback(() => {
+      if (!listRef.current) return null;
+      const activeTrigger = listRef.current.querySelector(
+         '[data-state="active"]'
+      );
+      if (activeTrigger) {
+         const { offsetLeft, offsetWidth } = activeTrigger as HTMLElement;
+         return { left: offsetLeft, width: offsetWidth };
+      }
+      return null;
+   }, []);
 
-         // Scope the query to this specific TabsList container
-         const activeTrigger = listRef.current.querySelector(
-            '[data-state="active"]'
-         );
-         if (activeTrigger) {
-            const { offsetLeft, offsetWidth } = activeTrigger as HTMLElement;
-            setIndicatorStyle({ left: offsetLeft, width: offsetWidth });
+   React.useEffect(() => {
+      if (!initialRenderComplete.current) {
+         setIndicatorStyle((s) => ({ ...s, left: 0, width: 0, opacity: 0 }));
+      }
+
+      const calculateInitialPosition = () => {
+         const position = updateIndicatorPosition();
+         if (position) {
+            const newPosition = { ...position, opacity: 0 };
+            setIndicatorStyle(newPosition);
+            requestAnimationFrame(() => {
+               requestAnimationFrame(() => {
+                  setIndicatorStyle({ ...newPosition, opacity: 1 });
+                  initialTimeoutRef.current = setTimeout(() => {
+                     setShowTransition(true);
+                     initialRenderComplete.current = true;
+                  }, 10);
+               });
+            });
          }
       };
 
-      // Use requestAnimationFrame to ensure DOM is ready (especially important for portals/drawers)
+      if (!initialRenderComplete.current) {
+         const t = setTimeout(calculateInitialPosition, 10);
+         return () => {
+            clearTimeout(t);
+            if (initialTimeoutRef.current) {
+               clearTimeout(initialTimeoutRef.current);
+               initialTimeoutRef.current = null;
+            }
+         };
+      }
+   }, [value, updateIndicatorPosition]);
+
+   React.useEffect(() => {
+      if (!initialRenderComplete.current) return;
+      const position = updateIndicatorPosition();
+      if (position) {
+         setIndicatorStyle({ ...position, opacity: 1 });
+      }
+   }, [value, updateIndicatorPosition]);
+
+   React.useEffect(() => {
+      const updateIndicator = () => {
+         const position = updateIndicatorPosition();
+         if (position && initialRenderComplete.current) {
+            setIndicatorStyle({ ...position, opacity: 1 });
+         }
+      };
+
       const rafId = requestAnimationFrame(() => {
-         updateIndicator();
+         if (initialRenderComplete.current) updateIndicator();
       });
 
       const observer = new MutationObserver((mutations) => {
          mutations.forEach((mutation) => {
             if (mutation.attributeName === "data-state") {
-               // Use requestAnimationFrame to ensure DOM updates are complete
-               requestAnimationFrame(() => {
-                  updateIndicator();
-               });
+               requestAnimationFrame(updateIndicator);
             }
          });
       });
 
-      // Scope the query to this specific TabsList container
       if (listRef.current) {
          const triggers = listRef.current.querySelectorAll('[role="tab"]');
          triggers.forEach((trigger) => {
@@ -69,11 +118,9 @@ const TabsListWithIndicator = React.forwardRef<
          });
       }
 
-      // Also observe the container for size changes (important for drawers/portals)
       const resizeObserver = new ResizeObserver(() => {
          updateIndicator();
       });
-
       if (listRef.current) {
          resizeObserver.observe(listRef.current);
       }
@@ -83,14 +130,22 @@ const TabsListWithIndicator = React.forwardRef<
          observer.disconnect();
          resizeObserver.disconnect();
       };
-   }, [value]);
+   }, [value, updateIndicatorPosition]);
 
    return (
       <div className="relative" ref={listRef}>
          <TabsList ref={ref} className={className} {...props} />
          <div
-            className="absolute bottom-0 h-[0.180rem] bg-viewerblue transition-all duration-300 ease-in-out"
-            style={indicatorStyle}
+            className={cn(
+               "absolute bottom-0 h-[0.180rem] bg-viewerblue ease-in-out",
+               showTransition && "transition-all duration-300"
+            )}
+            style={{
+               left: indicatorStyle.left,
+               width: indicatorStyle.width,
+               opacity: indicatorStyle.opacity,
+               transform: "translateY(0.5px)",
+            }}
             aria-hidden="true"
          />
       </div>
