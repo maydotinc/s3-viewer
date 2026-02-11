@@ -1,50 +1,50 @@
 {
-   "name": "web",
-   "version": "0.0.0",
-   "private": true,
-   "type": "module",
-   "scripts": {
-      "dev": "next dev --port 3000",
-      "build": "next build",
-      "start": "next start",
-      "lint": "next lint"
-   },
-   "dependencies": {
-      "@hookform/resolvers": "^5.0.1",
-      "@s3-viewer/auth": "workspace:*",
-      "@s3-viewer/permissions": "workspace:*",
-      "@s3-viewer/types": "workspace:*",
-      "@s3-viewer/ui": "workspace:*",
-      "@tanstack/react-query": "^5.77.2",
-      "@tanstack/react-virtual": "^3.13.12",
-      "@types/lodash": "^4.17.16",
-      "@zootools/email-spell-checker": "^1.12.0",
-      "ag-grid-community": "^33.3.2",
-      "ag-grid-react": "^33.3.2",
-      "better-auth": "^1.2.8",
-      "immer": "^10.1.1",
-      "lodash": "^4.17.21",
-      "lucide-react": "^0.475.0",
-      "next": "15.3.2",
-      "react": "^19.1.0",
-      "react-dom": "^19.1.0",
-      "react-hook-form": "^7.56.4",
-      "zod": "^3.24.2",
-      "zustand": "^5.0.5"
-   },
-   "devDependencies": {
-      "@s3-viewer/eslint-config": "workspace:*",
-      "@s3-viewer/ts-config": "workspace:*",
-      "@tailwindcss/postcss": "^4.0.15",
-      "@types/lodash": "^4.17.17",
-      "@types/node": "^20",
-      "@types/react": "^19",
-      "@types/react-dom": "^19",
-      "autoprefixer": "^10.4.20",
-      "postcss": "^8.5.3",
-      "tailwindcss": "^4.1.5"
-   },
-   "exports": {
-      "./types": "./utils/types.ts"
-   }
+  "name": "web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.0.1",
+    "@s3-viewer/auth": "workspace:*",
+    "@s3-viewer/permissions": "workspace:*",
+    "@s3-viewer/types": "workspace:*",
+    "@s3-viewer/ui": "workspace:*",
+    "@tanstack/react-query": "^5.77.2",
+    "@tanstack/react-virtual": "^3.13.12",
+    "@types/lodash": "^4.17.16",
+    "@zootools/email-spell-checker": "^1.12.0",
+    "ag-grid-community": "^33.3.2",
+    "ag-grid-react": "^33.3.2",
+    "better-auth": "^1.2.8",
+    "immer": "^10.1.1",
+    "lodash": "^4.17.21",
+    "lucide-react": "^0.475.0",
+    "next": "15.3.8",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-hook-form": "^7.56.4",
+    "zod": "^3.24.2",
+    "zustand": "^5.0.5"
+  },
+  "devDependencies": {
+    "@s3-viewer/eslint-config": "workspace:*",
+    "@s3-viewer/ts-config": "workspace:*",
+    "@tailwindcss/postcss": "^4.0.15",
+    "@types/lodash": "^4.17.17",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.5"
+  },
+  "exports": {
+    "./types": "./utils/types.ts"
+  }
 }
