@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
    },
    assetPrefix:
       process.env.NODE_ENV === "production"
-         ? "https://s3-viewer.onrender.com"
+         ? "https://s3-viewer-lp.vercel.app"
          : "http://localhost:3001",
    async headers() {
       const isProd = process.env.NODE_ENV === "production";
