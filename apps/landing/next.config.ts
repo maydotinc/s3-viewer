@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
          : "http://localhost:3000";
       return [
          // Fonts are fetched with CORS when served cross-origin (e.g. page on
-         // localhost:3000 / s3-viewer.com but assets from localhost:3001 / s3-viewer.onrender.com).
+         // localhost:3000 / s3-viewer.com but assets from localhost:3001 / s3-viewer-lp.vercel.app).
          {
             source: "/_next/static/:path*",
             headers: [

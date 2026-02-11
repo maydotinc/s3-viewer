@@ -9,7 +9,7 @@ function middleware(request: NextRequest) {
 
    const isProd = process.env.NODE_ENV === "production";
    const landingOrigin = {
-      hostname: isProd ? "s3-viewer.onrender.com" : "localhost",
+      hostname: isProd ? "s3-viewer-lp.vercel.app" : "localhost",
       protocol: isProd ? "https" : "http",
       port: isProd ? "" : "3001",
    };
