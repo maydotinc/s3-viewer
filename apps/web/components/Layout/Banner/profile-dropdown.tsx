@@ -91,7 +91,7 @@ const ProfileDropdown: React.FC = () => {
             />
          </Button>
          {isOpen && (
-            <div className="absolute right-0 mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in-80 slide-in-from-top-5 sm:mt-2 sm:w-60">
+            <div className="rounded-xl absolute right-0 mt-1 w-52 border border-gray-200 bg-white shadow-lg animate-in fade-in-80 slide-in-from-top-5 sm:mt-2 sm:w-60">
                <div className="flex flex-col items-start justify-start min-w-0 w-full px-3 py-2">
                   <p className="text-xs text-gray-500 max-w-full truncate">
                      Signed in as
