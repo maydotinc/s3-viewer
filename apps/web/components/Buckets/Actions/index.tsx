@@ -11,8 +11,9 @@ import {
    DropdownMenuContent,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { Plus, RefreshCcw, Trash, UserRoundPlus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useBucketContext } from "../Context";
 
 const ObjectActions = () => {
@@ -20,6 +21,7 @@ const ObjectActions = () => {
       useModalContext();
 
    const [rowsSelected, setRowsSelected] = useState<string[]>([]);
+   const [refreshing, setRefreshing] = useState(false);
    const { gridRef, gridReady } = useGridContext();
    const serverId = useSessionStore((state) => state.serverId);
    const { bucket } = useBucketContext();
@@ -67,14 +69,30 @@ const ObjectActions = () => {
       );
    }, [rowsSelected, serverId, bucket, gridReady]);
 
+   const handleRefresh = useCallback(() => {
+      const api = gridRef.current?.api;
+      if (!api) return;
+
+      setRefreshing(true);
+      api.purgeInfiniteCache();
+
+      const onModelUpdated = () => {
+         setRefreshing(false);
+         api.removeEventListener("modelUpdated", onModelUpdated);
+      };
+      api.addEventListener("modelUpdated", onModelUpdated);
+   }, [gridRef]);
+
    return (
       <div className="flex gap-2 @max-3xl/actions:flex-1">
          <Button
-            disabled={!gridReady}
-            onClick={() => gridRef.current?.api?.purgeInfiniteCache()}
+            disabled={!gridReady || refreshing}
+            onClick={handleRefresh}
             className="@max-3xl/actions:flex-1"
          >
-            <RefreshCcw className="size-4" />
+            <RefreshCcw className={cn("size-4",
+               refreshing && "animate-spin"
+            )} />
             Refresh
          </Button>
          {canShare && (
