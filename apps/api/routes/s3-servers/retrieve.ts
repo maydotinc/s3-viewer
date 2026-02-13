@@ -1,6 +1,6 @@
 import { requireListBuckets } from "@/lib/middleware/permissions";
 import { prisma } from "@s3-viewer/db";
-import { Role, ServerInfo, ServerUser } from "@s3-viewer/types";
+import { BucketAccessEntry, Role, ServerInfo, ServerUser } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 
 const retrieveRouter: Router = Router();
@@ -51,6 +51,7 @@ retrieveRouter.get(
             },
             select: {
                role: true,
+               userId: true,
                user: {
                   select: {
                      id: true,
@@ -61,12 +62,31 @@ retrieveRouter.get(
                },
             },
          });
-         const serverUsersList: ServerUser[] = serverUsers.map((user) => {
-            return {
-               ...user.user,
-               role: user.role,
-            } as ServerUser;
+
+         const allBucketAccess = await prisma.bucketAccess.findMany({
+            where: { serverId },
+            select: {
+               userId: true,
+               bucketName: true,
+               role: true,
+            },
          });
+
+         const bucketAccessByUser = new Map<string, BucketAccessEntry[]>();
+         for (const ba of allBucketAccess) {
+            const entries = bucketAccessByUser.get(ba.userId) ?? [];
+            entries.push({ bucketName: ba.bucketName, role: ba.role as Role });
+            bucketAccessByUser.set(ba.userId, entries);
+         }
+
+         const serverUsersList: ServerUser[] = serverUsers.map((user) => ({
+            id: user.user.id,
+            name: user.user.name,
+            email: user.user.email,
+            image: user.user.image ?? "",
+            role: user.role as Role,
+            bucketAccess: bucketAccessByUser.get(user.userId) ?? [],
+         }));
          res.status(200).json({ serverUsers: serverUsersList });
       } catch (error) {
          console.error(error);

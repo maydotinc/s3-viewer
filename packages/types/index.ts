@@ -26,12 +26,18 @@ type ServerInfo = {
    provider: Provider;
 };
 
+type BucketAccessEntry = {
+   bucketName: string;
+   role: Role;
+};
+
 type ServerUser = {
    id: string;
    name: string;
    email: string;
    image: string;
    role: Role;
+   bucketAccess: BucketAccessEntry[];
 };
 
 type ServerInvite = {
@@ -46,12 +52,14 @@ type ServerInvite = {
       name: string;
       email: string;
    };
+   bucketAccess: BucketAccessEntry[];
 };
 
 //==== S3 TYPES ====//
 type S3Bucket = {
    Name: string;
    CreationDate: string;
+   userRole?: Role;
 };
 
 type S3Object = {
@@ -74,6 +82,7 @@ type S3ObjectPreviewResponse = {
 
 export { Provider, Role };
 export type {
+   BucketAccessEntry,
    S3Bucket,
    S3Object,
    S3ObjectMetadata,

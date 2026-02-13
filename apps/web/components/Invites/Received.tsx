@@ -1,6 +1,7 @@
 import useAcceptInvite from "@/lib/hooks/mutations/invites/useAcceptInvite";
 import useRejectInvite from "@/lib/hooks/mutations/invites/useRejectInvite";
 import { useReceivedInvites } from "@/lib/hooks/queries/server/useServerInvites";
+import { Role } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -20,6 +21,13 @@ import {
    X,
 } from "lucide-react";
 import { useState } from "react";
+
+const SERVER_ROLE_LABELS: Record<string, string> = {
+   [Role.VIEWER]: "Member",
+   [Role.EDITOR]: "Editor",
+   [Role.ADMIN]: "Admin",
+   [Role.OWNER]: "Owner",
+};
 
 const ReceivedInvites: React.FC = () => {
    const { data: receivedInvites = [], isLoading } = useReceivedInvites();
@@ -103,7 +111,7 @@ const ReceivedInvites: React.FC = () => {
                               isInviteExpired ? "destructive" : "secondary"
                            }
                         >
-                           {invite.role}
+                           {SERVER_ROLE_LABELS[invite.role] ?? invite.role}
                         </Badge>
                      </div>
                   </CardHeader>
@@ -120,6 +128,14 @@ const ReceivedInvites: React.FC = () => {
                               : `Expires: ${new Date(invite.expiresAt).toLocaleDateString()}`}
                         </span>
                      </div>
+                     {invite.bucketAccess && invite.bucketAccess.length > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-viewertext mt-1">
+                           <span>
+                              Access to {invite.bucketAccess.length} bucket
+                              {invite.bucketAccess.length !== 1 ? "s" : ""}
+                           </span>
+                        </div>
+                     )}
                      <div className="flex items-center gap-2 mt-2">
                         <Button
                            onClick={() => handleAcceptInvite(invite.id)}

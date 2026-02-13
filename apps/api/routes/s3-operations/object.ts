@@ -1,4 +1,5 @@
 import {
+   requireBucketPermissions,
    requireDeleteObject,
    requireDownloadObject,
    requireListObjects,
@@ -6,6 +7,9 @@ import {
    requireUploadObject,
 } from "@/lib/middleware/permissions";
 import { getS3Client } from "@/lib/utils/s3-client";
+import { prisma } from "@s3-viewer/db";
+import { hasPermissions, Permission } from "@s3-viewer/permissions";
+import { Role } from "@s3-viewer/types";
 import {
    AbortMultipartUploadCommand,
    CompleteMultipartUploadCommand,
@@ -23,6 +27,62 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Request, Response, Router } from "express";
+
+const CONTENT_TYPE_TO_EXT: Record<string, string> = {
+   // Audio
+   "audio/mpeg": "mp3",
+   "audio/mp3": "mp3",
+   "audio/wav": "wav",
+   "audio/wave": "wav",
+   "audio/x-wav": "wav",
+   "audio/ogg": "ogg",
+   "audio/aac": "aac",
+   "audio/mp4": "m4a",
+   "audio/webm": "weba",
+   "audio/flac": "flac",
+   "audio/x-flac": "flac",
+   // Video
+   "video/mp4": "mp4",
+   "video/webm": "webm",
+   "video/ogg": "ogv",
+   "video/quicktime": "mov",
+   "video/x-msvideo": "avi",
+   // Images
+   "image/jpeg": "jpg",
+   "image/png": "png",
+   "image/gif": "gif",
+   "image/webp": "webp",
+   "image/svg+xml": "svg",
+   "image/bmp": "bmp",
+   "image/tiff": "tiff",
+   // Documents
+   "application/pdf": "pdf",
+   "application/json": "json",
+   "application/xml": "xml",
+   "application/zip": "zip",
+   "application/gzip": "gz",
+   "application/x-tar": "tar",
+   // Text
+   "text/plain": "txt",
+   "text/html": "html",
+   "text/css": "css",
+   "text/javascript": "js",
+   "text/csv": "csv",
+   "text/markdown": "md",
+   "text/xml": "xml",
+   // Binary / other
+   "application/octet-stream": "bin",
+   "application/javascript": "js",
+   "application/typescript": "ts",
+};
+
+const getExtensionFromContentType = (
+   contentType?: string
+): string | null => {
+   if (!contentType) return null;
+   const lower = contentType.toLowerCase().split(";")[0]!.trim();
+   return CONTENT_TYPE_TO_EXT[lower] ?? null;
+};
 
 const objectRouter: Router = Router();
 
@@ -61,7 +121,28 @@ objectRouter.get(
       try {
          const s3Client = await getS3Client(serverId as string);
 
-         const filename = (objectKey as string).split("/").pop() || "download";
+         let filename = (objectKey as string).split("/").pop() || "download";
+
+         // If the filename has no extension, look up the content type and append one
+         const hasExtension = filename.includes(".") && !filename.endsWith(".");
+         if (!hasExtension) {
+            try {
+               const headCommand = new HeadObjectCommand({
+                  Bucket: bucketName as string,
+                  Key: objectKey as string,
+               });
+               const headResponse = await s3Client.send(headCommand);
+               const ext = getExtensionFromContentType(
+                  headResponse.ContentType
+               );
+               if (ext) {
+                  filename = `${filename}.${ext}`;
+               }
+            } catch {
+               // If HeadObject fails, proceed with the original filename
+            }
+         }
+
          const encodedFilename = encodeURIComponent(filename);
          const contentDisposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`;
 
@@ -85,7 +166,7 @@ objectRouter.get(
 
 objectRouter.get(
    "/metadata",
-   requireListObjects(),
+   requireBucketPermissions([Permission.LIST_OBJECTS]),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, serverId } = req.query;
 
@@ -186,12 +267,47 @@ objectRouter.delete(
 
 objectRouter.post(
    "/copy",
-   requireUploadObject(),
+   requireBucketPermissions([Permission.DOWNLOAD_OBJECT], "sourceBucket"),
    async (req: Request, res: Response) => {
       const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } =
          req.body;
 
       try {
+         // Also verify upload permission on target bucket (if different)
+         if (targetBucket !== sourceBucket) {
+            const serverAccess = await prisma.serverAccess.findUnique({
+               where: {
+                  userId_serverId: { userId: req.user!.id, serverId },
+               },
+               select: { role: true },
+            });
+            const serverRole = serverAccess?.role as Role;
+            if (serverRole !== Role.OWNER) {
+               const targetAccess = await prisma.bucketAccess.findUnique({
+                  where: {
+                     userId_serverId_bucketName: {
+                        userId: req.user!.id,
+                        serverId,
+                        bucketName: targetBucket,
+                     },
+                  },
+                  select: { role: true },
+               });
+               if (
+                  !targetAccess ||
+                  !hasPermissions(targetAccess.role as Role, [
+                     Permission.UPLOAD_OBJECT,
+                  ])
+               ) {
+                  res.status(403).json({
+                     message:
+                        "Insufficient permissions on target bucket for copy",
+                  });
+                  return;
+               }
+            }
+         }
+
          const s3Client = await getS3Client(serverId);
          const command = new CopyObjectCommand({
             Bucket: targetBucket,
@@ -216,6 +332,41 @@ objectRouter.post(
          req.body;
 
       try {
+         // Also verify upload permission on target bucket (if different)
+         if (targetBucket !== sourceBucket) {
+            const serverAccess = await prisma.serverAccess.findUnique({
+               where: {
+                  userId_serverId: { userId: req.user!.id, serverId },
+               },
+               select: { role: true },
+            });
+            const serverRole = serverAccess?.role as Role;
+            if (serverRole !== Role.OWNER) {
+               const targetAccess = await prisma.bucketAccess.findUnique({
+                  where: {
+                     userId_serverId_bucketName: {
+                        userId: req.user!.id,
+                        serverId,
+                        bucketName: targetBucket,
+                     },
+                  },
+                  select: { role: true },
+               });
+               if (
+                  !targetAccess ||
+                  !hasPermissions(targetAccess.role as Role, [
+                     Permission.UPLOAD_OBJECT,
+                  ])
+               ) {
+                  res.status(403).json({
+                     message:
+                        "Insufficient permissions on target bucket for move",
+                  });
+                  return;
+               }
+            }
+         }
+
          const s3Client = await getS3Client(serverId);
          const command = new CopyObjectCommand({
             Bucket: targetBucket,

@@ -11,12 +11,17 @@ const InviteButton = () => {
       selectedRole,
       invalidEmails,
       setInvalidEmails,
+      bucketAccessList,
       onClose,
    } = useShareContext();
    const sendInviteMutation = useSendInvite();
 
    const handleInvite = () => {
       if (!emails.trim()) {
+         return;
+      }
+
+      if (bucketAccessList.length === 0) {
          return;
       }
 
@@ -35,7 +40,12 @@ const InviteButton = () => {
       }
 
       sendInviteMutation.mutate(
-         { serverId, emails: emailList, role: selectedRole },
+         {
+            serverId,
+            emails: emailList,
+            role: selectedRole,
+            bucketAccess: bucketAccessList,
+         },
          {
             onSuccess: () => {
                setInvalidEmails([]);
@@ -48,6 +58,7 @@ const InviteButton = () => {
    const isDisabled =
       !emails.trim() ||
       invalidEmails.length > 0 ||
+      bucketAccessList.length === 0 ||
       sendInviteMutation.isPending;
 
    return (

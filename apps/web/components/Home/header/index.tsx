@@ -7,7 +7,7 @@ const ServerHeader = () => {
             <span className="text-viewerblack text-lg font-semibold leading-none">
                Buckets Overview
             </span>
-            <span className="text-viewertext text-md">
+            <span className="hidden xl:block text-viewertext text-md">
                Navigate through your buckets and view their contents
             </span>
          </div>

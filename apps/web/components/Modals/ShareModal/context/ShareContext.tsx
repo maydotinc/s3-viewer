@@ -1,5 +1,5 @@
 import useSessionStore from "@/lib/stores/sessionStore";
-import { Role } from "@s3-viewer/types";
+import { BucketAccessEntry, Role } from "@s3-viewer/types";
 import { createContext, ReactNode, useContext, useState } from "react";
 
 type ShareContextType = {
@@ -10,6 +10,8 @@ type ShareContextType = {
    setSelectedRole: (role: Role) => void;
    invalidEmails: string[];
    setInvalidEmails: (emails: string[]) => void;
+   bucketAccessList: BucketAccessEntry[];
+   setBucketAccessList: (list: BucketAccessEntry[]) => void;
    onClose: () => void;
 };
 
@@ -38,6 +40,9 @@ export const ShareProvider = ({
    const [emails, setEmails] = useState("");
    const [selectedRole, setSelectedRole] = useState<Role>(Role.VIEWER);
    const [invalidEmails, setInvalidEmails] = useState<string[]>([]);
+   const [bucketAccessList, setBucketAccessList] = useState<
+      BucketAccessEntry[]
+   >([]);
 
    return (
       <ShareContext.Provider
@@ -49,6 +54,8 @@ export const ShareProvider = ({
             setSelectedRole,
             invalidEmails,
             setInvalidEmails,
+            bucketAccessList,
+            setBucketAccessList,
             onClose,
          }}
       >

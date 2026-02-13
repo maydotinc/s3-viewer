@@ -39,7 +39,14 @@ const DownloadObject = ({ params, setIsLoading }: DownloadObjectProps) => {
             return;
          }
 
-         window.open(url, "_blank");
+         const downloadName = fileName.split("/").pop() || "download";
+         const a = document.createElement("a");
+         a.href = url;
+         a.download = downloadName;
+         a.style.display = "none";
+         document.body.appendChild(a);
+         a.click();
+         document.body.removeChild(a);
       } catch (error) {
          console.error("Unable to download file", error);
       } finally {

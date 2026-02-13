@@ -70,16 +70,19 @@ const ProfileDropdown: React.FC = () => {
       <div ref={dropdownRef} className="relative">
          <Button
             onClick={() => setIsOpen(!isOpen)}
-            className="flex h-10 w-auto items-center gap-2 rounded-full border border-gray-300 bg-white p-1 !px-2 hover:bg-gray-100 focus:outline-none sm:p-2 md:h-11"
+            className="h-10 w-auto gap-2 rounded-full border border-gray-300 bg-white !p-1 !pr-3 min-w-32 flex items-center justify-between hover:bg-gray-100 focus:outline-none md:h-11"
          >
-            <span
-               className="flex text-xs items-center justify-center rounded-full w-8 h-8 font-bold text-white"
-               style={{
-                  backgroundColor: stringToColor(user?.email ?? ""),
-               }}
-            >
-               {user?.email?.slice(0, 2).toUpperCase() ?? "??"}
-            </span>
+            <div className="flex items-center gap-2">
+               <span
+                  className="flex text-xs items-center justify-center rounded-full w-8 h-8 font-bold text-white"
+                  style={{
+                     backgroundColor: stringToColor(user?.email ?? ""),
+                  }}
+               >
+                  {user?.email?.slice(0, 2).toUpperCase() ?? "??"}
+               </span>
+               <span>{user?.name}</span>
+            </div>
             <ChevronDown
                className={cn(
                   "h-3 w-3 text-gray-600 transition-transform duration-200 sm:h-4 sm:w-4",
@@ -88,7 +91,7 @@ const ProfileDropdown: React.FC = () => {
             />
          </Button>
          {isOpen && (
-            <div className="absolute right-0 mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-lg animate-in fade-in-80 slide-in-from-top-5 sm:mt-2 sm:w-60">
+            <div className="rounded-xl absolute right-0 mt-1 w-52 border border-gray-200 bg-white shadow-lg animate-in fade-in-80 slide-in-from-top-5 sm:mt-2 sm:w-60">
                <div className="flex flex-col items-start justify-start min-w-0 w-full px-3 py-2">
                   <p className="text-xs text-gray-500 max-w-full truncate">
                      Signed in as
@@ -107,7 +110,7 @@ const ProfileDropdown: React.FC = () => {
                         className={cn(
                            "w-full hover:bg-viewergray flex items-center justify-start gap-2 text-gray-800 rounded-none h-10",
                            option.id === "logout" &&
-                              "text-red-500 rounded-b-lg hover:text-red-500"
+                           "text-red-500 rounded-b-lg hover:text-red-500"
                         )}
                         onClick={() => handleOptionSelect(option.id)}
                         key={option.id}
