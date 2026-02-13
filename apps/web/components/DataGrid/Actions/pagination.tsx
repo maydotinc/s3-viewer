@@ -47,7 +47,7 @@ const Pagination = ({ className }: PaginationProps) => {
                />
             </Button>
          </DropdownMenuTrigger>
-         <DropdownMenuContent className="min-w-fit">
+         <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
             {currentPageSize ? (
                sizes.map((size) => (
                   <DropdownMenuCheckboxItem
