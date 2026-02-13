@@ -19,6 +19,7 @@ export default function ViewerBanner({ children }: ViewerBannerProps) {
             <Link
                href="/dashboard"
                className="flex items-center gap-2 ml-10 my-4"
+               draggable={false}
             >
                <Image
                   src="/icons/viewer.svg"
@@ -27,6 +28,8 @@ export default function ViewerBanner({ children }: ViewerBannerProps) {
                   height={32}
                   style={{ width: "auto", height: "auto" }}
                   priority
+                  className="select-none"
+                  draggable={false}
                   quality={100}
                />
             </Link>
