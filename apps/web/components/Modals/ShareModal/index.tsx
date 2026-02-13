@@ -30,7 +30,11 @@ const ShareModal: React.FC<ShareModalProps> = ({ onClose, server }) => {
             >
                <DialogHeader className="text-left flex flex-row justify-between px-4 py-4 border-b border-viewerborder">
                   <DialogTitle className="text-lg text-viewerblack">
-                     Share server with team
+                     Share {server && server.name ? (
+                        <span className="font-medium !text-[#002a84]">{server.name}</span>
+                     ) : (
+                        "this server"
+                     )} with team
                   </DialogTitle>
                   <DialogClose className="data-[state=open]:bg-accent data-[state=open]:text-muted-foreground rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4">
                      <XIcon />

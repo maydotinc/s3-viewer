@@ -79,7 +79,7 @@ const ObjectActions = () => {
          </Button>
          {canShare && (
             <Button
-               onClick={() => openShareModal({})}
+               onClick={() => openShareModal({ server: currentServer ?? undefined })}
                className="@max-3xl/actions:flex-1"
             >
                <UserRoundPlus className="size-4" />
