@@ -28,6 +28,62 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { Request, Response, Router } from "express";
 
+const CONTENT_TYPE_TO_EXT: Record<string, string> = {
+   // Audio
+   "audio/mpeg": "mp3",
+   "audio/mp3": "mp3",
+   "audio/wav": "wav",
+   "audio/wave": "wav",
+   "audio/x-wav": "wav",
+   "audio/ogg": "ogg",
+   "audio/aac": "aac",
+   "audio/mp4": "m4a",
+   "audio/webm": "weba",
+   "audio/flac": "flac",
+   "audio/x-flac": "flac",
+   // Video
+   "video/mp4": "mp4",
+   "video/webm": "webm",
+   "video/ogg": "ogv",
+   "video/quicktime": "mov",
+   "video/x-msvideo": "avi",
+   // Images
+   "image/jpeg": "jpg",
+   "image/png": "png",
+   "image/gif": "gif",
+   "image/webp": "webp",
+   "image/svg+xml": "svg",
+   "image/bmp": "bmp",
+   "image/tiff": "tiff",
+   // Documents
+   "application/pdf": "pdf",
+   "application/json": "json",
+   "application/xml": "xml",
+   "application/zip": "zip",
+   "application/gzip": "gz",
+   "application/x-tar": "tar",
+   // Text
+   "text/plain": "txt",
+   "text/html": "html",
+   "text/css": "css",
+   "text/javascript": "js",
+   "text/csv": "csv",
+   "text/markdown": "md",
+   "text/xml": "xml",
+   // Binary / other
+   "application/octet-stream": "bin",
+   "application/javascript": "js",
+   "application/typescript": "ts",
+};
+
+const getExtensionFromContentType = (
+   contentType?: string
+): string | null => {
+   if (!contentType) return null;
+   const lower = contentType.toLowerCase().split(";")[0]!.trim();
+   return CONTENT_TYPE_TO_EXT[lower] ?? null;
+};
+
 const objectRouter: Router = Router();
 
 objectRouter.get(
@@ -65,7 +121,28 @@ objectRouter.get(
       try {
          const s3Client = await getS3Client(serverId as string);
 
-         const filename = (objectKey as string).split("/").pop() || "download";
+         let filename = (objectKey as string).split("/").pop() || "download";
+
+         // If the filename has no extension, look up the content type and append one
+         const hasExtension = filename.includes(".") && !filename.endsWith(".");
+         if (!hasExtension) {
+            try {
+               const headCommand = new HeadObjectCommand({
+                  Bucket: bucketName as string,
+                  Key: objectKey as string,
+               });
+               const headResponse = await s3Client.send(headCommand);
+               const ext = getExtensionFromContentType(
+                  headResponse.ContentType
+               );
+               if (ext) {
+                  filename = `${filename}.${ext}`;
+               }
+            } catch {
+               // If HeadObject fails, proceed with the original filename
+            }
+         }
+
          const encodedFilename = encodeURIComponent(filename);
          const contentDisposition = `attachment; filename="${filename}"; filename*=UTF-8''${encodedFilename}`;
 

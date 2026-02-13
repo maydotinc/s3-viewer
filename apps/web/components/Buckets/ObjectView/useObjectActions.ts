@@ -51,13 +51,19 @@ const useObjectActions = () => {
             return;
          }
 
-         window.open(url, "_blank");
+         const a = document.createElement("a");
+         a.href = url;
+         a.download = objectName;
+         a.style.display = "none";
+         document.body.appendChild(a);
+         a.click();
+         document.body.removeChild(a);
       } catch (error) {
          console.error("Unable to download file", error);
       } finally {
          setIsLoading(false);
       }
-   }, [bucket?.Name, serverId, objectKey]);
+   }, [bucket?.Name, serverId, objectKey, objectName]);
 
    const handleDelete = useCallback(async () => {
       if (!bucket?.Name || !serverId) {
