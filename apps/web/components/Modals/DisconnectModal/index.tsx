@@ -1,8 +1,5 @@
-import useDeleteServer from "@/lib/hooks/mutations/server/useDeleteServer";
-import useDisconnectServer from "@/lib/hooks/mutations/server/useDisconnectServer";
-import useServers from "@/lib/hooks/queries/server/useServers";
-import { Role, ServerInfo } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
+import { useState } from "react";
+import { WifiOff } from "lucide-react";
 import {
    Dialog,
    DialogClose,
@@ -12,8 +9,11 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@s3-viewer/ui/components/dialog";
-import { WifiOff } from "lucide-react";
-import { useState } from "react";
+import { Button } from "@s3-viewer/ui/components/button";
+import { Role, ServerInfo } from "@s3-viewer/types";
+import useServers from "@/lib/hooks/queries/server/useServers";
+import useDisconnectServer from "@/lib/hooks/mutations/server/useDisconnectServer";
+import useDeleteServer from "@/lib/hooks/mutations/server/useDeleteServer";
 
 type DisconnectModalProps = {
    onClose: () => void;
@@ -83,8 +83,8 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({
                         ? "Removing..."
                         : "Disconnecting..."
                      : isOwner
-                        ? "Remove Server"
-                        : "Disconnect Server"}
+                       ? "Remove Server"
+                       : "Disconnect Server"}
                </Button>
                <DialogClose asChild>
                   <Button variant="outline" className="w-full">
