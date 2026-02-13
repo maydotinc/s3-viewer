@@ -70,13 +70,13 @@ const ProfileDropdown: React.FC = () => {
       <div ref={dropdownRef} className="relative">
          <Button
             onClick={() => setIsOpen(!isOpen)}
-            className="h-10 w-auto gap-2 rounded-full border border-gray-300 bg-white !p-1 !pr-3 min-w-32 flex items-center justify-between hover:bg-gray-100 focus:outline-none md:h-11"
+            className="h-11 w-auto gap-2 rounded-full border border-gray-300 bg-white !p-1 !pr-3 min-w-32 flex items-center justify-between hover:bg-gray-100 focus:outline-none"
          >
             <div className="flex items-center gap-2">
                <span
-                  className="flex text-xs items-center justify-center rounded-full w-8 h-8 font-bold text-white"
+                  className="flex text-xs items-center justify-center rounded-full w-9 h-9 font-bold text-white"
                   style={{
-                     backgroundColor: stringToColor(user?.email ?? ""),
+                     backgroundColor: '#3658c1',
                   }}
                >
                   {user?.email?.slice(0, 2).toUpperCase() ?? "??"}
