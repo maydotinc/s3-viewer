@@ -24,14 +24,14 @@ const BucketList = () => {
    return (
       <div className="w-full overflow-auto px-2 pb-2" ref={containerRef}>
          <div
-            className="relative"
+            className="relative mb-2"
             style={{ height: `${virtualizer.getTotalSize()}px` }}
          >
             {virtualItems.map((virtualItem) => {
                const bucketCard = buckets[virtualItem.index];
                return (
                   <div
-                     className="absolute top-0 left-0 w-full flex"
+                     className="absolute top-0 left-0 w-full flex mt-1 first:mt-0"
                      style={{
                         transform: `translateY(${virtualItem.start}px)`,
                         height: `${virtualItem.size}px`,
@@ -44,7 +44,7 @@ const BucketList = () => {
                         className={cn(
                            "flex-1 flex gap-2 p-2 rounded-md items-center justify-start text-viewertext cursor-pointer hover:text-viewerblue hover:bg-viewergray",
                            selectedBucket === bucketCard?.Name &&
-                              "bg-viewergray"
+                           "bg-viewergray"
                         )}
                      >
                         <Folder className="size-4 text-viewerblue" />
