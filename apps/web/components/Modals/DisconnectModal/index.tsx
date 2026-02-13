@@ -59,14 +59,14 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({
                         <WifiOff className="size-7 text-viewerblue" />
                      </div>
                      <span>
-                        {isOwner ? "Delete Server" : "Disconnect Server"}
+                        {isOwner ? "Remove Server" : "Disconnect Server"}
                      </span>
                   </div>
                </DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
                   <span>
                      {isOwner
-                        ? "Are you sure you want to delete this server? This will permanently delete the server and remove all associated invites."
+                        ? "Are you sure you want to remove this server? This will permanently remove the server and remove all associated invites."
                         : "Are you sure you want to disconnect this server? You will need to be re-invited to access it again."}
                   </span>
                </DialogDescription>
@@ -80,11 +80,11 @@ const DisconnectModal: React.FC<DisconnectModalProps> = ({
                >
                   {activeMutation.isPending
                      ? isOwner
-                        ? "Deleting..."
+                        ? "Removing..."
                         : "Disconnecting..."
                      : isOwner
-                       ? "Delete Server"
-                       : "Disconnect Server"}
+                        ? "Remove Server"
+                        : "Disconnect Server"}
                </Button>
                <DialogClose asChild>
                   <Button variant="outline" className="w-full">

@@ -77,7 +77,7 @@ const ServerActions = ({ server }: ServerActionsProps) => {
                {isOwner ? (
                   <>
                      <Trash2 className="size-4 text-viewertextred" />
-                     Delete
+                     Remove
                   </>
                ) : (
                   <>
