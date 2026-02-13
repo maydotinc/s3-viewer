@@ -2,7 +2,9 @@ import UploadFile from "@/components/Buckets/Actions/upload-file";
 import UploadFolder from "@/components/Buckets/Actions/upload-folder";
 import { useGridContext } from "@/components/DataGrid/context";
 import { useModalContext } from "@/lib/contexts/ModalContext";
+import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
+import { Role } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -16,10 +18,22 @@ import { useBucketContext } from "../Context";
 const ObjectActions = () => {
    const { openShareModal, openCreateBucketModal, openConfirmDeleteModal } =
       useModalContext();
-   const { gridRef, gridReady } = useGridContext();
+
    const [rowsSelected, setRowsSelected] = useState<string[]>([]);
+   const { gridRef, gridReady } = useGridContext();
    const serverId = useSessionStore((state) => state.serverId);
    const { bucket } = useBucketContext();
+   const { currentServer } = useServers();
+
+   const bucketRole = bucket?.userRole;
+   const serverRole = currentServer?.userRole;
+   const canWrite =
+      serverRole === Role.OWNER ||
+      bucketRole === Role.OWNER ||
+      bucketRole === Role.EDITOR ||
+      bucketRole === Role.ADMIN;
+   const canShare =
+      serverRole === Role.OWNER || serverRole === Role.ADMIN;
 
    useEffect(() => {
       const handleSelectionChanged = () => {
@@ -63,14 +77,16 @@ const ObjectActions = () => {
             <RefreshCcw className="size-4" />
             Refresh
          </Button>
-         <Button
-            onClick={() => openShareModal({})}
-            className="@max-3xl/actions:flex-1"
-         >
-            <UserRoundPlus className="size-4" />
-            Share
-         </Button>
-         {showDeleteButton ? (
+         {canShare && (
+            <Button
+               onClick={() => openShareModal({ server: currentServer ?? undefined })}
+               className="@max-3xl/actions:flex-1"
+            >
+               <UserRoundPlus className="size-4" />
+               Share
+            </Button>
+         )}
+         {showDeleteButton && canWrite ? (
             <Button
                variant="destructive"
                onClick={() => {
@@ -89,7 +105,7 @@ const ObjectActions = () => {
                <Trash className="size-4" />
                Delete {rowsSelected.length}
             </Button>
-         ) : (
+         ) : canWrite ? (
             <DropdownMenu>
                <DropdownMenuTrigger asChild>
                   <Button
@@ -106,7 +122,7 @@ const ObjectActions = () => {
                   <UploadFile />
                </DropdownMenuContent>
             </DropdownMenu>
-         )}
+         ) : null}
       </div>
    );
 };

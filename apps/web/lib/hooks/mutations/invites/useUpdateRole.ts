@@ -1,5 +1,5 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { Role } from "@s3-viewer/types";
+import { BucketAccessEntry, Role } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -11,6 +11,7 @@ const useUpdateRole = () => {
          serverId: string;
          userId: string;
          role: Role;
+         bucketAccess?: BucketAccessEntry[];
       }): Promise<{ message: string }> => {
          const response = await createApiRequest(
             `/server/invites/update-role`,

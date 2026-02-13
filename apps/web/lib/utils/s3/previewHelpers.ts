@@ -24,6 +24,17 @@ const PREVIEWABLE_TYPES = [
    "video/ogg",
    "video/quicktime",
    "video/x-msvideo",
+   "audio/mpeg",
+   "audio/mp3",
+   "audio/wav",
+   "audio/wave",
+   "audio/x-wav",
+   "audio/ogg",
+   "audio/aac",
+   "audio/mp4",
+   "audio/webm",
+   "audio/flac",
+   "audio/x-flac",
 ];
 
 const isPreviewable = (contentType?: string): boolean => {
@@ -33,7 +44,7 @@ const isPreviewable = (contentType?: string): boolean => {
    );
 };
 
-type PreviewType = "image" | "video" | "iframe" | "none";
+type PreviewType = "image" | "video" | "audio" | "iframe" | "none";
 
 const getPreviewType = (contentType?: string): PreviewType => {
    if (!contentType) return "none";
@@ -42,6 +53,7 @@ const getPreviewType = (contentType?: string): PreviewType => {
 
    if (lowerType.startsWith("image/")) return "image";
    if (lowerType.startsWith("video/")) return "video";
+   if (lowerType.startsWith("audio/")) return "audio";
    return "iframe";
 };
 

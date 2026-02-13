@@ -1,7 +1,7 @@
 import { formatFileSize } from "@/lib/utils/fileUtils";
 import { PreviewType } from "@/lib/utils/s3/previewHelpers";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Eye } from "lucide-react";
+import { Eye, Music } from "lucide-react";
 
 interface RenderPreviewProps {
    url: string;
@@ -49,6 +49,36 @@ const RenderPreview = ({
          <video src={url} controls className="max-w-full max-h-full">
             Your browser does not support video playback.
          </video>
+      );
+   }
+
+   if (previewType === "audio") {
+      return (
+         <div className="flex flex-col items-center justify-center gap-6 w-full max-w-md">
+            <div className="flex flex-col items-center gap-2">
+               <div className="size-20 rounded-2xl bg-gradient-to-br from-blue-100 to-blue-100 flex items-center justify-center">
+                  <Music className="size-10 text-blue-500" />
+               </div>
+               <p className="text-sm text-gray-600 truncate max-w-full">
+                  {objectName}
+               </p>
+               {contentLength && (
+                  <p className="text-xs text-gray-400">
+                     {formatFileSize(contentLength).value}{" "}
+                     {formatFileSize(contentLength).unit}
+                  </p>
+               )}
+            </div>
+            <audio
+               src={url}
+               controls
+               controlsList="nodownload"
+               preload="metadata"
+               className="w-full"
+            >
+               Your browser does not support audio playback.
+            </audio>
+         </div>
       );
    }
 

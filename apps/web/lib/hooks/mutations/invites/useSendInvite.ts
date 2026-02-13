@@ -1,5 +1,5 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { Role } from "@s3-viewer/types";
+import { BucketAccessEntry, Role } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -12,11 +12,13 @@ const useSendInvite = () => {
          emails,
          role,
          expiresAt,
+         bucketAccess,
       }: {
          serverId: string;
          emails: string[];
          role: Role;
          expiresAt?: string;
+         bucketAccess: BucketAccessEntry[];
       }): Promise<{ message: string }> => {
          const expiry =
             expiresAt ||
@@ -24,7 +26,13 @@ const useSendInvite = () => {
 
          const response = await createApiRequest("/server/invites/send", {
             method: "POST",
-            body: JSON.stringify({ serverId, emails, role, expiresAt: expiry }),
+            body: JSON.stringify({
+               serverId,
+               emails,
+               role,
+               expiresAt: expiry,
+               bucketAccess,
+            }),
          });
 
          if (!response.ok) {
