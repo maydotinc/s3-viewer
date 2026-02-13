@@ -51,8 +51,6 @@ manageRouter.post("/establish", async (req: Request, res: Response) => {
    } catch (error: any) {
       console.error("Connection establishment failed:", error);
 
-      // AccessDenied means credentials are valid but token lacks ListBuckets permission
-      // This is expected for user-scoped / non-admin API tokens (e.g. R2 tokens scoped to specific buckets)
       if (
          error instanceof S3ServiceException &&
          (error.name === "AccessDenied" ||
@@ -108,7 +106,6 @@ manageRouter.post(
                );
                results.push({ bucketName, accessible: true });
             } catch (err: any) {
-               // 404 = bucket doesn't exist, 403 = no access
                results.push({ bucketName, accessible: false });
             }
          }

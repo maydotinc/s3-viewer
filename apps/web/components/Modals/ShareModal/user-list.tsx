@@ -5,6 +5,7 @@ import useServerUsers from "@/lib/hooks/queries/server/useServerUsers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { BucketAccessEntry, Role } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
+import { Button } from "@s3-viewer/ui/components/button";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import {
    Select,
@@ -13,7 +14,16 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@s3-viewer/ui/components/select";
-import { ChevronDown, ChevronRight, User } from "lucide-react";
+import { Separator } from "@s3-viewer/ui/components/separator";
+import {
+   Check,
+   ChevronDown,
+   ChevronRight,
+   Loader2,
+   ShieldCheck,
+   User,
+   Users,
+} from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { useShareContext } from "./context/ShareContext";
@@ -24,6 +34,29 @@ const BUCKET_ROLES: { value: Role; label: string }[] = [
    { value: Role.EDITOR, label: "Write" },
    { value: Role.ADMIN, label: "Admin" },
 ];
+
+const getInitials = (name: string) => {
+   const parts = name.trim().split(/\s+/);
+   if (parts.length >= 2) return (parts[0]![0]! + parts[1]![0]!).toUpperCase();
+   return name.slice(0, 2).toUpperCase();
+};
+
+const AVATAR_COLORS = [
+   "bg-blue-100 text-blue-700",
+   "bg-purple-100 text-purple-700",
+   "bg-green-100 text-green-700",
+   "bg-amber-100 text-amber-700",
+   "bg-rose-100 text-rose-700",
+   "bg-cyan-100 text-cyan-700",
+];
+
+const getAvatarColor = (name: string) => {
+   let hash = 0;
+   for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+   }
+   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+};
 
 const UserBucketEditor = ({
    userId,
@@ -41,6 +74,7 @@ const UserBucketEditor = ({
    const [localAccess, setLocalAccess] =
       useState<BucketAccessEntry[]>(currentBucketAccess);
    const [dirty, setDirty] = useState(false);
+   const [saved, setSaved] = useState(false);
 
    const isBucketSelected = (bucketName: string) =>
       localAccess.some((ba) => ba.bucketName === bucketName);
@@ -55,6 +89,7 @@ const UserBucketEditor = ({
          : [...localAccess, { bucketName, role: Role.VIEWER }];
       setLocalAccess(newAccess);
       setDirty(true);
+      setSaved(false);
    };
 
    const updateBucketRole = (bucketName: string, role: Role) => {
@@ -63,6 +98,25 @@ const UserBucketEditor = ({
       );
       setLocalAccess(newAccess);
       setDirty(true);
+      setSaved(false);
+   };
+
+   const allSelected = buckets.length > 0 && localAccess.length === buckets.length;
+
+   const toggleAll = () => {
+      if (allSelected) {
+         setLocalAccess([]);
+      } else {
+         const newEntries: BucketAccessEntry[] = buckets.map((b) => ({
+            bucketName: b.Name,
+            role:
+               localAccess.find((ba) => ba.bucketName === b.Name)?.role ??
+               Role.VIEWER,
+         }));
+         setLocalAccess(newEntries);
+      }
+      setDirty(true);
+      setSaved(false);
    };
 
    const handleSave = () => {
@@ -74,22 +128,38 @@ const UserBucketEditor = ({
             bucketAccess: localAccess,
          },
          {
-            onSuccess: () => setDirty(false),
+            onSuccess: () => {
+               setDirty(false);
+               setSaved(true);
+               setTimeout(() => setSaved(false), 2000);
+            },
          }
       );
    };
 
    return (
-      <div className="flex flex-col gap-1 pl-13 pr-2 pb-2">
-         <div className="max-h-36 overflow-y-auto border border-viewerborder rounded-lg">
+      <div className="flex flex-col gap-2 mt-2 mr-1 mb-2">
+         <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium text-gray-500 uppercase tracking-wide">
+               Bucket permissions
+            </span>
+            <button
+               type="button"
+               onClick={toggleAll}
+               className="text-[11px] text-viewerblue hover:underline"
+            >
+               {allSelected ? "Deselect all" : "Select all"}
+            </button>
+         </div>
+         <div className="max-h-36 overflow-y-auto border border-viewerborder rounded-lg bg-white">
             {buckets.map((bucket) => {
                const selected = isBucketSelected(bucket.Name);
                return (
                   <div
                      key={bucket.Name}
-                     className="flex items-center justify-between px-2 py-1.5 hover:bg-gray-50 border-b border-viewerborder last:border-b-0"
+                     className="flex items-center justify-between px-2.5 py-1.5 hover:bg-gray-50/80 transition-colors border-b border-viewerborder last:border-b-0"
                   >
-                     <div className="flex items-center gap-2 min-w-0">
+                     <label className="flex items-center gap-2 min-w-0 cursor-pointer flex-1">
                         <Checkbox
                            checked={selected}
                            onCheckedChange={() => toggleBucket(bucket.Name)}
@@ -97,7 +167,7 @@ const UserBucketEditor = ({
                         <span className="text-xs text-black truncate">
                            {bucket.Name}
                         </span>
-                     </div>
+                     </label>
                      {selected && (
                         <Select
                            value={getBucketRole(bucket.Name)}
@@ -105,7 +175,7 @@ const UserBucketEditor = ({
                               updateBucketRole(bucket.Name, val as Role)
                            }
                         >
-                           <SelectTrigger className="w-20 h-6 text-xs border-viewerborder">
+                           <SelectTrigger className="w-20 h-6 text-xs border-viewerborder ml-2 shrink-0">
                               <SelectValue />
                            </SelectTrigger>
                            <SelectContent align="end">
@@ -125,15 +195,35 @@ const UserBucketEditor = ({
                );
             })}
          </div>
-         {dirty && (
-            <button
-               onClick={handleSave}
-               disabled={updateRoleMutation.isPending}
-               className="self-end text-xs text-viewerblue hover:underline mt-1 disabled:opacity-50"
-            >
-               {updateRoleMutation.isPending ? "Saving..." : "Save changes"}
-            </button>
-         )}
+         <div className="flex items-center justify-between">
+            <span className="text-[11px] text-gray-400">
+               {localAccess.length} of {buckets.length} bucket
+               {buckets.length !== 1 ? "s" : ""} selected
+            </span>
+            {dirty ? (
+               <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={handleSave}
+                  disabled={updateRoleMutation.isPending}
+                  className="h-8 text-xs px-3"
+               >
+                  {updateRoleMutation.isPending ? (
+                     <>
+                        <Loader2 className="size-3 animate-spin" />
+                        Saving...
+                     </>
+                  ) : (
+                     "Save changes"
+                  )}
+               </Button>
+            ) : saved ? (
+               <span className="flex items-center gap-1 text-xs text-green-600">
+                  <Check className="size-3" />
+                  Saved
+               </span>
+            ) : null}
+         </div>
       </div>
    );
 };
@@ -157,96 +247,136 @@ const UserList = () => {
 
    if (!users || users.length === 0) {
       return (
-         <div className="flex flex-col gap-2 w-full p-2">
-            <p className="text-viewerblack text-center text-sm">
-               No users have access to this server
+         <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <Users className="size-8 text-gray-300" />
+            <p className="text-sm text-gray-500">
+               No other members on this server
+            </p>
+            <p className="text-xs text-gray-400">
+               Invite someone above to get started
             </p>
          </div>
       );
    }
 
    return (
-      <div className="flex flex-col gap-2 w-full py-2">
-         {users.map((user) => (
-            <div key={user.id} className="flex flex-col">
-               <div className="flex flex-row w-full items-center justify-between">
-                  <div className="flex flex-row items-center gap-3">
-                     {user.role !== Role.OWNER && (
-                        <button
-                           onClick={() =>
-                              setExpandedUser(
-                                 expandedUser === user.id ? null : user.id
-                              )
-                           }
-                           className="p-0.5 hover:bg-gray-100 rounded"
-                        >
-                           {expandedUser === user.id ? (
-                              <ChevronDown className="size-3.5 text-gray-500" />
+      <div className="flex flex-col w-full">
+         <div className="flex items-center justify-between pb-2">
+            <span className="text-xs font-medium text-gray-500">
+               Members ({users.length})
+            </span>
+         </div>
+         <Separator className="bg-viewerborder mb-2" />
+         <div className="flex flex-col gap-1">
+            {users.map((user) => {
+               const isExpanded = expandedUser === user.id;
+               const isNonOwner = user.role !== Role.OWNER;
+
+               return (
+                  <div
+                     key={user.id}
+                     className={`flex flex-col rounded-lg transition-colors border p-2 hover:bg-gray-50 ${isExpanded ? "bg-gray-50" : ""
+                        }`}
+                  >
+                     <div
+                        className={`flex flex-row w-full items-center justify-between p-1.5 rounded-lg ${isNonOwner
+                           ? "cursor-pointer"
+                           : ""
+                           } transition-colors`}
+                        onClick={() => {
+                           if (isNonOwner)
+                              setExpandedUser(isExpanded ? null : user.id);
+                        }}
+                     >
+                        <div className="flex flex-row items-center gap-2.5 min-w-0 flex-1">
+                           {isNonOwner && (
+                              <div className="shrink-0 w-4 flex items-center justify-center">
+                                 {isExpanded ? (
+                                    <ChevronDown className="size-3.5 text-gray-400" />
+                                 ) : (
+                                    <ChevronRight className="size-3.5 text-gray-400" />
+                                 )}
+                              </div>
+                           )}
+                           {!isNonOwner && (
+                              <div className="shrink-0 w-4" />
+                           )}
+                           {user?.image ? (
+                              <Image
+                                 src={user.image}
+                                 alt={user.name}
+                                 width={32}
+                                 height={32}
+                                 className="size-8 rounded-full object-cover shrink-0"
+                              />
                            ) : (
-                              <ChevronRight className="size-3.5 text-gray-500" />
-                           )}
-                        </button>
-                     )}
-                     {user?.image ? (
-                        <Image
-                           src={user.image}
-                           alt="Profile"
-                           width={40}
-                           height={40}
-                           className="size-10 rounded-full object-cover min-w-10"
-                        />
-                     ) : (
-                        <User className="size-10 rounded-full bg-blue-400 p-1 min-w-10 text-viewergray" />
-                     )}
-                     <div className="flex flex-col items-start justify-start">
-                        <p className="truncate max-w-[200px] text-black">
-                           {user?.name}
-                        </p>
-                        <div className="flex items-center gap-1">
-                           <p className="text-xs max-w-[140px] truncate text-gray-500">
-                              {user?.email}
-                           </p>
-                           {user.role !== Role.OWNER && (
-                              <Badge
-                                 variant="secondary"
-                                 className="text-[10px] px-1 py-0"
+                              <div
+                                 className={`size-8 rounded-full flex items-center justify-center shrink-0 text-xs font-medium ${getAvatarColor(user.name)}`}
                               >
-                                 {user.bucketAccess?.length ?? 0} bucket
-                                 {(user.bucketAccess?.length ?? 0) !== 1
-                                    ? "s"
-                                    : ""}
-                              </Badge>
+                                 {getInitials(user.name)}
+                              </div>
                            )}
+                           <div className="flex flex-col min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                 <span className="text-sm text-black truncate">
+                                    {user.name}
+                                 </span>
+                                 {user.role === Role.OWNER && (
+                                    <ShieldCheck className="size-3.5 text-viewerblue shrink-0" />
+                                 )}
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                 <span className="text-xs text-gray-400 truncate">
+                                    {user.email}
+                                 </span>
+                                 {isNonOwner && (
+                                    <Badge
+                                       variant="secondary"
+                                       className="text-[10px] leading-none px-1.5 py-0 shrink-0"
+                                    >
+                                       {user.bucketAccess?.length ?? 0} bucket
+                                       {(user.bucketAccess?.length ?? 0) !== 1
+                                          ? "s"
+                                          : ""}
+                                    </Badge>
+                                 )}
+                              </div>
+                           </div>
+                        </div>
+                        <div
+                           className="shrink-0"
+                           onClick={(e) => e.stopPropagation()}
+                        >
+                           <RoleSelector
+                              disabled={
+                                 user.role === Role.OWNER ||
+                                 deleteRoleMutation.isPending ||
+                                 updateRoleMutation.isPending
+                              }
+                              value={user.role}
+                              onValueChange={(newRole) =>
+                                 handleRoleChange(user.id, newRole)
+                              }
+                              mode="manage"
+                              className="w-fit hover:bg-gray-100 border-none shadow-none bg-transparent text-xs"
+                              onRemove={() =>
+                                 handleRemove(user.id, user.role)
+                              }
+                           />
                         </div>
                      </div>
+                     {isExpanded && isNonOwner && (
+                        <UserBucketEditor
+                           userId={user.id}
+                           serverId={serverId}
+                           userRole={user.role}
+                           currentBucketAccess={user.bucketAccess ?? []}
+                        />
+                     )}
                   </div>
-                  <div>
-                     <RoleSelector
-                        disabled={
-                           user.role === Role.OWNER ||
-                           deleteRoleMutation.isPending ||
-                           updateRoleMutation.isPending
-                        }
-                        value={user.role}
-                        onValueChange={(newRole) =>
-                           handleRoleChange(user.id, newRole)
-                        }
-                        mode="manage"
-                        className="w-fit hover:bg-gray-50 border-none shadow-none bg-transparent"
-                        onRemove={() => handleRemove(user.id, user.role)}
-                     />
-                  </div>
-               </div>
-               {expandedUser === user.id && user.role !== Role.OWNER && (
-                  <UserBucketEditor
-                     userId={user.id}
-                     serverId={serverId}
-                     userRole={user.role}
-                     currentBucketAccess={user.bucketAccess ?? []}
-                  />
-               )}
-            </div>
-         ))}
+               );
+            })}
+         </div>
       </div>
    );
 };
