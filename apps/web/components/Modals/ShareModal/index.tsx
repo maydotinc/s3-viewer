@@ -9,6 +9,7 @@ import {
 import { XIcon } from "lucide-react";
 import InviteButton from "./buttons/invite";
 import { ShareProvider } from "./context/ShareContext";
+import BucketAccessPicker from "./fields/bucket-access-picker";
 import EmailRoleInput from "./fields/email-role-input";
 import UserList from "./user-list";
 
@@ -36,9 +37,10 @@ const ShareModal: React.FC<ShareModalProps> = ({ onClose, server }) => {
                      <span className="sr-only">Close</span>
                   </DialogClose>
                </DialogHeader>
-               <div className="flex flex-col gap-4 px-4">
+               <div className="flex flex-col gap-4 px-4 pb-4">
                   <div className="flex flex-col border border-viewerborder rounded-2xl p-3 gap-3">
                      <EmailRoleInput />
+                     <BucketAccessPicker />
                      <InviteButton />
                   </div>
                   <UserList />

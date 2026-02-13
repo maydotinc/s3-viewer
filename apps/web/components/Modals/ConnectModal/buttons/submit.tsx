@@ -23,16 +23,31 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
       setServerFound,
       setError,
       setBucketCount,
+      setListBucketsAllowed,
+      listBucketsAllowed,
+      manualBucketNames,
       reset,
    } = useConnectStore();
    const createServerMutation = useCreateServer();
    const establishConnectionMutation = useEstablishConnection();
    const setServerId = useSessionStore((state) => state.setServerId);
 
+   const parseBucketNames = (): string[] => {
+      return manualBucketNames
+         .split(",")
+         .map((name) => name.trim())
+         .filter((name) => name.length > 0);
+   };
+
    const handleSubmit = async () => {
       if (serverFound) {
+         // For limited tokens, require at least one bucket name
+         if (!listBucketsAllowed && parseBucketNames().length === 0) {
+            setError("Please enter at least one bucket name");
+            return;
+         }
+
          try {
-            // Encrypt credentials before sending
             const encryptedCredentials = await encryptCredentials({
                endpoint,
                region,
@@ -44,6 +59,9 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
                {
                   encryptedCredentials,
                   serverName,
+                  bucketNames: !listBucketsAllowed
+                     ? parseBucketNames()
+                     : undefined,
                },
                {
                   onSuccess: (data) => {
@@ -75,7 +93,6 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
       setSearching(true);
 
       try {
-         // Encrypt credentials before sending
          const encryptedCredentials = await encryptCredentials({
             endpoint,
             region,
@@ -89,6 +106,7 @@ const SubmitButton = ({ onClose }: SubmitButtonProps) => {
                setError(null);
                setSearching(false);
                setBucketCount(data.bucketCount);
+               setListBucketsAllowed(data.listBucketsAllowed);
             },
             onError: (error) => {
                setError(error.message);

@@ -9,13 +9,19 @@ const useCreateServer = () => {
       mutationFn: async ({
          encryptedCredentials,
          serverName,
+         bucketNames,
       }: {
          encryptedCredentials: string;
          serverName: string;
+         bucketNames?: string[];
       }): Promise<{ message: string; serverId: string }> => {
          const response = await createApiRequest("/server/manage/create", {
             method: "POST",
-            body: JSON.stringify({ encryptedCredentials, serverName }),
+            body: JSON.stringify({
+               encryptedCredentials,
+               serverName,
+               bucketNames,
+            }),
          });
 
          if (!response.ok) {

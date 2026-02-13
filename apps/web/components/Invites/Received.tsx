@@ -120,6 +120,14 @@ const ReceivedInvites: React.FC = () => {
                               : `Expires: ${new Date(invite.expiresAt).toLocaleDateString()}`}
                         </span>
                      </div>
+                     {invite.bucketAccess && invite.bucketAccess.length > 0 && (
+                        <div className="flex items-center gap-1 text-xs text-viewertext mt-1">
+                           <span>
+                              Access to {invite.bucketAccess.length} bucket
+                              {invite.bucketAccess.length !== 1 ? "s" : ""}
+                           </span>
+                        </div>
+                     )}
                      <div className="flex items-center gap-2 mt-2">
                         <Button
                            onClick={() => handleAcceptInvite(invite.id)}

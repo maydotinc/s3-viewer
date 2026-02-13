@@ -20,6 +20,7 @@ model User {
   // Relations
   ownedServers    Server[]            @relation("ServerOwner")
   serverAccess    ServerAccess[]
+  bucketAccess    BucketAccess[]
   sentInvitations PendingInvitation[] @relation("InvitationSender")
   sessions        Session[]
   accounts        Account[]
@@ -74,17 +75,19 @@ model Verification {
 
 //==== Server Management Models ====//
 model Server {
-  id          String   @id @default(cuid())
-  name        String
-  provider    Provider @default(Other)
-  credentials String // Encrypted credentials
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  provider       Provider @default(Other)
+  credentials    String // Encrypted credentials
+  allowedBuckets String[] @default([]) // Empty = use ListBuckets API, non-empty = token cannot ListBuckets, use these names instead
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Relations
   ownerId            String
   owner              User                @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   serverAccess       ServerAccess[]
+  bucketAccess       BucketAccess[]
   pendingInvitations PendingInvitation[]
 
   @@unique([ownerId, name])
@@ -124,10 +127,46 @@ model PendingInvitation {
   invitedById String
   invitedBy   User   @relation("InvitationSender", fields: [invitedById], references: [id])
 
+  bucketAccess InvitationBucketAccess[]
+
   @@unique([email, serverId])
   @@index([invitedById])
   @@index([email])
   @@map("pending_invitation")
+}
+
+//==== Bucket-Level Access Models ====//
+model BucketAccess {
+  id         String   @id @default(cuid())
+  bucketName String
+  role       Role     @default(VIEWER)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId String
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serverId, bucketName])
+  @@index([userId, serverId])
+  @@index([serverId])
+  @@map("bucket_access")
+}
+
+model InvitationBucketAccess {
+  id         String @id @default(cuid())
+  bucketName String
+  role       Role   @default(VIEWER)
+
+  // Relations
+  invitationId String
+  invitation   PendingInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@unique([invitationId, bucketName])
+  @@index([invitationId])
+  @@map("invitation_bucket_access")
 }
 
 enum Role {

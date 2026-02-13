@@ -1,4 +1,5 @@
 import {
+   requireBucketPermissions,
    requireDeleteObject,
    requireDownloadObject,
    requireListObjects,
@@ -6,6 +7,9 @@ import {
    requireUploadObject,
 } from "@/lib/middleware/permissions";
 import { getS3Client } from "@/lib/utils/s3-client";
+import { prisma } from "@s3-viewer/db";
+import { hasPermissions, Permission } from "@s3-viewer/permissions";
+import { Role } from "@s3-viewer/types";
 import {
    AbortMultipartUploadCommand,
    CompleteMultipartUploadCommand,
@@ -85,7 +89,7 @@ objectRouter.get(
 
 objectRouter.get(
    "/metadata",
-   requireListObjects(),
+   requireBucketPermissions([Permission.LIST_OBJECTS]),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, serverId } = req.query;
 
@@ -186,12 +190,47 @@ objectRouter.delete(
 
 objectRouter.post(
    "/copy",
-   requireUploadObject(),
+   requireBucketPermissions([Permission.DOWNLOAD_OBJECT], "sourceBucket"),
    async (req: Request, res: Response) => {
       const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } =
          req.body;
 
       try {
+         // Also verify upload permission on target bucket (if different)
+         if (targetBucket !== sourceBucket) {
+            const serverAccess = await prisma.serverAccess.findUnique({
+               where: {
+                  userId_serverId: { userId: req.user!.id, serverId },
+               },
+               select: { role: true },
+            });
+            const serverRole = serverAccess?.role as Role;
+            if (serverRole !== Role.OWNER) {
+               const targetAccess = await prisma.bucketAccess.findUnique({
+                  where: {
+                     userId_serverId_bucketName: {
+                        userId: req.user!.id,
+                        serverId,
+                        bucketName: targetBucket,
+                     },
+                  },
+                  select: { role: true },
+               });
+               if (
+                  !targetAccess ||
+                  !hasPermissions(targetAccess.role as Role, [
+                     Permission.UPLOAD_OBJECT,
+                  ])
+               ) {
+                  res.status(403).json({
+                     message:
+                        "Insufficient permissions on target bucket for copy",
+                  });
+                  return;
+               }
+            }
+         }
+
          const s3Client = await getS3Client(serverId);
          const command = new CopyObjectCommand({
             Bucket: targetBucket,
@@ -216,6 +255,41 @@ objectRouter.post(
          req.body;
 
       try {
+         // Also verify upload permission on target bucket (if different)
+         if (targetBucket !== sourceBucket) {
+            const serverAccess = await prisma.serverAccess.findUnique({
+               where: {
+                  userId_serverId: { userId: req.user!.id, serverId },
+               },
+               select: { role: true },
+            });
+            const serverRole = serverAccess?.role as Role;
+            if (serverRole !== Role.OWNER) {
+               const targetAccess = await prisma.bucketAccess.findUnique({
+                  where: {
+                     userId_serverId_bucketName: {
+                        userId: req.user!.id,
+                        serverId,
+                        bucketName: targetBucket,
+                     },
+                  },
+                  select: { role: true },
+               });
+               if (
+                  !targetAccess ||
+                  !hasPermissions(targetAccess.role as Role, [
+                     Permission.UPLOAD_OBJECT,
+                  ])
+               ) {
+                  res.status(403).json({
+                     message:
+                        "Insufficient permissions on target bucket for move",
+                  });
+                  return;
+               }
+            }
+         }
+
          const s3Client = await getS3Client(serverId);
          const command = new CopyObjectCommand({
             Bucket: targetBucket,

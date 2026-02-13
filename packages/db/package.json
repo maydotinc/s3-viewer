@@ -7,6 +7,7 @@
    },
    "scripts": {
       "db:generate": "pnpm exec prisma generate --schema=prisma/schema.prisma",
+      "db:push": "pnpm exec prisma db push --schema=prisma/schema.prisma",
       "db:migrate": "pnpm exec prisma migrate dev --schema=prisma/schema.prisma"
    },
    "dependencies": {

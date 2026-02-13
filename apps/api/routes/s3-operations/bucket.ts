@@ -9,7 +9,8 @@ import {
    DeleteBucketCommand,
    ListBucketsCommand,
 } from "@aws-sdk/client-s3";
-import { S3Bucket } from "@s3-viewer/types";
+import { prisma } from "@s3-viewer/db";
+import { Role, S3Bucket } from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 
 const bucketRouter: Router = Router();
@@ -57,27 +58,64 @@ bucketRouter.get(
    async (req: Request, res: Response) => {
       console.log("Listing buckets");
       const serverId = req.query.serverId as string;
-      const buckets: S3Bucket[] = [];
+      let buckets: S3Bucket[] = [];
       try {
-         let contToken: string | undefined;
-         const s3Client = await getS3Client(serverId);
-         // Loop through all buckets then return
-         do {
-            const command = new ListBucketsCommand({
-               // MaxBuckets: 10000, this is not supported by all S3 providers but needed for high bucket quota accounts
-               ...(contToken && { ContinuationToken: contToken }),
-            });
-            const response = await s3Client.send(command);
-            contToken = response.ContinuationToken;
+         // Check if this server has manually configured allowed buckets
+         // (for user-scoped tokens that can't call ListBuckets)
+         const server = await prisma.server.findUnique({
+            where: { id: serverId },
+            select: { allowedBuckets: true },
+         });
 
-            buckets.push(
-               ...(response.Buckets?.map((bucket) => ({
-                  Name: bucket.Name || "",
-                  CreationDate: bucket.CreationDate?.toISOString() || "",
-               })) || [])
-            );
-         } while (contToken);
-         res.status(200).json({ buckets });
+         if (server?.allowedBuckets && server.allowedBuckets.length > 0) {
+            // Token cannot ListBuckets - use stored bucket names
+            buckets = server.allowedBuckets.map((name) => ({
+               Name: name,
+               CreationDate: "",
+            }));
+         } else {
+            // Token can ListBuckets - use S3 API
+            let contToken: string | undefined;
+            const s3Client = await getS3Client(serverId);
+            do {
+               const command = new ListBucketsCommand({
+                  ...(contToken && { ContinuationToken: contToken }),
+               });
+               const response = await s3Client.send(command);
+               contToken = response.ContinuationToken;
+
+               buckets.push(
+                  ...(response.Buckets?.map((bucket) => ({
+                     Name: bucket.Name || "",
+                     CreationDate:
+                        bucket.CreationDate?.toISOString() || "",
+                  })) || [])
+               );
+            } while (contToken);
+         }
+
+         // Owners see all buckets; non-owners see only buckets they have access to
+         const userRole = req.userRole;
+         if (userRole === Role.OWNER) {
+            res.status(200).json({ buckets });
+            return;
+         }
+
+         // Filter buckets by user's bucket-level access
+         const userBucketAccess = await prisma.bucketAccess.findMany({
+            where: {
+               userId: req.user!.id,
+               serverId,
+            },
+            select: { bucketName: true },
+         });
+         const allowedBucketNames = new Set(
+            userBucketAccess.map((ba) => ba.bucketName)
+         );
+         const filteredBuckets = buckets.filter((b) =>
+            allowedBucketNames.has(b.Name)
+         );
+         res.status(200).json({ buckets: filteredBuckets });
       } catch (error: any) {
          console.error("Error listing buckets:", error);
          res.status(500).json({ error: "Error listing buckets" });
