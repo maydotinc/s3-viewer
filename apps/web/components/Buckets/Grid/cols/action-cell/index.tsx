@@ -28,7 +28,7 @@ const ActionCell = (params: ICellRendererParams) => {
    return (
       <div className="flex items-center justify-end size-full pr-5">
          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger className="cursor-pointer hover:text-viewerblue">
+            <DropdownMenuTrigger className="cursor-pointer hover:text-viewerblue focus:outline-none focus:ring-0">
                <EllipsisVertical className="size-5 text-inherit" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-50 p-2">

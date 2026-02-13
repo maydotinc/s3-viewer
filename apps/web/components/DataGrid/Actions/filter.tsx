@@ -50,7 +50,7 @@ const Filter = ({ className }: FilterProps) => {
 
    return (
       <DropdownMenu>
-         <DropdownMenuTrigger asChild>
+         <DropdownMenuTrigger asChild className="focus:outline-none focus:ring-0 focus-visible:ring-0">
             <Button
                className={cn("flex-initial", className)}
                disabled={!session && !isPending}

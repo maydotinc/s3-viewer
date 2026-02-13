@@ -54,7 +54,7 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
    const forwardDisabled =
       gridRef.current?.api.paginationIsLastPageFound() &&
       gridRef.current?.api.paginationGetCurrentPage() >=
-         gridRef.current?.api.paginationGetTotalPages() - 1;
+      gridRef.current?.api.paginationGetTotalPages() - 1;
    const backwardDisabled =
       gridRef.current?.api.paginationGetCurrentPage() <= 0;
 
@@ -79,6 +79,7 @@ const PaginationControls = ({ className }: PaginationControlsProps) => {
          <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
             <DropdownMenuTrigger
                asChild
+               className="focus:outline-none focus:ring-0"
                disabled={!gridRef.current?.api.paginationIsLastPageFound()}
             >
                <Button>

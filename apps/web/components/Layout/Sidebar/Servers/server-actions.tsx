@@ -26,7 +26,7 @@ const ServerActions = ({ server }: ServerActionsProps) => {
 
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-         <DropdownMenuTrigger>
+         <DropdownMenuTrigger className="focus:outline-none focus:ring-0">
             <ChevronRight
                className={cn("size-4 transition-transform duration-200", {
                   "rotate-180": isOpen,
