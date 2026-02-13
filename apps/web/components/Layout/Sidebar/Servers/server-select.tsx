@@ -78,7 +78,7 @@ const ServerSelector = () => {
 
    return (
       <DropdownMenu>
-         <DropdownMenuTrigger className="select-none rounded-xl">
+         <DropdownMenuTrigger className="select-none rounded-xl focus:outline-none focus:ring-0">
             <ServerCard server={currentServer} />
          </DropdownMenuTrigger>
          <DropdownMenuContent className="select-none">
