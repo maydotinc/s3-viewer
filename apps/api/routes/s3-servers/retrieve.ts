@@ -63,7 +63,6 @@ retrieveRouter.get(
             },
          });
 
-         // Fetch bucket access for all users of this server
          const allBucketAccess = await prisma.bucketAccess.findMany({
             where: { serverId },
             select: {
@@ -73,7 +72,6 @@ retrieveRouter.get(
             },
          });
 
-         // Group bucket access by userId
          const bucketAccessByUser = new Map<string, BucketAccessEntry[]>();
          for (const ba of allBucketAccess) {
             const entries = bucketAccessByUser.get(ba.userId) ?? [];

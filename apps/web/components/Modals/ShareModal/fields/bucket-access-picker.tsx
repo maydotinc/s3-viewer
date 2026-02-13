@@ -86,9 +86,14 @@ const BucketAccessPicker = () => {
    return (
       <div className="flex flex-col gap-2">
          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-black">
-               Bucket Access
-            </label>
+            <div className="flex flex-col">
+               <label className="text-sm font-medium text-black">
+                  Bucket Access
+               </label>
+               <span className="text-[11px] text-gray-400">
+                  Controls what they can do with files
+               </span>
+            </div>
             <button
                type="button"
                onClick={toggleAll}

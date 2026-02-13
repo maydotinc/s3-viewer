@@ -75,7 +75,6 @@ manageRouter.post("/establish", async (req: Request, res: Response) => {
    }
 });
 
-// Validate that specific bucket names are accessible with the given credentials
 manageRouter.post(
    "/validate-buckets",
    async (req: Request, res: Response) => {

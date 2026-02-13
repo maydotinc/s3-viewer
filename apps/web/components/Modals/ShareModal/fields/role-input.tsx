@@ -21,22 +21,22 @@ const ROLES: { value: Role; label: string; description: string }[] = [
    {
       value: Role.OWNER,
       label: "Owner",
-      description: "Can manage users and settings",
+      description: "Full control over server and all buckets",
    },
    {
       value: Role.VIEWER,
-      label: "Read",
-      description: "Can view files and folders",
+      label: "Member",
+      description: "Basic server access",
    },
    {
       value: Role.EDITOR,
-      label: "Write",
-      description: "Can view, create, edit, and delete files",
+      label: "Editor",
+      description: "Can also create and delete buckets",
    },
    {
       value: Role.ADMIN,
       label: "Admin",
-      description: "Can manage users and settings",
+      description: "Can invite users and manage server",
    },
 ];
 
@@ -61,7 +61,7 @@ const RoleSelector = ({
 }: RoleSelectorProps) => {
    const { serverId } = useShareContext();
    const selectedRoleLabel =
-      roles.find((role) => role.value === value)?.label || "Read";
+      roles.find((role) => role.value === value)?.label || "Member";
    const userRole = useServers(serverId).currentServer?.userRole;
 
    const isDisabled = (selectedRole: Role, userRole: Role | undefined) => {

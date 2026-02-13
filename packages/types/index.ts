@@ -59,6 +59,7 @@ type ServerInvite = {
 type S3Bucket = {
    Name: string;
    CreationDate: string;
+   userRole?: Role;
 };
 
 type S3Object = {

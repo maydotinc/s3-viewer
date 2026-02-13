@@ -158,7 +158,6 @@ inviteRouter.post(
          return;
       }
 
-      // Validate bucket access entries
       const validRoles = Object.values(Role);
       const seenBuckets = new Set<string>();
       for (const entry of bucketAccess) {
@@ -236,7 +235,6 @@ inviteRouter.post(
             select: { name: true },
          });
 
-         // Create invitations with bucket access in a transaction
          await prisma.$transaction(async (tx) => {
             for (const email of uniqueEmails) {
                const invitation = await tx.pendingInvitation.upsert({
@@ -255,7 +253,6 @@ inviteRouter.post(
                   },
                });
 
-               // Remove old bucket access entries and create new ones
                await tx.invitationBucketAccess.deleteMany({
                   where: { invitationId: invitation.id },
                });
@@ -367,7 +364,6 @@ inviteRouter.post("/accept", async (req: Request, res: Response) => {
                });
             }
 
-            // Merge bucket access: upsert each bucket entry with the higher role
             for (const ba of invite.bucketAccess) {
                const existing = await tx.bucketAccess.findUnique({
                   where: {
@@ -406,7 +402,6 @@ inviteRouter.post("/accept", async (req: Request, res: Response) => {
             };
          }
 
-         // Serialize accepts per-server to enforce the cap under concurrency.
          await tx.$executeRaw`
             SELECT 1 FROM "server"
             WHERE id = ${invite.serverId}
@@ -434,7 +429,6 @@ inviteRouter.post("/accept", async (req: Request, res: Response) => {
             },
          });
 
-         // Create bucket access rows from invitation
          if (invite.bucketAccess.length > 0) {
             await tx.bucketAccess.createMany({
                data: invite.bucketAccess.map((ba) => ({
@@ -563,7 +557,6 @@ inviteRouter.put(
             });
 
             if (bucketAccess !== undefined) {
-               // Replace all bucket access rows for this user on this server
                await tx.bucketAccess.deleteMany({
                   where: { userId, serverId },
                });

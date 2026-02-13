@@ -1,5 +1,6 @@
 import useRevokeInvite from "@/lib/hooks/mutations/invites/useRevokeInvite";
 import { useSentInvites } from "@/lib/hooks/queries/server/useServerInvites";
+import { Role } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -11,6 +12,13 @@ import {
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { Clock, Loader2, Mail, Server, Trash2, User } from "lucide-react";
 import { useState } from "react";
+
+const SERVER_ROLE_LABELS: Record<string, string> = {
+   [Role.VIEWER]: "Member",
+   [Role.EDITOR]: "Editor",
+   [Role.ADMIN]: "Admin",
+   [Role.OWNER]: "Owner",
+};
 
 const SentInvites: React.FC = () => {
    const { data: sentInvites = [], isLoading } = useSentInvites();
@@ -77,7 +85,7 @@ const SentInvites: React.FC = () => {
                               isInviteExpired ? "destructive" : "secondary"
                            }
                         >
-                           {invite.role}
+                           {SERVER_ROLE_LABELS[invite.role] ?? invite.role}
                         </Badge>
                      </div>
                   </CardHeader>

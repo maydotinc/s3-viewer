@@ -9,18 +9,18 @@ import RoleSelector from "./role-input";
 const ROLES: { value: Role; label: string; description: string }[] = [
    {
       value: Role.VIEWER,
-      label: "Read",
-      description: "Can view files and folders",
+      label: "Member",
+      description: "Basic server access",
    },
    {
       value: Role.EDITOR,
-      label: "Write",
-      description: "Can view, create, edit, and delete files",
+      label: "Editor",
+      description: "Can also create and delete buckets",
    },
    {
       value: Role.ADMIN,
       label: "Admin",
-      description: "Can manage users and settings",
+      description: "Can invite users and manage server",
    },
 ];
 
@@ -73,12 +73,15 @@ const EmailRoleInput = () => {
 
    return (
       <div className="flex flex-col gap-2">
-         <label
-            htmlFor="email"
-            className="text-sm font-medium text-black flex items-center gap-1"
-         >
-            Email Address
-         </label>
+         <div className="flex items-center justify-between">
+            <label
+               htmlFor="email"
+               className="text-sm font-medium text-black flex items-center gap-1"
+            >
+               Email Address
+            </label>
+            <span className="text-[11px] text-gray-400">Server role</span>
+         </div>
          <div className="relative">
             <Input
                id="email"

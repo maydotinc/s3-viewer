@@ -60,21 +60,17 @@ bucketRouter.get(
       const serverId = req.query.serverId as string;
       let buckets: S3Bucket[] = [];
       try {
-         // Check if this server has manually configured allowed buckets
-         // (for user-scoped tokens that can't call ListBuckets)
          const server = await prisma.server.findUnique({
             where: { id: serverId },
             select: { allowedBuckets: true },
          });
 
          if (server?.allowedBuckets && server.allowedBuckets.length > 0) {
-            // Token cannot ListBuckets - use stored bucket names
             buckets = server.allowedBuckets.map((name) => ({
                Name: name,
                CreationDate: "",
             }));
          } else {
-            // Token can ListBuckets - use S3 API
             let contToken: string | undefined;
             const s3Client = await getS3Client(serverId);
             do {
@@ -94,27 +90,32 @@ bucketRouter.get(
             } while (contToken);
          }
 
-         // Owners see all buckets; non-owners see only buckets they have access to
          const userRole = req.userRole;
          if (userRole === Role.OWNER) {
-            res.status(200).json({ buckets });
+            const bucketsWithRole = buckets.map((b) => ({
+               ...b,
+               userRole: Role.OWNER,
+            }));
+            res.status(200).json({ buckets: bucketsWithRole });
             return;
          }
 
-         // Filter buckets by user's bucket-level access
          const userBucketAccess = await prisma.bucketAccess.findMany({
             where: {
                userId: req.user!.id,
                serverId,
             },
-            select: { bucketName: true },
+            select: { bucketName: true, role: true },
          });
-         const allowedBucketNames = new Set(
-            userBucketAccess.map((ba) => ba.bucketName)
+         const bucketRoleMap = new Map(
+            userBucketAccess.map((ba) => [ba.bucketName, ba.role as Role])
          );
-         const filteredBuckets = buckets.filter((b) =>
-            allowedBucketNames.has(b.Name)
-         );
+         const filteredBuckets = buckets
+            .filter((b) => bucketRoleMap.has(b.Name))
+            .map((b) => ({
+               ...b,
+               userRole: bucketRoleMap.get(b.Name),
+            }));
          res.status(200).json({ buckets: filteredBuckets });
       } catch (error: any) {
          console.error("Error listing buckets:", error);
