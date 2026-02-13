@@ -34,7 +34,7 @@ const RenameModal: React.FC<RenameModalProps> = ({ server, onClose }) => {
                   </div>
                </DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
-                  <span>Enter new name to rename the server</span>
+                  <span>Enter new name to rename the server. This only affects the name displayed in s3-viewer.</span>
                </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4">
