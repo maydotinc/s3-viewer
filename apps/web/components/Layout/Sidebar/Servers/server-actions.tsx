@@ -9,7 +9,7 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { ChevronRight, PenLine, Trash2, WifiOff } from "lucide-react";
+import { ChevronRight, PenLine, Share2, Trash2, WifiOff } from "lucide-react";
 import { useState } from "react";
 
 type ServerActionsProps = {
@@ -38,6 +38,20 @@ const ServerActions = ({ server }: ServerActionsProps) => {
             align="start"
             onCloseAutoFocus={(e) => e.preventDefault()}
          >
+            <DropdownMenuItem
+               className="flex items-center gap-2 cursor-pointer size-full"
+               onSelect={(e) => {
+                  e.preventDefault();
+                  openModal("share", { server, selectAllBuckets: true });
+               }}
+               disabled={
+                  !userRole ||
+                  !hasPermissions(userRole, [Permission.MANAGE_VIEWER])
+               }
+            >
+               <Share2 className="size-4" />
+               Share All
+            </DropdownMenuItem>
             <DropdownMenuItem
                className="flex items-center gap-2 cursor-pointer size-full"
                onSelect={(e) => {

@@ -9,6 +9,7 @@ import {
    SelectValue,
 } from "@s3-viewer/ui/components/select";
 import { Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useShareContext } from "../context/ShareContext";
 
 const BUCKET_ROLES: { value: Role; label: string }[] = [
@@ -18,9 +19,19 @@ const BUCKET_ROLES: { value: Role; label: string }[] = [
 ];
 
 const BucketAccessPicker = () => {
-   const { serverId, bucketAccessList, setBucketAccessList } =
+   const { serverId, bucketAccessList, setBucketAccessList, selectAllBuckets } =
       useShareContext();
    const { buckets, isBucketsLoading } = useBuckets(serverId);
+   const didAutoSelect = useRef(false);
+
+   useEffect(() => {
+      if (selectAllBuckets && buckets.length > 0 && !didAutoSelect.current) {
+         didAutoSelect.current = true;
+         setBucketAccessList(
+            buckets.map((b) => ({ bucketName: b.Name, role: Role.VIEWER }))
+         );
+      }
+   }, [selectAllBuckets, buckets, setBucketAccessList]);
 
    const isBucketSelected = (bucketName: string) =>
       bucketAccessList.some((ba) => ba.bucketName === bucketName);

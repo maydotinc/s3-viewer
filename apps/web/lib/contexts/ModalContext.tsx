@@ -28,6 +28,7 @@ type ModalPropsMap = {
    };
    share: {
       server?: ServerInfo;
+      selectAllBuckets?: boolean;
    };
 };
 

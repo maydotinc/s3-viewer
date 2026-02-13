@@ -12,6 +12,7 @@ type ShareContextType = {
    setInvalidEmails: (emails: string[]) => void;
    bucketAccessList: BucketAccessEntry[];
    setBucketAccessList: (list: BucketAccessEntry[]) => void;
+   selectAllBuckets: boolean;
    onClose: () => void;
 };
 
@@ -28,12 +29,14 @@ export const useShareContext = () => {
 type ShareProviderProps = {
    children: ReactNode;
    serverId?: string;
+   selectAllBuckets?: boolean;
    onClose: () => void;
 };
 
 export const ShareProvider = ({
    children,
    serverId,
+   selectAllBuckets = false,
    onClose,
 }: ShareProviderProps) => {
    const currServerId = useSessionStore((state) => state.serverId);
@@ -56,6 +59,7 @@ export const ShareProvider = ({
             setInvalidEmails,
             bucketAccessList,
             setBucketAccessList,
+            selectAllBuckets,
             onClose,
          }}
       >

@@ -16,11 +16,12 @@ import UserList from "./user-list";
 type ShareModalProps = {
    onClose: () => void;
    server?: ServerInfo;
+   selectAllBuckets?: boolean;
 };
 
-const ShareModal: React.FC<ShareModalProps> = ({ onClose, server }) => {
+const ShareModal: React.FC<ShareModalProps> = ({ onClose, server, selectAllBuckets }) => {
    return (
-      <ShareProvider serverId={server?.id} onClose={onClose}>
+      <ShareProvider serverId={server?.id} onClose={onClose} selectAllBuckets={selectAllBuckets}>
          <Dialog open={true} onOpenChange={onClose}>
             <DialogContent
                showCloseButton={false}
