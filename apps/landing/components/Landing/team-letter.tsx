@@ -47,7 +47,7 @@ const TeamLetter = () => {
                </div>
                <div className="flex flex-col gap-2 mt-5">
                   <div className="flex items-center -space-x-2">
-                     {["mike", "vinit", "aleem"].map((profile, i) => (
+                     {["mike", "vinit", "aleem", "noah"].map((profile, i) => (
                         <Image
                            key={profile}
                            src={`/landing/profiles/${profile}.png`}
@@ -67,7 +67,7 @@ const TeamLetter = () => {
                      S3-Viewer
                   </h3>
                   <span className="text-xs leading-none text-viewertext">
-                     Mike, Vinit, Aleem
+                     Mike, Vinit, Aleem, Noah
                   </span>
                </div>
             </div>
