@@ -19,7 +19,6 @@ const ObjectView = () => {
       handleBack,
       handleDownload,
       handleDelete,
-      handleCopyUrl,
    } = useObjectActions();
 
    const { data: metadata, isLoading: metadataLoading } = useObjectMetadata(
@@ -61,7 +60,6 @@ const ObjectView = () => {
             onBack={handleBack}
             onDownload={handleDownload}
             onDelete={handleDelete}
-            onCopyUrl={handleCopyUrl}
          />
 
          <div className="flex flex-1 overflow-hidden max-lg:flex-col gap-4">
@@ -78,10 +76,10 @@ const ObjectView = () => {
                previewType={previewType}
                preview={preview}
                previewLoading={
-                  metadataLoading ||
-                  previewLoading ||
-                  (!metadata && (!serverId || !bucket?.Name || !objectKey))
-               }
+               metadataLoading ||
+               previewLoading ||
+               (!metadata && (!serverId || !bucket?.Name || !objectKey))
+            }
                previewError={previewError}
                contentLength={metadata?.contentLength}
             />

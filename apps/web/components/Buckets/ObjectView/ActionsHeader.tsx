@@ -1,5 +1,5 @@
 import { Button } from "@s3-viewer/ui/components/button";
-import { ChevronLeft, Download, Link, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, Download, Trash2 } from "lucide-react";
 
 interface ObjectActionsHeaderProps {
    objectName: string;
@@ -7,7 +7,6 @@ interface ObjectActionsHeaderProps {
    onBack: () => void;
    onDownload: () => void;
    onDelete: () => void;
-   onCopyUrl: () => void;
 }
 
 const ObjectActionsHeader = ({
@@ -16,7 +15,6 @@ const ObjectActionsHeader = ({
    onBack,
    onDownload,
    onDelete,
-   onCopyUrl,
 }: ObjectActionsHeaderProps) => {
    return (
       <div className="flex pb-6 gap-4 w-full justify-between max-w-full max-lg:flex-col max-lg:justify-start">
@@ -32,10 +30,6 @@ const ObjectActionsHeader = ({
             <h1 className="truncate text-lg max-w-[400px]">{objectName}</h1>
          </div>
          <div className="flex gap-2">
-            <Button variant="outline" onClick={onCopyUrl} disabled={isLoading}>
-               <Link className="size-4" />
-               Share URL
-            </Button>
             <Button variant="outline" onClick={onDownload} disabled={isLoading}>
                <Download className="size-4" />
                Download

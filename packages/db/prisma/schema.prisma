@@ -17,6 +17,7 @@ model User {
   name          String
   image         String?
 
+  // Relations
   ownedServers    Server[]            @relation("ServerOwner")
   serverAccess    ServerAccess[]
   bucketAccess    BucketAccess[]
@@ -77,11 +78,12 @@ model Server {
   id             String   @id @default(cuid())
   name           String
   provider       Provider @default(Other)
-  credentials    String
-  allowedBuckets String[] @default([])
+  credentials    String // Encrypted credentials
+  allowedBuckets String[] @default([]) // Empty = use ListBuckets API, non-empty = token cannot ListBuckets, use these names instead
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Relations
   ownerId            String
   owner              User                @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   serverAccess       ServerAccess[]
@@ -99,6 +101,7 @@ model ServerAccess {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   serverId String
@@ -118,6 +121,7 @@ model PendingInvitation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Relations
   serverId    String
   server      Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
   invitedById String
@@ -139,6 +143,7 @@ model BucketAccess {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
+  // Relations
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   serverId String
@@ -155,6 +160,7 @@ model InvitationBucketAccess {
   bucketName String
   role       Role   @default(VIEWER)
 
+  // Relations
   invitationId String
   invitation   PendingInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 

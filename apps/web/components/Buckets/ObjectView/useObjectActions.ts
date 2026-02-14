@@ -1,8 +1,6 @@
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import useSessionStore from "@/lib/stores/sessionStore";
-import getObjectUrl from "@/lib/utils/s3/getObjectUrl";
 import getPresignedDownloadUrl from "@/lib/utils/s3/getPresignedDownloadUrl";
-import { toast } from "@s3-viewer/ui/components/toast";
 import { useRouter } from "next/router";
 import { useCallback, useState } from "react";
 import { useBucketContext } from "../Context";
@@ -82,32 +80,6 @@ const useObjectActions = () => {
       });
    }, [bucket?.Name, serverId, objectKey, openConfirmDeleteModal, handleBack]);
 
-   const handleCopyUrl = useCallback(async () => {
-      if (!bucket?.Name || !serverId || !objectKey) {
-         console.error("Missing bucket name, server ID, or object key");
-         return;
-      }
-      try {
-         setIsLoading(true);
-         const { url, type } = await getObjectUrl(
-            bucket.Name,
-            objectKey,
-            serverId
-         );
-         await navigator.clipboard.writeText(url);
-         toast.success(
-            type === "public"
-               ? "Public URL copied to clipboard"
-               : "Presigned URL copied to clipboard (expires in 1 hour)"
-         );
-      } catch (error) {
-         console.error("Unable to get object URL", error);
-         toast.error("Failed to copy URL");
-      } finally {
-         setIsLoading(false);
-      }
-   }, [bucket?.Name, serverId, objectKey]);
-
    return {
       objectKey,
       objectName,
@@ -117,7 +89,6 @@ const useObjectActions = () => {
       handleBack,
       handleDownload,
       handleDelete,
-      handleCopyUrl,
    };
 };
 
