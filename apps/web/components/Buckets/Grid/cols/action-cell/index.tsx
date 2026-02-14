@@ -9,6 +9,7 @@ import { EllipsisVertical, Loader2 } from "lucide-react";
 import { useState } from "react";
 import DeleteObject from "./delete";
 import DownloadObject from "./download";
+import RenameObject from "./rename";
 
 const ActionCell = (params: ICellRendererParams) => {
    const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +34,7 @@ const ActionCell = (params: ICellRendererParams) => {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-50 p-2">
                <DownloadObject params={params} setIsLoading={setIsLoading} />
+               <RenameObject params={params} />
                <DropdownMenuSeparator className="mx-auto" />
                <DeleteObject params={params} />
             </DropdownMenuContent>

@@ -7,6 +7,7 @@ type ModalType =
    | "createBucket"
    | "confirmDelete"
    | "rename"
+   | "renameObject"
    | "disconnect"
    | "share";
 
@@ -22,6 +23,12 @@ type ModalPropsMap = {
    };
    rename: {
       server: ServerInfo;
+   };
+   renameObject: {
+      serverId: string;
+      bucketName: string;
+      objectKey: string;
+      onRenameSuccess?: () => void;
    };
    disconnect: {
       server: ServerInfo;
@@ -118,6 +125,8 @@ export const useModalContext = () => {
          context.openModal("confirmDelete", props),
       openRenameModal: (props: ModalPropsMap["rename"]) =>
          context.openModal("rename", props),
+      openRenameObjectModal: (props: ModalPropsMap["renameObject"]) =>
+         context.openModal("renameObject", props),
       openDisconnectModal: (props: ModalPropsMap["disconnect"]) =>
          context.openModal("disconnect", props),
       openShareModal: (props: ModalPropsMap["share"]) =>

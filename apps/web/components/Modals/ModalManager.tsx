@@ -5,6 +5,7 @@ import ConnectModal from "./ConnectModal";
 import CreateBucketModal from "./CreateBucketModal";
 import DisconnectModal from "./DisconnectModal";
 import RenameModal from "./RenameModal";
+import RenameObjectModal from "./RenameObjectModal";
 import ShareModal from "./ShareModal";
 
 const ModalManager = () => {
@@ -44,6 +45,14 @@ const ModalManager = () => {
                         key={`confirmDelete-${index}`}
                         {...modal.props}
                         onClose={() => closeModal("confirmDelete")}
+                     />
+                  );
+               case "renameObject":
+                  return (
+                     <RenameObjectModal
+                        key={`renameObject-${index}`}
+                        {...modal.props}
+                        onClose={() => closeModal("renameObject")}
                      />
                   );
                case "disconnect":

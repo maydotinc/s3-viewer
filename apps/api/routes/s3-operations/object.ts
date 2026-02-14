@@ -20,6 +20,7 @@ import {
    presignDownloadQuerySchema,
    presignUploadQuerySchema,
    previewQuerySchema,
+   renameObjectBodySchema,
    Role,
    s3BodyBase,
 } from "@s3-viewer/types";
@@ -402,6 +403,47 @@ objectRouter.post(
          await s3Client.send(deleteCommand);
          res.status(200).json({
             message: `Object ${sourceKey} moved to ${targetBucket}/${targetKey}`,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+objectRouter.post(
+   "/rename",
+   validateBody(renameObjectBodySchema),
+   requireBucketPermissions([Permission.UPLOAD_OBJECT, Permission.DELETE_OBJECT]),
+   async (req: Request, res: Response) => {
+      const { serverId, bucketName, objectKey, newObjectKey } = req.body;
+
+      if (objectKey === newObjectKey) {
+         res.status(400).json({
+            error: "New name must be different from the current name",
+         });
+         return;
+      }
+
+      try {
+         const s3Client = await getS3Client(serverId);
+
+         // Step 1: Copy object to the new key
+         const copyCommand = new CopyObjectCommand({
+            Bucket: bucketName,
+            Key: newObjectKey,
+            CopySource: `${bucketName}/${objectKey}`,
+         });
+         await s3Client.send(copyCommand);
+
+         // Step 2: Delete the original object
+         const deleteCommand = new DeleteObjectCommand({
+            Bucket: bucketName,
+            Key: objectKey,
+         });
+         await s3Client.send(deleteCommand);
+
+         res.status(200).json({
+            message: `Object renamed from "${objectKey}" to "${newObjectKey}"`,
          });
       } catch (error: any) {
          res.status(500).json({ error: error.message });

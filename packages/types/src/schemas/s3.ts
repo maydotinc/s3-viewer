@@ -80,6 +80,14 @@ export const copyMoveBodySchema = z.object({
 });
 export type CopyMoveInput = z.infer<typeof copyMoveBodySchema>;
 
+export const renameObjectBodySchema = z.object({
+   serverId: sid,
+   bucketName: bucketNameSchema,
+   objectKey: objectKeySchema,
+   newObjectKey: objectKeySchema,
+});
+export type RenameObjectInput = z.infer<typeof renameObjectBodySchema>;
+
 export const multipartCreateBodySchema = s3BodyBase.extend({
    contentType: contentTypeSchema,
 });
