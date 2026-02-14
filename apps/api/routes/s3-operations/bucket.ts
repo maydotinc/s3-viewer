@@ -41,26 +41,6 @@ bucketRouter.put(
 );
 
 bucketRouter.delete(
-   "/delete",
-   validateBody(bucketBodySchema),
-   requireDeleteBucket(),
-   async (req: Request, res: Response) => {
-      const { bucketName, serverId } = req.body;
-
-      try {
-         const s3Client = await getS3Client(serverId);
-         const command = new DeleteBucketCommand({ Bucket: bucketName });
-         await s3Client.send(command);
-         res.status(200).json({
-            message: `Bucket ${bucketName} deleted successfully`,
-         });
-      } catch (error: any) {
-         res.status(500).json({ error: error.message });
-      }
-   }
-);
-
-bucketRouter.delete(
    "/remove",
    validateBody(bucketBodySchema),
    requireDeleteBucket(),
