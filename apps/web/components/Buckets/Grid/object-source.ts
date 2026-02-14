@@ -1,4 +1,4 @@
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
+import { createApiRequest } from "@/lib/utils/api";
 import { S3Object } from "@s3-viewer/types";
 import { IDatasource, IGetRowsParams } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
@@ -12,11 +12,20 @@ const MakeObjectSource = (
    bucket: string,
    path: string[],
    blockSize: number,
-   serverId: string
+   serverId: string,
+   onFatalError?: (message: string) => void
 ): IDatasource => {
+   if (!bucket) return { getRows: () => { } };
+
    const pageCache: Record<number, PageMeta> = {};
+   let halted = false;
 
    const getRows = async (params: IGetRowsParams) => {
+      if (halted) {
+         params.failCallback();
+         return;
+      }
+
       const page = Math.floor(params.startRow / blockSize);
       const continuationToken = pageCache[page - 1]?.nextToken;
       const filter = params.filterModel?.Key?.filter ?? "";
@@ -35,7 +44,15 @@ const MakeObjectSource = (
             `/s3/object/list?${searchParams.toString()}`
          );
          if (!response.ok) {
-            await handleApiError(response);
+            const body = await response.json().catch(() => ({}));
+            const msg = body.error ?? body.message ?? `Request failed (${response.status})`;
+            if (response.status === 500 || response.status === 403) {
+               halted = true;
+               onFatalError?.(msg);
+               params.failCallback();
+               return;
+            }
+            throw new Error(msg);
          }
          const { objects, nextToken } = (await response.json()) as {
             objects: S3Object[];

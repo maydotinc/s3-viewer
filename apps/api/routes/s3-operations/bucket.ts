@@ -60,6 +60,40 @@ bucketRouter.delete(
    }
 );
 
+bucketRouter.delete(
+   "/remove",
+   validateBody(bucketBodySchema),
+   requireDeleteBucket(),
+   async (req: Request, res: Response) => {
+      const { bucketName, serverId } = req.body;
+      try {
+         const server = await prisma.server.findUnique({
+            where: { id: serverId },
+            select: { allowedBuckets: true },
+         });
+         if (!server) {
+            res.status(404).json({ error: "Server not found" });
+            return;
+         }
+         const updated = (server.allowedBuckets ?? []).filter(
+            (b) => b !== bucketName
+         );
+         await prisma.server.update({
+            where: { id: serverId },
+            data: { allowedBuckets: updated },
+         });
+         await prisma.bucketAccess.deleteMany({
+            where: { serverId, bucketName },
+         });
+         res.status(200).json({
+            message: `Bucket ${bucketName} removed from server`,
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
 bucketRouter.get(
    "/list",
    validateQuery(listBucketsQuerySchema),

@@ -1,5 +1,5 @@
 import useSessionStore from "@/lib/stores/sessionStore";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PaginationControls from "../DataGrid/Actions/page-controls";
 import { useGridContext } from "../DataGrid/context";
 import BaseGrid from "../DataGrid/grid";
@@ -9,14 +9,29 @@ import GridActions from "./Grid/actions";
 import columns from "./Grid/cols/columns";
 import { rowSelection } from "./Grid/cols/selection-col";
 import MakeObjectSource from "./Grid/object-source";
+import useRemoveBucket from "@/lib/hooks/mutations/bucket/useRemoveBucket";
 import { authClient } from "@s3-viewer/auth/client";
+import { Button } from "@s3-viewer/ui/components/button";
+import { ShieldX } from "lucide-react";
+import { useRouter } from "next/router";
 
 const Objects = () => {
+   const router = useRouter();
    const { data: session, isPending } = authClient.useSession();
    const { path, bucket } = useBucketContext();
    const { gridRef, gridReady } = useGridContext();
    const serverId = useSessionStore((state) => state.serverId);
    const blockSize = 1000;
+   const [error, setError] = useState<string | null>(null);
+   const removeBucket = useRemoveBucket(serverId);
+
+   const onFatalError = useCallback((message: string) => {
+      setError(message);
+   }, []);
+
+   useEffect(() => {
+      setError(null);
+   }, [bucket?.Name, path.length, serverId]);
 
    const objectDatasource = useMemo(
       () =>
@@ -25,7 +40,8 @@ const Objects = () => {
             bucket?.Name ?? "",
             path,
             blockSize,
-            serverId
+            serverId,
+            onFatalError
          ),
       [bucket?.Name, path.length, blockSize, serverId, gridReady]
    );
@@ -66,22 +82,48 @@ const Objects = () => {
             <ObjectActions />
          </div>
          <div className="flex flex-col flex-1 gap-2">
-            <BaseGrid
-               colDefs={columns}
-               className="flex-1"
-               rowModel={{
-                  type: "infinite",
-                  cacheBlockSize: blockSize,
-                  maxBlocksInCache: 10,
-               }}
-               noRowsOverlayComponent={noRowsOverlayComponent}
-               routeContext={{
-                  bucketName: bucket?.Name ?? "",
-                  path,
-               }}
-               rowSelection={rowSelection}
-            />
-            <PaginationControls />
+            {error && (
+               <div className="flex flex-col items-center justify-center flex-1 gap-3">
+                  <ShieldX className="size-10 text-red-500" />
+                  <h1 className="text-lg font-semibold text-viewerblack">
+                     Access Denied
+                  </h1>
+                  <p className="text-sm text-viewertext max-w-md text-center">
+                     You do not have permissions to access this bucket or this bucket does not exist.
+                  </p>
+                  <Button
+                     variant="destructive"
+                     size="sm"
+                     disabled={removeBucket.isPending}
+                     onClick={() => {
+                        if (!bucket?.Name) return;
+                        removeBucket.mutate(bucket.Name, {
+                           onSuccess: () => router.push("/buckets"),
+                        });
+                     }}
+                  >
+                     {removeBucket.isPending ? "Removing..." : "Remove Bucket"}
+                  </Button>
+               </div>
+            )}
+            <div className={error ? "hidden" : "contents"}>
+               <BaseGrid
+                  colDefs={columns}
+                  className="flex-1"
+                  rowModel={{
+                     type: "infinite",
+                     cacheBlockSize: blockSize,
+                     maxBlocksInCache: 10,
+                  }}
+                  noRowsOverlayComponent={noRowsOverlayComponent}
+                  routeContext={{
+                     bucketName: bucket?.Name ?? "",
+                     path,
+                  }}
+                  rowSelection={rowSelection}
+               />
+               <PaginationControls />
+            </div>
          </div>
       </section>
    );
