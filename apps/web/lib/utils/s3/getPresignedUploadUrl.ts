@@ -1,4 +1,5 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
+import { presignUploadQuerySchema } from "@s3-viewer/types";
 
 interface PresignedUploadUrlResponse {
    url: string;
@@ -11,18 +12,18 @@ const getPresignedUploadUrl = async (
    contentType: string,
    serverId: string
 ): Promise<PresignedUploadUrlResponse> => {
-   const params = new URLSearchParams({
+   const validated = presignUploadQuerySchema.parse({
       bucketName,
       objectKey,
       contentType,
       serverId,
    });
 
+   const params = new URLSearchParams(validated);
+
    const response = await createApiRequest(
       `/s3/object/presign-upload?${params}`,
-      {
-         method: "GET",
-      }
+      { method: "GET" }
    );
 
    if (!response.ok) {

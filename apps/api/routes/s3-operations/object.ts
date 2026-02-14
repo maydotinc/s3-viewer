@@ -7,9 +7,22 @@ import {
    requireUploadObject,
 } from "@/lib/middleware/permissions";
 import { getS3Client } from "@/lib/utils/s3-client";
+import { validateBody, validateQuery } from "@/lib/middleware/validation";
 import { prisma } from "@s3-viewer/db";
 import { hasPermissions, Permission } from "@s3-viewer/permissions";
-import { Role } from "@s3-viewer/types";
+import {
+   copyMoveBodySchema,
+   deleteMultipleBodySchema,
+   listObjectsQuerySchema,
+   metadataQuerySchema,
+   multipartCreateBodySchema,
+   multipartPartQuerySchema,
+   presignDownloadQuerySchema,
+   presignUploadQuerySchema,
+   previewQuerySchema,
+   Role,
+   s3BodyBase,
+} from "@s3-viewer/types";
 import {
    AbortMultipartUploadCommand,
    CompleteMultipartUploadCommand,
@@ -88,6 +101,7 @@ const objectRouter: Router = Router();
 
 objectRouter.get(
    "/presign-upload",
+   validateQuery(presignUploadQuerySchema),
    requireUploadObject(),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, contentType, serverId } = req.query;
@@ -114,6 +128,7 @@ objectRouter.get(
 
 objectRouter.get(
    "/presign-download",
+   validateQuery(presignDownloadQuerySchema),
    requireDownloadObject(),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, serverId } = req.query;
@@ -166,6 +181,7 @@ objectRouter.get(
 
 objectRouter.get(
    "/metadata",
+   validateQuery(metadataQuerySchema),
    requireBucketPermissions([Permission.LIST_OBJECTS]),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, serverId } = req.query;
@@ -197,6 +213,7 @@ objectRouter.get(
 
 objectRouter.get(
    "/preview",
+   validateQuery(previewQuerySchema),
    requireDownloadObject(),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, serverId, contentType } = req.query;
@@ -223,6 +240,7 @@ objectRouter.get(
 
 objectRouter.delete(
    "/delete",
+   validateBody(s3BodyBase),
    requireDeleteObject(),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, serverId } = req.body;
@@ -244,6 +262,7 @@ objectRouter.delete(
 
 objectRouter.delete(
    "/delete-multiple",
+   validateBody(deleteMultipleBodySchema),
    requireDeleteObject(),
    async (req: Request, res: Response) => {
       const { bucketName, objectKeys, serverId } = req.body;
@@ -267,6 +286,7 @@ objectRouter.delete(
 
 objectRouter.post(
    "/copy",
+   validateBody(copyMoveBodySchema),
    requireBucketPermissions([Permission.DOWNLOAD_OBJECT], "sourceBucket"),
    async (req: Request, res: Response) => {
       const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } =
@@ -326,6 +346,7 @@ objectRouter.post(
 
 objectRouter.post(
    "/move",
+   validateBody(copyMoveBodySchema),
    requireMoveObject(),
    async (req: Request, res: Response) => {
       const { sourceBucket, sourceKey, targetBucket, targetKey, serverId } =
@@ -390,6 +411,7 @@ objectRouter.post(
 
 objectRouter.get(
    "/list",
+   validateQuery(listObjectsQuerySchema),
    requireListObjects(),
    async (req: Request, res: Response) => {
       const { bucket, serverId, continuationToken, blockSize, prefix } =
@@ -440,6 +462,7 @@ objectRouter.get(
 // Multipart Upload Endpoints
 objectRouter.post(
    "/multipart/create",
+   validateBody(multipartCreateBodySchema),
    requireUploadObject(),
    async (req: Request, res: Response) => {
       const { bucketName, objectKey, contentType, serverId } = req.body;
@@ -468,24 +491,11 @@ objectRouter.post(
 
 objectRouter.get(
    "/multipart/:uploadId/part/:partNumber/presigned-url",
+   validateQuery(multipartPartQuerySchema),
    requireUploadObject(),
    async (req: Request, res: Response) => {
       const { uploadId, partNumber } = req.params;
       const { bucketName, objectKey, serverId } = req.query;
-
-      if (!serverId || !bucketName || !objectKey) {
-         res.status(400).json({
-            error: "serverId, bucketName, and objectKey are required",
-         });
-         return;
-      }
-
-      if (!partNumber || !uploadId) {
-         res.status(400).json({
-            error: "partNumber and uploadId are required",
-         });
-         return;
-      }
 
       try {
          const s3Client = await getS3Client(serverId as string);
@@ -493,7 +503,7 @@ objectRouter.get(
             Bucket: bucketName as string,
             Key: objectKey as string,
             UploadId: uploadId,
-            PartNumber: parseInt(partNumber),
+            PartNumber: parseInt(partNumber!),
          });
 
          const url = await getSignedUrl(s3Client, command, { expiresIn: 900 }); // 15 minutes
@@ -501,7 +511,7 @@ objectRouter.get(
          res.status(200).json({
             url,
             uploadId,
-            partNumber: parseInt(partNumber),
+            partNumber: parseInt(partNumber!),
             message: `Presigned URL generated for part ${partNumber}`,
          });
       } catch (error: any) {
@@ -512,6 +522,7 @@ objectRouter.get(
 
 objectRouter.post(
    "/multipart/:uploadId/complete",
+   validateBody(s3BodyBase),
    requireUploadObject(),
    async (req: Request, res: Response) => {
       const { uploadId } = req.params;
@@ -579,6 +590,7 @@ objectRouter.post(
 
 objectRouter.delete(
    "/multipart/:uploadId/abort",
+   validateBody(s3BodyBase),
    requireUploadObject(),
    async (req: Request, res: Response) => {
       const { uploadId } = req.params;

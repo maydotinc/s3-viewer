@@ -1,4 +1,9 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
+import {
+   multipartCreateBodySchema,
+   multipartPartQuerySchema,
+   s3BodyBase,
+} from "@s3-viewer/types";
 
 const MULTIPART_THRESHOLD = 50 * 1024 * 1024; // 50MB
 const PART_SIZE = 25 * 1024 * 1024; // 25MB
@@ -31,14 +36,16 @@ const createMultipartUpload = async (
    contentType: string,
    serverId: string
 ): Promise<MultipartUploadResponse> => {
+   const data = multipartCreateBodySchema.parse({
+      bucketName,
+      objectKey,
+      contentType,
+      serverId,
+   });
+
    const response = await createApiRequest("/s3/object/multipart/create", {
       method: "POST",
-      body: JSON.stringify({
-         bucketName,
-         objectKey,
-         contentType,
-         serverId,
-      }),
+      body: JSON.stringify(data),
    });
 
    if (!response.ok) {
@@ -55,17 +62,17 @@ const getPartPresignedUrl = async (
    objectKey: string,
    serverId: string
 ): Promise<PartPresignedUrlResponse> => {
-   const params = new URLSearchParams({
+   const validated = multipartPartQuerySchema.parse({
       bucketName,
       objectKey,
       serverId,
    });
 
+   const params = new URLSearchParams(validated);
+
    const response = await createApiRequest(
       `/s3/object/multipart/${uploadId}/part/${partNumber}/presigned-url?${params}`,
-      {
-         method: "GET",
-      }
+      { method: "GET" }
    );
 
    if (!response.ok) {
@@ -134,15 +141,13 @@ const completeMultipartUpload = async (
    objectKey: string,
    serverId: string
 ): Promise<CompleteMultipartResponse> => {
+   const data = s3BodyBase.parse({ bucketName, objectKey, serverId });
+
    const response = await createApiRequest(
       `/s3/object/multipart/${uploadId}/complete`,
       {
          method: "POST",
-         body: JSON.stringify({
-            bucketName,
-            objectKey,
-            serverId,
-         }),
+         body: JSON.stringify(data),
       }
    );
 
@@ -159,15 +164,13 @@ const abortMultipartUpload = async (
    objectKey: string,
    serverId: string
 ): Promise<void> => {
+   const data = s3BodyBase.parse({ bucketName, objectKey, serverId });
+
    const response = await createApiRequest(
       `/s3/object/multipart/${uploadId}/abort`,
       {
          method: "DELETE",
-         body: JSON.stringify({
-            bucketName,
-            objectKey,
-            serverId,
-         }),
+         body: JSON.stringify(data),
       }
    );
 

@@ -4,6 +4,8 @@ const PREVIEWABLE_TYPES = [
    "image/gif",
    "image/webp",
    "image/svg+xml",
+   "image/x-icon",
+   "image/vnd.microsoft.icon",
    "text/plain",
    "text/html",
    "text/css",

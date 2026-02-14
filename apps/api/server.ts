@@ -7,6 +7,7 @@ import { User } from "better-auth";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express, { urlencoded } from "express";
+import rateLimit from "express-rate-limit";
 import authGuard from "./lib/middleware/auth";
 import s3Router from "./routes/s3-operations/index";
 import serverRouter from "./routes/s3-servers/index";
@@ -23,7 +24,16 @@ declare global {
 
 const app = express();
 
+const globalLimiter = rateLimit({
+   windowMs: 60 * 1000,
+   max: 200,
+   standardHeaders: true,
+   legacyHeaders: false,
+   message: { error: "Too many requests, please try again later" },
+});
+
 app.disable("x-powered-by");
+app.use(globalLimiter);
 app.use(urlencoded({ extended: true }));
 app.use(
    cors({
@@ -35,6 +45,7 @@ app.use(
 
 app.all("/auth/{*any}", toNodeHandler(auth));
 app.use(express.json());
+
 app.use("/user", userRouter);
 app.use(authGuard);
 

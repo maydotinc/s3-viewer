@@ -1,6 +1,6 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { isPreviewable } from "@/lib/utils/s3/previewHelpers";
-import { S3ObjectPreviewResponse } from "@s3-viewer/types";
+import { previewQuerySchema, S3ObjectPreviewResponse } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
 const useObjectPreview = (
@@ -14,12 +14,13 @@ const useObjectPreview = (
    return useQuery<S3ObjectPreviewResponse>({
       queryKey: ["object-preview", serverId, bucketName, objectKey],
       queryFn: async () => {
-         const params = new URLSearchParams({
+         const validated = previewQuerySchema.parse({
             serverId,
             bucketName,
             objectKey,
-            ...(contentType && { contentType }),
+            contentType: contentType || "",
          });
+         const params = new URLSearchParams(validated);
 
          const response = await createApiRequest(
             `/s3/object/preview?${params}`,

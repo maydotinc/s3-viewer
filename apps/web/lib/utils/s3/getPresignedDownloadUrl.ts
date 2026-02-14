@@ -1,4 +1,5 @@
 import { createApiRequest, handleApiError } from "../api";
+import { presignDownloadQuerySchema } from "@s3-viewer/types";
 
 type PresignedDownloadUrlResponse = {
    url: string;
@@ -10,17 +11,17 @@ const getPresignedDownloadUrl = async (
    objectKey: string,
    serverId: string
 ): Promise<PresignedDownloadUrlResponse> => {
-   const params = new URLSearchParams({
+   const validated = presignDownloadQuerySchema.parse({
       bucketName,
       objectKey,
       serverId,
    });
 
+   const params = new URLSearchParams(validated);
+
    const response = await createApiRequest(
       `/s3/object/presign-download?${params}`,
-      {
-         method: "GET",
-      }
+      { method: "GET" }
    );
 
    if (!response.ok) {

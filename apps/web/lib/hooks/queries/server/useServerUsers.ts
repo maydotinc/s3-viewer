@@ -1,6 +1,6 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { authClient } from "@s3-viewer/auth/client";
-import { ServerUser } from "@s3-viewer/types";
+import { idSchema, ServerUser } from "@s3-viewer/types";
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useServerUsers = (serverId: string) => {
@@ -19,9 +19,10 @@ const useServerUsers = (serverId: string) => {
          signal,
       }: QueryFunctionContext): Promise<ServerUser[]> => {
          const [, serverId] = queryKey as [string, string];
+         const validatedId = idSchema.parse(serverId);
 
          const response = await createApiRequest(
-            `/server/retrieve/get-server-users?serverId=${serverId}`,
+            `/server/retrieve/get-server-users?serverId=${validatedId}`,
             { signal }
          );
 

@@ -1,5 +1,5 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { S3ObjectMetadata } from "@s3-viewer/types";
+import { metadataQuerySchema, S3ObjectMetadata } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
 const useObjectMetadata = (
@@ -10,11 +10,12 @@ const useObjectMetadata = (
    return useQuery<S3ObjectMetadata>({
       queryKey: ["object-metadata", serverId, bucketName, objectKey],
       queryFn: async () => {
-         const params = new URLSearchParams({
+         const validated = metadataQuerySchema.parse({
             serverId,
             bucketName,
             objectKey,
          });
+         const params = new URLSearchParams(validated);
          const response = await createApiRequest(
             `/s3/object/metadata?${params}`,
             {

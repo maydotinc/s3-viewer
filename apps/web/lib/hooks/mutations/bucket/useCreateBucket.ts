@@ -1,5 +1,6 @@
 import useSessionStore from "@/lib/stores/sessionStore";
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
+import { bucketBodySchema } from "@s3-viewer/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const useCreateBucket = (serverId: string) => {
@@ -9,17 +10,20 @@ const useCreateBucket = (serverId: string) => {
 
    return useMutation({
       mutationFn: async (bucketName: string): Promise<{ message: string }> => {
+         const data = bucketBodySchema.parse({
+            bucketName,
+            serverId: currentServerId,
+         });
          const response = await createApiRequest("/s3/bucket/create", {
             method: "PUT",
-            body: JSON.stringify({ bucketName, serverId: currentServerId }),
+            body: JSON.stringify(data),
          });
 
          if (!response.ok) {
             await handleApiError(response);
          }
 
-         const data = await response.json();
-         return data;
+         return await response.json();
       },
 
       onSuccess: () => {

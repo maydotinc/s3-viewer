@@ -1,7 +1,7 @@
 import useSessionStore from "@/lib/stores/sessionStore";
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
 import { authClient } from "@s3-viewer/auth/client";
-import { S3Bucket } from "@s3-viewer/types";
+import { listBucketsQuerySchema, S3Bucket } from "@s3-viewer/types";
 import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
 
 const useBuckets = (serverId?: string, bucketName?: string) => {
@@ -22,8 +22,9 @@ const useBuckets = (serverId?: string, bucketName?: string) => {
          signal,
       }: QueryFunctionContext): Promise<S3Bucket[]> => {
          const [, serverId] = queryKey as [string, string];
+         const validated = listBucketsQuerySchema.parse({ serverId });
          const response = await createApiRequest(
-            `/s3/bucket/list?serverId=${serverId}`,
+            `/s3/bucket/list?serverId=${validated.serverId}`,
             { signal }
          );
 

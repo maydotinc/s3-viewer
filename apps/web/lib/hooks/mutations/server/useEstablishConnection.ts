@@ -1,4 +1,5 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
+import { establishSchema } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
 
@@ -14,21 +15,22 @@ const useEstablishConnection = () => {
       mutationFn: async (
          encryptedCredentials: string
       ): Promise<EstablishResult> => {
+         const data = establishSchema.parse({ encryptedCredentials });
          const response = await createApiRequest("/server/manage/establish", {
             method: "POST",
-            body: JSON.stringify({ encryptedCredentials }),
+            body: JSON.stringify(data),
          });
 
          if (!response.ok) {
             await handleApiError(response);
          }
 
-         const data = await response.json();
+         const res = await response.json();
          return {
-            message: data.message,
-            bucketCount: data.bucketCount,
-            listBucketsAllowed: data.listBucketsAllowed,
-            bucketNames: data.bucketNames ?? [],
+            message: res.message,
+            bucketCount: res.bucketCount,
+            listBucketsAllowed: res.listBucketsAllowed,
+            bucketNames: res.bucketNames ?? [],
          };
       },
 

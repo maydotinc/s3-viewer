@@ -4,19 +4,26 @@ import {
    requireListBuckets,
 } from "@/lib/middleware/permissions";
 import { getS3Client } from "@/lib/utils/s3-client";
+import { validateBody, validateQuery } from "@/lib/middleware/validation";
 import {
    CreateBucketCommand,
    DeleteBucketCommand,
    ListBucketsCommand,
 } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
-import { Role, S3Bucket } from "@s3-viewer/types";
+import {
+   bucketBodySchema,
+   listBucketsQuerySchema,
+   Role,
+   S3Bucket,
+} from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
 
 const bucketRouter: Router = Router();
 
 bucketRouter.put(
    "/create",
+   validateBody(bucketBodySchema),
    requireCreateBucket(),
    async (req: Request, res: Response) => {
       const { bucketName, serverId } = req.body;
@@ -35,6 +42,7 @@ bucketRouter.put(
 
 bucketRouter.delete(
    "/delete",
+   validateBody(bucketBodySchema),
    requireDeleteBucket(),
    async (req: Request, res: Response) => {
       const { bucketName, serverId } = req.body;
@@ -54,6 +62,7 @@ bucketRouter.delete(
 
 bucketRouter.get(
    "/list",
+   validateQuery(listBucketsQuerySchema),
    requireListBuckets(),
    async (req: Request, res: Response) => {
       console.log("Listing buckets");

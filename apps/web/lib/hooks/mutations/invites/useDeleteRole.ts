@@ -1,5 +1,5 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { Role } from "@s3-viewer/types";
+import { deleteRoleSchema, DeleteRoleInput } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -7,11 +7,10 @@ const useDeleteRole = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: async (data: {
-         serverId: string;
-         userId: string;
-         role: Role;
-      }): Promise<{ message: string }> => {
+      mutationFn: async (
+         input: DeleteRoleInput
+      ): Promise<{ message: string }> => {
+         const data = deleteRoleSchema.parse(input);
          const response = await createApiRequest(
             `/server/invites/delete-role`,
             {
@@ -24,8 +23,8 @@ const useDeleteRole = () => {
             await handleApiError(response);
          }
 
-         const responseData = await response.json();
-         return { message: responseData.message };
+         const res = await response.json();
+         return { message: res.message };
       },
 
       onSuccess: () => {

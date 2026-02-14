@@ -1,5 +1,5 @@
 import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { BucketAccessEntry, Role } from "@s3-viewer/types";
+import { updateRoleSchema, UpdateRoleInput } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -7,12 +7,10 @@ const useUpdateRole = () => {
    const queryClient = useQueryClient();
 
    return useMutation({
-      mutationFn: async (data: {
-         serverId: string;
-         userId: string;
-         role: Role;
-         bucketAccess?: BucketAccessEntry[];
-      }): Promise<{ message: string }> => {
+      mutationFn: async (
+         input: UpdateRoleInput
+      ): Promise<{ message: string }> => {
+         const data = updateRoleSchema.parse(input);
          const response = await createApiRequest(
             `/server/invites/update-role`,
             {
@@ -25,8 +23,8 @@ const useUpdateRole = () => {
             await handleApiError(response);
          }
 
-         const responseData = await response.json();
-         return { message: responseData.message };
+         const res = await response.json();
+         return { message: res.message };
       },
 
       onSuccess: () => {

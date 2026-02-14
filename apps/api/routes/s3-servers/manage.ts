@@ -6,6 +6,7 @@ import {
 import detectProvider from "@/lib/utils/detect-provider";
 import { decryptCredentials } from "@/lib/utils/encryption";
 import { getS3ClientFromCredentials } from "@/lib/utils/s3-client";
+import { validateBody } from "@/lib/middleware/validation";
 import {
    HeadBucketCommand,
    ListBucketsCommand,
@@ -13,85 +14,83 @@ import {
 } from "@aws-sdk/client-s3";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
+import {
+   createServerSchema,
+   establishSchema,
+   renameServerSchema,
+   serverIdBodySchema,
+   validateBucketsSchema,
+} from "@s3-viewer/types";
 import { Request, Response, Router } from "express";
+import rateLimit from "express-rate-limit";
 
 const manageRouter: Router = Router();
 
-manageRouter.post("/establish", async (req: Request, res: Response) => {
-   console.log("Establishing connection");
-   const { encryptedCredentials } = req.body as {
-      encryptedCredentials: string;
-   };
+const credentialCheckLimiter = rateLimit({
+   windowMs: 60 * 1000,
+   max: 10,
+   standardHeaders: true,
+   legacyHeaders: false,
+   message: { error: "Too many requests, please try again later" },
+});
 
-   if (!encryptedCredentials) {
-      res.status(400).json({
-         message: "Encrypted server credentials are required",
-      });
-      return;
-   }
+manageRouter.post(
+   "/establish",
+   credentialCheckLimiter,
+   validateBody(establishSchema),
+   async (req: Request, res: Response) => {
+      const { encryptedCredentials } = req.body;
 
-   try {
-      const credentials = decryptCredentials(encryptedCredentials);
-      const s3Client = getS3ClientFromCredentials(credentials);
+      try {
+         const credentials = decryptCredentials(encryptedCredentials);
+         const s3Client = getS3ClientFromCredentials(credentials);
 
-      const response = await s3Client.send(new ListBucketsCommand({}));
-      if (response.Buckets) {
-         res.status(200).json({
-            message: "Server connection established successfully",
-            listBucketsAllowed: true,
-            bucketCount: response.Buckets.length,
-            bucketNames: response.Buckets.map((b) => b.Name || ""),
-         });
-      } else {
+         const response = await s3Client.send(new ListBucketsCommand({}));
+         if (response.Buckets) {
+            res.status(200).json({
+               message: "Server connection established successfully",
+               listBucketsAllowed: true,
+               bucketCount: response.Buckets.length,
+               bucketNames: response.Buckets.map((b) => b.Name || ""),
+            });
+         } else {
+            res.status(400).json({
+               message:
+                  "Server connection failed, are you sure you're using the correct credentials?",
+            });
+         }
+      } catch (error: any) {
+         console.error("Connection establishment failed:", error);
+
+         if (
+            error instanceof S3ServiceException &&
+            (error.name === "AccessDenied" ||
+               error.$metadata?.httpStatusCode === 403)
+         ) {
+            res.status(200).json({
+               message:
+                  "Credentials are valid but this token cannot list all buckets. Please enter bucket names manually.",
+               listBucketsAllowed: false,
+               bucketCount: 0,
+               bucketNames: [],
+            });
+            return;
+         }
+
          res.status(400).json({
             message:
                "Server connection failed, are you sure you're using the correct credentials?",
          });
       }
-   } catch (error: any) {
-      console.error("Connection establishment failed:", error);
-
-      if (
-         error instanceof S3ServiceException &&
-         (error.name === "AccessDenied" ||
-            error.$metadata?.httpStatusCode === 403)
-      ) {
-         res.status(200).json({
-            message:
-               "Credentials are valid but this token cannot list all buckets. Please enter bucket names manually.",
-            listBucketsAllowed: false,
-            bucketCount: 0,
-            bucketNames: [],
-         });
-         return;
-      }
-
-      res.status(400).json({
-         message:
-            "Server connection failed, are you sure you're using the correct credentials?",
-      });
    }
-});
+);
 
 manageRouter.post(
    "/validate-buckets",
+   credentialCheckLimiter,
+   validateBody(validateBucketsSchema),
    async (req: Request, res: Response) => {
-      console.log("Validating bucket access");
-      const { encryptedCredentials, bucketNames } = req.body as {
-         encryptedCredentials: string;
-         bucketNames: string[];
-      };
-
-      if (
-         !encryptedCredentials ||
-         !Array.isArray(bucketNames) ||
-         bucketNames.length === 0
-      ) {
-         res.status(400).json({
-            message: "Encrypted credentials and at least one bucket name are required",
-         });
-         return;
-      }
+      const { encryptedCredentials, bucketNames } = req.body;
 
       try {
          const credentials = decryptCredentials(encryptedCredentials);
@@ -127,55 +126,47 @@ manageRouter.post(
    }
 );
 
-manageRouter.post("/create", async (req: Request, res: Response) => {
-   console.log("Creating server");
-   const { encryptedCredentials, serverName, bucketNames } = req.body as {
-      encryptedCredentials: string;
-      serverName: string;
-      bucketNames?: string[];
-   };
+manageRouter.post(
+   "/create",
+   validateBody(createServerSchema),
+   async (req: Request, res: Response) => {
+      const { encryptedCredentials, serverName, bucketNames } = req.body;
 
-   if (!encryptedCredentials || !serverName) {
-      res.status(400).json({
-         message: "Encrypted credentials and server name are required",
-      });
-      return;
-   }
+      try {
+         const credentials = decryptCredentials(encryptedCredentials);
+         const provider = detectProvider(credentials);
 
-   try {
-      const credentials = decryptCredentials(encryptedCredentials);
-      const provider = detectProvider(credentials);
-
-      const server = await prisma.server.create({
-         data: {
-            credentials: encryptedCredentials,
-            name: serverName,
-            ownerId: req.user!.id,
-            provider,
-            allowedBuckets: bucketNames ?? [],
-            serverAccess: {
-               create: {
-                  userId: req.user!.id,
-                  role: "OWNER",
+         const server = await prisma.server.create({
+            data: {
+               credentials: encryptedCredentials,
+               name: serverName,
+               ownerId: req.user!.id,
+               provider,
+               allowedBuckets: bucketNames ?? [],
+               serverAccess: {
+                  create: {
+                     userId: req.user!.id,
+                     role: "OWNER",
+                  },
                },
             },
-         },
-      });
-      res.status(200).json({
-         message: "Server created successfully",
-         serverId: server.id,
-      });
-   } catch (error) {
-      console.error("Server creation failed:", error);
-      res.status(400).json({ message: "Server creation failed: " + error });
+         });
+         res.status(200).json({
+            message: "Server created successfully",
+            serverId: server.id,
+         });
+      } catch (error) {
+         console.error("Server creation failed:", error);
+         res.status(400).json({ message: "Server creation failed" });
+      }
    }
-});
+);
 
 manageRouter.delete(
    "/disconnect",
+   validateBody(serverIdBodySchema),
    requireListBuckets(),
    async (req: Request, res: Response) => {
-      console.log("Disconnecting from server");
       const { serverId } = req.body;
 
       try {
@@ -207,9 +198,9 @@ manageRouter.delete(
 
 manageRouter.delete(
    "/delete",
+   validateBody(serverIdBodySchema),
    requireServerOwner(),
    async (req: Request, res: Response) => {
-      console.log("Deleting server");
       const { serverId } = req.body;
 
       try {
@@ -234,20 +225,10 @@ manageRouter.delete(
 
 manageRouter.put(
    "/rename",
+   validateBody(renameServerSchema),
    requireRenameServer(),
    async (req: Request, res: Response) => {
-      console.log("Renaming server");
-      const { serverId, serverName } = req.body as {
-         serverId: string;
-         serverName: string;
-      };
-
-      if (!serverName) {
-         res.status(400).json({
-            message: "Server name is required",
-         });
-         return;
-      }
+      const { serverId, serverName } = req.body;
 
       try {
          await prisma.server.update({
