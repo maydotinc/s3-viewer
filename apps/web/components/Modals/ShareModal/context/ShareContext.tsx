@@ -1,6 +1,6 @@
+import { createContext, ReactNode, useContext, useState } from "react";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { BucketAccessEntry, Role } from "@s3-viewer/types";
-import { createContext, ReactNode, useContext, useState } from "react";
 
 type ShareContextType = {
    serverId: string;
