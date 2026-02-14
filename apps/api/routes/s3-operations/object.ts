@@ -181,6 +181,65 @@ objectRouter.get(
 );
 
 objectRouter.get(
+   "/get-url",
+   validateQuery(presignDownloadQuerySchema),
+   requireDownloadObject(),
+   async (req: Request, res: Response) => {
+      const { bucketName, objectKey, serverId } = req.query;
+
+      try {
+         // Get server credentials to construct the public URL
+         const server = await prisma.server.findUnique({
+            where: { id: serverId as string },
+            select: { credentials: true },
+         });
+         if (!server) {
+            res.status(404).json({ error: "Server not found" });
+            return;
+         }
+
+         const { decryptCredentials } = await import(
+            "@/lib/utils/encryption"
+         );
+         const credentials = decryptCredentials(server.credentials);
+         const endpoint = credentials.endpoint.replace(/\/$/, "");
+         const publicUrl = `${endpoint}/${encodeURIComponent(bucketName as string)}/${(objectKey as string).split("/").map(encodeURIComponent).join("/")}`;
+
+         try {
+            const headResponse = await fetch(publicUrl, { method: "HEAD" });
+            if (headResponse.ok) {
+               res.status(200).json({
+                  url: publicUrl,
+                  type: "public",
+                  message: "Public URL for object",
+               });
+               return;
+            }
+         } catch {
+         }
+
+         const s3Client = await getS3Client(serverId as string);
+         const command = new GetObjectCommand({
+            Bucket: bucketName as string,
+            Key: objectKey as string,
+         });
+         const presignedUrl = await getSignedUrl(s3Client, command, {
+            expiresIn: 3600,
+         });
+
+         res.status(200).json({
+            url: presignedUrl,
+            type: "presigned",
+            expiresIn: 3600,
+            message: "Presigned URL generated (expires in 1 hour)",
+         });
+      } catch (error: any) {
+         res.status(500).json({ error: error.message });
+      }
+   }
+);
+
+objectRouter.get(
    "/metadata",
    validateQuery(metadataQuerySchema),
    requireBucketPermissions([Permission.LIST_OBJECTS]),
