@@ -13,11 +13,7 @@ const BucketPage = () => {
    const slugArray = Array.isArray(slug) ? slug : [];
    const bucketName = slugArray[0];
    const path = slugArray.slice(1);
-   const pageTitle = bucketName
-      ? path.length > 0
-         ? `${path.join("/")} | ${bucketName}`
-         : bucketName
-      : "Buckets";
+   const pageTitle = bucketName || "Buckets";
 
    return (
       <>
