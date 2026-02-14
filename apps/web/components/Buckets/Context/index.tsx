@@ -5,6 +5,8 @@ import { createContext, useContext } from "react";
 type BucketContextType = {
    bucket: S3Bucket | null;
    path: string[];
+   isLoading: boolean;
+   notFound: boolean;
 };
 
 const BucketContext = createContext<BucketContextType | null>(null);
@@ -20,10 +22,21 @@ const BucketProvider = ({
    path,
    children,
 }: BucketProviderProps) => {
-   const { currentBucket } = useBuckets(undefined, bucketName);
+   const { currentBucket, isBucketsLoading } = useBuckets(
+      undefined,
+      bucketName
+   );
+   const notFound = !isBucketsLoading && !!bucketName && !currentBucket;
 
    return (
-      <BucketContext.Provider value={{ bucket: currentBucket ?? null, path }}>
+      <BucketContext.Provider
+         value={{
+            bucket: currentBucket ?? null,
+            path,
+            isLoading: isBucketsLoading,
+            notFound,
+         }}
+      >
          {children}
       </BucketContext.Provider>
    );
