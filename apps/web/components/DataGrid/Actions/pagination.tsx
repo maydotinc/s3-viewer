@@ -33,9 +33,12 @@ const Pagination = ({ className }: PaginationProps) => {
 
    return (
       <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-         <DropdownMenuTrigger asChild className="focus:outline-none focus:ring-0">
+         <DropdownMenuTrigger asChild>
             <Button
-               className={cn("flex-initial", className)}
+               className={cn(
+                  "flex-initial focus:outline-none focus:ring-0 focus-visible:ring-0",
+                  className
+               )}
                disabled={!session && !isPending}
             >
                {`Rows (${currentPageSize ?? 100})`}
