@@ -51,6 +51,15 @@ function middleware(request: NextRequest) {
       return NextResponse.rewrite(url.toString());
    }
 
+   if (pathname.startsWith("/brand-kit")) {
+      url.hostname = landingOrigin.hostname;
+      url.protocol = landingOrigin.protocol;
+      url.port = landingOrigin.port;
+      url.pathname = "/brand-kit";
+
+      return NextResponse.rewrite(url.toString());
+   }
+
    return NextResponse.next();
 }
 
