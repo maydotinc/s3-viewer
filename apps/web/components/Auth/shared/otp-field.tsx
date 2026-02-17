@@ -4,23 +4,33 @@ import React, { useEffect, useRef, useState } from "react";
 
 interface OTPFieldProps {
    length?: number;
+   initialCode?: string;
    onVerify: (email: string, code: string) => Promise<{ error?: string | null }>;
    onVerified: () => void | Promise<void>;
 }
 
 const OTPField: React.FC<OTPFieldProps> = ({
    length = 6,
+   initialCode,
    onVerify,
    onVerified,
 }) => {
    const { email, setVerifying, setError } = useAuthStore();
    const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+   const hasAutoVerified = useRef(false);
 
    useEffect(() => {
-      if (inputRefs.current[0]) {
-         inputRefs.current[0].focus();
+      if (initialCode && initialCode.length === length && !hasAutoVerified.current) {
+         hasAutoVerified.current = true;
+         const digits = initialCode.replace(/\D/g, "").slice(0, length).split("");
+         if (digits.length === length) {
+            setOtp(digits);
+            verify(digits.join(""));
+            return;
+         }
       }
+      inputRefs.current[0]?.focus();
    }, []);
 
    const verify = async (code: string) => {

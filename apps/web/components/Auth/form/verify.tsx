@@ -5,7 +5,7 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { authClient, verifyOtp, sendVerificationOtp } from "@s3-viewer/auth/client";
 import { MailCheck } from "lucide-react";
 import { useRouter } from "next/router";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 const Verify = () => {
    const router = useRouter();
@@ -17,6 +17,13 @@ const Verify = () => {
       error,
       reset,
    } = useAuthStore();
+
+   const initialCode = useMemo(() => {
+      if (typeof window === "undefined") return undefined;
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      return code && /^\d{6}$/.test(code) ? code : undefined;
+   }, []);
 
    useEffect(() => {
       if (!otpSent || !email) {
@@ -75,7 +82,7 @@ const Verify = () => {
             </div>
          </div>
 
-         <OTPField onVerify={handleVerifyOtp} onVerified={handleVerified} />
+         <OTPField initialCode={initialCode} onVerify={handleVerifyOtp} onVerified={handleVerified} />
          <SubmitButton onSendOtp={handleSendOtp} />
 
          {error && (

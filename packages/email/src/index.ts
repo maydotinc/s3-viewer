@@ -43,7 +43,7 @@ const sendOtpEmail = async ({ to, otp }: SendOtpEmailInput) => {
          from: "S3 Viewer <auth@s3-viewer.com>",
          to: [to],
          subject: "S3 Viewer Login Code",
-         react: S3ViewerEmailOTP({ loginCode: otp }),
+         react: S3ViewerEmailOTP({ loginCode: otp, email: to }),
       });
 
       if (error) {

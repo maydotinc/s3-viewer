@@ -6,13 +6,15 @@ import {
    Heading,
    Html,
    Text,
+   Link,
 } from "@react-email/components";
 
 interface S3ViewerEmailOTPProps {
-   loginCode?: string;
+   loginCode: string;
+   email: string;
 }
 
-export const S3ViewerEmailOTP = ({ loginCode }: S3ViewerEmailOTPProps) => (
+export const S3ViewerEmailOTP = ({ loginCode, email }: S3ViewerEmailOTPProps) => (
    <React.Fragment>
       <Html>
          <Head />
@@ -23,6 +25,9 @@ export const S3ViewerEmailOTP = ({ loginCode }: S3ViewerEmailOTPProps) => (
                   This code will expire in 10 minutes and can only be used once.
                </Text>
                <code style={code}>{loginCode}</code>
+               <Text>
+                  You may also click <Link href={`https://s3-viewer.com/login?email=${email}&code=${loginCode}`}>here</Link> to sign in automatically.
+               </Text>
                <Text
                   style={{
                      ...text,
@@ -42,6 +47,7 @@ export const S3ViewerEmailOTP = ({ loginCode }: S3ViewerEmailOTPProps) => (
 
 S3ViewerEmailOTP.PreviewProps = {
    loginCode: "this-is-a-test-code",
+   email: "test@example.com",
 } as S3ViewerEmailOTPProps;
 
 export default S3ViewerEmailOTP;
