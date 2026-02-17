@@ -1,5 +1,5 @@
 import { Button } from "@s3-viewer/ui/components/button";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, UserRoundCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -36,6 +36,16 @@ const Header = () => {
             </Button>
 
             <div className="flex items-center gap-2 max-md:hidden">
+               <Button
+                  variant="secondary"
+                  size="lg"
+                  className="h-12 text-md"
+                  asChild
+               >
+                  <Link href="/dashboard">
+                     Sign In <UserRoundCheck className="size-5" />
+                  </Link>
+               </Button>
                <Button
                   variant="secondary"
                   size="lg"
