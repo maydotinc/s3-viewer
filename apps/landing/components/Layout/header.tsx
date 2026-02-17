@@ -1,7 +1,8 @@
 import { Button } from "@s3-viewer/ui/components/button";
-import { ChevronRight, UserRoundCheck } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { FaGithub } from "react-icons/fa";
 
 const Header = () => {
    return (
@@ -24,26 +25,48 @@ const Header = () => {
                />
             </Link>
 
-            <Button
-               size="lg"
-               variant="secondary"
-               className="h-12 text-md md:hidden"
-               asChild
-            >
-               <Link href="/dashboard">
-                  <ChevronRight className="size-5" />
-               </Link>
-            </Button>
+            <div className="flex items-center gap-2 md:hidden">
+               <Button
+                  size="lg"
+                  variant="secondary"
+                  className="h-12 w-12 p-0 !bg-black !text-white hover:!bg-black/90"
+                  asChild
+               >
+                  <Link
+                     href="https://github.com/maydotinc/s3-viewer"
+                     target="_blank"
+                     rel="noreferrer"
+                     aria-label="View S3 Viewer on GitHub"
+                  >
+                     <FaGithub className="size-5" />
+                  </Link>
+               </Button>
+               <Button
+                  size="lg"
+                  variant="secondary"
+                  className="h-12 text-md"
+                  asChild
+               >
+                  <Link href="/dashboard">
+                     <ChevronRight className="size-5" />
+                  </Link>
+               </Button>
+            </div>
 
             <div className="flex items-center gap-2 max-md:hidden">
                <Button
                   variant="secondary"
                   size="lg"
-                  className="h-12 text-md"
+                  className="h-12 w-12 p-0 !bg-black !text-white hover:!bg-black/90"
                   asChild
                >
-                  <Link href="/login">
-                     Sign In <UserRoundCheck className="size-5" />
+                  <Link
+                     href="https://github.com/maydotinc/s3-viewer"
+                     target="_blank"
+                     rel="noreferrer"
+                     aria-label="View S3 Viewer on GitHub"
+                  >
+                     <FaGithub className="size-5" />
                   </Link>
                </Button>
                <Button

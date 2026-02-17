@@ -9,10 +9,10 @@ const IntroBlock = () => {
       <BasicBlock className="md:flex-row gap-0 max-md:py-5 max-md:border-b max-md:border-viewerborder">
          <div className="bg-viewergray flex-1 border border-viewerborder">
             <div className="flex flex-col justify-center h-full p-6 gap-6">
-               <div className="flex cursor-default items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite">
+               <Link target="_blank" href="https://github.com/maydotinc/s3-viewer" className="flex cursor-pointer items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite">
                   <FaGithub className="size-4" />
                   <span className="text-md">OPEN SOURCE</span>
-               </div>
+               </Link>
                <h1 className="md:text-[42px] text-4xl font-semibold text-viewerblack">
                   Explore S3-compatible Object Storage Online
                </h1>
