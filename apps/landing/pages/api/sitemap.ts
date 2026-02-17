@@ -23,6 +23,11 @@ const pages = [
       changefreq: "monthly" as const,
       priority: "0.5",
    },
+   {
+      path: "/brand-kit",
+      changefreq: "monthly" as const,
+      priority: "0.5",
+   },
 ];
 
 export default function handler(_req: NextApiRequest, res: NextApiResponse) {
