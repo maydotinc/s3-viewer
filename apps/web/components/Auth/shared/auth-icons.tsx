@@ -1,10 +1,4 @@
-import useAuthStore from "@/lib/stores/authStore";
-import { signInWithGithub } from "@s3-viewer/auth/client";
-import { Button } from "@s3-viewer/ui/components/button";
-import { toast } from "@s3-viewer/ui/components/toast";
-import { useCallback } from "react";
-
-const GithubIcon = ({ className }: { className?: string }) => {
+export const GithubIcon = ({ className }: { className?: string }) => {
    return (
       <svg
          viewBox="0 0 98 96"
@@ -19,27 +13,3 @@ const GithubIcon = ({ className }: { className?: string }) => {
       </svg>
    );
 };
-
-const GithubButton = () => {
-   const handleClick = useCallback(async () => {
-      const { success, error } = await signInWithGithub();
-      if (error || !success) {
-         toast.error("Failed to sign in with Github");
-         console.error(error);
-      }
-   }, []);
-
-   return (
-      <Button
-         variant="default"
-         size="lg"
-         className="w-full flex items-center justify-center gap-2 bg-black hover:bg-gray-900 text-white"
-         onClick={handleClick}
-      >
-         <GithubIcon className="size-5" />
-         Continue with GitHub
-      </Button>
-   );
-};
-
-export default GithubButton;

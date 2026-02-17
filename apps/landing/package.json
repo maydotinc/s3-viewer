@@ -10,6 +10,7 @@
       "lint": "next lint"
    },
    "dependencies": {
+      "@s3-viewer/auth": "workspace:*",
       "@s3-viewer/ui": "workspace:*",
       "lottie-react": "^2.4.1",
       "lucide-react": "^0.475.0",

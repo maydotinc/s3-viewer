@@ -90,6 +90,9 @@ importers:
 
   apps/landing:
     dependencies:
+      '@s3-viewer/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@s3-viewer/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -461,6 +464,9 @@ importers:
       zod:
         specifier: ^3.25.28
         version: 3.25.49
+      zustand:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/react@19.1.6)(immer@10.1.1)(react@19.1.0)(use-sync-external-store@1.5.0(react@19.1.0))
     devDependencies:
       '@s3-viewer/eslint-config':
         specifier: workspace:*

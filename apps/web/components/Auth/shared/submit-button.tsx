@@ -1,10 +1,17 @@
 import useAuthStore from "@/lib/stores/authStore";
-import { sendVerificationOtp } from "@s3-viewer/auth/client";
 import { Button } from "@s3-viewer/ui/components/button";
 import { isValidEmail } from "@s3-viewer/ui/lib/utils";
 import { LoaderCircle } from "lucide-react";
 
-const SubmitButton = () => {
+interface SubmitButtonProps {
+   onSendOtp: (
+      authType: "signin" | "signup",
+      email: string
+   ) => Promise<{ success?: boolean; error?: string | null }>;
+   onOtpSent?: () => void;
+}
+
+const SubmitButton = ({ onSendOtp, onOtpSent }: SubmitButtonProps) => {
    const {
       name,
       email,
@@ -18,6 +25,7 @@ const SubmitButton = () => {
       verifying,
       setError,
    } = useAuthStore();
+
    const buttonText = otpSent
       ? "Verify"
       : authType === "signin"
@@ -44,7 +52,7 @@ const SubmitButton = () => {
       } else {
          setInvalidFields(invalidFields.filter((field) => field !== "email"));
       }
-      const { success, error } = await sendVerificationOtp(authType, email);
+      const { success, error } = await onSendOtp(authType, email);
       if (error) {
          setError(error);
          setLoading(false);
@@ -54,6 +62,7 @@ const SubmitButton = () => {
          setOtpSent(true);
          setLoading(false);
          setError(null);
+         onOtpSent?.();
          return;
       }
       setLoading(false);

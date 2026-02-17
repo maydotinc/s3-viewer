@@ -3,7 +3,7 @@ import { authClient } from "@s3-viewer/auth/client";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
-const ERROR_PAGES = ["/404", "/500"];
+const SKIP_AUTH_PAGES = ["/404", "/500", "/login", "/signup", "/verify"];
 
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
    const router = useRouter();
@@ -11,7 +11,7 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
    const { openAuthModal } = useModalContext();
 
    useEffect(() => {
-      if (ERROR_PAGES.some((path) => router.pathname.startsWith(path))) {
+      if (SKIP_AUTH_PAGES.some((path) => router.pathname.startsWith(path))) {
          return;
       }
 

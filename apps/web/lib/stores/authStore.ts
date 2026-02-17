@@ -21,6 +21,7 @@ type AuthState = {
 
 type AuthActions = {
    toggleAuthType: () => void;
+   setAuthType: (authType: AuthType) => void;
    setError: (error: string | null) => void;
    setName: (name: string) => void;
    setEmail: (email: string) => void;
@@ -50,6 +51,7 @@ const useAuthStore = create<AuthStore>()(
          set((state) => ({
             authType: state.authType === "signin" ? "signup" : "signin",
          })),
+      setAuthType: (authType) => set({ authType }),
       setName: (name) => set({ name }),
       setEmail: (email) => set({ email }),
       setIsValidEmail: (isValidEmail) => set({ isValidEmail }),
@@ -73,7 +75,7 @@ const useAuthStore = create<AuthStore>()(
       setVerifying: (verifying) => set({ verifying }),
       setError: (error) => set({ error }),
       reset: () =>
-         set((state) => ({
+         set({
             authType: "signin",
             name: "",
             email: "",
@@ -83,7 +85,7 @@ const useAuthStore = create<AuthStore>()(
             otpSent: false,
             invalidFields: [],
             error: null,
-         })),
+         }),
    }))
 );
 

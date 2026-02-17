@@ -1,11 +1,10 @@
-import useAuthStore from "@/lib/stores/authStore";
 import { Input } from "@s3-viewer/ui/components/input";
 import { cn, isValidEmail } from "@s3-viewer/ui/lib/utils";
-import emailSpellChecker from "@zootools/email-spell-checker";
+import useAuthStore from "@/lib/stores/authStore";
 import { debounce } from "lodash";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-const EmailInput = () => {
+const EmailField = () => {
    const { email, setEmail, invalidFields, setInvalidFields, setError } =
       useAuthStore();
 
@@ -17,17 +16,11 @@ const EmailInput = () => {
 
    const validateEmail = useCallback(
       (value: string) => {
-         const isValid = isValidEmail(value);
-         if (isValid) {
+         const valid = isValidEmail(value);
+         if (valid) {
             setInvalidFields(
                invalidFields.filter((field) => field !== "email")
             );
-
-            const suggestion = emailSpellChecker.run({
-               email: value,
-            });
-
-            setEmailSuggestion(suggestion || null);
          } else {
             if (!invalidFields.includes("email")) {
                setInvalidFields([...invalidFields, "email"]);
@@ -77,7 +70,7 @@ const EmailInput = () => {
             <Input
                id="email"
                type="email"
-               placeholder={"mileycyrus@may.inc"}
+               placeholder="mileycyrus@may.inc"
                autoComplete="email"
                className={cn(
                   "w-full transition-colors duration-300 text-black",
@@ -105,4 +98,4 @@ const EmailInput = () => {
    );
 };
 
-export default EmailInput;
+export default EmailField;

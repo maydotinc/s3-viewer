@@ -4,7 +4,7 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import { debounce } from "lodash";
 import { useCallback, useEffect, useMemo } from "react";
 
-const NameInput = () => {
+const NameField = () => {
    const { name, setName, invalidFields, setInvalidFields } = useAuthStore();
 
    const validateName = useCallback(
@@ -16,7 +16,7 @@ const NameInput = () => {
             setInvalidFields([...invalidFields, "name"]);
          }
       },
-      [setInvalidFields, invalidFields, name, setName]
+      [setInvalidFields, invalidFields]
    );
 
    const debouncedValidateName = useMemo(
@@ -58,4 +58,4 @@ const NameInput = () => {
    );
 };
 
-export default NameInput;
+export default NameField;

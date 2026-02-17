@@ -1,21 +1,21 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
 import useAuthStore from "@/lib/stores/authStore";
-import { authClient, verifyOtp } from "@s3-viewer/auth/client";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { useRouter } from "next/router";
 import React, { useEffect, useRef, useState } from "react";
 
-interface OTPInputProps {
+interface OTPFieldProps {
    length?: number;
+   onVerify: (email: string, code: string) => Promise<{ error?: string | null }>;
+   onVerified: () => void | Promise<void>;
 }
 
-const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
-   const router = useRouter();
-   const { closeModal } = useModalContext();
-   const { email, name, setVerifying, authType, setError } = useAuthStore();
+const OTPField: React.FC<OTPFieldProps> = ({
+   length = 6,
+   onVerify,
+   onVerified,
+}) => {
+   const { email, setVerifying, setError } = useAuthStore();
    const [otp, setOtp] = useState<string[]>(Array(length).fill(""));
    const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
-   const { refetch: refetchSession } = authClient.useSession();
 
    useEffect(() => {
       if (inputRefs.current[0]) {
@@ -32,26 +32,14 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
       }
 
       try {
-         const { error } = await verifyOtp(email, code);
+         const { error } = await onVerify(email, code);
          if (error) {
             setError(error);
             return;
          }
 
          setError(null);
-         if (authType === "signup") {
-            const { error: updateError } = await authClient.updateUser({
-               name,
-            });
-            if (updateError) {
-               setError(updateError.message ?? updateError.statusText);
-               return;
-            }
-         }
-
-         refetchSession();
-         closeModal("auth");
-         await router.push("/dashboard");
+         await onVerified();
       } finally {
          setVerifying(false);
       }
@@ -139,4 +127,4 @@ const OTPInput: React.FC<OTPInputProps> = ({ length = 6 }) => {
    );
 };
 
-export default OTPInput;
+export default OTPField;
