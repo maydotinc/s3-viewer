@@ -8,14 +8,18 @@ const AuthHeader = () => {
    return (
       <>
          <header className="relative mx-auto flex w-[95%] items-center justify-between px-5 pb-4 pt-6 xl:max-w-screen-2xl">
-            <Link href="/" className="select-none pointer-events-auto h-7 w-fit min-h-7 max-h-7 touch-auto">
+            <Link
+               href="/"
+               className="select-none pointer-events-auto h-7 w-[120px] min-h-7 max-h-7 touch-auto"
+            >
                <Image
                   src="/icons/viewer.svg"
                   alt="S3 Viewer Logo"
-                  width={120}
-                  height={40}
+                  width={84}
+                  height={28}
+                  priority
                   draggable={false}
-                  className="pointer-events-none select-none h-7 w-fit"
+                  className="pointer-events-none select-none h-7 w-[120px]"
                />
             </Link>
 
