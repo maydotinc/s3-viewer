@@ -1,0 +1,8 @@
+# S3 Viewer App - authenticated dashboard
+User-agent: *
+Disallow: /dashboard
+Disallow: /buckets
+Disallow: /invites
+Allow: /
+
+Sitemap: https://s3-viewer.com/sitemap.xml

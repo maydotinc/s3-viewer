@@ -22,6 +22,11 @@ function middleware(request: NextRequest) {
       return NextResponse.rewrite(url.toString());
    }
 
+   if (pathname === "/sitemap.xml") {
+      url.pathname = "/api/sitemap";
+      return NextResponse.rewrite(url.toString());
+   }
+
    if (pathname === "/") {
       url.hostname = landingOrigin.hostname;
       url.protocol = landingOrigin.protocol;
