@@ -16,7 +16,7 @@ const SignUp = () => {
       }
    }, []);
 
-   return <AuthForm />;
+   return <AuthForm authType="signup" />;
 };
 
 export default SignUp;

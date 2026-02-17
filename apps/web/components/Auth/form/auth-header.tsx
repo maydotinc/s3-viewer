@@ -6,17 +6,16 @@ const AuthHeader = () => {
 
    return (
       <>
-         <div className="h-[5px]" />
          <header className="relative mx-auto flex w-[95%] items-center justify-between px-5 pb-4 pt-6 xl:max-w-screen-2xl">
             <Link href="/" className="select-none pointer-events-auto touch-auto">
                <img
                   src="/icons/viewer.svg"
-                  alt="Crayo Logo"
+                  alt="S3 Viewer Logo"
                   draggable={false}
                   loading="lazy"
                   width={120}
                   height={40}
-                  className="pointer-events-none select-none"
+                  className="pointer-events-none select-none h-7 w-auto"
                />
             </Link>
 

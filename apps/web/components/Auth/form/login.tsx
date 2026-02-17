@@ -26,7 +26,7 @@ const Login = () => {
       }
    }, []);
 
-   return <AuthForm />;
+   return <AuthForm authType="signin" />;
 };
 
 export default Login;

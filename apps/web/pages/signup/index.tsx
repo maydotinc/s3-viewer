@@ -1,8 +1,19 @@
 import SignUp from "@/components/Auth/form/sign-up";
-import AuthLayout from "@/components/Auth/form/auth-layout";
+import AuthLayout from "@/components/Layout/auth";
+import Seo from "@/components/Seo";
 
 const SignUpPage = () => {
-   return <SignUp />;
+   return (
+      <>
+         <Seo
+            title="Sign Up"
+            description="Create your S3 Viewer account to access your buckets."
+            canonical="/signup"
+            noindex={true}
+         />
+         <SignUp />
+      </>
+   );
 };
 
 SignUpPage.getLayout = (page: React.ReactNode) => {

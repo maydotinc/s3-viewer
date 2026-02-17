@@ -4,6 +4,7 @@ import { isValidEmail } from "@s3-viewer/ui/lib/utils";
 import { LoaderCircle } from "lucide-react";
 
 interface SubmitButtonProps {
+   authType?: "signin" | "signup";
    onSendOtp: (
       authType: "signin" | "signup",
       email: string
@@ -11,7 +12,11 @@ interface SubmitButtonProps {
    onOtpSent?: () => void;
 }
 
-const SubmitButton = ({ onSendOtp, onOtpSent }: SubmitButtonProps) => {
+const SubmitButton = ({
+   authType: authTypeOverride,
+   onSendOtp,
+   onOtpSent,
+}: SubmitButtonProps) => {
    const {
       name,
       email,
@@ -25,16 +30,17 @@ const SubmitButton = ({ onSendOtp, onOtpSent }: SubmitButtonProps) => {
       verifying,
       setError,
    } = useAuthStore();
+   const effectiveAuthType = authTypeOverride ?? authType;
 
    const buttonText = otpSent
       ? "Verify"
-      : authType === "signin"
+      : effectiveAuthType === "signin"
         ? "Send Code"
         : "Register";
 
    const handleSubmit = async () => {
       setLoading(true);
-      if (authType === "signup") {
+      if (effectiveAuthType === "signup") {
          if (!name) {
             setInvalidFields([...invalidFields, "name"]);
             setError("Name is required");
@@ -52,7 +58,7 @@ const SubmitButton = ({ onSendOtp, onOtpSent }: SubmitButtonProps) => {
       } else {
          setInvalidFields(invalidFields.filter((field) => field !== "email"));
       }
-      const { success, error } = await onSendOtp(authType, email);
+      const { success, error } = await onSendOtp(effectiveAuthType, email);
       if (error) {
          setError(error);
          setLoading(false);

@@ -12,16 +12,20 @@ import { useCallback } from "react";
 
 type AuthFormProps = {
    className?: string;
+   authType?: "signin" | "signup";
 };
 
-const AuthForm = ({ className }: AuthFormProps) => {
+const AuthForm = ({ className, authType: authTypeOverride }: AuthFormProps) => {
    const router = useRouter();
    const { authType, error } = useAuthStore();
+   const activeAuthType = authTypeOverride ?? authType;
 
    const headingText =
-      authType === "signin" ? "Log in to your account" : "Create a new account";
+      activeAuthType === "signin"
+         ? "Log in to your account"
+         : "Create a new account";
    const descriptionText =
-      authType === "signin"
+      activeAuthType === "signin"
          ? "Enter your details to recieve a verification code"
          : "Enter your details to continue";
 
@@ -48,7 +52,7 @@ const AuthForm = ({ className }: AuthFormProps) => {
       <div className={cn("w-full max-w-md space-y-4 sm:space-y-6", className)}>
          <div className="flex flex-col items-center gap-5 text-center">
             <div className="bg-viewergray border border-xs rounded-2xl p-4">
-               {authType === "signup" ? (
+               {activeAuthType === "signup" ? (
                   <UserRoundPlus className="size-7 text-viewerblue" />
                ) : (
                   <UserRoundCheck className="size-7 text-viewerblue" />
@@ -63,9 +67,13 @@ const AuthForm = ({ className }: AuthFormProps) => {
          </div>
 
          <div className="flex flex-col w-full gap-4">
-            {authType === "signup" && <NameField />}
+            {activeAuthType === "signup" && <NameField />}
             <EmailField />
-            <SubmitButton onSendOtp={handleSendOtp} onOtpSent={handleOtpSent} />
+            <SubmitButton
+               authType={activeAuthType}
+               onSendOtp={handleSendOtp}
+               onOtpSent={handleOtpSent}
+            />
             <div className="flex items-center gap-2 w-full">
                <div className="flex-1 h-[1px] bg-gray-300" />
                <span className="text-sm text-gray-500">OR</span>
