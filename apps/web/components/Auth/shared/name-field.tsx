@@ -46,7 +46,7 @@ const NameField = () => {
          </label>
          <Input
             type="text"
-            placeholder="Miley Cyrus"
+            placeholder="John Doe"
             className={cn(
                "w-full transition-colors duration-300 text-black",
                invalidFields.includes("name") && "border-red-500"
