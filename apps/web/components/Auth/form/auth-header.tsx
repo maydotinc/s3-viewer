@@ -1,5 +1,6 @@
 import Link from "next/link";
 import useAuthStore from "@/lib/stores/authStore";
+import Image from "next/image";
 
 const AuthHeader = () => {
    const { authType } = useAuthStore();
@@ -7,15 +8,14 @@ const AuthHeader = () => {
    return (
       <>
          <header className="relative mx-auto flex w-[95%] items-center justify-between px-5 pb-4 pt-6 xl:max-w-screen-2xl">
-            <Link href="/" className="select-none pointer-events-auto touch-auto">
-               <img
+            <Link href="/" className="select-none pointer-events-auto h-7 w-fit min-h-7 max-h-7 touch-auto">
+               <Image
                   src="/icons/viewer.svg"
                   alt="S3 Viewer Logo"
-                  draggable={false}
-                  loading="lazy"
                   width={120}
                   height={40}
-                  className="pointer-events-none select-none h-7 w-auto"
+                  draggable={false}
+                  className="pointer-events-none select-none h-7 w-fit"
                />
             </Link>
 
