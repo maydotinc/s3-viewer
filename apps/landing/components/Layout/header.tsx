@@ -42,7 +42,7 @@ const Header = () => {
                   className="h-12 text-md"
                   asChild
                >
-                  <Link href="/dashboard">
+                  <Link href="/login">
                      Sign In <UserRoundCheck className="size-5" />
                   </Link>
                </Button>
