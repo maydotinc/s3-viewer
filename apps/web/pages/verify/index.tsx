@@ -9,7 +9,7 @@ const VerifyPage = () => {
             title="Verify"
             description="Verify your email address to continue to your S3 Viewer account."
             canonical="/verify"
-            noindex={true}
+            noindex={false}
          />
          <Verify />
       </>

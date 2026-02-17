@@ -13,14 +13,14 @@ const HomePage = () => {
          Landing Page
       </div>
    );
-}; 
+};
 
 HomePage.getLayout = (page: React.ReactNode) => {
-  return (
-    <ViewerBanner>
-      {page}
-    </ViewerBanner>
-  );
+   return (
+      <ViewerBanner>
+         {page}
+      </ViewerBanner>
+   );
 }
 
 export default HomePage;

@@ -9,7 +9,7 @@ const SignUpPage = () => {
             title="Sign Up"
             description="Create your S3 Viewer account to access your buckets."
             canonical="/signup"
-            noindex={true}
+            noindex={false}
          />
          <SignUp />
       </>

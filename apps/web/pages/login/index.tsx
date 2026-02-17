@@ -9,7 +9,7 @@ const LoginPage = () => {
             title="Login"
             description="Log in to your S3 Viewer account."
             canonical="/login"
-            noindex={true}
+            noindex={false}
          />
          <Login />
       </>
