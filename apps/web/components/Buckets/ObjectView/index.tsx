@@ -19,6 +19,7 @@ const ObjectView = () => {
       handleBack,
       handleDownload,
       handleDelete,
+      handleRename,
    } = useObjectActions();
 
    const { data: metadata, isLoading: metadataLoading } = useObjectMetadata(
@@ -55,9 +56,10 @@ const ObjectView = () => {
    return (
       <section className="flex flex-col p-8 pt-6 w-full h-full overflow-hidden">
          <ObjectActionsHeader
-            objectName={objectName}
+            objectKey={objectKey}
             isLoading={isLoading}
             onBack={handleBack}
+            onRename={handleRename}
             onDownload={handleDownload}
             onDelete={handleDelete}
          />
@@ -76,10 +78,10 @@ const ObjectView = () => {
                previewType={previewType}
                preview={preview}
                previewLoading={
-               metadataLoading ||
-               previewLoading ||
-               (!metadata && (!serverId || !bucket?.Name || !objectKey))
-            }
+                  metadataLoading ||
+                  previewLoading ||
+                  (!metadata && (!serverId || !bucket?.Name || !objectKey))
+               }
                previewError={previewError}
                contentLength={metadata?.contentLength}
             />

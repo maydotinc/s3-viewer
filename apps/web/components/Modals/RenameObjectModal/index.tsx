@@ -9,9 +9,9 @@ import {
    DialogHeader,
    DialogTitle,
 } from "@s3-viewer/ui/components/dialog";
-import { Input } from "@s3-viewer/ui/components/input";
 import { FilePen, Info } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { usePathSuggestion } from "./path-suggestion";
 
 type RenameObjectModalProps = {
    onClose: () => void;
@@ -30,29 +30,28 @@ const RenameObjectModal: React.FC<RenameObjectModalProps> = ({
 }) => {
    const renameObjectMutation = useRenameObject();
    const [renameError, setRenameError] = useState<string | null>(null);
+   const [newKey, setNewKey] = useState(objectKey);
+   const inputRef = useRef<HTMLInputElement>(null);
 
-   // Extract just the file name from the full key (strip prefix/path)
-   const prefix = useMemo(() => {
-      const lastSlash = objectKey.lastIndexOf("/");
-      return lastSlash >= 0 ? objectKey.substring(0, lastSlash + 1) : "";
-   }, [objectKey]);
+   const suggestion = usePathSuggestion(serverId, bucketName, newKey);
 
-   const originalName = useMemo(() => {
-      const lastSlash = objectKey.lastIndexOf("/");
-      return lastSlash >= 0 ? objectKey.substring(lastSlash + 1) : objectKey;
-   }, [objectKey]);
+   const isUnchanged = newKey === objectKey;
+   const isEmpty = newKey.trim().length === 0;
 
-   const [newName, setNewName] = useState(originalName);
-
-   const newObjectKey = prefix + newName;
-   const isUnchanged = newName === originalName;
-   const isEmpty = newName.trim().length === 0;
+   const acceptSuggestion = useCallback(() => {
+      if (!suggestion) return false;
+      const nextSlash = suggestion.indexOf("/");
+      const accepted =
+         nextSlash >= 0 ? suggestion.substring(0, nextSlash + 1) : suggestion;
+      setNewKey((prev) => prev + accepted);
+      return true;
+   }, [suggestion]);
 
    const handleRename = () => {
       if (!serverId || !bucketName || isEmpty || isUnchanged) return;
 
       renameObjectMutation.mutate(
-         { serverId, bucketName, objectKey, newObjectKey },
+         { serverId, bucketName, objectKey, newObjectKey: newKey },
          {
             onSuccess: () => {
                setRenameError(null);
@@ -80,48 +79,79 @@ const RenameObjectModal: React.FC<RenameObjectModalProps> = ({
                </DialogTitle>
                <DialogDescription className="flex items-center text-center gap-2 flex-col">
                   <span>
-                     Enter a new name for{" "}
-                     <span className="font-medium text-black">
-                        &quot;{originalName}&quot;
-                     </span>
+                     Edit the full object key to rename or move this object.
                   </span>
                </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4">
                <div className="flex flex-col gap-2">
-                  <label
-                     htmlFor="newObjectName"
-                     className="text-sm font-medium text-black"
-                  >
-                     New name
-                  </label>
-                  <Input
-                     id="newObjectName"
-                     value={newName}
-                     onChange={(e) => {
-                        setNewName(e.target.value);
-                        setRenameError(null);
-                     }}
-                     onKeyDown={(e) => {
-                        if (e.key === "Enter" && !isEmpty && !isUnchanged) {
-                           handleRename();
-                        }
-                     }}
-                     placeholder="Enter new file name"
-                     autoFocus
-                  />
+                  <div className="flex items-center justify-between">
+                     <label
+                        htmlFor="newObjectKey"
+                        className="text-sm font-medium text-black"
+                     >
+                        Object key
+                     </label>
+                     {suggestion && (
+                        <span className="text-[11px] text-gray-400">
+                           Tab to autocomplete
+                        </span>
+                     )}
+                  </div>
+                  <div className="relative">
+                     <input
+                        ref={inputRef}
+                        id="newObjectKey"
+                        type="text"
+                        value={newKey}
+                        onChange={(e) => {
+                           setNewKey(e.target.value);
+                           setRenameError(null);
+                        }}
+                        onKeyDown={(e) => {
+                           if (e.key === "Tab" && suggestion) {
+                              e.preventDefault();
+                              acceptSuggestion();
+                           } else if (
+                              e.key === "Enter" &&
+                              !isEmpty &&
+                              !isUnchanged
+                           ) {
+                              handleRename();
+                           }
+                        }}
+                        placeholder="path/to/file.ext"
+                        autoFocus
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="border-input relative z-0 flex h-9 w-full min-w-0 rounded-lg border bg-white px-3 py-1 text-base transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
+                     />
+                     <div
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 z-10 flex items-center px-3 text-base md:text-sm overflow-hidden whitespace-pre"
+                     >
+                        <span className="invisible">{newKey}</span>
+                        <span className="text-gray-400">{suggestion}</span>
+                     </div>
+                  </div>
                </div>
-               <div className="flex items-start gap-2">
+               <div className="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
                   <Info className="size-4 text-viewerblue mt-0.5 shrink-0" />
-                  <p className="text-xs text-viewertext">
+                  <p className="text-xs text-viewerblue">
                      S3 does not natively support renaming. This will create a
-                     copy with the new name and then delete the original object.
+                     copy at the new key and delete the original. Changing the
+                     path will effectively move the object.
                   </p>
                </div>
             </div>
-            <DialogFooter className="flex flex-col justify-center gap-2">
+            <DialogFooter className="flex flex-row items-center w-full justify-center gap-2">
+               <DialogClose asChild>
+                  <Button variant="outline" className="w-full flex-1">
+                     Cancel
+                  </Button>
+               </DialogClose>
                <Button
-                  className="w-full"
+                  className="w-full flex-1"
                   onClick={handleRename}
                   disabled={
                      renameObjectMutation.isPending || isEmpty || isUnchanged
@@ -129,11 +159,6 @@ const RenameObjectModal: React.FC<RenameObjectModalProps> = ({
                >
                   {renameObjectMutation.isPending ? "Renaming..." : "Rename"}
                </Button>
-               <DialogClose asChild>
-                  <Button variant="outline" className="w-full">
-                     Cancel
-                  </Button>
-               </DialogClose>
             </DialogFooter>
             {renameError && (
                <span className="text-red-500 text-sm text-center">

@@ -1,19 +1,21 @@
 import { useState, useCallback, useRef } from "react";
 import { Button } from "@s3-viewer/ui/components/button";
-import { ChevronLeft, Copy, Check, Download, Trash2 } from "lucide-react";
+import { ChevronLeft, Copy, Check, Download, FilePen, Trash2 } from "lucide-react";
 
 interface ObjectActionsHeaderProps {
-   objectName: string;
+   objectKey: string;
    isLoading: boolean;
    onBack: () => void;
+   onRename: () => void;
    onDownload: () => void;
    onDelete: () => void;
 }
 
 const ObjectActionsHeader = ({
-   objectName,
+   objectKey,
    isLoading,
    onBack,
+   onRename,
    onDownload,
    onDelete,
 }: ObjectActionsHeaderProps) => {
@@ -21,11 +23,11 @@ const ObjectActionsHeader = ({
    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
    const handleCopy = useCallback(() => {
-      navigator.clipboard.writeText(objectName);
+      navigator.clipboard.writeText(objectKey);
       setCopied(true);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = setTimeout(() => setCopied(false), 1500);
-   }, [objectName]);
+   }, [objectKey]);
 
    return (
       <div className="flex pb-6 gap-4 w-full justify-between max-w-full max-lg:flex-col max-lg:justify-start">
@@ -38,7 +40,7 @@ const ObjectActionsHeader = ({
             >
                <ChevronLeft className="size-5" />
             </span>
-            <h1 className="truncate text-lg max-w-[400px]">{objectName}</h1>
+            <h1 className="truncate text-lg max-w-[400px]">{objectKey}</h1>
             <Button
                variant="outline"
                className="aspect-square size-6 flex items-center justify-center p-2"
@@ -55,6 +57,10 @@ const ObjectActionsHeader = ({
             </Button>
          </div>
          <div className="flex gap-2">
+            <Button variant="outline" onClick={onRename} disabled={isLoading}>
+               <FilePen className="size-4" />
+               Rename
+            </Button>
             <Button variant="outline" onClick={onDownload} disabled={isLoading}>
                <Download className="size-4" />
                Download

@@ -8,7 +8,7 @@ import { useBucketContext } from "../Context";
 const useObjectActions = () => {
    const router = useRouter();
    const [isLoading, setIsLoading] = useState(false);
-   const { openConfirmDeleteModal } = useModalContext();
+   const { openConfirmDeleteModal, openRenameObjectModal } = useModalContext();
    const serverId = useSessionStore((state) => state.serverId);
    const { path, bucket } = useBucketContext();
    const objectKey = path.join("/");
@@ -80,6 +80,18 @@ const useObjectActions = () => {
       });
    }, [bucket?.Name, serverId, objectKey, openConfirmDeleteModal, handleBack]);
 
+   const handleRename = useCallback(() => {
+      if (!bucket?.Name || !serverId || !objectKey) return;
+      openRenameObjectModal({
+         serverId,
+         bucketName: bucket.Name,
+         objectKey,
+         onRenameSuccess: () => {
+            router.replace(router.asPath);
+         },
+      });
+   }, [bucket?.Name, serverId, objectKey, openRenameObjectModal, router]);
+
    return {
       objectKey,
       objectName,
@@ -89,6 +101,7 @@ const useObjectActions = () => {
       handleBack,
       handleDownload,
       handleDelete,
+      handleRename,
    };
 };
 
