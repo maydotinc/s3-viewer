@@ -13,6 +13,16 @@ const pages = [
       changefreq: "monthly" as const,
       priority: "0.5",
    },
+   {
+      path: "/login",
+      changefreq: "monthly" as const,
+      priority: "0.5",
+   },
+   {
+      path: "/signup",
+      changefreq: "monthly" as const,
+      priority: "0.5",
+   },
 ];
 
 export default function handler(_req: NextApiRequest, res: NextApiResponse) {
@@ -20,15 +30,15 @@ export default function handler(_req: NextApiRequest, res: NextApiResponse) {
    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${pages
-   .map(
-      (p) => `  <url>
+         .map(
+            (p) => `  <url>
     <loc>${SITE_URL}${p.path}</loc>
     <lastmod>${lastmod}</lastmod>
     <changefreq>${p.changefreq}</changefreq>
     <priority>${p.priority}</priority>
   </url>`
-   )
-   .join("\n")}
+         )
+         .join("\n")}
 </urlset>`;
 
    res.setHeader("Content-Type", "application/xml");
