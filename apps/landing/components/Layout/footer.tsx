@@ -28,6 +28,7 @@ const Footer = () => {
                <Link href="/privacy-policy" className="underline order-first">
                   Privacy Policy
                </Link>
+               <Link href="/brand-kit" className="underline"> Brand Kit</Link>
             </div>
          </div>
 
