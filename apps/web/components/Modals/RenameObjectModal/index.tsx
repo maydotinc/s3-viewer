@@ -11,7 +11,7 @@ import {
 } from "@s3-viewer/ui/components/dialog";
 import { FilePen, Info } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
-import { usePathSuggestion } from "./path-suggestion";
+import usePathSuggestion from "@/lib/hooks/usePathSuggestion";
 
 type RenameObjectModalProps = {
    onClose: () => void;
