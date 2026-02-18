@@ -1,84 +1,61 @@
 import { createApiRequest } from "@/lib/utils/api";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+function useDebouncedValue(value: string, delay: number) {
+   const [debounced, setDebounced] = useState(value);
+   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+   useEffect(() => {
+      timerRef.current = setTimeout(() => setDebounced(value), delay);
+      return () => {
+         if (timerRef.current) clearTimeout(timerRef.current);
+      };
+   }, [value, delay]);
+
+   return debounced;
+}
 
 export function usePathSuggestion(
    serverId: string,
    bucketName: string,
    currentKey: string
 ) {
-   const [suggestion, setSuggestion] = useState("");
-   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-   const cacheRef = useRef<Map<string, string[]>>(new Map());
+   const debouncedKey = useDebouncedValue(currentKey, 200);
 
-   const fetchSuggestions = useCallback(
-      async (prefix: string): Promise<string[]> => {
-         const cacheKey = `${serverId}:${bucketName}:${prefix}`;
-         if (cacheRef.current.has(cacheKey)) {
-            return cacheRef.current.get(cacheKey)!;
-         }
+   const lastSlash = debouncedKey.lastIndexOf("/");
+   const prefix =
+      lastSlash >= 0 ? debouncedKey.substring(0, lastSlash + 1) : "";
+   const partial =
+      lastSlash >= 0 ? debouncedKey.substring(lastSlash + 1) : debouncedKey;
 
-         try {
-            const params = new URLSearchParams({
-               serverId,
-               bucket: bucketName,
-               blockSize: "100",
-               ...(prefix && { prefix }),
-            });
-            const response = await createApiRequest(
-               `/s3/object/list?${params.toString()}`
-            );
-            if (!response.ok) return [];
-            const data = await response.json();
-            const keys: string[] = (data.objects || []).map(
-               (o: { Key: string }) => o.Key
-            );
-            cacheRef.current.set(cacheKey, keys);
-            return keys;
-         } catch {
-            return [];
-         }
-      },
-      [serverId, bucketName]
-   );
-
-   useEffect(() => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-
-      if (!currentKey) {
-         setSuggestion("");
-         return;
-      }
-
-      debounceRef.current = setTimeout(async () => {
-         const lastSlash = currentKey.lastIndexOf("/");
-         const prefix =
-            lastSlash >= 0 ? currentKey.substring(0, lastSlash + 1) : "";
-         const partial =
-            lastSlash >= 0
-               ? currentKey.substring(lastSlash + 1)
-               : currentKey;
-
-         if (!partial) {
-            setSuggestion("");
-            return;
-         }
-
-         const keys = await fetchSuggestions(prefix);
-         const match = keys.find(
-            (key) => key.startsWith(currentKey) && key !== currentKey
+   const { data: keys = [] } = useQuery<string[]>({
+      queryKey: ["path-suggestions", serverId, bucketName, prefix],
+      queryFn: async () => {
+         const params = new URLSearchParams({
+            serverId,
+            bucket: bucketName,
+            blockSize: "100",
+            ...(prefix && { prefix }),
+         });
+         const response = await createApiRequest(
+            `/s3/object/list?${params.toString()}`
          );
+         if (!response.ok) return [];
+         const data = await response.json();
+         return (data.objects || []).map((o: { Key: string }) => o.Key);
+      },
+      enabled: !!serverId && !!bucketName && !!partial,
+      staleTime: 30_000,
+   });
 
-         if (match) {
-            setSuggestion(match.substring(currentKey.length));
-         } else {
-            setSuggestion("");
-         }
-      }, 200);
-
-      return () => {
-         if (debounceRef.current) clearTimeout(debounceRef.current);
-      };
-   }, [currentKey, fetchSuggestions]);
+   const suggestion = useMemo(() => {
+      if (!partial || !debouncedKey) return "";
+      const match = keys.find(
+         (key) => key.startsWith(debouncedKey) && key !== debouncedKey
+      );
+      return match ? match.substring(debouncedKey.length) : "";
+   }, [keys, debouncedKey, partial]);
 
    return suggestion;
 }
