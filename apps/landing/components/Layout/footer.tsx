@@ -22,13 +22,15 @@ const Footer = () => {
                />
             </Link>
             <div className="flex gap-4 text-viewerwhite text-sm">
+               <Link href="/brand-kit" className="underline">
+                  Brand Kit
+               </Link>
                <Link href="/tos" className="underline">
                   Terms of Service
                </Link>
                <Link href="/privacy-policy" className="underline order-first">
                   Privacy Policy
                </Link>
-               <Link href="/brand-kit" className="underline"> Brand Kit</Link>
             </div>
          </div>
 
