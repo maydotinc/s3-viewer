@@ -76,9 +76,14 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
                </DialogDescription>
             </DialogHeader>
             <DialogFooter className="flex flex-col justify-center gap-2">
+               <DialogClose asChild>
+                  <Button variant="outline" className="w-full flex-1">
+                     Cancel
+                  </Button>
+               </DialogClose>
                <Button
                   variant="destructive"
-                  className="w-full"
+                  className="w-full flex-1 bg-red-500 text-white"
                   onClick={handleDelete}
                   disabled={deleteObjectMutation.isPending}
                >
@@ -86,11 +91,6 @@ const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
                      ? "Deleting..."
                      : `Delete ${isMultiple ? "Objects" : "Object"}`}
                </Button>
-               <DialogClose asChild>
-                  <Button variant="outline" className="w-full">
-                     Cancel
-                  </Button>
-               </DialogClose>
             </DialogFooter>
             {deleteError && (
                <span className="text-red-500 text-sm text-center">
