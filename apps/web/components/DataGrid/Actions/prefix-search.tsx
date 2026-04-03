@@ -16,13 +16,14 @@ const PrefixSearch = ({ className }: PrefixSearchProps) => {
    const { path, bucket } = useBucketContext();
    const serverId = useSessionStore((state) => state.serverId);
    const [searchText, setSearchText] = useState("");
+   const pathKey = path.join("/");
 
    const fullKey = useMemo(() => {
       if (!searchText) return "";
       return path.length > 0
          ? path.join("/") + "/" + searchText
          : searchText;
-   }, [searchText, path]);
+   }, [searchText, pathKey]);
 
    const suggestion = usePathSuggestion(
       serverId,
@@ -56,6 +57,12 @@ const PrefixSearch = ({ className }: PrefixSearchProps) => {
          debouncedPrefixSearch.cancel();
       };
    }, [debouncedPrefixSearch]);
+
+   useEffect(() => {
+      setSearchText("");
+      debouncedPrefixSearch.cancel();
+      gridRef.current?.api.setFilterModel(null);
+   }, [bucket?.Name, pathKey, debouncedPrefixSearch, gridRef]);
 
    const acceptSuggestion = useCallback(() => {
       if (!suggestion) return;
