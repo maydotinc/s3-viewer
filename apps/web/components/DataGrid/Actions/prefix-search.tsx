@@ -59,10 +59,11 @@ const PrefixSearch = ({ className }: PrefixSearchProps) => {
    }, [debouncedPrefixSearch]);
 
    useEffect(() => {
+      if (!gridReady || !gridRef.current?.api) return;
       setSearchText("");
       debouncedPrefixSearch.cancel();
       gridRef.current?.api.setFilterModel(null);
-   }, [bucket?.Name, pathKey, debouncedPrefixSearch, gridRef]);
+   }, [bucket?.Name, pathKey, debouncedPrefixSearch, gridReady, gridRef]);
 
    const acceptSuggestion = useCallback(() => {
       if (!suggestion) return;
