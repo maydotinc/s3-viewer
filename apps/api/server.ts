@@ -24,6 +24,8 @@ declare global {
 
 const app = express();
 
+app.set("trust proxy", "loopback");
+
 const globalLimiter = rateLimit({
    windowMs: 60 * 1000,
    max: 200,

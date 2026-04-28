@@ -76,7 +76,7 @@ S3ViewerServerInviteEmail.PreviewProps = {
    invitedByEmail: "admin@example.com",
    invitedByName: "Admin User",
    expiresAtIso: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-   invitesUrl: "http://localhost:3000/invites",
+   invitesUrl: "https://web.localhost/invites",
 } as S3ViewerServerInviteEmailProps;
 
 const main = {

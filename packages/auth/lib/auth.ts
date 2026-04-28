@@ -14,6 +14,12 @@ const auth = betterAuth({
       provider: "postgresql",
    }),
    trustedOrigins: [process.env.NEXT_PUBLIC_FRONTEND_URL as string],
+   advanced: {
+      defaultCookieAttributes: {
+         sameSite: "none",
+         secure: true,
+      },
+   },
    plugins: [
       emailOTP({
          sendVerificationOnSignUp: true,

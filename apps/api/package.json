@@ -3,7 +3,7 @@
    "version": "0.0.0",
    "type": "module",
    "scripts": {
-      "dev": "tsx watch server.ts",
+      "dev": "portless api tsx watch server.ts",
       "build": "tsup",
       "start": "pnpm --filter @s3-viewer/db db:generate && node dist/server.js"
    },

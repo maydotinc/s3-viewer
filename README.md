@@ -18,6 +18,7 @@ A web-based S3-compatible object storage browser that allows users to manage mul
 - **Backend**: Express.js API
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: Better Auth
+- **Local dev URLs**: [Portless](https://portless.sh)
 - **Monorepo**: Turborepo with pnpm workspaces
 
 ## ✅ Prerequisites
@@ -37,42 +38,55 @@ cd s3-viewer
 pnpm install
 ```
 
-### 2. Generate Encryption Keys
+### 2. Local HTTPS via Portless
 
-For server credential encryption, an RSA key pair must be generated and stored in the respective env variables (see below). This RSA key must also have a max payload large enough to handle server credentials, so it is recommended you use at least a 4096-bit key. To generate this key pair, you can use the openssl library:
+Dev URLs are stable HTTPS hostnames via [Portless](https://portless.sh):
+
+- Web → `https://web.localhost`
+- Landing → `https://landing.localhost`
+- API → `https://api.localhost`
+
+Run once on a fresh machine:
+
+```bash
+pnpm bootstrap
+```
+
+This installs `portless` globally, trusts its local CA, and starts the proxy on port 443 (one `sudo` prompt). Everything stays on `127.0.0.1`.
+
+If you can't / don't want to use sudo, run `portless proxy start --https` instead — it binds to `:1355`. You'll then need to append `:1355` to every URL in your `.env` files and to the GitHub OAuth callback.
+
+### 3. Generate Encryption Keys
+
+For server credential encryption, an RSA key pair must be generated and stored in the respective env variables (see below). Use at least a 4096-bit key:
 
 ```bash
 openssl genrsa -out private_key.pem 4096
 openssl rsa -pubout -in private_key.pem -out public_key.pem
 ```
 
-### 3. Environment Variables
+### 4. Environment Variables
 
-**apps/api/.env:**
-
-```env
-DATABASE_URL="postgresql://user:pass@localhost:5432/s3viewer"
-BETTER_AUTH_SECRET=your_secret_here
-ENCRYPTION_PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----..."
-NEXT_PUBLIC_FRONTEND_URL=http://localhost:3000
-NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
+```bash
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+cp apps/landing/.env.example apps/landing/.env
 ```
 
-**apps/web/.env:**
+Fill in secrets, then register your GitHub OAuth app at https://github.com/settings/developers with this **Authorization callback URL**:
 
-```env
-NEXT_PUBLIC_BACKEND_URL=http://localhost:5001
-NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY="-----BEGIN PUBLIC KEY-----..."
+```
+https://api.localhost/auth/callback/github
 ```
 
-### 4. Database Setup (Careful, this could wipe all existing data)
+### 5. Database Setup (Careful, this could wipe all existing data)
 
 ```bash
 cd packages/db
 pnpm db:migrate
 ```
 
-### 5. Development
+### 6. Development
 
 ```bash
 pnpm dev

@@ -3,6 +3,7 @@
    "version": "0.0.0",
    "private": true,
    "scripts": {
+      "bootstrap": "bash scripts/setup-portless.sh",
       "dev": "turbo run dev --force",
       "build": "turbo run build",
       "format": "prettier --write ."
