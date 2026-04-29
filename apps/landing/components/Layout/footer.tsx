@@ -20,7 +20,7 @@ const groups: LinkGroup[] = [
       ],
    },
    {
-      title: "How-to",
+      title: "How To",
       links: [
          { label: "Rename an S3 file", href: "/how-to/rename-s3-file" },
          {
@@ -100,8 +100,8 @@ const Footer = () => {
                      <span>May Inc</span>
                   </span>
                   <span className="text-[11.5px] text-white/55 mt-1">
-                     © {new Date().getFullYear()} S3 Viewer. Open source
-                     under MIT.
+                     © {new Date().getFullYear()} S3 Viewer. Open source under
+                     MIT.
                   </span>
                </div>
 

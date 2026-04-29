@@ -82,10 +82,7 @@ const HowToPage = ({
                      </h1>
                      <div className="flex items-start gap-3 rounded-2xl border border-viewerborder bg-viewerwhite p-5">
                         <span className="grid place-items-center size-8 rounded-md bg-viewerblue/10 text-viewerblue flex-none">
-                           <Lightbulb
-                              className="size-4"
-                              strokeWidth={2}
-                           />
+                           <Lightbulb className="size-4" strokeWidth={2} />
                         </span>
                         <div className="flex flex-col gap-1">
                            <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
