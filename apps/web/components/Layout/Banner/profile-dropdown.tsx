@@ -53,7 +53,10 @@ const ProfileDropdown: React.FC = () => {
                console.log("help");
                break;
             case "terms":
-               window.open("https://s3-viewer.com/tos", "_blank");
+               window.open(
+                  "https://s3-viewer.com/legal/terms-of-service",
+                  "_blank"
+               );
                break;
             case "invites":
                router.push("/invites");

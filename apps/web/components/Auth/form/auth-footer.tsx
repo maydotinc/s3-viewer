@@ -6,13 +6,13 @@ const AuthFooter = () => {
          <span>© 2026 May Inc.</span>
          <div className="flex items-center space-x-3 sm:space-x-4">
             <Link
-               href="/tos"
+               href="/legal/terms-of-service"
                className="transition-colors hover:text-gray-700 hover:underline"
             >
                Terms of Service
             </Link>
             <Link
-               href="/privacy-policy"
+               href="/legal/privacy-policy"
                className="transition-colors hover:text-gray-700 hover:underline"
             >
                Privacy Policy

@@ -1,23 +1,31 @@
 import BrandKit from "@/components/BrandKit";
-import BasicBlock from "@/components/basic-block";
 import Layout from "@/components/Layout";
 import Seo from "@/components/Seo";
+import { SITE_URL } from "@/lib/site-config";
 
 const BrandKitPage = () => {
+   const jsonLd = {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      name: "S3 Viewer Brand Kit",
+      url: `${SITE_URL}/brand-kit`,
+      description:
+         "Official brand assets for S3 Viewer: logos, colors, typography, and voice guidelines.",
+   };
+
    return (
-      <BasicBlock className="gap-30 max-md:gap-15 max-xl:gap-20">
+      <>
          <Seo
-            title="S3 Viewer Brand Kit"
-            description="Official S3 Viewer brand colors and logos."
+            title="Brand Kit"
+            description="Official S3 Viewer brand assets — logos, colors, typography, and voice guidelines for press, partners, and contributors."
             canonical="/brand-kit"
+            jsonLd={jsonLd}
          />
          <BrandKit />
-      </BasicBlock>
+      </>
    );
 };
 
-BrandKitPage.getLayout = (page: React.ReactNode) => {
-   return <Layout>{page}</Layout>;
-};
+BrandKitPage.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
 
 export default BrandKitPage;

@@ -1,8 +1,11 @@
-# S3 Viewer App - authenticated dashboard
+# https://www.robotstxt.org/robotstxt.html
+
 User-agent: *
+Allow: /
 Disallow: /dashboard
 Disallow: /buckets
 Disallow: /invites
-Allow: /
+Disallow: /verify
+Disallow: /api/
 
 Sitemap: https://s3-viewer.com/sitemap.xml

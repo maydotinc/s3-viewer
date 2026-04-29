@@ -4,15 +4,31 @@ import LegalHeader from "./header";
 type LegalLayoutProps = {
    title: string;
    description: string;
+   eyebrow?: string;
+   effectiveDate?: string;
+   lastUpdated?: string;
    content: LegalContentItemProps[];
 };
 
-const LegalLayout = ({ title, description, content }: LegalLayoutProps) => {
+const LegalLayout = ({
+   title,
+   description,
+   eyebrow,
+   effectiveDate,
+   lastUpdated,
+   content,
+}: LegalLayoutProps) => {
    return (
-      <>
-         <LegalHeader title={title} description={description} />
+      <main className="w-full overflow-x-clip">
+         <LegalHeader
+            title={title}
+            description={description}
+            eyebrow={eyebrow}
+            effectiveDate={effectiveDate}
+            lastUpdated={lastUpdated}
+         />
          <LegalContent content={content} />
-      </>
+      </main>
    );
 };
 

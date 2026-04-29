@@ -1,23 +1,42 @@
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { Button } from "@s3-viewer/ui/components/button";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { FaGithub } from "react-icons/fa";
 
 const Header = () => {
+   const [scrolled, setScrolled] = useState(false);
+
+   useEffect(() => {
+      const onScroll = () => setScrolled(window.scrollY > 4);
+      onScroll();
+      window.addEventListener("scroll", onScroll, { passive: true });
+      return () => window.removeEventListener("scroll", onScroll);
+   }, []);
+
    return (
-      <header className="flex w-full items-center justify-center bg-viewergray border-b border-viewerborder sticky top-0 z-50">
-         <div className="flex w-full max-w-screen-2xl justify-between items-center h-20 px-30 max-xl:px-15 max-md:px-4">
+      <header
+         className={cn(
+            "sticky top-0 z-50 flex w-full items-center justify-center border-b transition-[border-color,background-color] duration-200",
+            scrolled
+               ? "border-viewerborder bg-viewerwhite/85 backdrop-blur-md"
+               : "border-transparent bg-viewerwhite"
+         )}
+      >
+         <div className="flex w-full max-w-screen-2xl items-center justify-between gap-4 py-5 px-30 max-xl:px-15 max-md:px-4">
             <Link
                href="/"
                draggable={false}
-               className="h-full max-md:w-36 flex items-center"
+               className="flex items-center"
+               aria-label="S3 Viewer home"
             >
                <Image
                   src="/icons/viewer.svg"
                   alt="S3 Viewer"
-                  width={190}
-                  height={46}
+                  width={160}
+                  height={38}
                   style={{ height: "auto" }}
                   priority
                   quality={100}
@@ -25,58 +44,46 @@ const Header = () => {
                />
             </Link>
 
-            <div className="flex items-center gap-2 md:hidden">
-               <Button
-                  size="lg"
-                  variant="secondary"
-                  className="h-12 w-12 p-0 !bg-black !text-white hover:!bg-black/90"
-                  asChild
+            <div className="flex items-center gap-2">
+               <Link
+                  href="https://github.com/maydotinc/s3-viewer"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Star S3 Viewer on GitHub"
+                  className="hidden sm:flex h-10 items-center rounded-md border border-viewerborder bg-viewerwhite hover:bg-viewergray transition-colors overflow-hidden"
                >
-                  <Link
-                     href="https://github.com/maydotinc/s3-viewer"
-                     target="_blank"
-                     rel="noreferrer"
-                     aria-label="View S3 Viewer on GitHub"
-                  >
-                     <FaGithub className="size-5" />
-                  </Link>
-               </Button>
-               <Button
-                  size="lg"
-                  variant="secondary"
-                  className="h-12 text-md"
-                  asChild
-               >
-                  <Link href="/dashboard">
-                     <ChevronRight className="size-5" />
-                  </Link>
-               </Button>
-            </div>
+                  <span className="flex items-center gap-2 px-3 h-full text-[13px] font-medium text-viewerblack">
+                     <FaGithub className="size-4" />
+                     Star
+                  </span>
+                  <span className="flex items-center gap-1 px-3 h-full border-l border-viewerborder bg-viewergray text-[12.5px] font-semibold text-viewertext">
+                     <Star
+                        className="size-3.5 text-viewerlighttext"
+                        strokeWidth={2}
+                     />
+                     <span>GitHub</span>
+                  </span>
+               </Link>
 
-            <div className="flex items-center gap-2 max-md:hidden">
-               <Button
-                  variant="secondary"
-                  size="lg"
-                  className="h-12 w-12 p-0 !bg-black !text-white hover:!bg-black/90"
-                  asChild
+               <Link
+                  href="https://github.com/maydotinc/s3-viewer"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Star S3 Viewer on GitHub"
+                  className="sm:hidden grid place-items-center size-10 rounded-md border border-viewerborder bg-viewerwhite text-viewerblack"
                >
-                  <Link
-                     href="https://github.com/maydotinc/s3-viewer"
-                     target="_blank"
-                     rel="noreferrer"
-                     aria-label="View S3 Viewer on GitHub"
-                  >
-                     <FaGithub className="size-5" />
-                  </Link>
-               </Button>
+                  <FaGithub className="size-4" />
+               </Link>
+
                <Button
-                  variant="secondary"
                   size="lg"
-                  className="h-12 text-md"
+                  variant="secondary"
+                  className="h-10 text-[13.5px]"
                   asChild
                >
                   <Link href="/dashboard">
-                     Open Viewer <ChevronRight className="size-5" />
+                     Open Viewer
+                     <ChevronRight className="size-4" />
                   </Link>
                </Button>
             </div>

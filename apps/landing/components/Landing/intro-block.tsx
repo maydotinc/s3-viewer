@@ -9,21 +9,25 @@ const IntroBlock = () => {
       <BasicBlock className="md:flex-row gap-0 max-md:py-5 max-md:border-b max-md:border-viewerborder">
          <div className="bg-viewergray flex-1 border border-viewerborder">
             <div className="flex flex-col justify-center h-full p-6 gap-6">
-               <Link target="_blank" href="https://github.com/maydotinc/s3-viewer" className="flex cursor-pointer items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite">
+               <Link
+                  target="_blank"
+                  href="https://github.com/maydotinc/s3-viewer"
+                  className="motion-fade-up flex cursor-pointer items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite"
+               >
                   <FaGithub className="size-4" />
                   <span className="text-md">OPEN SOURCE</span>
                </Link>
-               <h1 className="md:text-[42px] text-4xl font-semibold text-viewerblack">
+               <h1 className="motion-fade-up motion-delay-75 md:text-[42px] text-4xl font-semibold text-viewerblack">
                   Explore S3-compatible Object Storage Online
                </h1>
-               <h2 className="md:text-xl text-lg text-viewertext">
+               <h2 className="motion-fade-up motion-delay-150 md:text-xl text-lg text-viewertext">
                   Manage all your buckets in one place, with a Google Drive like
                   interface that just works.
                </h2>
                <Button
                   variant="secondary"
                   size="lg"
-                  className="h-12 text-md w-fit"
+                  className="motion-fade-up motion-delay-300 h-12 text-md w-fit"
                   asChild
                >
                   <Link href="/dashboard">Connect your server</Link>
