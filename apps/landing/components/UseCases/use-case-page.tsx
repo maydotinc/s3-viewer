@@ -64,7 +64,7 @@ const UseCasePage = ({
             <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-14 md:pb-20">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex items-center gap-1.5 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -93,7 +93,7 @@ const UseCasePage = ({
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
                   <div className="lg:col-span-7 flex flex-col gap-6 motion-fade-up">
-                     <h1 className="text-[36px] sm:text-[52px] lg:text-[64px] font-semibold tracking-[-0.02em] leading-[1.04] text-viewerblack">
+                     <h1 className="text-[30px] sm:text-[40px] lg:text-[48px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
                         {title}
                      </h1>
                      <p className="text-[16px] sm:text-[18px] text-viewertext leading-[1.6] max-w-[600px]">

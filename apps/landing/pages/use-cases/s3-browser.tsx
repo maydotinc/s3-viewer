@@ -10,19 +10,19 @@ import UseCasePage, {
 } from "@/components/UseCases/use-case-page";
 import { SITE_URL } from "@/lib/site-config";
 import {
+   Command,
    Eye,
    Github,
-   Globe,
    PencilLine,
    Search,
-   Zap,
+   Trash2,
 } from "lucide-react";
 
 const SLUG = "s3-browser";
-const TITLE = "A browser-based S3 client built for developers.";
+const TITLE = "An S3 browser built for browsing.";
 const KEYWORD = "S3 browser";
 const DESCRIPTION =
-   "S3 Viewer is a free, open-source S3 browser that runs in any browser. Real bucket-wide key search, inline previews for images, video, PDF, JSON, and code, and Cmd-K bucket switching. Works with AWS S3, Cloudflare R2, MinIO, Backblaze B2, and Wasabi.";
+   "S3 Viewer is a browser-based S3 client focused on the daily browsing-and-collaboration workflow: one-click rename, true bucket-wide search with Tab autocomplete, bulk delete, inline previews, and Cmd-K bucket switching across providers. Free, open-source, MIT-licensed.";
 
 const steps: UseCaseStep[] = [
    {
@@ -30,12 +30,12 @@ const steps: UseCaseStep[] = [
       body: "Paste an access key once. AWS S3 and Cloudflare R2 are auto-detected; for MinIO, B2, Wasabi, or any S3-compatible provider, drop in the endpoint URL.",
    },
    {
-      title: "Browse or search",
-      body: "Use the tree to navigate prefixes, or type in the search bar to match keys across the entire bucket — not just the visible page.",
+      title: "Browse, search, preview",
+      body: "Type in the search bar — it paginates the entire bucket, not just the visible page. Hit Tab to autocomplete prefix paths. Click any file to preview images, video, audio, PDF, JSON, or source code inline.",
    },
    {
-      title: "Preview, download, or rename",
-      body: "Click a file to preview it inline. Download with one click. Right-click to rename, copy, move, or delete — including bulk delete across many keys.",
+      title: "Right-click for the daily-use operations",
+      body: "Rename in one click (the underlying S3 API has no rename — we wrap copy + delete with metadata preservation), copy or move across buckets, generate a presigned share link, or multi-select for bulk delete.",
    },
 ];
 
@@ -43,22 +43,27 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "What is the best web-based S3 browser?",
       answer:
-         "S3 Viewer is a browser-based S3 client built for developers. It adds bucket-wide key search, inline previews for images, video, audio, PDF, JSON, and source code, multipart upload with retries, rename via copy+delete, and Cmd-K bucket switching to AWS S3 — and works with Cloudflare R2, MinIO, Backblaze B2, Wasabi, DigitalOcean Spaces, and any other S3-compatible provider.",
+         "S3 Viewer is built for browsing — one-click rename (Amazon S3 has no rename API, so we wrap copy + delete with metadata preservation), true bucket-wide key search via paginated ListObjectsV2, bulk delete on multi-select, inline previews for 25+ file types, and Cmd-K bucket switching across every connected provider — AWS S3, Cloudflare R2, MinIO, Backblaze B2, Wasabi, and more.",
    },
    {
-      question: "Why is this better than the AWS S3 console?",
+      question: "How does this compare to the AWS S3 console?",
       answer:
-         "The AWS console is a configuration UI, not a file browser. Its search only filters the current 1,000-key page, it has no rename, no inline preview for most file types, and switching between accounts and buckets requires re-entering credentials. S3 Viewer paginates through ListObjectsV2 for true bucket-wide search, previews 30+ file types inline, supports rename, and lets you keep every bucket from every account loaded behind Cmd-K.",
+         "The AWS console is the right tool for configuring S3 — creating buckets, managing IAM, setting up replication, configuring lifecycle rules. It's not designed around daily file browsing. S3 Viewer focuses on that browsing layer: rename, paginated bucket-wide search, bulk operations, 25+ inline preview types, and every account's buckets behind one Cmd-K. Use both — the AWS console for setup, S3 Viewer for daily work.",
    },
    {
       question: "How is this different from Cyberduck, S3 Browser, or Mountain Duck?",
       answer:
-         "Those are desktop apps that store credentials on your machine and only run on one OS. S3 Viewer is a web app — it works in any browser, on any OS, and credentials stay encrypted on the server (or self-hosted on yours). It also has team workspaces, per-bucket roles, and email-based sharing built in.",
+         "Those are desktop apps — they store credentials on your machine, run on one OS at a time, and don't have a workspace model. S3 Viewer runs in any browser, encrypts credentials server-side with RSA-4096 (or you self-host them inside your VPC), and ships team workspaces — invite by email, assign per-bucket roles, revoke without rotating keys.",
+   },
+   {
+      question: "Can I rename a file in S3?",
+      answer:
+         "Not natively — Amazon S3 has no rename API and keys are immutable once written. The standard pattern is to copy the object to the new key and delete the old one. S3 Viewer wraps that pattern in a single right-click and preserves metadata and tags by default. Above 5 GB it switches to multipart copy automatically.",
    },
    {
       question: "Can I search across all keys in a bucket, not just one prefix?",
       answer:
-         "Yes. S3 Viewer paginates through ListObjectsV2 in the background and filters in-memory as you type, so you can find a key anywhere in the bucket from any path. Results show the full key so you can see exactly where each match lives.",
+         "Yes. Type into the search bar and Tab to autocomplete the next prefix segment. S3 Viewer paginates ListObjectsV2 in the background and filters as results stream in. Finding `data/models/v2/training/checkpoint-42/weights.pt` becomes a few Tab presses, not 50 clicks through a deep folder tree.",
    },
    {
       question: "What file types can I preview without downloading?",
@@ -73,7 +78,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Is S3 Viewer free?",
       answer:
-         "It's free to use and MIT-licensed on GitHub. You can run it hosted or self-host it yourself.",
+         "Yes — it's free to use and MIT-licensed on GitHub. Self-host it or use the hosted build.",
    },
 ];
 
@@ -91,7 +96,7 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="S3 Browser — Open-Source Web Client for AWS S3 and R2"
+            title="S3 Browser — One-Click Rename, Bucket-Wide Search, Open Source"
             description={DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
@@ -101,50 +106,50 @@ const Page = () => {
             eyebrow="Better S3 browser"
             title={TITLE}
             subtitle={DESCRIPTION}
-            description="The S3 browser the AWS console refuses to be."
+            description="A browsing layer on top of every S3-compatible provider."
             bullets={[
-               "Search keys across an entire bucket — not just the current 1,000-key page",
-               "Inline preview for images, video, audio, PDF, JSON, and source code",
+               "One-click rename — wrapping the S3 copy + delete pattern with metadata preserved",
+               "Tab-autocomplete bucket-wide search across the full ListObjectsV2 result",
                "Cmd-K bucket switcher across every connected provider",
             ]}
             features={[
                {
+                  icon: PencilLine,
+                  title: "One-click rename",
+                  body: "Amazon S3 has no rename API — keys are immutable. S3 Viewer wraps the standard copy + delete pattern in a single click, preserves metadata and tags by default, and only deletes the original after the new key writes successfully. Above 5 GB it switches to multipart copy.",
+               },
+               {
                   icon: Search,
-                  title: "Real bucket-wide search",
-                  body: "Type any part of a key. S3 Viewer paginates ListObjectsV2 in the background and filters as results stream in. The AWS console only filters the visible page.",
+                  title: "Tab-autocomplete search",
+                  body: "Search paginates the entire bucket via ListObjectsV2 — not just the current 1,000-key page. Type the first few characters of a prefix and Tab autocompletes the next folder.",
                },
                {
                   icon: Eye,
-                  title: "Inline previews",
-                  body: "30+ file types render in the browser: images, video, audio, PDF, JSON, Markdown, and source code from JavaScript to Python.",
+                  title: "25+ inline previews",
+                  body: "Images, video, audio, PDF, Markdown, JSON, and source code from JavaScript to Python render in the browser via short-lived presigned URLs.",
                },
                {
-                  icon: PencilLine,
-                  title: "Rename and bulk delete",
-                  body: "Right-click to rename via copy + delete, or multi-select to bulk delete across many keys at once. The console makes you click each one.",
+                  icon: Trash2,
+                  title: "Multi-select bulk delete",
+                  body: "Shift-click a range of keys and bulk-delete in a single DeleteObjects call — up to 1,000 keys per request, the way the S3 API was designed for.",
                },
                {
-                  icon: Zap,
+                  icon: Command,
                   title: "Cmd-K bucket switcher",
-                  body: "Fuzzy-jump to any bucket on any connected provider. No re-entering credentials, no logging into another console.",
-               },
-               {
-                  icon: Globe,
-                  title: "Runs in any browser",
-                  body: "No CLI to install, no desktop app to update. Open a tab and you're browsing — on macOS, Linux, Windows, or a Chromebook.",
+                  body: "Fuzzy-jump to any bucket on any connected provider in two keystrokes. No re-authenticating, no logging into a separate console.",
                },
                {
                   icon: Github,
-                  title: "Open source, MIT-licensed",
-                  body: "Free to use, free to self-host. Audit the code, fork it, run it inside your VPC. Credentials never have to leave your network.",
+                  title: "MIT, open source, self-hostable",
+                  body: "Free to use, free to fork. Audit the code, run it inside your VPC, ship it to your enterprise — credentials never have to leave your network.",
                },
             ]}
             steps={steps}
             faqs={faqs}
             relatedHowTos={getRelatedHowTos([
+               "rename-s3-file",
                "search-across-s3-buckets",
                "download-file-from-s3",
-               "rename-s3-file",
             ])}
             related={getRelated(SLUG)}
          />

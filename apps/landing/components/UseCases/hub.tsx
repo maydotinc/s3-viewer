@@ -9,7 +9,7 @@ const Hub = () => {
             <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-14">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex items-center gap-1.5 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -28,7 +28,7 @@ const Hub = () => {
                </nav>
 
                <div className="flex flex-col gap-5 max-w-[760px] motion-fade-up">
-                  <h1 className="text-[36px] sm:text-5xl lg:text-[60px] font-semibold tracking-[-0.02em] leading-[1.04] text-viewerblack">
+                  <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
                      One viewer.
                      <br />
                      Every S3 workflow.

@@ -11,31 +11,31 @@ import UseCasePage, {
 import { SITE_URL } from "@/lib/site-config";
 import {
    Cloud,
+   Command,
    FolderTree,
    Github,
-   KeyRound,
    Layers,
    Search,
 } from "lucide-react";
 
 const SLUG = "multi-cloud";
-const TITLE = "One dashboard for AWS S3, Cloudflare R2, and every S3-compatible bucket.";
+const TITLE = "Every cloud's bucket. One window.";
 const KEYWORD = "multi-cloud S3 dashboard";
 const DESCRIPTION =
-   "S3 Viewer is a multi-cloud S3 dashboard that connects AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, and any S3-compatible provider in one window — built for developers who manage buckets across more than one cloud.";
+   "S3 Viewer is a unified dashboard for AWS S3, Cloudflare R2, MinIO, Backblaze B2, and Wasabi. Each provider has its own console; S3 Viewer is the layer on top — one sidebar, one search box, one Cmd-K to jump anywhere, with cross-cloud copy and move when you need it.";
 
 const steps: UseCaseStep[] = [
    {
       title: "Add a provider",
-      body: "Paste an access key and secret. AWS S3 and Cloudflare R2 are auto-detected from the endpoint; for B2, MinIO, Wasabi, DigitalOcean Spaces, and Tigris, drop in the endpoint URL once.",
+      body: "Paste an access key. AWS S3 and Cloudflare R2 are auto-detected from the endpoint; for MinIO, B2, Wasabi, DigitalOcean Spaces, or Tigris, drop in the endpoint URL once and we wire up the rest.",
    },
    {
-      title: "Connect the buckets you care about",
-      body: "Buckets show up in a unified sidebar grouped by provider. Add as many providers as you need — each keeps its own credentials.",
+      title: "See every bucket in one sidebar",
+      body: "Buckets show up grouped and color-coded by provider, so you always know whether you're in AWS, R2, or MinIO. Add as many providers as you need — each keeps its own credentials, encrypted at rest with RSA-4096.",
    },
    {
-      title: "Browse, search, and move",
-      body: "Cmd-K jumps between any bucket on any cloud. Right-click to copy or move objects between buckets — even across providers.",
+      title: "Cmd-K, search, copy across clouds",
+      body: "Cmd-K fuzzy-jumps to any bucket on any provider. Search runs across every open bucket. Right-click an object to copy or move it across providers — S3 to R2, B2 to MinIO — streamed server-side, no local download.",
    },
 ];
 
@@ -43,37 +43,37 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "What is the best multi-cloud S3 dashboard?",
       answer:
-         "S3 Viewer is a multi-cloud S3 dashboard built for developers. It connects to AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, DigitalOcean Spaces, Tigris, and any other S3-compatible provider in one browser tab — no per-provider tools, no tab-switching, no separate logins.",
+         "S3 Viewer is built for the case where you have buckets on more than one provider — AWS S3, Cloudflare R2, MinIO, Backblaze B2, Wasabi, DigitalOcean Spaces, Tigris. Same sidebar, same search, same Cmd-K switcher across all of them. The native AWS console and the Cloudflare R2 dashboard each focus on their own provider; S3 Viewer is the layer that connects them when you need to work across both.",
    },
    {
       question: "Can I view AWS S3 and Cloudflare R2 in the same dashboard?",
       answer:
-         "Yes. S3 Viewer connects to AWS S3 and Cloudflare R2 simultaneously using each provider's S3-compatible API. You add one credential per provider and both appear in the same sidebar — no tab-switching between the AWS console and the Cloudflare dashboard.",
+         "Yes — and you can copy or move objects between them. S3 Viewer connects to AWS S3 and Cloudflare R2 simultaneously through each provider's S3-compatible API. You add one credential per provider and both appear in the same sidebar; right-click any file to copy it across.",
    },
    {
       question: "Which S3-compatible providers does S3 Viewer support?",
       answer:
-         "Anything that implements the S3 API: AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, DigitalOcean Spaces, Tigris, SeaweedFS, Ceph RGW, and self-hosted S3 gateways. AWS and R2 are auto-detected; the rest take an endpoint URL.",
+         "Anything that implements the S3 API: AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, DigitalOcean Spaces, Tigris, SeaweedFS, Ceph RGW, and self-hosted S3 gateways. AWS and R2 are auto-detected from the endpoint; the rest take an endpoint URL and we set up the signer.",
    },
    {
-      question: "Why is this better than the AWS console or the Cloudflare dashboard?",
+      question: "How is this different from the AWS console or the Cloudflare R2 dashboard?",
       answer:
-         "The AWS console only shows one bucket page at a time and its search filters the current 1,000-key page. The Cloudflare R2 dashboard has no rename, no bucket-wide search, and no team sharing for non-Cloudflare users. S3 Viewer adds bucket-wide key search, inline previews, multipart upload, rename via copy+delete, cross-bucket copy, and email-based team access on top of every provider.",
-   },
-   {
-      question: "Do my credentials get sent to your server?",
-      answer:
-         "Credentials are encrypted at rest with RSA-4096 and only decrypted in memory to sign each S3 request on your behalf. If you'd rather they never touch our infrastructure, S3 Viewer is MIT-licensed and self-hostable — run the same UI inside your own VPC.",
+         "Each provider's native console is the right tool for managing accounts, IAM, billing, and bucket configuration on that provider. S3 Viewer focuses on the day-to-day browsing-and-collaboration layer that sits on top of every provider — search across buckets, rename, multipart upload with retries, share by email, copy across clouds. Use both: their console for setup, S3 Viewer for daily work.",
    },
    {
       question: "Can I copy or move files between S3 and R2?",
       answer:
-         "Yes. S3 Viewer streams the object from the source bucket and writes it to the destination using each provider's S3 API, so you can move objects from AWS S3 to Cloudflare R2 (or any direction) without downloading them locally first.",
+         "Yes. Right-click any object and choose Copy or Move. S3 Viewer streams the bytes server-side from the source bucket and writes them to the destination using each provider's S3 API — no local download, no re-upload, no leaving the browser. Works in any direction: S3 → R2, R2 → MinIO, B2 → S3.",
+   },
+   {
+      question: "Do my credentials get sent to your server?",
+      answer:
+         "Credentials are encrypted at rest with RSA-4096 (PKCS1_OAEP, SHA-256) and only decrypted in memory to sign each S3 request. They never reach the browser, never appear in any log, and never return in any API response. If that's still too much, S3 Viewer is MIT-licensed and self-hostable — run the same UI inside your VPC and the keys never leave your network.",
    },
    {
       question: "Is there a limit on how many providers or buckets I can connect?",
       answer:
-         "No. Connect as many providers and buckets as you need. The self-hosted build has no limits at all.",
+         "No. Connect as many providers and as many buckets as you need. The self-hosted build has no limits at all.",
    },
 ];
 
@@ -91,7 +91,7 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="Multi-Cloud S3 Dashboard — AWS S3, Cloudflare R2, MinIO in One Tool"
+            title="Multi-Cloud S3 Dashboard — AWS S3 + Cloudflare R2 + MinIO in One Window"
             description={DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
@@ -101,42 +101,42 @@ const Page = () => {
             eyebrow="Multi-cloud"
             title={TITLE}
             subtitle={DESCRIPTION}
-            description="One workspace for every cloud you already use."
+            description="One layer across every S3-compatible provider you use."
             bullets={[
-               "Connect AWS S3, Cloudflare R2, B2, Wasabi, MinIO, and any S3-compatible provider",
-               "Browse, search, and move files across providers from a single tree",
-               "Open source and MIT-licensed — self-host the same UI behind your VPN",
+               "AWS S3, Cloudflare R2, MinIO, B2, Wasabi — same sidebar, same search",
+               "Cross-cloud copy and move, streamed server-side",
+               "Cmd-K to jump to any bucket on any provider",
             ]}
             features={[
                {
                   icon: FolderTree,
-                  title: "Unified sidebar",
-                  body: "Every connected bucket — across every provider — sits in the same tree, grouped by cloud and color-coded so you always know where you are.",
+                  title: "One sidebar, every cloud",
+                  body: "Every bucket from every connected provider in one tree, grouped and color-coded. Each provider's native console is scoped to its own service; S3 Viewer is the layer that puts them together.",
                },
                {
                   icon: Search,
-                  title: "Cross-bucket search",
-                  body: "Type once and S3 Viewer paginates through ListObjectsV2 across every open bucket. The AWS console only filters the current page — this finds the file.",
-               },
-               {
-                  icon: KeyRound,
-                  title: "Per-provider credentials",
-                  body: "Each cloud uses its own access key, encrypted at rest with RSA-4096. Nothing leaks across accounts; revoke a single provider without touching the others.",
-               },
-               {
-                  icon: Cloud,
-                  title: "S3 API standard",
-                  body: "Talks to anything that speaks S3 — Cloudflare R2, Backblaze B2, MinIO, Wasabi, DigitalOcean Spaces, Tigris, Ceph RGW, SeaweedFS.",
+                  title: "Cross-bucket search with Tab autocomplete",
+                  body: "Type the first few characters and Tab autocompletes the next prefix. Search paginates ListObjectsV2 across every open bucket — even on different clouds.",
                },
                {
                   icon: Layers,
-                  title: "Cross-cloud copy",
-                  body: "Right-click any object to copy or move it to another bucket — including from AWS to R2 or B2 to MinIO. Streamed server-side, no local download.",
+                  title: "Cross-cloud copy and move",
+                  body: "Right-click an object to copy or move it from S3 to R2, R2 to MinIO, anywhere. Streamed server-side; metadata and tags preserved by default.",
+               },
+               {
+                  icon: Command,
+                  title: "Cmd-K bucket switcher",
+                  body: "Fuzzy-jump to any bucket on any provider in two keystrokes. No re-authenticating, no logging into a separate console.",
+               },
+               {
+                  icon: Cloud,
+                  title: "Restricted-token friendly",
+                  body: "Have a token without ListBuckets permission? Pin an allowed-bucket whitelist when you connect — S3 Viewer skips the listing call and works from your list.",
                },
                {
                   icon: Github,
-                  title: "Open source",
-                  body: "MIT-licensed on GitHub. Self-host the same multi-cloud UI inside your VPC and credentials never leave your network.",
+                  title: "MIT-licensed, self-hostable",
+                  body: "Free to use, free to fork. Self-host the same multi-cloud UI inside your VPC and credentials never leave your network.",
                },
             ]}
             steps={steps}

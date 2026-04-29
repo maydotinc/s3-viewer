@@ -15,7 +15,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to rename a file in S3",
       shortTitle: "Rename an S3 file",
       tagline:
-         "S3 has no rename API — here's the copy + delete pattern, with metadata, tags, and the 5 GB cliff.",
+         "Amazon S3 has no rename API — keys are immutable. Here's the standard copy + delete pattern, with metadata and tags preserved.",
       keyword: "rename file in S3",
       category: "Files",
    },
@@ -33,7 +33,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to invite a teammate to your S3 bucket",
       shortTitle: "Invite a teammate",
       tagline:
-         "Skip per-person IAM users. Invite by email, assign per-bucket roles, off-board without rotating keys.",
+         "Skip per-person IAM users for human collaboration. Email invite, per-bucket role, one-click revoke.",
       keyword: "invite teammate to S3 bucket",
       category: "Sharing",
    },
@@ -44,6 +44,15 @@ export const HOW_TOS: HowToEntry[] = [
       tagline:
          "One credential per provider, one sidebar, Cmd-K to jump, and right-click to copy across clouds.",
       keyword: "view S3 and R2 together",
+      category: "Multi-cloud",
+   },
+   {
+      slug: "copy-files-between-s3-and-r2",
+      title: "How to copy files between AWS S3 and Cloudflare R2",
+      shortTitle: "Copy S3 ↔ R2",
+      tagline:
+         "Server-side cross-cloud copy without downloading locally — one click in S3 Viewer, AWS CLI, or rclone for bulk.",
+      keyword: "copy files from S3 to Cloudflare R2",
       category: "Multi-cloud",
    },
    {
@@ -60,8 +69,17 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to upload large files to S3",
       shortTitle: "Upload large files",
       tagline:
-         "Multipart upload explained — part sizes, parallelism, retries, the 5 GB single-PUT cap, and the 10,000-parts ceiling.",
+         "Multipart upload — part sizes, parallelism, retries, and the 5 GB single-PUT cap that pushes you to multipart.",
       keyword: "upload large files to S3",
+      category: "Files",
+   },
+   {
+      slug: "secure-s3-upload-presigned-urls",
+      title: "How to upload to S3 securely with presigned URLs",
+      shortTitle: "Secure S3 upload",
+      tagline:
+         "Never ship AWS keys to the browser. Server-signed presigned URLs let the browser PUT directly without the credential.",
+      keyword: "S3 upload without exposing keys",
       category: "Files",
    },
    {
@@ -69,7 +87,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to download a file from S3",
       shortTitle: "Download a file",
       tagline:
-         "Three ways — browser, AWS CLI, presigned URL — and how to share with someone who has no AWS access.",
+         "Browser, AWS CLI, or presigned URL — three ways, with auto-inferred filenames and zero key exposure.",
       keyword: "download file from S3",
       category: "Files",
    },
@@ -78,7 +96,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to set granular S3 permissions per prefix",
       shortTitle: "Granular permissions",
       tagline:
-         "The IAM s3:prefix Condition that everyone forgets, plus when to use workspace roles instead of writing IAM.",
+         "The IAM s3:prefix Condition that everyone misses, plus when workspace roles are simpler than IAM.",
       keyword: "S3 permissions per prefix",
       category: "Permissions",
    },
@@ -87,7 +105,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to search across S3 buckets",
       shortTitle: "Search across buckets",
       tagline:
-         "Why the AWS console search misses files, how to actually find one, and when to use S3 Inventory + Athena.",
+         "How to actually search S3 with Tab autocomplete, and when S3 Inventory + Athena is the right pattern.",
       keyword: "search S3 buckets",
       category: "Files",
    },
@@ -96,8 +114,17 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to delete a file from S3 safely",
       shortTitle: "Delete a file",
       tagline:
-         "Versioning, delete markers, MFA Delete — and how to actually purge an object instead of soft-deleting it.",
+         "Versioning, delete markers, MFA Delete — and how to actually purge instead of soft-deleting.",
       keyword: "delete file from S3",
+      category: "Files",
+   },
+   {
+      slug: "bulk-delete-s3-files",
+      title: "How to bulk-delete S3 files",
+      shortTitle: "Bulk-delete files",
+      tagline:
+         "DeleteObjects API explained — up to 1,000 keys per request, and how versioning changes the answer.",
+      keyword: "bulk delete S3 files",
       category: "Files",
    },
 ];

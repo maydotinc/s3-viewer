@@ -14,7 +14,7 @@ const SLUG = "set-granular-s3-permissions";
 const TITLE = "How to set granular S3 permissions per prefix";
 const KEYWORD = "S3 permissions per prefix";
 const TLDR =
-   "To scope S3 access to a single prefix, write an IAM policy with two statements: s3:GetObject on the prefix wildcard, and s3:ListBucket on the bucket itself with a Condition on s3:prefix. Most people forget the listing condition, which is why their policy lets users read but not list. For team workflows, S3 Viewer scopes access per bucket so you don't need a custom IAM policy for every teammate.";
+   "AWS IAM is the right tool for fine-grained per-prefix access — write a policy with two statements: s3:GetObject on the prefix wildcard, and s3:ListBucket on the bucket itself with a Condition on s3:prefix. The s3:prefix condition on listing is the part most people miss, which is why first-attempt policies let users read but not list. For human collaboration, S3 Viewer offers a simpler alternative: per-bucket roles assigned by email invite — Owner, Admin, Editor, or Viewer — without writing IAM at all.";
 
 const policyExample = `{
   "Version": "2012-10-17",
@@ -46,18 +46,18 @@ const steps: HowToStep[] = [
       title: "IAM: write the read statement",
       body: (
          <>
-            Allow <code>s3:GetObject</code> on every key inside the prefix.
-            <code>Resource</code> uses a wildcard.
+            Allow <code>s3:GetObject</code> on every key inside the
+            prefix. <code>Resource</code> uses a wildcard.
          </>
       ),
       code: '"Resource": "arn:aws:s3:::my-bucket/reports/finance/*"',
    },
    {
-      title: "IAM: add the listing condition (the part everyone misses)",
+      title: "IAM: add the listing condition (the part most people miss)",
       body: (
          <>
-            Listing requires <code>s3:ListBucket</code> on the bucket itself
-            (not the prefix), with a <code>Condition</code> on{" "}
+            Listing requires <code>s3:ListBucket</code> on the bucket
+            itself (not the prefix), with a <code>Condition</code> on{" "}
             <code>s3:prefix</code>. This is why most first-attempt IAM
             policies let users read but not list.
          </>
@@ -68,9 +68,9 @@ const steps: HowToStep[] = [
       title: "IAM: attach to a user or role and test",
       body: (
          <>
-            Attach the policy to the IAM user or role and verify with the IAM
-            policy simulator before handing it over. Confirm both list and
-            get work inside the prefix and deny outside.
+            Attach the policy to the IAM user or role and verify with
+            the IAM policy simulator before handing it over. Confirm
+            both list and get work inside the prefix and deny outside.
          </>
       ),
    },
@@ -78,11 +78,15 @@ const steps: HowToStep[] = [
       title: "Team workflows: S3 Viewer per-bucket roles",
       body: (
          <>
-            For team access, you usually don&apos;t need a custom IAM policy
-            per teammate. Connect the bucket once with a least-privilege
-            workspace credential, then invite teammates and assign per-bucket
-            roles (Viewer, Editor, Admin). The workspace enforces access
-            server-side; for finer-grained per-prefix access, layer in IAM.
+            Authoring an IAM policy per teammate is heavy for human
+            collaboration. For team access, connect the bucket once
+            with a least-privilege workspace credential and assign
+            per-bucket roles: <strong>Viewer</strong> (read),{" "}
+            <strong>Editor</strong> (read + write),{" "}
+            <strong>Admin</strong> (manage members),{" "}
+            <strong>Owner</strong> (full control). The workspace
+            enforces access server-side; for finer per-prefix scoping
+            within a bucket, layer in IAM as above.
          </>
       ),
    },
@@ -90,9 +94,9 @@ const steps: HowToStep[] = [
       title: "Verify",
       body: (
          <>
-            Try to list and read outside the prefix. Both should deny. If
-            they don&apos;t, the policy is too broad — most likely the{" "}
-            <code>Resource</code> wildcard is wrong or the listing{" "}
+            Try to list and read outside the prefix. Both should deny.
+            If they don&apos;t, the policy is too broad — most likely
+            the <code>Resource</code> wildcard is wrong or the listing{" "}
             <code>Condition</code> is missing.
          </>
       ),
@@ -103,7 +107,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I give someone access to one folder in an S3 bucket?",
       answer:
-         "Write an IAM policy with two statements: `s3:GetObject` on `arn:aws:s3:::bucket/prefix/*` (the read), and `s3:ListBucket` on `arn:aws:s3:::bucket` with a Condition `StringLike: { s3:prefix: ['prefix/*'] }` (the listing). The listing condition is the part everyone forgets, which is why first-attempt policies let users read but not list.",
+         "Write an IAM policy with two statements: `s3:GetObject` on `arn:aws:s3:::bucket/prefix/*` (the read), and `s3:ListBucket` on `arn:aws:s3:::bucket` with a Condition `StringLike: { s3:prefix: ['prefix/*'] }` (the listing). The listing condition is the part most people miss. For team workflows, S3 Viewer offers a simpler primitive — connect the bucket once and grant per-bucket roles to invited members instead of authoring custom IAM per teammate.",
    },
    {
       question: "Why does my IAM policy let users read S3 files but not list the folder?",
@@ -123,7 +127,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Do I need a custom IAM policy for every teammate?",
       answer:
-         "Not necessarily. If you're using S3 Viewer's team workspaces, one least-privilege key connects the bucket and per-bucket roles handle access at the workspace layer. You only need custom IAM policies when you want fine-grained per-prefix scoping across many people.",
+         "Not necessarily. With S3 Viewer's team workspaces, one least-privilege key connects the bucket and four per-bucket roles (Owner, Admin, Editor, Viewer) handle access at the workspace layer. Use IAM when you want fine-grained per-prefix scoping; use workspace roles when you want simple per-bucket access for humans.",
    },
    {
       question: "Does this work with Cloudflare R2?",
@@ -146,8 +150,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How to Set Granular S3 Permissions Per Prefix (IAM Policy)"
-            description="Two ways to scope S3 access to a single folder: an IAM policy with s3:GetObject + s3:ListBucket conditions, or workspace per-bucket roles in S3 Viewer."
+            title="How to Set Granular S3 Permissions Per Prefix (IAM + Roles)"
+            description="Two patterns for scoping S3 access to one folder: an IAM policy with s3:GetObject + s3:ListBucket conditions, or workspace per-bucket roles in S3 Viewer."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -159,17 +163,19 @@ const Page = () => {
             steps={steps}
             underTheHood={
                <p>
-                  S3 has no folders — &ldquo;prefix-scoped&rdquo; access is
-                  enforced by IAM policy on the key pattern. The catch is
-                  that listing requires a separate <code>s3:ListBucket</code>{" "}
-                  permission on the <em>bucket</em> ARN scoped via{" "}
-                  <code>Condition</code>/<code>s3:prefix</code>, which trips
-                  up most people writing their first IAM policy. For team
-                  collaboration, S3 Viewer offers an alternative: connect
-                  the bucket once with a workspace-level key and assign
-                  per-bucket roles to invited members. The workspace
-                  enforces those roles server-side, so you don&apos;t have
-                  to write a new IAM policy every time you onboard someone.
+                  S3 has no folders — &ldquo;prefix-scoped&rdquo; access
+                  is enforced by IAM policy on the key pattern. The catch
+                  is that listing requires a separate{" "}
+                  <code>s3:ListBucket</code> permission on the{" "}
+                  <em>bucket</em> ARN scoped via{" "}
+                  <code>Condition</code>/<code>s3:prefix</code>, which
+                  trips up most people writing their first IAM policy.
+                  For team collaboration, S3 Viewer offers an
+                  alternative: connect the bucket once with a
+                  workspace-level key and assign per-bucket roles to
+                  invited members. The workspace enforces those roles
+                  server-side, so you don&apos;t have to write a new IAM
+                  policy every time you onboard someone.
                </p>
             }
             faqs={faqs}

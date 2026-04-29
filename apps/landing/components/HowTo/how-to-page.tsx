@@ -46,7 +46,7 @@ const HowToPage = ({
             <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-16">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex items-center gap-1.5 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -70,14 +70,14 @@ const HowToPage = ({
                      strokeWidth={2.5}
                      aria-hidden
                   />
-                  <span className="font-medium text-viewerblack">
+                  <span className="font-medium text-viewerblack truncate max-w-[55vw] sm:max-w-none">
                      {eyebrow}
                   </span>
                </nav>
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
                   <div className="lg:col-span-7 flex flex-col gap-5 motion-fade-up">
-                     <h1 className="text-[34px] sm:text-[44px] lg:text-[52px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
+                     <h1 className="text-[28px] sm:text-[36px] lg:text-[44px] font-semibold tracking-[-0.02em] leading-[1.08] text-viewerblack">
                         {title}
                      </h1>
                      <div className="flex items-start gap-3 rounded-2xl border border-viewerborder bg-viewerwhite p-5">
@@ -139,7 +139,7 @@ const HowToPage = ({
                               </div>
                            </div>
                            {step.code && (
-                              <pre className="ml-14 overflow-x-auto rounded-md border border-viewerborder bg-viewergray px-4 py-3 text-[12.5px] leading-[1.6] font-mono text-viewerblack">
+                              <pre className="sm:ml-14 overflow-x-auto rounded-md border border-viewerborder bg-viewergray px-4 py-3 text-[12px] sm:text-[12.5px] leading-[1.6] font-mono text-viewerblack">
                                  <code>{step.code}</code>
                               </pre>
                            )}

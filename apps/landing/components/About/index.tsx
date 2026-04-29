@@ -42,21 +42,21 @@ type TeamMember = {
 
 const team: TeamMember[] = [
    {
-      name: "Mike",
+      name: "Michael Papadopoulos",
       role: "Engineering",
       profile: "mike",
       github: "https://github.com/michaelnpapadopoulos",
       twitter: "https://x.com/maikulol",
    },
    {
-      name: "Vinit",
+      name: "Vinit Ghelani",
       role: "Design",
       profile: "vinit",
       twitter: "https://x.com/vinit_zupit",
       linkedin: "https://www.linkedin.com/in/heyvinit/",
    },
    {
-      name: "Aleem",
+      name: "Aleem Rehmtulla",
       role: "Engineering",
       profile: "aleem",
       github: "https://github.com/aleemrehmtulla",
@@ -64,7 +64,7 @@ const team: TeamMember[] = [
       website: "https://aleemrehmtulla.com",
    },
    {
-      name: "Noah",
+      name: "Noah Gomes",
       role: "Engineering",
       profile: "noah",
       github: "https://github.com/NoahGdev",
@@ -88,9 +88,9 @@ const SocialLink = ({
          target="_blank"
          rel="noreferrer"
          aria-label={label}
-         className="grid place-items-center size-7 rounded-md border border-viewerborder bg-viewerwhite text-viewertext transition-colors hover:bg-viewerblack hover:text-viewerwhite hover:border-viewerblack"
+         className="grid place-items-center size-9 sm:size-8 rounded-md border border-viewerborder bg-viewerwhite text-viewertext transition-colors hover:bg-viewerblack hover:text-viewerwhite hover:border-viewerblack"
       >
-         <Icon className="size-3.5" />
+         <Icon className="size-4 sm:size-3.5" />
       </Link>
    );
 };
@@ -102,7 +102,7 @@ const About = () => {
             <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-14 md:pb-20">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex items-center gap-1.5 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -120,7 +120,7 @@ const About = () => {
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-end">
                   <div className="lg:col-span-7 flex flex-col gap-6 motion-fade-up">
-                     <h1 className="text-[40px] sm:text-[56px] lg:text-[68px] font-semibold tracking-[-0.02em] leading-[1.02] text-viewerblack">
+                     <h1 className="text-[32px] sm:text-[48px] lg:text-[68px] font-semibold tracking-[-0.02em] leading-[1.04] sm:leading-[1.02] text-viewerblack">
                         Object storage was
                         <br />
                         never the problem.

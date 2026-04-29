@@ -37,7 +37,7 @@ const Header = () => {
                   alt="S3 Viewer"
                   width={160}
                   height={38}
-                  style={{ height: "auto" }}
+                  className="h-8 sm:h-9 w-auto"
                   priority
                   quality={100}
                   draggable={false}

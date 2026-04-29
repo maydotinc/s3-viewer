@@ -14,16 +14,17 @@ const SLUG = "delete-file-from-s3";
 const TITLE = "How to delete a file from S3 safely";
 const KEYWORD = "delete file from S3";
 const TLDR =
-   "Run `aws s3 rm s3://bucket/key`, or right-click → Delete in S3 Viewer. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there (and still billed). To actually purge a versioned object, delete each version explicitly with its version ID. If MFA Delete is enabled, you'll need an MFA token to do it.";
+   "Run `aws s3 rm s3://bucket/key`, or right-click → Delete in S3 Viewer. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For bulk delete, S3 Viewer wraps the DeleteObjects API so you can clear up to 1,000 keys in a single call. If MFA Delete is enabled, you'll need an MFA token.";
 
 const steps: HowToStep[] = [
    {
       title: "In S3 Viewer: right-click → Delete",
       body: (
          <>
-            Multi-select to bulk delete across many keys. The confirmation
-            shows the count and total size before it commits — no
-            accidental purges of a 200 GB folder.
+            Multi-select to bulk delete across many keys in a single{" "}
+            <code>DeleteObjects</code> call (the S3 API supports up to
+            1,000 keys per request). The confirmation shows the count
+            and total size before it commits.
          </>
       ),
    },
@@ -36,9 +37,9 @@ const steps: HowToStep[] = [
       title: "Check if versioning is on first",
       body: (
          <>
-            On a versioned bucket, <code>aws s3 rm</code> only adds a delete
-            marker — the prior version is still there and still billed.
-            Check before you delete.
+            On a versioned bucket, <code>aws s3 rm</code> only adds a
+            delete marker — the prior version is still there and still
+            billed. Check before you delete.
          </>
       ),
       code: "aws s3api get-bucket-versioning --bucket my-bucket",
@@ -52,8 +53,8 @@ const steps: HowToStep[] = [
       title: "Permanently delete: remove each version",
       body: (
          <>
-            You need to delete each version explicitly with its version ID.
-            The delete marker is itself a version — delete that too if you
+            Delete each version explicitly with its version ID. The
+            delete marker is itself a version — delete that too if you
             want to fully erase the key.
          </>
       ),
@@ -64,8 +65,8 @@ const steps: HowToStep[] = [
       body: (
          <>
             If MFA Delete is enabled on the bucket, deleting any version
-            requires the bucket owner&apos;s MFA token. Plan accordingly —
-            this is on by design for compliance buckets.
+            requires the bucket owner&apos;s MFA token. Plan accordingly
+            — this is on by design for compliance buckets.
          </>
       ),
    },
@@ -75,7 +76,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I delete a file from S3?",
       answer:
-         "From the AWS CLI: `aws s3 rm s3://bucket/key`. From a tool: right-click → Delete in S3 Viewer. For prefixes from the CLI: `aws s3 rm s3://bucket/prefix --recursive`. If the bucket has versioning enabled, this only adds a delete marker — see below for permanent deletion.",
+         "From the AWS CLI: `aws s3 rm s3://bucket/key`. From a tool: right-click → Delete in S3 Viewer (multi-select to bulk delete in a single DeleteObjects call). For prefixes from the CLI: `aws s3 rm s3://bucket/prefix --recursive`. If the bucket has versioning enabled, this only adds a delete marker — see below for permanent deletion.",
    },
    {
       question: "Why does my deleted S3 file still appear?",
@@ -91,6 +92,11 @@ const faqs: HowToFAQ[] = [
       question: "How do I delete an entire S3 folder?",
       answer:
          "From the CLI: `aws s3 rm s3://bucket/prefix/ --recursive` lists every key under the prefix and deletes them. From S3 Viewer: select the prefix and use bulk delete. Remember S3 has no folders — you're deleting every key sharing that prefix.",
+   },
+   {
+      question: "How do I bulk-delete multiple S3 files?",
+      answer:
+         "The S3 API supports DeleteObjects (plural) — up to 1,000 keys per request. S3 Viewer wraps it in a multi-select toolbar, so shift-clicking a range and hitting delete clears the lot in one round trip. From the CLI, `aws s3 rm --recursive` with a prefix does the same thing.",
    },
    {
       question: "What is MFA Delete in S3?",
@@ -118,8 +124,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How to Delete a File From S3 Safely (Versioning, MFA Delete)"
-            description="Versioning, delete markers, and MFA Delete — what aws s3 rm actually does, and how to fully purge an S3 object."
+            title="How to Delete a File From S3 Safely (Versioning, Bulk, MFA)"
+            description="Versioning, delete markers, MFA Delete — what aws s3 rm actually does. Plus how to bulk-delete with the DeleteObjects API."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -134,15 +140,18 @@ const Page = () => {
                   On a non-versioned bucket, <code>DeleteObject</code>{" "}
                   removes the key immediately. On a versioned bucket, it
                   writes a <strong>delete marker</strong> — the object
-                  becomes invisible to normal <code>GetObject</code> calls
-                  but every prior version is still there (and still billed).
-                  To actually purge a key, you delete each version
-                  explicitly via <code>delete-object --version-id</code>.
-                  S3 Viewer surfaces version state in the UI and prompts
-                  you when versioning is on, so you know whether your
-                  &ldquo;delete&rdquo; is a soft delete (delete marker) or
-                  a hard one (version-specific). The same pattern works
-                  against Cloudflare R2 and other S3-compatible providers.
+                  becomes invisible to normal <code>GetObject</code>{" "}
+                  calls but every prior version is still there (and
+                  still billed). To actually purge a key, you delete
+                  each version explicitly via{" "}
+                  <code>delete-object --version-id</code>. S3 Viewer
+                  surfaces version state in the UI and prompts you when
+                  versioning is on, so you know whether your
+                  &ldquo;delete&rdquo; is a soft delete (delete marker)
+                  or a hard one. For bulk delete, S3 Viewer wraps the{" "}
+                  <code>DeleteObjects</code> API (up to 1,000 keys per
+                  call) — multi-select a range and clear them in one
+                  round trip.
                </p>
             }
             faqs={faqs}

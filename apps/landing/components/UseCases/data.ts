@@ -10,35 +10,35 @@ export const USE_CASES: UseCaseEntry[] = [
       slug: "multi-cloud",
       title: "Multi-cloud",
       tagline:
-         "AWS S3, Cloudflare R2, MinIO, B2, and Wasabi in one window — built for developers managing more than one cloud.",
+         "AWS S3, Cloudflare R2, MinIO, B2, and Wasabi — same sidebar, same search, cross-cloud copy when you need it.",
       keyword: "multi-cloud S3 dashboard",
    },
    {
       slug: "share-with-non-technical-users",
       title: "Sharing without AWS",
       tagline:
-         "Let clients, designers, and execs view S3 files in a browser — no IAM, no AWS console, no CLI.",
+         "Email-invite clients and execs to a clean browser view of one bucket — revocable in one click, no IAM.",
       keyword: "share S3 files with non-technical user",
    },
    {
       slug: "teams",
       title: "Team workspaces",
       tagline:
-         "Invite teammates by email, assign per-bucket roles, revoke without rotating IAM keys.",
+         "Per-bucket roles, no per-person IAM, and one-click off-boarding without rotating any keys.",
       keyword: "S3 bucket team access",
    },
    {
       slug: "s3-browser",
       title: "Better S3 browser",
       tagline:
-         "Bucket-wide key search, inline previews, multipart upload, and Cmd-K bucket switching.",
+         "One-click rename, Tab-autocomplete bucket-wide search, and Cmd-K — focused on the daily browsing layer.",
       keyword: "S3 browser",
    },
    {
       slug: "cloudflare-r2",
       title: "Cloudflare R2",
       tagline:
-         "A real dashboard for R2 — search, rename, share, and side-by-side with AWS S3.",
+         "Rename, search, multipart upload, and team sharing on top of Cloudflare R2's S3-compatible API.",
       keyword: "Cloudflare R2 dashboard",
    },
    {
