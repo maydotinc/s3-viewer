@@ -4,14 +4,13 @@ import {
    ChevronRight,
    Globe,
    Heart,
-   Linkedin,
    Sparkles,
-   Twitter,
    Zap,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
+import { FaLinkedinIn, FaXTwitter } from "react-icons/fa6";
 
 const values = [
    {
@@ -38,6 +37,7 @@ type TeamMember = {
    github?: string;
    twitter?: string;
    linkedin?: string;
+   website?: string;
 };
 
 const team: TeamMember[] = [
@@ -45,33 +45,30 @@ const team: TeamMember[] = [
       name: "Mike",
       role: "Engineering",
       profile: "mike",
-      github: "",
-      twitter: "",
-      linkedin: "",
+      github: "https://github.com/michaelnpapadopoulos",
+      twitter: "https://x.com/maikulol",
    },
    {
       name: "Vinit",
       role: "Design",
       profile: "vinit",
-      github: "",
-      twitter: "",
-      linkedin: "",
+      twitter: "https://x.com/vinit_zupit",
+      linkedin: "https://www.linkedin.com/in/heyvinit/",
    },
    {
       name: "Aleem",
       role: "Engineering",
       profile: "aleem",
-      github: "",
-      twitter: "",
-      linkedin: "",
+      github: "https://github.com/aleemrehmtulla",
+      twitter: "https://twitter.com/aleemrehmtulla",
+      website: "https://aleemrehmtulla.com",
    },
    {
       name: "Noah",
       role: "Engineering",
       profile: "noah",
-      github: "",
-      twitter: "",
-      linkedin: "",
+      github: "https://github.com/NoahGdev",
+      linkedin: "https://www.linkedin.com/in/noah-gomes/",
    },
 ];
 
@@ -198,7 +195,7 @@ const About = () => {
                               href="https://may.inc"
                               target="_blank"
                               rel="noreferrer"
-                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-[13px] font-medium text-viewerblack transition-colors hover:bg-viewerwhite hover:border-viewerblue/30"
+                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-[13px] font-medium text-viewerblack transition-colors hover:bg-viewerwhite"
                            >
                               <span className="inline-flex items-center gap-2">
                                  <Globe className="size-3.5" />
@@ -210,7 +207,7 @@ const About = () => {
                               href="https://github.com/maydotinc"
                               target="_blank"
                               rel="noreferrer"
-                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-[13px] font-medium text-viewerblack transition-colors hover:bg-viewerwhite hover:border-viewerblue/30"
+                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-[13px] font-medium text-viewerblack transition-colors hover:bg-viewerwhite"
                            >
                               <span className="inline-flex items-center gap-2">
                                  <FaGithub className="size-3.5" />
@@ -239,7 +236,7 @@ const About = () => {
                   {values.map((v, i) => (
                      <div
                         key={v.title}
-                        className="motion-fade-up flex flex-col gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-6 hover:border-viewerblue/30 transition-colors"
+                        className="motion-fade-up flex flex-col gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-6"
                         style={{ animationDelay: `${i * 100}ms` }}
                      >
                         <span className="grid place-items-center size-10 rounded-[10px] border border-viewerborder bg-viewergray text-viewerblue">
@@ -262,7 +259,7 @@ const About = () => {
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
                   <div className="lg:col-span-5 flex flex-col gap-5">
                      <h2 className="text-[28px] sm:text-[34px] lg:text-[40px] font-semibold tracking-[-0.01em] leading-[1.1] text-viewerblack">
-                        Four people built this.
+                        Built with love.
                      </h2>
                      <Link
                         href="https://github.com/maydotinc/s3-viewer/issues"
@@ -283,7 +280,7 @@ const About = () => {
                      {team.map((member, i) => (
                         <div
                            key={member.profile}
-                           className="motion-fade-up flex items-center gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-4 transition-colors hover:border-viewerblue/30"
+                           className="motion-fade-up flex items-center gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-4"
                            style={{ animationDelay: `${i * 70}ms` }}
                         >
                            <div className="flex-none size-16 overflow-hidden rounded-xl bg-viewergray">
@@ -308,7 +305,8 @@ const About = () => {
                               </div>
                               {(member.github ||
                                  member.twitter ||
-                                 member.linkedin) && (
+                                 member.linkedin ||
+                                 member.website) && (
                                  <div className="flex items-center gap-1.5">
                                     <SocialLink
                                        href={member.github}
@@ -317,13 +315,18 @@ const About = () => {
                                     />
                                     <SocialLink
                                        href={member.twitter}
-                                       icon={Twitter}
-                                       label={`${member.name} on Twitter`}
+                                       icon={FaXTwitter}
+                                       label={`${member.name} on X`}
                                     />
                                     <SocialLink
                                        href={member.linkedin}
-                                       icon={Linkedin}
+                                       icon={FaLinkedinIn}
                                        label={`${member.name} on LinkedIn`}
+                                    />
+                                    <SocialLink
+                                       href={member.website}
+                                       icon={Globe}
+                                       label={`${member.name}'s website`}
                                     />
                                  </div>
                               )}
@@ -360,7 +363,7 @@ const About = () => {
                      </Link>
                      <Link
                         href="/use-cases"
-                        className="group flex items-center justify-between gap-3 rounded-xl border border-viewerborder bg-viewerwhite px-5 py-4 text-[14.5px] font-semibold text-viewerblack transition-colors hover:border-viewerblue/40"
+                        className="group flex items-center justify-between gap-3 rounded-xl border border-viewerborder bg-viewerwhite px-5 py-4 text-[14.5px] font-semibold text-viewerblack"
                      >
                         Explore use cases
                         <ArrowUpRight className="size-4 text-viewertext" />
