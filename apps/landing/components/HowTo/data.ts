@@ -15,7 +15,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to rename a file in S3",
       shortTitle: "Rename an S3 file",
       tagline:
-         "S3 has no rename API — here's how the copy + delete trick works.",
+         "S3 has no rename API — here's the copy + delete pattern, with metadata, tags, and the 5 GB cliff.",
       keyword: "rename file in S3",
       category: "Files",
    },
@@ -24,7 +24,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to share an S3 file with a non-technical user",
       shortTitle: "Share an S3 file",
       tagline:
-         "Presigned URLs vs workspace invites — when to use which, and how.",
+         "Presigned URL or workspace invite — when each is the right call, and why presigned links can't be revoked.",
       keyword: "share S3 file with non-technical user",
       category: "Sharing",
    },
@@ -33,16 +33,16 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to invite a teammate to your S3 bucket",
       shortTitle: "Invite a teammate",
       tagline:
-         "Skip per-person IAM users. Invite by email and scope per prefix.",
+         "Skip per-person IAM users. Invite by email, assign per-bucket roles, off-board without rotating keys.",
       keyword: "invite teammate to S3 bucket",
       category: "Sharing",
    },
    {
       slug: "view-s3-and-r2-side-by-side",
-      title: "How to view AWS S3 and Cloudflare R2 side by side",
+      title: "How to view AWS S3 and Cloudflare R2 in one dashboard",
       shortTitle: "View S3 + R2 together",
       tagline:
-         "One credential per provider, one window, side-by-side tabs.",
+         "One credential per provider, one sidebar, Cmd-K to jump, and right-click to copy across clouds.",
       keyword: "view S3 and R2 together",
       category: "Multi-cloud",
    },
@@ -51,7 +51,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to switch between S3 buckets quickly",
       shortTitle: "Switch buckets fast",
       tagline:
-         "Cmd-K bucket switcher, named CLI profiles, and pinned favorites.",
+         "Cmd-K fuzzy switcher across every connected provider, plus AWS CLI named profiles for scripts.",
       keyword: "switch between S3 buckets",
       category: "Multi-cloud",
    },
@@ -60,7 +60,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to upload large files to S3",
       shortTitle: "Upload large files",
       tagline:
-         "Multipart uploads, part sizes, retries, and the 5 GB single-PUT cap.",
+         "Multipart upload explained — part sizes, parallelism, retries, the 5 GB single-PUT cap, and the 10,000-parts ceiling.",
       keyword: "upload large files to S3",
       category: "Files",
    },
@@ -69,7 +69,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to download a file from S3",
       shortTitle: "Download a file",
       tagline:
-         "Single files, multi-select, full prefixes as zip, presigned URLs.",
+         "Three ways — browser, AWS CLI, presigned URL — and how to share with someone who has no AWS access.",
       keyword: "download file from S3",
       category: "Files",
    },
@@ -78,7 +78,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to set granular S3 permissions per prefix",
       shortTitle: "Granular permissions",
       tagline:
-         "IAM with s3:prefix conditions, or workspace prefix scopes — both ways.",
+         "The IAM s3:prefix Condition that everyone forgets, plus when to use workspace roles instead of writing IAM.",
       keyword: "S3 permissions per prefix",
       category: "Permissions",
    },
@@ -87,7 +87,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to search across S3 buckets",
       shortTitle: "Search across buckets",
       tagline:
-         "Why the AWS console search misses files, and how to actually find one.",
+         "Why the AWS console search misses files, how to actually find one, and when to use S3 Inventory + Athena.",
       keyword: "search S3 buckets",
       category: "Files",
    },
@@ -96,7 +96,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to delete a file from S3 safely",
       shortTitle: "Delete a file",
       tagline:
-         "Versioning, delete markers, MFA Delete — and how to actually purge.",
+         "Versioning, delete markers, MFA Delete — and how to actually purge an object instead of soft-deleting it.",
       keyword: "delete file from S3",
       category: "Files",
    },

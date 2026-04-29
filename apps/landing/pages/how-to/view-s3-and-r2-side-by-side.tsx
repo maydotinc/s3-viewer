@@ -11,35 +11,49 @@ import { SideBySideIllustration } from "@/components/UseCases/illustrations";
 import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "view-s3-and-r2-side-by-side";
-const TITLE = "How to view AWS S3 and Cloudflare R2 side by side";
+const TITLE = "How to view AWS S3 and Cloudflare R2 in one dashboard";
 const KEYWORD = "view S3 and R2 together";
 const TLDR =
-   "Connect both providers to S3 Viewer with one credential each — they appear in the same sidebar and you can open them in side-by-side tabs.";
+   "AWS S3 and Cloudflare R2 both speak the S3 API, so the same client can talk to both. In S3 Viewer, connect each provider with its own credential and both appear in the same sidebar — Cmd-K jumps between any bucket on any cloud, and right-click moves objects across providers.";
 
 const steps: HowToStep[] = [
    {
-      title: "Add AWS",
-      body: <>Paste an AWS access key and secret. Region autodetects from your IAM.</>,
-   },
-   {
-      title: "Add R2",
+      title: "Add AWS S3",
       body: (
          <>
-            In Cloudflare, create an R2 API token. Paste the access key,
-            secret, and account ID into S3 Viewer; the endpoint autofills.
+            Paste an AWS access key and secret. S3 Viewer detects AWS from
+            the endpoint and applies the right region — no SDK config, no{" "}
+            <code>aws configure</code>.
          </>
       ),
    },
    {
-      title: "Both buckets appear in the sidebar",
-      body: <>Grouped by provider with color-coded labels.</>,
-   },
-   {
-      title: "Open side by side",
+      title: "Add Cloudflare R2",
       body: (
          <>
-            Click one bucket, then <code>Cmd</code>-click another to open it
-            in a split tab.
+            In the Cloudflare dashboard, create an R2 API token. Paste the
+            access key, secret, and your account&apos;s S3 endpoint
+            (account.r2.cloudflarestorage.com). S3 Viewer detects R2
+            automatically.
+         </>
+      ),
+   },
+   {
+      title: "Both providers show up in the sidebar",
+      body: (
+         <>
+            Buckets are grouped by provider with color-coded labels, so you
+            always know whether you&apos;re looking at S3 or R2.
+         </>
+      ),
+   },
+   {
+      title: "Jump with Cmd-K",
+      body: (
+         <>
+            Hit <code>Cmd-K</code> and type any part of a bucket name to
+            fuzzy-jump to it — across providers, across accounts, no
+            re-authenticating.
          </>
       ),
    },
@@ -47,16 +61,20 @@ const steps: HowToStep[] = [
       title: "Search across both",
       body: (
          <>
-            Hit <code>/</code>. Search runs against any bucket you have open.
+            Type in the search bar to match keys across the buckets you have
+            open. S3 Viewer paginates through{" "}
+            <code>ListObjectsV2</code> for both providers and surfaces hits
+            with the full key path.
          </>
       ),
    },
    {
-      title: "Copy between them",
+      title: "Copy or move between them",
       body: (
          <>
-            Select files in S3 and drag them to an R2 bucket. S3 Viewer
-            streams the bytes server-side.
+            Right-click any object and choose Copy or Move. S3 Viewer streams
+            the bytes server-side from the source bucket and writes them to
+            the destination — including from AWS S3 to R2 (or any direction).
          </>
       ),
    },
@@ -66,17 +84,27 @@ const faqs: HowToFAQ[] = [
    {
       question: "Can I manage AWS S3 and Cloudflare R2 in one tool?",
       answer:
-         "Yes. S3 Viewer connects to both at once; you add one credential per provider and both appear in the same sidebar.",
+         "Yes. R2 implements the S3 API, so a single S3 client can talk to both. In S3 Viewer, connect each provider with its own credential — both appear in the same sidebar, you can search across them, and you can copy or move objects between them server-side.",
    },
    {
-      question: "Do I need separate accounts for each cloud?",
+      question: "How does R2 work with the S3 API?",
       answer:
-         "Yes — one access key per cloud. S3 Viewer doesn't replace your cloud accounts; it sits on top of them.",
+         "Cloudflare R2 exposes an S3-compatible endpoint at <account>.r2.cloudflarestorage.com. Any S3 client (the AWS SDKs, the AWS CLI with --endpoint-url, or S3 Viewer) can list, get, put, copy, and delete objects against R2 the same way it does against AWS S3.",
    },
    {
-      question: "Can I copy a file from S3 to R2?",
+      question: "Do I need separate credentials for each cloud?",
       answer:
-         "Yes. Drag it across in the UI; S3 Viewer streams the object from S3 and writes it to R2.",
+         "Yes — one access key per cloud. S3 Viewer doesn't replace your AWS or Cloudflare accounts; it sits on top of them and signs requests using whichever credential matches the bucket.",
+   },
+   {
+      question: "Can I copy a file from S3 to R2 (or R2 to S3)?",
+      answer:
+         "Yes. Right-click the file in S3 Viewer and choose Copy across to a bucket on the other provider. S3 Viewer streams the object server-side — no local download — and writes it to the destination using each provider's S3 API.",
+   },
+   {
+      question: "Why not just use the AWS console plus the Cloudflare dashboard?",
+      answer:
+         "Two separate tabs, two separate logins, and neither one supports rename, bucket-wide search, or moving files between providers. Switching contexts every few minutes is the actual cost. One dashboard lets you stay in flow.",
    },
 ];
 
@@ -94,8 +122,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How to View AWS S3 and Cloudflare R2 Side by Side"
-            description="Connect AWS S3 and Cloudflare R2 to one dashboard. Browse, search, and copy files between providers without tab-switching."
+            title="How to View AWS S3 and Cloudflare R2 in One Dashboard"
+            description="Connect AWS S3 and Cloudflare R2 to one tool. Browse, search, and copy files between providers without tab-switching between consoles."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />

@@ -11,7 +11,7 @@ const UseCasesIndex = () => {
       name: "S3 Viewer Use Cases",
       url: `${SITE_URL}/use-cases`,
       description:
-         "Workflows S3 Viewer is built for: Cloudflare R2, multi-cloud teams, backups, media libraries, and data engineering.",
+         "What S3 Viewer is built for: a developer-first dashboard for AWS S3, Cloudflare R2, MinIO, B2, and Wasabi — multi-cloud browsing, team workspaces, sharing without IAM, and a real R2 dashboard.",
       hasPart: USE_CASES.map((u) => ({
          "@type": "WebPage",
          name: u.title,
@@ -24,7 +24,7 @@ const UseCasesIndex = () => {
       <>
          <Seo
             title="Use Cases — S3 Viewer"
-            description="See how teams use S3 Viewer for Cloudflare R2, multi-cloud workflows, backups, media libraries, and data engineering."
+            description="What developers use S3 Viewer for: a multi-cloud S3 dashboard, a real Cloudflare R2 console, team access without IAM, and a faster S3 browser."
             canonical="/use-cases"
             jsonLd={jsonLd}
          />

@@ -10,10 +10,10 @@ import UseCasePage, {
 } from "@/components/UseCases/use-case-page";
 import { SITE_URL } from "@/lib/site-config";
 import {
-   ClipboardList,
    Database,
-   FolderLock,
+   Github,
    KeyRound,
+   Lock,
    Server,
    UserMinus,
 } from "lucide-react";
@@ -22,20 +22,20 @@ const SLUG = "security-and-audit";
 const TITLE = "Built so security teams sign off.";
 const KEYWORD = "secure S3 access management";
 const DESCRIPTION =
-   "S3 Viewer encrypts your credentials at rest, logs every action, and never stores your objects. Designed for teams that have to answer 'is this safe?'";
+   "S3 Viewer encrypts your S3 credentials at rest with RSA-4096, never stores object contents, and is fully open source under MIT. Self-host the same UI inside your own VPC for zero-trust access management.";
 
 const steps: UseCaseStep[] = [
    {
       title: "Connect with least-privilege keys",
-      body: "Use IAM policies scoped to the buckets and prefixes you want to expose. Example policies are in the docs.",
+      body: "Use an IAM policy scoped to the buckets and operations you actually need — typically s3:ListBucket, s3:GetObject, s3:PutObject, and s3:DeleteObject on specific bucket ARNs.",
    },
    {
       title: "Invite the team",
-      body: "Each user gets their own scoped role. Revoke them in one click without rotating any AWS keys.",
+      body: "Each user gets their own login and role per bucket. Revoke them in one click without rotating any AWS keys — because they never had any.",
    },
    {
-      title: "Review the log",
-      body: "Export audit events as CSV or JSON for compliance reviews and quarterly access audits.",
+      title: "Self-host if you have to",
+      body: "Drop the open-source build inside your VPC. Credentials, sessions, and traffic all stay on your infrastructure. No third party in the request path.",
    },
 ];
 
@@ -43,27 +43,32 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Where are my AWS credentials stored?",
       answer:
-         "Encrypted at rest using per-workspace keys. They're decrypted in memory only when signing an S3 request, then discarded. On self-host, you control the encryption key.",
+         "Encrypted at rest with RSA-4096 (PKCS1_OAEP, SHA-256). The keys are decrypted in memory only when signing an S3 request, then discarded. On the self-hosted build, you control the encryption key entirely.",
    },
    {
       question: "Do you store the contents of my S3 objects?",
       answer:
-         "No. Files stream from your bucket through our server to your browser. Nothing is persisted on our side.",
-   },
-   {
-      question: "Is there an audit log I can export for compliance?",
-      answer:
-         "Yes. Every action — view, download, upload, rename, delete, invite, revoke — is logged with user, timestamp, IP, bucket, and key. Exportable as CSV or JSON.",
+         "No. Files stream from your bucket through the server to your browser using short-lived presigned URLs. Nothing is persisted on the server side — there is no object cache, no object database, and no object storage.",
    },
    {
       question: "Can I run S3 Viewer entirely inside my own infrastructure?",
       answer:
-         "Yes. The repo is open source and MIT-licensed. Self-host it behind your VPN and credentials never leave your network.",
+         "Yes. The repo is open source under the MIT license and ships with one-command deployment. Self-host it behind your VPN or inside your VPC and credentials, sessions, and traffic never leave your network.",
+   },
+   {
+      question: "How do I off-board someone who's leaving?",
+      answer:
+         "Click revoke on their workspace membership. Their session ends on the next request and they can no longer authenticate. You don't have to rotate any AWS or R2 keys — because they never held any. Other teammates and applications keep working.",
    },
    {
       question: "What IAM policy should I use?",
       answer:
-         "A least-privilege policy scoped to the specific buckets and prefixes you want to expose, with s3:GetObject, s3:PutObject, s3:DeleteObject, and s3:ListBucket. Example policies are in the docs.",
+         "A least-privilege policy scoped to the buckets you want to expose, typically with s3:GetObject, s3:PutObject, s3:DeleteObject, and s3:ListBucket. For listing inside a specific prefix only, add a Condition on s3:prefix. The IAM-permissions how-to has a full example policy.",
+   },
+   {
+      question: "Is the source code open?",
+      answer:
+         "Yes. S3 Viewer is MIT-licensed and the source is on GitHub. Audit it, fork it, contribute, or self-host without paying anyone.",
    },
 ];
 
@@ -81,52 +86,52 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="Secure S3 Access With Audit Log and Encrypted Credentials"
+            title="Secure S3 Access Management — Encrypted Credentials, MIT Open Source"
             description={DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
          />
          <UseCasePage
             visual={<SecurityIllustration />}
-            eyebrow="Security & audit"
+            eyebrow="Security"
             title={TITLE}
             subtitle={DESCRIPTION}
             description="The page you can send to your security review."
             bullets={[
-               "Credentials encrypted at rest with per-workspace keys",
-               "Full audit log of every read, upload, rename, and delete",
-               "We never store object contents — files stream through, not into, our servers",
+               "Credentials encrypted at rest with RSA-4096 — decrypted only in memory to sign requests",
+               "Object contents stream through, not into, our servers — nothing is persisted",
+               "MIT-licensed and self-hostable — run the same UI inside your VPC",
             ]}
             features={[
                {
                   icon: KeyRound,
-                  title: "Encrypted credentials",
-                  body: "Access keys are encrypted at rest; only decrypted in-memory to sign requests.",
+                  title: "RSA-4096 encrypted credentials",
+                  body: "Access keys are encrypted at rest with RSA-4096 (PKCS1_OAEP, SHA-256). They're only decrypted in memory to sign requests, then discarded.",
                },
                {
                   icon: Database,
-                  title: "No object storage",
-                  body: "Files stream from your bucket to your browser. We don't keep them.",
+                  title: "Zero object retention",
+                  body: "Files stream from your bucket to your browser via short-lived presigned URLs. We don't cache, log, or persist object contents anywhere.",
                },
                {
-                  icon: ClipboardList,
-                  title: "Audit log",
-                  body: "Every action recorded with user, IP, timestamp, bucket, and key.",
-               },
-               {
-                  icon: FolderLock,
-                  title: "Granular scopes",
-                  body: "Per-bucket and per-prefix permissions per user.",
+                  icon: Lock,
+                  title: "Per-bucket scoping",
+                  body: "Members only see the buckets you granted them. Restrict by bucket; layer in IAM s3:prefix conditions when you need finer-grained access.",
                },
                {
                   icon: UserMinus,
-                  title: "Revocation",
-                  body: "Remove a user without rotating IAM keys. Their session ends on next request.",
+                  title: "Revoke without key rotation",
+                  body: "Pulling a user's access is a workspace action — their session ends, no AWS keys to cycle, no other teammates affected.",
                },
                {
                   icon: Server,
-                  title: "Self-host",
-                  body: "Run the open-source build inside your network for full control.",
+                  title: "Self-host on your VPC",
+                  body: "MIT-licensed open source. One-command deploy with PostgreSQL, OpenSSL key generation, and HTTPS — credentials never have to leave your network.",
+               },
+               {
+                  icon: Github,
+                  title: "Open and auditable",
+                  body: "The full source is on GitHub. No black box — read the encryption code, the request signing path, and the access checks for yourself.",
                },
             ]}
             steps={steps}

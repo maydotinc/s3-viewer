@@ -31,11 +31,13 @@ const Hub = () => {
                   <h1 className="text-[36px] sm:text-5xl lg:text-[60px] font-semibold tracking-[-0.02em] leading-[1.04] text-viewerblack">
                      One viewer.
                      <br />
-                     Every workflow.
+                     Every S3 workflow.
                   </h1>
                   <p className="text-[16px] sm:text-[17px] text-viewertext leading-relaxed max-w-[600px]">
-                     S3 Viewer plays nicely with whatever you already use. Pick
-                     the workflow that matches yours.
+                     S3 Viewer is a developer-first dashboard for AWS S3,
+                     Cloudflare R2, MinIO, Backblaze B2, and Wasabi — built to
+                     replace the AWS console for the things you do every day.
+                     Pick the workflow that matches yours.
                   </p>
                </div>
             </div>

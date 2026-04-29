@@ -11,55 +11,79 @@ import { UploadIllustration } from "@/components/UseCases/illustrations";
 import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "upload-large-files-to-s3";
-const TITLE = "How to upload large files to S3 (multipart)";
+const TITLE = "How to upload large files to S3 (multipart upload)";
 const KEYWORD = "upload large files to S3";
 const TLDR =
-   "Use multipart upload for anything over 100 MB — files split into parts, upload in parallel, and reassemble. S3 Viewer does this automatically when you drag a file in.";
+   "S3's single PutObject caps at 5 GB and is non-resumable. For anything bigger — or anything you can't afford to restart from zero — use multipart upload: split the file into parts (5 MB minimum, 10,000 max), upload them in parallel, then complete. Files up to 5 TB are supported. S3 Viewer switches to multipart automatically above 50 MB and retries failed parts.";
 
 const steps: HowToStep[] = [
    {
-      title: "In S3 Viewer: drag the file in",
-      body: <>Multipart kicks in automatically above the threshold (default 100 MB).</>,
-   },
-   {
-      title: "Watch the per-part progress",
-      body: <>Failed parts retry without restarting the whole upload.</>,
-   },
-   {
-      title: "CLI alternative: aws s3 cp",
-      body: <>The CLI uses multipart automatically above 8 MB.</>,
-      code: "aws s3 cp big.zip s3://bucket/big.zip",
-   },
-   {
-      title: "SDK alternative: Upload from @aws-sdk/lib-storage",
-      body: <>Handles part splitting and retries for you.</>,
-      code:
-         "import { Upload } from '@aws-sdk/lib-storage';\n\nconst u = new Upload({\n  client: s3,\n  params: { Bucket: 'b', Key: 'big.zip', Body: stream },\n});\nawait u.done();",
-   },
-   {
-      title: "Set part size for very large files",
+      title: "In S3 Viewer: drop the file in",
       body: (
          <>
-            Default <code>partSize</code> is 8 MB; raise to 64–100 MB for
-            files over 50 GB. Max 10,000 parts per upload.
+            Multipart kicks in automatically above 50 MB — S3 Viewer splits
+            the file into 25 MB parts and uploads them in parallel.
          </>
       ),
    },
    {
-      title: "Confirm with HeadObject",
+      title: "Watch the per-part progress",
       body: (
          <>
-            Verify size and ETag match what you intended to upload.
+            Failed parts retry without restarting the whole upload. If your
+            connection drops on part 47 of 200, only that part redoes — not
+            the first 46.
+         </>
+      ),
+   },
+   {
+      title: "AWS CLI: aws s3 cp",
+      body: (
+         <>
+            The CLI uses multipart automatically above 8 MB. No flags needed
+            for normal files; tune <code>multipart_chunksize</code> in your
+            AWS config for very large ones.
+         </>
+      ),
+      code: "aws s3 cp big.zip s3://bucket/big.zip",
+   },
+   {
+      title: "AWS SDK: Upload from @aws-sdk/lib-storage",
+      body: (
+         <>
+            Handles part splitting, parallelism, and retries for you. The
+            right pattern for streaming uploads from a backend.
+         </>
+      ),
+      code: "import { Upload } from '@aws-sdk/lib-storage';\n\nconst u = new Upload({\n  client: s3,\n  params: { Bucket: 'b', Key: 'big.zip', Body: stream },\n  queueSize: 4,    // parts in flight\n  partSize: 8 * 1024 * 1024,\n});\nawait u.done();",
+   },
+   {
+      title: "Tune part size for very large files",
+      body: (
+         <>
+            Default <code>partSize</code> in the SDK is 5 MB; raise to 64–100
+            MB for files over 50 GB so you don&apos;t hit the 10,000-parts
+            cap. Math: max object size = partSize × 10,000.
+         </>
+      ),
+   },
+   {
+      title: "Verify with HeadObject",
+      body: (
+         <>
+            After the upload completes, confirm the size and ETag match what
+            you intended to upload.
          </>
       ),
       code: "aws s3api head-object --bucket b --key big.zip",
    },
    {
-      title: "Set a lifecycle rule for failed uploads",
+      title: "Set a lifecycle rule to abort failed uploads",
       body: (
          <>
-            Incomplete multipart uploads are billed until aborted. Add an
-            S3 lifecycle rule to auto-abort uploads older than a few days.
+            Incomplete multipart uploads sit in the bucket and you pay for
+            them until aborted. Add an S3 lifecycle rule to auto-abort
+            uploads older than a few days.
          </>
       ),
    },
@@ -69,17 +93,32 @@ const faqs: HowToFAQ[] = [
    {
       question: "What's the max file size I can upload to S3?",
       answer:
-         "5 GB with a single PutObject; 5 TB with multipart upload. Use multipart for anything over 100 MB.",
+         "5 GB with a single PutObject; 5 TB per object with multipart upload. Use multipart for anything over 100 MB so a network blip doesn't restart the whole upload from zero.",
+   },
+   {
+      question: "What is multipart upload in S3?",
+      answer:
+         "A three-step S3 API flow — CreateMultipartUpload, UploadPart (in parallel, 5 MB minimum each, up to 10,000 parts), and CompleteMultipartUpload. It splits a large file into pieces, uploads them in parallel, and lets you retry only the failed parts. Required for anything over 5 GB; recommended for anything over 100 MB.",
    },
    {
       question: "What happens if my upload fails halfway?",
       answer:
-         "With single PutObject, you start over. With multipart, only the failed parts retry. S3 Viewer retries failed parts automatically.",
+         "With single PutObject, you start over from byte zero. With multipart upload, only the failed parts retry — completed parts stay completed. S3 Viewer retries failed parts automatically without restarting the whole upload.",
    },
    {
       question: "Do I get charged for failed multipart uploads?",
       answer:
-         "Yes — incomplete multipart uploads are stored and billed until aborted. Set a lifecycle rule to auto-abort incomplete uploads after a few days.",
+         "Yes — incomplete multipart uploads are stored and billed at standard storage rates until you abort them. Set an S3 lifecycle rule to auto-abort incomplete uploads after a few days. AWS recommends this in the well-architected framework.",
+   },
+   {
+      question: "Does Cloudflare R2 support multipart upload?",
+      answer:
+         "Yes. R2 implements the same S3 multipart upload API. The same multipart pattern (and the same SDKs) works against R2 buckets without changes.",
+   },
+   {
+      question: "How do I upload large files to S3 from a browser?",
+      answer:
+         "Use presigned URLs for each part. Your backend issues a presigned URL per part via CreateMultipartUpload, the browser uploads parts directly to S3 in parallel, and the backend completes the upload. S3 Viewer's web upload uses exactly this pattern.",
    },
 ];
 
@@ -97,8 +136,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How to Upload Large Files to S3 (Multipart)"
-            description="Use multipart upload for files over 100 MB. Parts upload in parallel, failed parts retry, and you can resume from where you left off."
+            title="How to Upload Large Files to S3 (Multipart Upload)"
+            description="Use S3 multipart upload for files over 100 MB. Parts upload in parallel, failed parts retry independently, and objects up to 5 TB are supported."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -112,14 +151,16 @@ const Page = () => {
                <p>
                   S3&apos;s <code>PutObject</code> caps at 5 GB and is
                   non-resumable — a network blip on a 4 GB upload restarts
-                  from zero. Multipart upload (
+                  from byte zero. Multipart upload (
                   <code>CreateMultipartUpload</code> → many{" "}
                   <code>UploadPart</code> →{" "}
                   <code>CompleteMultipartUpload</code>) splits the file into
-                  parts (5 MB minimum, 10,000 max), uploads them in parallel,
-                  and lets you retry only the failed parts. It supports up
-                  to 5 TB per object. S3 Viewer uses multipart above 100 MB
-                  by default with automatic retries.
+                  parts (5 MB minimum, 10,000 parts max), uploads them in
+                  parallel, and lets you retry only the failed parts. It
+                  supports objects up to 5 TB. S3 Viewer uses multipart above
+                  50 MB by default with 25 MB part sizes and automatic
+                  retries; the same pattern works against Cloudflare R2,
+                  MinIO, B2, and any other S3-compatible provider.
                </p>
             }
             faqs={faqs}

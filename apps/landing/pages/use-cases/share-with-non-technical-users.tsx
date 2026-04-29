@@ -10,8 +10,8 @@ import UseCasePage, {
 } from "@/components/UseCases/use-case-page";
 import { SITE_URL } from "@/lib/site-config";
 import {
-   Activity,
    Eye,
+   Link as LinkIcon,
    Lock,
    Mail,
    ShieldCheck,
@@ -19,52 +19,56 @@ import {
 } from "lucide-react";
 
 const SLUG = "share-with-non-technical-users";
-const TITLE = "Let people view your S3 files without giving them AWS.";
+const TITLE = "Share S3 files with people who don't have AWS.";
 const KEYWORD = "share S3 files with non-technical user";
 const DESCRIPTION =
-   "S3 Viewer lets you share S3 files with non-technical users — no IAM, no AWS console, no CLI. Just an email invite and a link.";
+   "S3 Viewer lets you share AWS S3 and Cloudflare R2 files with clients, designers, executives, and other non-technical users — no IAM, no AWS console, no CLI. Just an email invite or a presigned link.";
 
 const steps: UseCaseStep[] = [
    {
       title: "Connect the bucket once",
-      body: "Add your AWS or R2 credentials to a workspace. The bucket shows up in your sidebar.",
+      body: "Add your AWS S3 or Cloudflare R2 credentials to a workspace. The bucket appears in your sidebar; the credentials stay encrypted on the server.",
    },
    {
-      title: "Invite the person",
-      body: "Type their email, pick the bucket or prefix you want to expose, and set them to read-only.",
+      title: "Invite by email",
+      body: "Type the recipient's email, pick the bucket, and choose a role: Viewer (read + download), Editor (read + upload + delete), or Admin.",
    },
    {
-      title: "They open the link",
-      body: "They sign in to S3 Viewer in a browser and see a clean file browser scoped to exactly what you shared.",
+      title: "They open the link in any browser",
+      body: "They sign in to S3 Viewer in a browser and see exactly the bucket you shared — no AWS account, no IAM user, nothing to install.",
    },
 ];
 
 const faqs: UseCaseFAQ[] = [
    {
-      question:
-         "How do I share an S3 file with someone who doesn't have an AWS account?",
+      question: "How do I share an S3 file with someone who doesn't have an AWS account?",
       answer:
-         "Invite them to an S3 Viewer workspace by email, scope their access to the bucket or prefix you want them to see, and send the link. They sign in to the web app and view files in a browser — they never touch AWS, IAM, or the CLI.",
+         "Two ways. Quickest: generate a presigned URL — a time-limited link that works in any browser. Best for ongoing access: invite them to an S3 Viewer workspace by email. They sign in to a clean browser-based file viewer scoped to the bucket you shared, and never touch AWS, IAM, or the CLI.",
    },
    {
-      question: "Is this safer than a presigned URL?",
+      question: "Is a workspace invite safer than a presigned URL?",
       answer:
-         "For ongoing access, yes. Presigned URLs are bearer tokens — anyone who gets the link gets the file. S3 Viewer ties access to a logged-in user, lets you revoke instantly, and logs every download.",
+         "For ongoing access, yes. Presigned URLs are bearer tokens — anyone who gets the link can use it until it expires, and you can't revoke it once it's out. Workspace invites tie access to a specific signed-in user, can be revoked instantly, and don't leak if forwarded.",
    },
    {
       question: "Can I let someone view files but not delete or upload?",
       answer:
-         "Yes. Each invited user has a role: viewer, editor, or admin. Viewers can browse and download but cannot upload, rename, or delete.",
+         "Yes. The Viewer role can browse and download but cannot upload, rename, or delete. Editors can upload and delete; Admins can manage members. Owners have full control.",
    },
    {
-      question: "Can the recipient see other files in my bucket?",
+      question: "Can the recipient see other buckets in my workspace?",
       answer:
-         "Only files under the prefix you scoped them to. If you share clients/acme/, they cannot list or read anything outside that path.",
+         "No. Members only see the buckets they've been invited to. If you have ten buckets connected and invite someone to one, they only see that one.",
    },
    {
       question: "What happens when I revoke access?",
       answer:
-         "Their session ends on next request and the workspace stops signing S3 calls for them. Unlike rotating an IAM key, nothing else breaks.",
+         "Their session ends on the next request and the workspace stops signing S3 calls for them. Unlike rotating an IAM key, nothing else breaks — your other teammates and your applications keep working.",
+   },
+   {
+      question: "Can I do this with Cloudflare R2 instead of AWS S3?",
+      answer:
+         "Yes. Connect an R2 bucket the same way and invite users to it. They never need a Cloudflare account — the workspace authenticates them, not Cloudflare.",
    },
 ];
 
@@ -82,7 +86,7 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="Share S3 Files With Non-Technical Users"
+            title="Share S3 Files With Non-Technical Users — No AWS Account Needed"
             description={DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
@@ -92,42 +96,42 @@ const Page = () => {
             eyebrow="Sharing without AWS"
             title={TITLE}
             subtitle={DESCRIPTION}
-            description="The simplest way to put a file in someone else's hands."
+            description="Stop emailing zip files. Stop minting IAM users for clients."
             bullets={[
-               "Invite by email; recipients view files in a browser",
-               "Scope access to a single bucket or a single prefix",
-               "Revoke any user instantly from a workspace dashboard",
+               "Invite by email — recipients view files in a browser, no AWS or Cloudflare account",
+               "Pick a role per teammate: Viewer, Editor, or Admin",
+               "Revoke any user instantly from the workspace dashboard",
             ]}
             features={[
                {
                   icon: Mail,
                   title: "Email invites",
-                  body: "Send a link; the recipient signs in and sees only what you've shared.",
+                  body: "Send a link; the recipient signs in once and sees only the buckets you shared. No IAM users, no role policies, no AWS account creation.",
                },
                {
                   icon: ShieldCheck,
-                  title: "No AWS account needed",
-                  body: "Viewers never touch IAM, the console, or aws configure.",
-               },
-               {
-                  icon: Lock,
-                  title: "Prefix-scoped access",
-                  body: "Share clients/acme/ without exposing the rest of the bucket.",
+                  title: "No AWS or Cloudflare login",
+                  body: "Recipients never see the AWS console, an IAM dashboard, or aws configure. The workspace is the front door.",
                },
                {
                   icon: Eye,
-                  title: "Read-only mode",
-                  body: "View and download only — uploads and deletes off by default.",
+                  title: "Read-only by default",
+                  body: "Viewers can browse and download but cannot upload, rename, or delete. Drop-in safe for clients, executives, and external reviewers.",
                },
                {
-                  icon: Activity,
-                  title: "Activity log",
-                  body: "See who opened or downloaded which file.",
+                  icon: LinkIcon,
+                  title: "Presigned URLs for one-offs",
+                  body: "Need to send a single file with no signup? Generate a time-limited link straight from the file menu — works in any browser.",
+               },
+               {
+                  icon: Lock,
+                  title: "Encrypted credentials",
+                  body: "Your AWS keys are encrypted at rest with RSA-4096. Recipients never see them, and you never have to share them.",
                },
                {
                   icon: UserMinus,
                   title: "Revoke in one click",
-                  body: "Pull access without rotating keys.",
+                  body: "Pull access without rotating IAM keys. Their session ends, your other teammates and applications keep working.",
                },
             ]}
             steps={steps}

@@ -14,19 +14,26 @@ const SLUG = "invite-teammate-to-s3-bucket";
 const TITLE = "How to invite a teammate to your S3 bucket";
 const KEYWORD = "invite teammate to S3 bucket";
 const TLDR =
-   "Don't create per-person IAM users. Connect the bucket to an S3 Viewer workspace once, then invite teammates by email and scope them to a bucket or prefix.";
+   "Don't mint a per-person IAM user for every teammate — it doesn't scale and you'll forget to off-board. Connect the bucket to an S3 Viewer workspace once with a single least-privilege key, then invite teammates by email and assign per-bucket roles.";
 
 const steps: HowToStep[] = [
    {
       title: "Create a workspace",
-      body: <>One per team or project. Workspaces hold connections and members.</>,
-   },
-   {
-      title: "Connect the bucket",
       body: (
          <>
-            Paste an access key and secret. Use an IAM policy scoped to the
-            buckets you want exposed — least privilege.
+            One per team or project. Workspaces hold connected buckets and
+            members; everything is scoped inside.
+         </>
+      ),
+   },
+   {
+      title: "Connect the bucket once",
+      body: (
+         <>
+            Paste an access key and secret. Use a least-privilege IAM user
+            scoped to the buckets you want exposed — typically with{" "}
+            <code>s3:ListBucket</code>, <code>s3:GetObject</code>,{" "}
+            <code>s3:PutObject</code>, and <code>s3:DeleteObject</code>.
          </>
       ),
    },
@@ -34,17 +41,10 @@ const steps: HowToStep[] = [
       title: "Invite by email",
       body: (
          <>
-            Type their email and pick a role: viewer (read), editor (read +
-            write), admin (everything).
-         </>
-      ),
-   },
-   {
-      title: "Optionally scope to a prefix",
-      body: (
-         <>
-            For example <code>reports/finance/</code>. They cannot list or
-            read anything outside that prefix.
+            Type your teammate&apos;s email and pick a role:{" "}
+            <strong>Viewer</strong> (read + download),{" "}
+            <strong>Editor</strong> (read + upload + rename + delete), or{" "}
+            <strong>Admin</strong> (everything plus inviting other members).
          </>
       ),
    },
@@ -52,17 +52,18 @@ const steps: HowToStep[] = [
       title: "Send",
       body: (
          <>
-            They get a link, sign in (Google or email), and see only the
-            scope you assigned.
+            They get a link, sign in, and see only the buckets you assigned
+            to them. They never touch AWS, IAM, or the CLI.
          </>
       ),
    },
    {
-      title: "Audit and revoke",
+      title: "Off-boarding: revoke in one click",
       body: (
          <>
-            Watch the audit log; remove a teammate in one click. No AWS keys
-            to rotate.
+            Pull a member&apos;s workspace access. Their session ends on the
+            next request, and you don&apos;t need to rotate any AWS or R2
+            keys — they never had any.
          </>
       ),
    },
@@ -70,20 +71,29 @@ const steps: HowToStep[] = [
 
 const faqs: HowToFAQ[] = [
    {
-      question:
-         "Can multiple users access the same S3 bucket without each having an IAM user?",
+      question: "Can multiple users access the same S3 bucket without each having an IAM user?",
       answer:
-         "Yes. Connect the bucket to an S3 Viewer workspace once; invite teammates by email. Their access is enforced by the workspace, not by IAM.",
+         "Yes. Connect the bucket to an S3 Viewer workspace once with a single least-privilege IAM key, then invite teammates by email. They authenticate against the workspace, not AWS, so you never create per-person IAM users and you don't have to rotate access keys when someone leaves.",
    },
    {
       question: "How do I remove a teammate from a bucket?",
       answer:
-         "Click revoke on their workspace membership. Their session ends; you don't need to rotate any AWS keys.",
+         "Click revoke on their workspace membership. Their session ends on the next request — no AWS keys to rotate, no policies to edit, no other teammates affected.",
    },
    {
-      question: "Can I limit a teammate to one folder?",
+      question: "Can a teammate have different access on different buckets?",
       answer:
-         "Yes — set a prefix scope on their role. They cannot list or read anything outside that prefix.",
+         "Yes. Roles are assigned per bucket. The same person can be a Viewer on one bucket, an Editor on another, and have no access at all to the rest.",
+   },
+   {
+      question: "Why not just use IAM Identity Center or per-user IAM?",
+      answer:
+         "IAM was designed for service-to-service auth, not human collaboration. Per-user IAM means writing a policy for every bucket, rotating keys at offboarding, and giving non-technical teammates a console they can't navigate. Workspace invites keep the bucket connection at the team level and give each person a normal email login with a clean file browser.",
+   },
+   {
+      question: "Does this work with Cloudflare R2 buckets too?",
+      answer:
+         "Yes. Connect an R2 bucket the same way and invite teammates to it. They never need a Cloudflare account — the workspace authenticates them.",
    },
 ];
 
@@ -101,8 +111,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How to Invite a Teammate to Your S3 Bucket"
-            description="Skip per-person IAM users. Connect the bucket to a workspace once, then invite teammates by email with prefix-scoped roles."
+            title="How to Invite a Teammate to Your S3 Bucket (Without IAM)"
+            description="Skip per-person IAM users. Connect the bucket to a workspace once, then invite teammates by email with per-bucket roles."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -120,8 +130,9 @@ const Page = () => {
                   connected once with a workspace-level credential, and
                   teammates authenticate to the workspace, not to AWS. Their
                   access is enforced server-side: the workspace signs S3
-                  requests on their behalf only for paths inside their
-                  assigned scope.
+                  requests on their behalf only for buckets they&apos;ve
+                  been granted access to. When you revoke them, no keys need
+                  rotating because they never held any.
                </p>
             }
             faqs={faqs}

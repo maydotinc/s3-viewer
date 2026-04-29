@@ -37,8 +37,10 @@ const Hub = () => {
                      How-to guides for S3.
                   </h1>
                   <p className="text-[16px] sm:text-[17px] text-viewertext leading-relaxed max-w-[600px]">
-                     Step-by-step answers for the questions you Google about
-                     S3, R2, and friends. CLI snippets included.
+                     Direct answers to the questions developers Google about
+                     AWS S3, Cloudflare R2, and S3-compatible storage. AWS CLI
+                     and SDK snippets included; one-click equivalents in S3
+                     Viewer where they exist.
                   </p>
                </div>
             </div>

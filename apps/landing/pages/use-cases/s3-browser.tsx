@@ -10,61 +10,70 @@ import UseCasePage, {
 } from "@/components/UseCases/use-case-page";
 import { SITE_URL } from "@/lib/site-config";
 import {
-   Download,
    Eye,
-   Keyboard,
-   MousePointerClick,
+   Github,
+   Globe,
+   PencilLine,
    Search,
    Zap,
 } from "lucide-react";
 
 const SLUG = "s3-browser";
-const TITLE = "A faster way to browse S3.";
+const TITLE = "A browser-based S3 client built for developers.";
 const KEYWORD = "S3 browser";
 const DESCRIPTION =
-   "S3 Viewer is a web-based S3 browser with real search, instant previews, and clean downloads. Works with AWS S3, R2, B2, MinIO, and Wasabi.";
+   "S3 Viewer is a free, open-source S3 browser that runs in any browser. Real bucket-wide key search, inline previews for images, video, PDF, JSON, and code, and Cmd-K bucket switching. Works with AWS S3, Cloudflare R2, MinIO, Backblaze B2, and Wasabi.";
 
 const steps: UseCaseStep[] = [
    {
       title: "Connect a bucket",
-      body: "Paste your access key once. We auto-detect the endpoint and start listing objects.",
+      body: "Paste an access key once. AWS S3 and Cloudflare R2 are auto-detected; for MinIO, B2, Wasabi, or any S3-compatible provider, drop in the endpoint URL.",
    },
    {
       title: "Browse or search",
-      body: "Use the tree, or hit / to search keys across the entire bucket — not just the current page.",
+      body: "Use the tree to navigate prefixes, or type in the search bar to match keys across the entire bucket — not just the visible page.",
    },
    {
-      title: "Preview or download",
-      body: "Click a file to preview it inline. Click download or drag straight to your desktop.",
+      title: "Preview, download, or rename",
+      body: "Click a file to preview it inline. Download with one click. Right-click to rename, copy, move, or delete — including bulk delete across many keys.",
    },
 ];
 
 const faqs: UseCaseFAQ[] = [
    {
-      question: "What's the best web-based S3 browser?",
+      question: "What is the best web-based S3 browser?",
       answer:
-         "S3 Viewer is built for browsing — fast key search, inline previews for common formats (images, video, PDF, JSON, CSV), multi-select, and keyboard navigation. It works with AWS S3, Cloudflare R2, MinIO, Backblaze B2, and Wasabi.",
+         "S3 Viewer is a browser-based S3 client built for developers. It adds bucket-wide key search, inline previews for images, video, audio, PDF, JSON, and source code, multipart upload with retries, rename via copy+delete, and Cmd-K bucket switching to AWS S3 — and works with Cloudflare R2, MinIO, Backblaze B2, Wasabi, DigitalOcean Spaces, and any other S3-compatible provider.",
    },
    {
-      question:
-         "Can I search across all keys in a bucket, not just one prefix?",
+      question: "Why is this better than the AWS S3 console?",
       answer:
-         "Yes. Search runs against the whole bucket from any path. Results show the full key so you can see where each match lives.",
+         "The AWS console is a configuration UI, not a file browser. Its search only filters the current 1,000-key page, it has no rename, no inline preview for most file types, and switching between accounts and buckets requires re-entering credentials. S3 Viewer paginates through ListObjectsV2 for true bucket-wide search, previews 30+ file types inline, supports rename, and lets you keep every bucket from every account loaded behind Cmd-K.",
+   },
+   {
+      question: "How is this different from Cyberduck, S3 Browser, or Mountain Duck?",
+      answer:
+         "Those are desktop apps that store credentials on your machine and only run on one OS. S3 Viewer is a web app — it works in any browser, on any OS, and credentials stay encrypted on the server (or self-hosted on yours). It also has team workspaces, per-bucket roles, and email-based sharing built in.",
+   },
+   {
+      question: "Can I search across all keys in a bucket, not just one prefix?",
+      answer:
+         "Yes. S3 Viewer paginates through ListObjectsV2 in the background and filters in-memory as you type, so you can find a key anywhere in the bucket from any path. Results show the full key so you can see exactly where each match lives.",
    },
    {
       question: "What file types can I preview without downloading?",
       answer:
-         "Images (PNG, JPG, WebP, AVIF, SVG, GIF), video (MP4, WebM), audio, PDF, JSON, CSV, Markdown, and plain text or log files.",
+         "Images (PNG, JPG, WebP, AVIF, SVG, GIF, BMP, TIFF, ICO), video (MP4, WebM, Ogg, MOV), audio (MP3, WAV, OGG, AAC, M4A, FLAC), PDF, plain text, Markdown, JSON, XML, HTML, CSS, JavaScript, Python, Java, and C source files.",
    },
    {
-      question: "Can I download an entire folder at once?",
+      question: "Does it work with MinIO, Backblaze B2, and self-hosted S3?",
       answer:
-         "Yes. Select a prefix and download as a zip, or multi-select files and download them together.",
+         "Yes. Point S3 Viewer at any S3-compatible endpoint, including private MinIO clusters inside your VPC. The same browser UI handles every provider that speaks the S3 API.",
    },
    {
-      question: "Does it work with MinIO and self-hosted S3?",
+      question: "Is S3 Viewer free?",
       answer:
-         "Yes. Point it at any S3-compatible endpoint, including private MinIO clusters inside your VPC.",
+         "It's free to use and MIT-licensed on GitHub. You can run it hosted or self-host it yourself.",
    },
 ];
 
@@ -82,7 +91,7 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="S3 Browser — Search, View, and Download Files"
+            title="S3 Browser — Open-Source Web Client for AWS S3 and R2"
             description={DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
@@ -92,42 +101,42 @@ const Page = () => {
             eyebrow="Better S3 browser"
             title={TITLE}
             subtitle={DESCRIPTION}
-            description="The web S3 browser you wish came with the cloud."
+            description="The S3 browser the AWS console refuses to be."
             bullets={[
-               "Search keys across an entire bucket, not just the current folder",
-               "Preview images, video, JSON, CSV, PDF, and logs in-browser",
-               "Download single files, multi-select, or full prefixes as zip",
+               "Search keys across an entire bucket — not just the current 1,000-key page",
+               "Inline preview for images, video, audio, PDF, JSON, and source code",
+               "Cmd-K bucket switcher across every connected provider",
             ]}
             features={[
                {
                   icon: Search,
-                  title: "Real search",
-                  body: "Type in the search bar and match keys across the bucket, not just the current page.",
+                  title: "Real bucket-wide search",
+                  body: "Type any part of a key. S3 Viewer paginates ListObjectsV2 in the background and filters as results stream in. The AWS console only filters the visible page.",
                },
                {
                   icon: Eye,
-                  title: "Previews",
-                  body: "Images, video, audio, PDFs, JSON, CSV, and plain text render inline.",
+                  title: "Inline previews",
+                  body: "30+ file types render in the browser: images, video, audio, PDF, JSON, Markdown, and source code from JavaScript to Python.",
                },
                {
-                  icon: MousePointerClick,
-                  title: "Multi-select",
-                  body: "Shift-click and bulk download, delete, or rename.",
-               },
-               {
-                  icon: Keyboard,
-                  title: "Keyboard navigation",
-                  body: "Arrow keys, / to search, Enter to open. Built for power users.",
+                  icon: PencilLine,
+                  title: "Rename and bulk delete",
+                  body: "Right-click to rename via copy + delete, or multi-select to bulk delete across many keys at once. The console makes you click each one.",
                },
                {
                   icon: Zap,
-                  title: "Fast bucket switching",
-                  body: "Cmd-K jumps between any connected bucket across providers.",
+                  title: "Cmd-K bucket switcher",
+                  body: "Fuzzy-jump to any bucket on any connected provider. No re-entering credentials, no logging into another console.",
                },
                {
-                  icon: Download,
-                  title: "No CLI required",
-                  body: "Everything works in the browser. Install nothing, configure nothing.",
+                  icon: Globe,
+                  title: "Runs in any browser",
+                  body: "No CLI to install, no desktop app to update. Open a tab and you're browsing — on macOS, Linux, Windows, or a Chromebook.",
+               },
+               {
+                  icon: Github,
+                  title: "Open source, MIT-licensed",
+                  body: "Free to use, free to self-host. Audit the code, fork it, run it inside your VPC. Credentials never have to leave your network.",
                },
             ]}
             steps={steps}

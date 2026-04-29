@@ -14,43 +14,50 @@ const SLUG = "download-file-from-s3";
 const TITLE = "How to download a file from S3";
 const KEYWORD = "download file from S3";
 const TLDR =
-   "In a browser, click the file in S3 Viewer and hit download. In a terminal, run aws s3 cp s3://bucket/key ./local-file.";
+   "Three ways to download from S3: open S3 Viewer in a browser and click the file (it streams via a server-side presigned URL — your AWS keys never reach the client); run `aws s3 cp s3://bucket/key ./` from a terminal; or send a presigned URL to anyone who doesn't have AWS access.";
 
 const steps: HowToStep[] = [
    {
       title: "In S3 Viewer: click the file",
       body: (
          <>
-            Hit the download button or press <code>D</code>. The file
-            streams from your bucket through your browser via a server-side
-            signed URL — your AWS keys never reach the client.
+            Hit the download button. The file streams from your bucket
+            through your browser via a short-lived (15 minute) presigned URL
+            signed server-side — your AWS keys never reach the client.
          </>
       ),
    },
    {
-      title: "Multiple files: multi-select",
-      body: <>Shift-click to select a range. Download as a zip in one click.</>,
-   },
-   {
-      title: "Whole prefix: select the folder",
-      body: <>Right-click a prefix and download as zip. Streamed and packaged on the fly.</>,
-   },
-   {
-      title: "CLI alternative: aws s3 cp",
-      body: <>For a single file.</>,
+      title: "AWS CLI: aws s3 cp (single file)",
+      body: <>For one file. Streams directly to disk.</>,
       code: "aws s3 cp s3://my-bucket/path/to/file.pdf ./",
    },
    {
-      title: "CLI alternative: aws s3 sync",
-      body: <>For a whole prefix to a local directory. Skips files you already have.</>,
+      title: "AWS CLI: aws s3 sync (whole prefix)",
+      body: (
+         <>
+            Mirrors a prefix to a local directory and skips files you already
+            have. The right pattern for backups or local development.
+         </>
+      ),
       code: "aws s3 sync s3://my-bucket/reports/ ./reports/",
+   },
+   {
+      title: "AWS SDK: GetObject",
+      body: (
+         <>
+            For a backend, stream the response body to a file or to a
+            response stream.
+         </>
+      ),
+      code: "const obj = await s3.getObject({\n  Bucket: 'my-bucket',\n  Key: 'file.pdf',\n});\nawait pipeline(obj.Body, fs.createWriteStream('./file.pdf'));",
    },
    {
       title: "Sharing: presigned URL",
       body: (
          <>
             For someone without AWS access, send a presigned URL — works in
-            any browser, expires when you say.
+            any browser, expires when you say. Treat it as a bearer token.
          </>
       ),
       code: "aws s3 presign s3://my-bucket/file.pdf --expires-in 3600",
@@ -61,17 +68,27 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I download a file from an S3 bucket?",
       answer:
-         "Easiest: open S3 Viewer, click the file, hit download. From the terminal: aws s3 cp s3://bucket/key ./. For someone without AWS access: send them a presigned URL.",
+         "Easiest: open S3 Viewer in a browser, click the file, hit download — it streams via a server-side presigned URL. From a terminal: `aws s3 cp s3://bucket/key ./`. From an SDK: call GetObject and pipe the response body to a file. To share with someone who doesn't have AWS access: generate a presigned URL with `aws s3 presign`.",
    },
    {
-      question: "Can I download an entire S3 folder?",
+      question: "How do I download an entire S3 prefix or folder?",
       answer:
-         "Yes. In S3 Viewer, select the prefix and download as zip. From the CLI: aws s3 sync s3://bucket/prefix ./local-dir.",
+         "From the AWS CLI: `aws s3 sync s3://bucket/prefix ./local-dir` — it mirrors the prefix and skips files already on disk. Programmatically: list the prefix with ListObjectsV2 and GetObject each key in parallel.",
    },
    {
       question: "How do I download a file from someone else's S3 bucket?",
       answer:
-         "If they sent a presigned URL, paste it in any browser. If they invited you to S3 Viewer, sign in and download from the file browser.",
+         "If they sent you a presigned URL, paste it in any browser — it works without an AWS account until it expires. If they invited you to S3 Viewer, sign in and download from the file browser. If they granted your AWS account cross-account access, use your own AWS CLI as normal.",
+   },
+   {
+      question: "Why do my AWS keys never reach the client in S3 Viewer?",
+      answer:
+         "S3 Viewer signs every request server-side using your encrypted credentials, then issues a short-lived presigned URL the browser fetches. Your access key and secret stay encrypted on the server (RSA-4096 at rest); only a 15-minute signed URL ever reaches the client.",
+   },
+   {
+      question: "Can I download from Cloudflare R2 the same way?",
+      answer:
+         "Yes. R2 implements the S3 GetObject API and presigned URLs. The AWS CLI works against R2 with `--endpoint-url`; S3 Viewer's download flow is identical for R2 and AWS S3.",
    },
 ];
 
@@ -89,8 +106,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How to Download a File From S3"
-            description="Three ways to download from S3: the web UI, the AWS CLI (aws s3 cp / sync), and presigned URLs for sharing without AWS access."
+            title="How to Download a File From S3 (Web, CLI, SDK)"
+            description="Three ways to download from S3: a web browser via S3 Viewer, the AWS CLI (aws s3 cp / sync), or presigned URLs for sharing without AWS access."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -103,11 +120,14 @@ const Page = () => {
             underTheHood={
                <p>
                   A download is a <code>GetObject</code> API call. The CLI
-                  streams the body to a local file; S3 Viewer streams it
-                  through the browser using a presigned URL signed
-                  server-side, so your AWS keys never reach the client.
-                  Zip-download for prefixes works by listing keys, streaming
-                  each through the server, and packaging on the fly.
+                  streams the response body to a local file; SDKs return a
+                  readable stream you pipe wherever you want; S3 Viewer
+                  signs a short-lived presigned URL server-side using your
+                  encrypted credentials and the browser fetches that URL —
+                  so your AWS keys never reach the client. Sharing with a
+                  non-AWS user is the same primitive: a presigned URL is
+                  just a signed query-string version of GetObject anyone
+                  with the link can fetch until it expires.
                </p>
             }
             faqs={faqs}

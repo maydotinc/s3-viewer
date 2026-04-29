@@ -10,61 +10,65 @@ import UseCasePage, {
 } from "@/components/UseCases/use-case-page";
 import { SITE_URL } from "@/lib/site-config";
 import {
-   ClipboardList,
-   FolderLock,
+   Github,
    KeyRound,
+   ListOrdered,
+   Mail,
    ShieldCheck,
-   UserPlus,
    Users,
 } from "lucide-react";
 
 const SLUG = "teams";
-const TITLE = "A workspace for your team's buckets.";
+const TITLE = "Give your team S3 access without minting IAM users.";
 const KEYWORD = "S3 bucket team access";
 const DESCRIPTION =
-   "Give your team S3 bucket access without handing out root credentials. Invite teammates, scope them to a bucket or prefix, and revoke them in one click.";
+   "S3 Viewer is a team workspace for AWS S3 and Cloudflare R2 buckets. Connect a bucket once with workspace credentials, then invite teammates by email and assign per-bucket roles — no per-person IAM users, no key rotation when someone leaves.";
 
 const steps: UseCaseStep[] = [
    {
       title: "Create a workspace",
-      body: "One per team or project. Connect your buckets to it once with a single set of credentials.",
+      body: "One per team or project. Workspaces hold connected buckets and members; everything is scoped inside.",
    },
    {
-      title: "Invite teammates",
-      body: "Pick a role (viewer, editor, admin) and optionally a prefix scope. Send by email.",
+      title: "Connect the bucket once",
+      body: "Paste a single set of access keys — ideally a least-privilege IAM user scoped to the buckets you want to expose. Workspaces, not AWS, manage who can see what.",
    },
    {
-      title: "Watch the audit log",
-      body: "Every view, download, upload, rename, and delete is recorded with user and timestamp.",
+      title: "Invite by email, assign a role",
+      body: "Pick a role per teammate: Owner, Admin, Editor, or Viewer. Send the link. They sign in to the workspace, never to AWS or Cloudflare.",
    },
 ];
 
 const faqs: UseCaseFAQ[] = [
    {
-      question:
-         "How do I give my team access to an S3 bucket without creating IAM users for each of them?",
+      question: "How do I give my team access to an S3 bucket without creating IAM users for each of them?",
       answer:
-         "Connect the bucket to an S3 Viewer workspace once using a single set of credentials, then invite teammates by email. They authenticate against the workspace, not AWS, so you never create per-person IAM users.",
-   },
-   {
-      question: "Can I limit a teammate to one folder in a bucket?",
-      answer:
-         "Yes. Set a prefix scope on their invite (for example reports/finance/). They cannot list or read anything outside that prefix.",
+         "Connect the bucket to an S3 Viewer workspace once using a single set of credentials, then invite teammates by email. They authenticate against the workspace, not AWS, so you never create per-person IAM users and you don't have to rotate keys when someone leaves.",
    },
    {
       question: "What roles are available?",
       answer:
-         "Three: viewer (read and download), editor (read, upload, rename, delete), and admin (everything plus invite/remove users and connect buckets).",
+         "Four: Viewer (read + download), Editor (read + upload + rename + delete), Admin (everything plus invite and remove members), and Owner (full control including billing and bucket connections). Roles are assigned per bucket — a teammate can be an Editor on one bucket and a Viewer on another.",
    },
    {
-      question: "Is there an audit log?",
+      question: "Can I limit a teammate to one bucket out of many?",
       answer:
-         "Yes. Every action — view, download, upload, rename, delete — is logged with the user, timestamp, bucket, and key. Exportable as JSON or CSV.",
+         "Yes. Members only see the buckets you've granted them access to. Connect ten buckets to a workspace, give an engineer access to one, and the other nine are invisible to them.",
    },
    {
-      question: "Can I use SSO?",
+      question: "What happens when someone leaves the team?",
       answer:
-         "Google SSO is available on hosted. SAML and OIDC are available on the self-hosted build.",
+         "Revoke their workspace access in one click. Their session ends, they can't sign back in, and you don't have to rotate any AWS or R2 access keys — because they never had any.",
+   },
+   {
+      question: "Why is this better than IAM Identity Center or per-user IAM?",
+      answer:
+         "IAM was designed for service-to-service auth, not human collaboration. Per-user IAM means rotating keys at offboarding, writing IAM policies for every bucket, and giving non-technical teammates a console they can't navigate. S3 Viewer keeps the bucket connection at the team level and gives each person a normal email login with a clean file browser.",
+   },
+   {
+      question: "Does this work with Cloudflare R2 buckets too?",
+      answer:
+         "Yes. Connect an R2 bucket the same way you'd connect an AWS bucket and invite teammates to it. The workspace handles auth — Cloudflare never has to.",
    },
 ];
 
@@ -82,7 +86,7 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="Team Access for S3 Buckets — Invite, Scope, Revoke"
+            title="S3 Bucket Team Access — Invite, Scope, Revoke Without IAM"
             description={DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
@@ -92,42 +96,42 @@ const Page = () => {
             eyebrow="Team workspaces"
             title={TITLE}
             subtitle={DESCRIPTION}
-            description="Built so onboarding a teammate doesn't mean another IAM user."
+            description="Onboarding a teammate shouldn't mean writing another IAM policy."
             bullets={[
                "One workspace, multiple connected buckets, multiple teammates",
-               "Per-user roles: admin, editor, viewer",
-               "Per-prefix scopes for fine-grained access",
+               "Per-bucket roles: Owner, Admin, Editor, Viewer",
+               "Revoke without rotating keys — sessions end on next request",
             ]}
             features={[
                {
                   icon: KeyRound,
-                  title: "Workspace credentials",
-                  body: "Connect a bucket once; the whole team uses it.",
+                  title: "One credential per bucket",
+                  body: "Connect a bucket once with a single least-privilege IAM key. The whole team uses it through their own logins — no shared root keys, no per-person IAM users.",
                },
                {
                   icon: Users,
-                  title: "Roles",
-                  body: "Admin, editor, viewer — clear and minimal.",
+                  title: "Four roles, per bucket",
+                  body: "Owner, Admin, Editor, Viewer — clear and minimal. Assign different roles to the same person on different buckets.",
                },
                {
-                  icon: FolderLock,
-                  title: "Prefix scopes",
-                  body: "Restrict a user to logs/2026/ and nothing else.",
-               },
-               {
-                  icon: ClipboardList,
-                  title: "Audit log",
-                  body: "Every action recorded with user and timestamp. Exportable.",
+                  icon: Mail,
+                  title: "Invite by email",
+                  body: "Type an address, pick a role, send. They sign in to the workspace and the bucket appears in their sidebar.",
                },
                {
                   icon: ShieldCheck,
-                  title: "SSO-ready",
-                  body: "Google SSO on hosted; SAML and OIDC on self-host.",
+                  title: "Server-side enforcement",
+                  body: "The workspace signs every S3 request on a member's behalf. Their browser never sees your access keys, and policy checks happen before the request reaches AWS.",
                },
                {
-                  icon: UserPlus,
-                  title: "No new IAM users",
-                  body: "Onboard a teammate without touching AWS.",
+                  icon: ListOrdered,
+                  title: "Clean off-boarding",
+                  body: "Click revoke. Their session dies on next request. No IAM key rotation, no policy edits, no broken applications.",
+               },
+               {
+                  icon: Github,
+                  title: "Self-host the same UI",
+                  body: "MIT-licensed and open source. Run the same workspace inside your VPC for full control over data residency and SSO.",
                },
             ]}
             steps={steps}
