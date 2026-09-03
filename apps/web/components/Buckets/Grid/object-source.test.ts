@@ -85,7 +85,8 @@ describe("createObjectDatasource", () => {
       expect(last.lastRow).toBe(total);
 
       const first = await rowsFor(datasource, 0);
-      expect(calls).toHaveLength(3);
+      expect(calls).toHaveLength(4);
+      expect(calls[3]).toEqual({ token: null, blockSize: BLOCK });
       expect(first.rows).toHaveLength(BLOCK);
       expect(first.lastRow).toBe(total);
    });
@@ -115,14 +116,11 @@ describe("createObjectDatasource", () => {
       expect(calls).toHaveLength(3);
    });
 
-   it("evicts the least recently used block and refetches it from its token", async () => {
+   it("fetches a block directly once its token is known, without rejoining the chain", async () => {
       total = 12_500;
       const datasource = source();
       for (let block = 0; block <= 10; block++)
          await rowsFor(datasource, block);
-      expect(calls).toHaveLength(11);
-
-      await rowsFor(datasource, 10);
       expect(calls).toHaveLength(11);
 
       const first = await rowsFor(datasource, 0);
@@ -130,8 +128,10 @@ describe("createObjectDatasource", () => {
       expect(calls[11]).toEqual({ token: null, blockSize: BLOCK });
       expect(first.rows[0]?.key).toBe("k0");
 
-      await rowsFor(datasource, 0);
-      expect(calls).toHaveLength(12);
+      const middle = await rowsFor(datasource, 5);
+      expect(calls).toHaveLength(13);
+      expect(calls[12]).toEqual({ token: "5000", blockSize: BLOCK });
+      expect(middle.rows[0]?.key).toBe("k5000");
    });
 
    it("starts over after reset and serialises overlapping requests", async () => {

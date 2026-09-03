@@ -6,7 +6,6 @@ import {
 } from "@s3-viewer/types";
 import type { GridApi, IDatasource, IGetRowsParams } from "ag-grid-community";
 
-const MAX_CACHED_BLOCKS = 10;
 const MAX_CALLS_PER_BLOCK = 20;
 
 type ObjectSourceParams = {
@@ -27,14 +26,12 @@ type ObjectDatasource = IDatasource & {
 type Listing = {
    /** tokens[i] resumes S3 at block i; the array only ever grows by one known token at a time. */
    tokens: (string | undefined)[];
-   blocks: Map<number, S3Object[]>;
    end: number | null;
    chain: Promise<unknown>;
 };
 
 const freshListing = (): Listing => ({
    tokens: [undefined],
-   blocks: new Map(),
    end: null,
    chain: Promise.resolve(),
 });
@@ -75,18 +72,20 @@ const createObjectDatasource = ({
       }
       if (token) target.tokens[index + 1] = token;
       else target.end = index * MAX_LIST_BLOCK_SIZE + rows.length;
-      const block = foldersFirst
+      return foldersFirst
          ? rows
               .filter((r) => r.isFolder)
               .concat(rows.filter((r) => !r.isFolder))
          : rows;
-      target.blocks.set(index, block);
-      if (target.blocks.size > MAX_CACHED_BLOCKS) {
-         const oldest = target.blocks.keys().next().value;
-         if (oldest !== undefined) target.blocks.delete(oldest);
-      }
-      return block;
    };
+
+   const boundedFetch = (
+      target: Listing,
+      index: number
+   ): Promise<S3Object[]> =>
+      target.end !== null && index * MAX_LIST_BLOCK_SIZE >= target.end
+         ? Promise.resolve([])
+         : fetchBlock(target, index);
 
    const loadBlock = async (
       target: Listing,
@@ -96,18 +95,11 @@ const createObjectDatasource = ({
          if (target.end !== null) return [];
          await fetchBlock(target, i);
       }
-      if (target.end !== null && index * MAX_LIST_BLOCK_SIZE >= target.end)
-         return [];
-      return fetchBlock(target, index);
+      return boundedFetch(target, index);
    };
 
    const enqueue = (target: Listing, index: number): Promise<S3Object[]> => {
-      const cached = target.blocks.get(index);
-      if (cached) {
-         target.blocks.delete(index);
-         target.blocks.set(index, cached);
-         return Promise.resolve(cached);
-      }
+      if (index < target.tokens.length) return boundedFetch(target, index);
       const run = target.chain.then(() => loadBlock(target, index));
       target.chain = run.catch(() => undefined);
       return run;

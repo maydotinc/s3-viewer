@@ -2,8 +2,10 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import type { Readable } from "node:stream";
 
-const PART_SIZE = 25 * 1024 * 1024;
 const QUEUE_SIZE = 4;
+const MAX_PARTS = 10_000;
+const TIB = 1024 ** 4;
+const MAX_OBJECT_BYTES = 5 * TIB;
 
 const declaredLength = (header: string | undefined): number | undefined => {
    if (header === undefined || header.trim() === "") return undefined;
@@ -16,6 +18,27 @@ const exceedsLimit = (
    limit: number | undefined
 ): boolean => limit !== undefined && length !== undefined && length > limit;
 
+/** The smallest part size that keeps a known content length under `MAX_PARTS`. */
+const minPartSizeFor = (contentLength: number): number =>
+   Math.ceil(contentLength / MAX_PARTS);
+
+/** True when `length` exceeds S3's per-object limit, or even `maxPartBytes` parts can't fit it under `MAX_PARTS`. */
+const exceedsMaxPartSize = (
+   length: number | undefined,
+   maxPartBytes: number
+): boolean =>
+   length !== undefined &&
+   (length > MAX_OBJECT_BYTES || minPartSizeFor(length) > maxPartBytes);
+
+/** Base part size, bumped up so a known content length stays under `MAX_PARTS` parts. */
+const partSizeFor = (
+   contentLength: number | undefined,
+   basePartBytes: number
+): number =>
+   contentLength === undefined
+      ? basePartBytes
+      : Math.max(basePartBytes, minPartSizeFor(contentLength));
+
 type StreamUploadParams = {
    client: S3Client;
    bucket: string;
@@ -23,6 +46,7 @@ type StreamUploadParams = {
    contentType: string;
    body: Readable;
    contentLength: number | undefined;
+   partSize: number;
    abortController: AbortController;
 };
 
@@ -35,6 +59,7 @@ const streamUpload = async ({
    contentType,
    body,
    contentLength,
+   partSize,
    abortController,
 }: StreamUploadParams): Promise<StreamUploadResult> => {
    const upload = new Upload({
@@ -48,7 +73,7 @@ const streamUpload = async ({
             ? {}
             : { ContentLength: contentLength }),
       },
-      partSize: PART_SIZE,
+      partSize,
       queueSize: QUEUE_SIZE,
       leavePartsOnError: false,
       abortController,
@@ -63,4 +88,12 @@ const streamUpload = async ({
    return { size, eTag: out.ETag ?? null };
 };
 
-export { declaredLength, exceedsLimit, streamUpload };
+export {
+   declaredLength,
+   exceedsLimit,
+   exceedsMaxPartSize,
+   MAX_OBJECT_BYTES,
+   MAX_PARTS,
+   partSizeFor,
+   streamUpload,
+};

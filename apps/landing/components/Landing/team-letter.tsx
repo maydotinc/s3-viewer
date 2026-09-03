@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { blurProps } from "@/lib/blur-placeholder";
 import BasicBlock, { Eyebrow } from "../basic-block";
 
 const TEAM = [
@@ -37,19 +38,22 @@ const TeamLetter = () => {
 
             <div className="flex items-center gap-3 border-t border-viewerborder pt-6">
                <div className="flex items-center -space-x-2">
-                  {TEAM.map((member, i) => (
-                     <Image
-                        key={member.profile}
-                        src={`/landing/profiles/${member.profile}.png`}
-                        alt={member.name}
-                        width={36}
-                        height={36}
-                        style={{ zIndex: 10 - i }}
-                        className="size-9 rounded-full border border-viewerwhite select-none"
-                        quality={100}
-                        draggable={false}
-                     />
-                  ))}
+                  {TEAM.map((member, i) => {
+                     const src = `/landing/profiles/${member.profile}.png`;
+                     return (
+                        <Image
+                           key={member.profile}
+                           src={src}
+                           alt={member.name}
+                           width={36}
+                           height={36}
+                           style={{ zIndex: 10 - i }}
+                           className="size-9 rounded-full border border-viewerwhite select-none"
+                           {...blurProps(src)}
+                           draggable={false}
+                        />
+                     );
+                  })}
                </div>
                <div className="flex min-w-0 flex-col">
                   <span className="text-sm font-semibold text-viewerblack">

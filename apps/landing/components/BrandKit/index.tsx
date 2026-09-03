@@ -4,178 +4,13 @@ import { Check, ChevronRight, Copy, Download } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-type ColorToken = {
-   id: string;
-   name: string;
-   hex: string;
-   role: string;
-   onDark?: boolean;
-};
-
-const colors: ColorToken[] = [
-   {
-      id: "viewer-blue",
-      name: "Viewer Blue",
-      hex: "#3658C1",
-      role: "Primary brand color. Used for CTAs and accents.",
-      onDark: true,
-   },
-   {
-      id: "viewer-dark-blue",
-      name: "Viewer Dark Blue",
-      hex: "#253977",
-      role: "Hero backgrounds and emphasis surfaces.",
-      onDark: true,
-   },
-   {
-      id: "viewer-black",
-      name: "Viewer Black",
-      hex: "#0E121B",
-      role: "Headings and high-emphasis text.",
-      onDark: true,
-   },
-   {
-      id: "viewer-text",
-      name: "Viewer Text",
-      hex: "#525866",
-      role: "Body copy and secondary text.",
-      onDark: true,
-   },
-   {
-      id: "viewer-light",
-      name: "Viewer Light",
-      hex: "#99A0AE",
-      role: "Captions and meta text.",
-   },
-   {
-      id: "viewer-border",
-      name: "Viewer Border",
-      hex: "#E1E4EA",
-      role: "Hairlines and dividers.",
-   },
-   {
-      id: "viewer-gray",
-      name: "Viewer Gray",
-      hex: "#F7F7F7",
-      role: "Muted surfaces and section backgrounds.",
-   },
-   {
-      id: "viewer-white",
-      name: "Viewer White",
-      hex: "#FFFFFF",
-      role: "Default page background.",
-   },
-];
-
-type LogoAsset = {
-   id: string;
-   name: string;
-   description: string;
-   filename: string;
-   path: string;
-   url: string;
-   preview: React.ReactNode;
-};
-
-const logos: LogoAsset[] = [
-   {
-      id: "full-logo",
-      name: "Wordmark",
-      description: "Primary lockup. Use on light backgrounds.",
-      filename: "viewer.svg",
-      path: "/icons/viewer.svg",
-      url: `${SITE_URL}/icons/viewer.svg`,
-      preview: (
-         <div className="flex h-full w-full items-center justify-center rounded-md bg-viewerwhite p-6">
-            <Image
-               src="/icons/viewer.svg"
-               alt="S3 Viewer wordmark"
-               className="h-9 w-auto object-contain"
-               draggable={false}
-               width={160}
-               height={36}
-               unoptimized
-            />
-         </div>
-      ),
-   },
-   {
-      id: "white-logo",
-      name: "Wordmark on Brand",
-      description: "Reverse lockup. Use on Viewer Blue or photography.",
-      filename: "whiteviewer.svg",
-      path: "/icons/whiteviewer.svg",
-      url: `${SITE_URL}/icons/whiteviewer.svg`,
-      preview: (
-         <div className="flex h-full w-full items-center justify-center rounded-md bg-viewerblue p-6">
-            <Image
-               src="/icons/whiteviewer.svg"
-               alt="S3 Viewer wordmark on brand"
-               className="h-9 w-auto object-contain"
-               draggable={false}
-               width={160}
-               height={36}
-               unoptimized
-            />
-         </div>
-      ),
-   },
-   {
-      id: "app-icon",
-      name: "App Icon",
-      description: "Filled mark. App icons, favicons, square avatars.",
-      filename: "viewerblue.svg",
-      path: "/icons/viewerblue.svg",
-      url: `${SITE_URL}/icons/viewerblue.svg`,
-      preview: (
-         <div className="flex h-full w-full items-center justify-center rounded-md bg-viewergray p-6">
-            <Image
-               src="/icons/viewerblue.svg"
-               alt="S3 Viewer app icon"
-               className="h-14 w-14 object-contain"
-               draggable={false}
-               width={160}
-               height={36}
-               unoptimized
-            />
-         </div>
-      ),
-   },
-   {
-      id: "mark-only",
-      name: "Mark",
-      description: "Outline mark. Use when wordmark is unnecessary.",
-      filename: "logo.svg",
-      path: "/logo.svg",
-      url: `${SITE_URL}/logo.svg`,
-      preview: (
-         <div className="flex h-full w-full items-center justify-center rounded-md bg-viewergray p-6">
-            <Image
-               src="/logo.svg"
-               alt="S3 Viewer mark"
-               className="h-14 w-14 object-contain"
-               draggable={false}
-               width={160}
-               height={36}
-               unoptimized
-            />
-         </div>
-      ),
-   },
-];
-
-type Section = {
-   id: string;
-   title: string;
-};
-
-const sections: Section[] = [
-   { id: "logos", title: "Logos" },
-   { id: "colors", title: "Colors" },
-   { id: "typography", title: "Typography" },
-   { id: "voice", title: "Voice" },
-];
+import {
+   COLORS as colors,
+   LOGOS as logos,
+   SECTIONS as sections,
+   TYPE_SCALE as typeScale,
+   VOICE_EXAMPLES as voiceExamples,
+} from "./data";
 
 const BrandKit = () => {
    const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -335,13 +170,32 @@ const BrandKit = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                            {logos.map((logo) => {
                               const isCopied = copiedId === logo.id;
+                              const url = `${SITE_URL}${logo.path}`;
                               return (
                                  <div
                                     key={logo.id}
                                     className="flex flex-col gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-3 transition-colors hover:border-viewerblue/40"
                                  >
                                     <div className="aspect-[2/1] w-full overflow-hidden rounded-xl border border-viewerborder">
-                                       {logo.preview}
+                                       <div
+                                          className={cn(
+                                             "flex h-full w-full items-center justify-center rounded-md p-6",
+                                             logo.previewBg
+                                          )}
+                                       >
+                                          <Image
+                                             src={logo.path}
+                                             alt={logo.alt}
+                                             className={cn(
+                                                "object-contain",
+                                                logo.previewSize
+                                             )}
+                                             draggable={false}
+                                             width={160}
+                                             height={36}
+                                             unoptimized
+                                          />
+                                       </div>
                                     </div>
                                     <div className="flex flex-col gap-1 px-1">
                                        <div className="flex items-center justify-between gap-2">
@@ -360,7 +214,7 @@ const BrandKit = () => {
                                        <button
                                           type="button"
                                           onClick={() =>
-                                             copyValue(logo.id, logo.url)
+                                             copyValue(logo.id, url)
                                           }
                                           className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-viewergray px-2.5 py-2 text-xs font-medium text-viewertext transition-colors hover:bg-viewerborder/70 cursor-pointer"
                                        >
@@ -466,37 +320,7 @@ const BrandKit = () => {
                         </div>
 
                         <div className="rounded-xl border border-viewerborder bg-viewerwhite divide-y divide-viewerborder">
-                           {[
-                              {
-                                 label: "Display",
-                                 sample: "Object storage, simplified.",
-                                 className:
-                                    "text-[40px] sm:text-[52px] tracking-[-0.02em] leading-[1.04] font-semibold text-viewerblack",
-                                 meta: "Inter Semibold · 52 / 54 · -2% letter",
-                              },
-                              {
-                                 label: "Heading",
-                                 sample: "Browse every bucket.",
-                                 className:
-                                    "text-[26px] sm:text-[30px] tracking-tight leading-[1.2] font-semibold text-viewerblack",
-                                 meta: "Inter Semibold · 30 / 36",
-                              },
-                              {
-                                 label: "Body",
-                                 sample:
-                                    "S3 Viewer is a fast, open-source viewer for any S3-compatible API.",
-                                 className:
-                                    "text-base leading-relaxed text-viewertext",
-                                 meta: "Inter Regular · 16 / 28",
-                              },
-                              {
-                                 label: "Caption",
-                                 sample: "Last updated September 2, 2026",
-                                 className:
-                                    "text-xs tracking-[0.02em] text-viewerlighttext",
-                                 meta: "Inter Medium · 12 / 18",
-                              },
-                           ].map((row) => (
+                           {typeScale.map((row) => (
                               <div
                                  key={row.label}
                                  className="flex flex-col gap-2 p-5 sm:p-6"
@@ -532,28 +356,7 @@ const BrandKit = () => {
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                           {[
-                              {
-                                 ok: true,
-                                 label: "Use",
-                                 line: "Connect any S3-compatible bucket in one click.",
-                              },
-                              {
-                                 ok: false,
-                                 label: "Avoid",
-                                 line: "Revolutionary AI-powered cloud storage hub.",
-                              },
-                              {
-                                 ok: true,
-                                 label: "Use",
-                                 line: "Your credentials are encrypted at rest.",
-                              },
-                              {
-                                 ok: false,
-                                 label: "Avoid",
-                                 line: "Bank-grade military-level enterprise security.",
-                              },
-                           ].map((row, i) => (
+                           {voiceExamples.map((row, i) => (
                               <div
                                  key={i}
                                  className={cn(

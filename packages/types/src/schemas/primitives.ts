@@ -48,7 +48,7 @@ export const bucketAccessEntrySchema = z.object({
    role: grantableRoleSchema,
 });
 
-const MAX_BUCKET_NAMES = 100;
+export const MAX_BUCKET_NAMES = 100;
 export const bucketNameListSchema = z
    .array(bucketNameSchema)
    .max(MAX_BUCKET_NAMES)

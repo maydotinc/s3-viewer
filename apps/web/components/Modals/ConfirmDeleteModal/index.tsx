@@ -28,8 +28,15 @@ const ConfirmDeleteModal = ({
    const [failedTotal, setFailedTotal] = useState(0);
    const [progress, setProgress] = useState(0);
    const abort = useRef<AbortController | null>(null);
+   const mounted = useRef(true);
 
-   useEffect(() => () => abort.current?.abort(), []);
+   useEffect(() => {
+      mounted.current = true;
+      return () => {
+         mounted.current = false;
+         abort.current?.abort();
+      };
+   }, []);
 
    const folder =
       objectKeys.length === 1 && objectKeys[0] && isFolderKey(objectKeys[0])
@@ -56,12 +63,13 @@ const ConfirmDeleteModal = ({
       const options = {
          onSuccess: (result: DeleteSummary) => {
             if (result.deleted > 0) onDeleteSuccess?.();
+            if (!mounted.current) return;
             setFailed(result.failed);
             setFailedTotal(result.failedTotal);
             if (result.failedTotal === 0) onClose();
          },
          onError: (err: unknown) => {
-            if (isAborted(err)) return;
+            if (isAborted(err) || !mounted.current) return;
             setFailed([]);
             setFailedTotal(0);
             setError(errorMessage(err));
@@ -75,14 +83,20 @@ const ConfirmDeleteModal = ({
                bucketName,
                prefix: folder,
                signal: abort.current.signal,
-               onProgress: setProgress,
+               onProgress: (deleted: number) => {
+                  if (mounted.current) setProgress(deleted);
+               },
             },
             options
          );
          return;
       }
       const keys = failed.length > 0 ? failed.map((f) => f.key) : objectKeys;
-      deleteObjects.mutate({ bucketName, objectKeys: keys }, options);
+      abort.current = new AbortController();
+      deleteObjects.mutate(
+         { bucketName, objectKeys: keys, signal: abort.current.signal },
+         options
+      );
    };
 
    const failureSummary =

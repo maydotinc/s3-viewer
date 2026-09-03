@@ -109,6 +109,34 @@ describe("uploadStore", () => {
       });
    });
 
+   it("dedupes files that share a key within one enqueue call and warns about it", async () => {
+      useUploadStore.getState().enqueue({
+         files: [
+            { file: new File(["1"], "first.txt"), relativePath: "dup.txt" },
+            { file: new File(["22"], "second.txt"), relativePath: "dup.txt" },
+         ],
+         serverId: "s",
+         bucketName: "b",
+         prefix: "p/",
+      });
+      await flush();
+      expect(useUploadStore.getState().order).toEqual(["b/p/dup.txt"]);
+      expect(status("dup.txt")).toBe("active");
+      expect(useUploadStore.getState().entries["b/p/dup.txt"]).toMatchObject({
+         fileName: "second.txt",
+      });
+      expect(toast.error).toHaveBeenCalledWith(
+         expect.stringContaining("a name with another in this drop")
+      );
+
+      await finish("dup.txt");
+      expect(useUploadStore.getState().batch).toMatchObject({
+         settled: true,
+         completed: 1,
+         ids: ["b/p/dup.txt"],
+      });
+   });
+
    it("cancelAll aborts active uploads and drops queued ones in one pass", async () => {
       enqueue("a", "b", "c", "d");
       useUploadStore.getState().cancelAll();
@@ -126,5 +154,44 @@ describe("uploadStore", () => {
       });
       expect(toast.success).not.toHaveBeenCalled();
       expect(toast.error).not.toHaveBeenCalled();
+   });
+
+   it("cancelAll during a large drop stops later chunks from being queued and still settles the batch", async () => {
+      const names = Array.from({ length: 450 }, (_, i) => `f${i}`);
+      enqueue(...names);
+      // Only the first 200-file chunk has committed synchronously; the rest
+      // are still being enqueued in the background.
+      expect(useUploadStore.getState().order).toHaveLength(200);
+
+      useUploadStore.getState().cancelAll();
+      await flush();
+      await flush();
+
+      const { order, entries, batch, isUploading } = useUploadStore.getState();
+      expect(order).toHaveLength(200);
+      expect(order.every((id) => entries[id]?.status === "cancelled")).toBe(
+         true
+      );
+      expect(batch).toMatchObject({ settled: true, completed: 0, failed: 0 });
+      expect(batch?.ids).toHaveLength(200);
+      expect(isUploading).toBe(false);
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
+   });
+
+   it("dismiss during a large drop clears everything and isn't resurrected by later chunks", async () => {
+      const names = Array.from({ length: 450 }, (_, i) => `g${i}`);
+      enqueue(...names);
+      expect(useUploadStore.getState().order).toHaveLength(200);
+
+      useUploadStore.getState().dismiss();
+      await flush();
+      await flush();
+
+      const { order, entries, queue, batch } = useUploadStore.getState();
+      expect(order).toEqual([]);
+      expect(entries).toEqual({});
+      expect(queue).toEqual([]);
+      expect(batch).toBeNull();
    });
 });

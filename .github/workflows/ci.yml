@@ -10,17 +10,21 @@ concurrency:
    cancel-in-progress: true
 
 jobs:
-   ci:
+   verify:
       runs-on: ubuntu-latest
+      strategy:
+         fail-fast: false
+         matrix:
+            node-version: [20, 22]
       steps:
-         - uses: actions/checkout@v4
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
          - name: Enable corepack
            run: corepack enable
 
-         - uses: actions/setup-node@v4
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
            with:
-              node-version: 20
+              node-version: ${{ matrix.node-version }}
               cache: pnpm
 
          - name: Install
@@ -40,6 +44,26 @@ jobs:
 
          - name: Format check
            run: pnpm format:check
+
+   build:
+      needs: verify
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+         - name: Enable corepack
+           run: corepack enable
+
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install
+           run: pnpm install --frozen-lockfile
+
+         - name: Generate Prisma client
+           run: pnpm --filter @s3-viewer/db db:generate
 
          - name: Build
            run: pnpm build

@@ -1,3 +1,5 @@
+const normalizeEmail = (email: string): string => email.trim().toLowerCase();
+
 const localPart = (email: string): string => {
    const trimmed = email.trim();
    const at = trimmed.indexOf("@");
@@ -5,4 +7,4 @@ const localPart = (email: string): string => {
    return local || trimmed;
 };
 
-export { localPart };
+export { localPart, normalizeEmail };

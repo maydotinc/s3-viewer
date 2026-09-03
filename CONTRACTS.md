@@ -100,8 +100,13 @@ the web app, the landing site and the shared packages. Keep it current.
   generation so a fill that raced the update never re-caches old keys.
 - Endpoints are checked on `establish`, `validate-buckets`, `POST /servers`
   and `PATCH …/credentials` after decryption: https only in production, no localhost/private/link-local
-  literals, and every DNS answer must be public. The name is resolved once at
-  check time; DNS rebinding afterwards is a documented limitation.
+  literals, and every DNS answer must be public. That check is a fast,
+  friendly first pass; the same private/loopback/link-local rules
+  (`lib/utils/endpoint.ts`) also run as a custom `dns.lookup` on the shared
+  http/https agents S3 clients connect through (`lib/s3/client-cache.ts`), so
+  a hostname that's repointed at a private address after passing the
+  up-front check (DNS rebinding) still gets refused when a socket actually
+  connects — surfaced as a classified 502, not a raw stack.
 - S3 errors map through `lib/s3/errors.ts` (`NoSuchKey`/`NotFound` → 404,
   `AccessDenied` → 403, `NoSuchBucket`/`InvalidBucketName` → 400/404,
   `EntityTooLarge`/`InvalidRequest` copy-size → 413, rejected key pairs →
@@ -115,10 +120,15 @@ the web app, the landing site and the shared packages. Keep it current.
   fetched, so buckets need no CORS configuration. Object keys are encoded with
   `encodeURIComponent` per path segment when building `CopySource`.
 - Uploads stream through the API (`lib/s3/upload.ts`): `@aws-sdk/lib-storage`
-  `Upload` with 25 MiB parts, 4 in flight, `leavePartsOnError: false`; a client
-  disconnect aborts the S3 upload. `Content-Length`, when present, is checked
-  against `MAX_UPLOAD_BYTES` (413) and passed to S3. The cached client's 30 s
-  `requestTimeout` is a socket-idle timeout, so it is fine for the server→S3 leg.
+  `Upload` with 4 parts in flight, `leavePartsOnError: false`; a client
+  disconnect aborts the S3 upload. Part size defaults to 25 MiB, configurable
+  via `UPLOAD_PART_BYTES` (min 5 MiB, S3's minimum; max 5 GiB, S3's maximum).
+  `Content-Length`, when present, is checked against `MAX_UPLOAD_BYTES` (413)
+  and passed to S3; the part size is then bumped above the configured value,
+  when needed, so the upload stays under S3's 10,000-part cap, and the
+  request is rejected (413) up front when even the maximum part size can't
+  fit the declared length. The cached client's 30 s `requestTimeout` is a
+  socket-idle timeout, so it is fine for the server→S3 leg.
   `server.requestTimeout = 0` and `headersTimeout = 60 s` keep long uploads alive.
 - Credential encryption is hybrid: AES-256-GCM payload, key wrapped with
   RSA-OAEP(SHA-256). Wire format (base64 JSON): `{ v: 1, k, iv, ct }`. The
@@ -151,6 +161,31 @@ POST   /invites/:inviteId/reject                              → 204
 `/invites/*` require a verified email (403 `code: "EMAIL_UNVERIFIED"` otherwise):
 invites are addressed to an address, and an OAuth provider may hand us an
 unverified one. Accepting is atomic; a second concurrent accept gets 404.
+
+A server may have at most `MAX_PENDING_INVITES` (30, `@s3-viewer/types`)
+live (unaccepted, unrevoked, unexpired) invitations outstanding at once.
+Expired rows for the server are deleted inside the same transaction before
+the count, so they reclaim capacity rather than blocking it — matching the
+`expiresAt > now` filter the replace check already used. A send whose new
+rows would cross that count fails 409 with a message telling the sender to
+revoke existing invites, naming `SUPPORT_EMAIL` for a higher limit only when
+that variable is set; it never blocks a send that only updates existing
+invites. The count-then-write is wrapped in a transaction that takes a
+Postgres advisory lock on the server id
+(`pg_try_advisory_xact_lock(hashtext(serverId))`) first, so two concurrent
+sends for the same server can't both slip past the cap; a send that can't
+take the lock fails 409 immediately rather than blocking toward the
+interactive-transaction timeout. `POST .../invites` also
+carries its own 20/min-per-user rate limit (`inviteLimit`) alongside the
+generic 1800/min `userLimit`.
+
+Emails are always stored and compared lowercase: `emailSchema` trims and
+lowercases on every route that accepts one, and a `databaseHooks.user.create
+/update.before` hook in `packages/auth/lib/auth.ts` normalizes `email` on
+every user row regardless of path (Better Auth's own OTP/OAuth endpoints
+don't run through `emailSchema`). Invite and membership lookups compare
+emails with plain equality, never `mode: "insensitive"`, so they use the
+`@@index([email])` index instead of a sequential scan.
 
 ```
 
@@ -204,7 +239,11 @@ which is exact for listings up to 1000 entries and per-block above that.
   `AsyncLocalStorage` context; the plugins' send callbacks stash the OTP/URL into
   that context instead of sending; the handler then sends one email
   (`AuthOtpEmail`). Outside the context (direct plugin calls) each callback sends
-  its own email. Responses never reveal whether an account exists.
+  its own email. Responses never reveal whether an account exists. A
+  `sendAuthFlowEmail` failure is swallowed for the caller (still 204) but
+  logged as `Auth flow email failed` at `error` (`routes/auth-flow.ts`) —
+  alert on that log line, since it is otherwise the only signal that sign-in
+  emails have stopped going out.
 - GitHub OAuth is optional: enabled only when `GITHUB_CLIENT_ID` is set; the web
   shows the button only when `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`.
 - No profile pictures. Name and email are the whole profile; the avatar is
@@ -215,6 +254,12 @@ which is exact for listings up to 1000 entries and per-block above that.
   and `validateProfile` strips any `image` off an `/update-user` body.
 - Cookies: `sameSite: "lax"`, `secure` when `NEXT_PUBLIC_API_URL` is https, `httpOnly`.
   `advanced.ipAddress.disableIpTracking: true`. Session 30 days, refreshed daily.
+  Neither IP address nor user-agent is stored: `ipAddress` stays a column that
+  is always null (Better Auth's own option), while `userAgent` has no column
+  at all — nothing ever read it, so it's dropped by a
+  `databaseHooks.session.create.before` hook that deletes the field (the
+  column no longer exists to null) plus a migration removing it from
+  `session`.
 - `user.deleteUser` is enabled (`POST /auth/delete-user`, fresh session required).
   Deleting a user cascades through the DB: their sessions, accounts,
   memberships, bucket grants, invitations they sent, AND every server they own
@@ -247,8 +292,10 @@ which is exact for listings up to 1000 entries and per-block above that.
   by `bucket/prefix/name`. Batched key requests (`exists`, `DELETE …/objects`)
   are split by `chunkKeys` (≤ 1000 keys and ≤ 256K characters per call) so a
   body never nears the 1 MB JSON limit. The grid datasource keeps one
-  continuation token per 1000-row block plus an LRU of 10 blocks of rows, so
-  paging deep costs one short string per block, not the rows. Downloads and
+  continuation token per 1000-row block and lets AG Grid own the row cache
+  (`maxBlocksInCache: 10`), so paging deep costs one short string per block,
+  not the rows, and a purged block refetches directly from its known token
+  instead of re-walking the listing. Downloads and
   previews use 15-minute presigned URLs, which need no CORS.
 - Login/signup page: one `AuthScreen` component; mobile = form only, desktop =
   split (form left, brand panel right on Viewer Dark Blue). See

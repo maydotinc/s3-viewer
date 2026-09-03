@@ -1,4 +1,4 @@
-import { api, objectsPath } from "@/lib/api";
+import { api, isAborted, objectsPath } from "@/lib/api";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import {
    MAX_BATCH_KEYS,
@@ -62,9 +62,11 @@ const useDeleteObjects = () => {
       mutationFn: async ({
          bucketName,
          objectKeys,
+         signal,
       }: {
          bucketName: string;
          objectKeys: string[];
+         signal?: AbortSignal;
       }): Promise<DeleteSummary> => {
          const summary = emptySummary();
          for (const batch of chunkKeys(
@@ -72,13 +74,20 @@ const useDeleteObjects = () => {
             MAX_BATCH_KEYS,
             MAX_BATCH_KEY_CHARS
          )) {
-            addPage(
-               summary,
-               await api.delete<S3DeleteResult>(
-                  objectsPath(serverId, bucketName),
-                  { objectKeys: batch }
-               )
-            );
+            if (signal?.aborted) break;
+            try {
+               addPage(
+                  summary,
+                  await api.delete<S3DeleteResult>(
+                     objectsPath(serverId, bucketName),
+                     { objectKeys: batch },
+                     signal
+                  )
+               );
+            } catch (error) {
+               if (isAborted(error)) break;
+               throw error;
+            }
          }
          return summary;
       },

@@ -6,6 +6,7 @@ import { Agent as HttpsAgent } from "node:https";
 import { SERVER_NOT_FOUND } from "../constants";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
+import { publicOnlyLookup } from "../utils/endpoint";
 import { decryptCredentials } from "../utils/encryption";
 import { credentialsUnreadableError } from "./errors";
 
@@ -17,14 +18,31 @@ const MAX_ATTEMPTS = 2;
 
 type CacheEntry = { client: S3Client; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
-/** Bumped on invalidate so a fill that started before it never re-caches stale credentials. */
 const generations = new Map<string, number>();
+const inFlightFills = new Map<string, number>();
 
 const generationOf = (serverId: string): number =>
    generations.get(serverId) ?? 0;
 
-const httpAgent = new HttpAgent({ keepAlive: true });
-const httpsAgent = new HttpsAgent({ keepAlive: true });
+const beginFill = (serverId: string): void => {
+   inFlightFills.set(serverId, (inFlightFills.get(serverId) ?? 0) + 1);
+};
+
+const endFill = (serverId: string): void => {
+   const remaining = (inFlightFills.get(serverId) ?? 1) - 1;
+   if (remaining > 0) {
+      inFlightFills.set(serverId, remaining);
+      return;
+   }
+   inFlightFills.delete(serverId);
+   generations.delete(serverId);
+};
+
+const httpAgent = new HttpAgent({ keepAlive: true, lookup: publicOnlyLookup });
+const httpsAgent = new HttpsAgent({
+   keepAlive: true,
+   lookup: publicOnlyLookup,
+});
 
 const buildClient = (
    credentials: ServerCredentials,
@@ -81,26 +99,35 @@ const getS3Client = async (serverId: string): Promise<S3Client> => {
    if (hit && hit.expiresAt > Date.now()) return hit.client;
 
    const generation = generationOf(serverId);
-   const server = await prisma.server.findUnique({
-      where: { id: serverId },
-      select: { credentials: true, provider: true },
-   });
-   if (!server) throw new ApiHttpError(404, SERVER_NOT_FOUND);
+   beginFill(serverId);
+   try {
+      const server = await prisma.server.findUnique({
+         where: { id: serverId },
+         select: { credentials: true, provider: true },
+      });
+      if (!server) throw new ApiHttpError(404, SERVER_NOT_FOUND);
 
-   const client = buildClient(
-      readStoredCredentials(serverId, server.credentials),
-      Provider[server.provider]
-   );
-   if (generationOf(serverId) === generation) {
-      makeRoom();
-      cache.set(serverId, { client, expiresAt: Date.now() + CACHE_TTL_MS });
+      const client = buildClient(
+         readStoredCredentials(serverId, server.credentials),
+         Provider[server.provider]
+      );
+      if (generationOf(serverId) === generation) {
+         makeRoom();
+         cache.set(serverId, { client, expiresAt: Date.now() + CACHE_TTL_MS });
+      }
+      return client;
+   } finally {
+      endFill(serverId);
    }
-   return client;
 };
 
 const invalidateS3Client = (serverId: string): void => {
    cache.delete(serverId);
-   generations.set(serverId, generationOf(serverId) + 1);
+   if (inFlightFills.has(serverId)) {
+      generations.set(serverId, generationOf(serverId) + 1);
+   } else {
+      generations.delete(serverId);
+   }
 };
 
 export { getS3Client, getS3ClientFromCredentials, invalidateS3Client };

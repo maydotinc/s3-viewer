@@ -1,6 +1,7 @@
 import { mapLimit } from "@s3-viewer/types";
 
 const WALK_CONCURRENCY = 8;
+const WALK_YIELD_EVERY = 200;
 
 type UploadFile = { file: File; relativePath: string };
 
@@ -10,6 +11,10 @@ const fromFileList = (files: ArrayLike<File>): UploadFile[] =>
       relativePath: file.webkitRelativePath || file.name,
    }));
 
+const yieldToEventLoop = () =>
+   new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+/** `reader.readEntries` hands back at most 100 entries per call; drain it with repeated calls until it returns empty. */
 const readEntries = (reader: FileSystemDirectoryReader) =>
    new Promise<FileSystemEntry[]>((resolve, reject) =>
       reader.readEntries(resolve, reject)
@@ -18,9 +23,13 @@ const readEntries = (reader: FileSystemDirectoryReader) =>
 const fileFromEntry = (entry: FileSystemFileEntry) =>
    new Promise<File>((resolve, reject) => entry.file(resolve, reject));
 
-const walkEntry = async (entry: FileSystemEntry): Promise<UploadFile[]> => {
+const walkEntry = async (
+   entry: FileSystemEntry,
+   onFile: () => void | Promise<void>
+): Promise<UploadFile[]> => {
    if (entry.isFile) {
       const file = await fileFromEntry(entry as FileSystemFileEntry);
+      await onFile();
       return [{ file, relativePath: entry.fullPath.replace(/^\//, "") }];
    }
    if (!entry.isDirectory) return [];
@@ -29,7 +38,9 @@ const walkEntry = async (entry: FileSystemEntry): Promise<UploadFile[]> => {
    for (;;) {
       const batch = await readEntries(reader);
       if (batch.length === 0) return out;
-      for (const files of await mapLimit(batch, WALK_CONCURRENCY, walkEntry))
+      for (const files of await mapLimit(batch, WALK_CONCURRENCY, (child) =>
+         walkEntry(child, onFile)
+      ))
          out.push(...files);
    }
 };
@@ -48,10 +59,18 @@ const filesFromDrop = async (
    if (entries.length === 0 || entries.some((entry) => entry === null)) {
       return fromFileList(dataTransfer.files);
    }
+   let sinceYield = 0;
+   const onFile = async () => {
+      sinceYield++;
+      if (sinceYield >= WALK_YIELD_EVERY) {
+         sinceYield = 0;
+         await yieldToEventLoop();
+      }
+   };
    const walked = await mapLimit(
       entries.flatMap((entry) => (entry ? [entry] : [])),
       WALK_CONCURRENCY,
-      walkEntry
+      (entry) => walkEntry(entry, onFile)
    );
    return walked.flat();
 };

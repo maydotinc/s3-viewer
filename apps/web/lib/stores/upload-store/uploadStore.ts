@@ -1,4 +1,4 @@
-import { DEFAULT_CONTENT_TYPE } from "@s3-viewer/types";
+import { chunk, DEFAULT_CONTENT_TYPE } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
@@ -10,6 +10,10 @@ import type { UploadBatch, UploadEntry } from "./types";
 const FILE_CONCURRENCY = 3;
 const MIN_PROGRESS_STEP = 64 * 1024;
 const PROGRESS_STEPS = 100;
+const ENQUEUE_CHUNK_SIZE = 200;
+
+const yieldToEventLoop = () =>
+   new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 type Job = {
    file: File;
@@ -22,6 +26,8 @@ type Job = {
 
 const jobs = new Map<string, Job>();
 const batchCallbacks = new Set<() => void>();
+let enqueueGeneration = 0;
+let activeEnqueues = 0;
 
 const isOpen = (status: UploadEntry["status"]) =>
    status === "pending" || status === "active";
@@ -76,7 +82,13 @@ const useUploadStore = create<UploadStore>()(
 
       const settleBatchIfDone = () => {
          const { batch, queue } = get();
-         if (!batch || batch.settled || jobs.size > 0 || queue.length > 0)
+         if (
+            !batch ||
+            batch.settled ||
+            jobs.size > 0 ||
+            queue.length > 0 ||
+            activeEnqueues > 0
+         )
             return;
 
          set((state) => {
@@ -200,51 +212,93 @@ const useUploadStore = create<UploadStore>()(
          enqueue: ({ files, serverId, bucketName, prefix, onComplete }) => {
             if (files.length === 0) return;
             if (onComplete) batchCallbacks.add(onComplete);
-            set((state) => {
-               const batch =
-                  !state.batch || state.batch.settled
-                     ? { ids: [], settled: false, completed: 0, failed: 0 }
-                     : state.batch;
-               const inBatch = new Set(batch.ids);
-               state.batch = batch;
-               state.isUploading = true;
-               for (const { file, relativePath } of files) {
-                  const objectKey = `${prefix}${relativePath}`;
-                  const id = entryId(bucketName, objectKey);
-                  const prev = state.entries[id];
-                  if (prev && inBatch.has(id)) count(batch, prev.status, -1);
-                  jobs.get(id)?.abort?.();
-                  jobs.set(id, {
-                     file,
-                     serverId,
-                     bucketName,
-                     objectKey,
-                     contentType: file.type || DEFAULT_CONTENT_TYPE,
-                     abort: null,
-                  });
-                  state.entries[id] = {
-                     id,
-                     fileName: file.name,
-                     relativePath,
-                     size: file.size,
-                     uploadedBytes: 0,
-                     status: "pending",
-                     error: null,
-                  };
-                  if (!prev) state.order.push(id);
-                  if (prev?.status !== "pending") state.queue.push(id);
-                  if (!inBatch.has(id)) {
-                     inBatch.add(id);
-                     batch.ids.push(id);
+
+            const deduped = new Map<string, UploadFile>();
+            let collisions = 0;
+            for (const entry of files) {
+               const id = entryId(bucketName, `${prefix}${entry.relativePath}`);
+               if (deduped.has(id)) collisions++;
+               deduped.set(id, entry);
+            }
+            if (collisions > 0) {
+               toast.error(
+                  collisions === 1
+                     ? "One file shares a name with another in this drop. Only the last was queued."
+                     : `${collisions} files share a name with another in this drop. Only the last of each was queued.`
+               );
+            }
+
+            const generation = enqueueGeneration;
+            activeEnqueues++;
+            void (async () => {
+               try {
+                  for (const slice of chunk(
+                     [...deduped.values()],
+                     ENQUEUE_CHUNK_SIZE
+                  )) {
+                     if (generation !== enqueueGeneration) return;
+                     set((state) => {
+                        const batch =
+                           !state.batch || state.batch.settled
+                              ? {
+                                   ids: [],
+                                   settled: false,
+                                   completed: 0,
+                                   failed: 0,
+                                }
+                              : state.batch;
+                        const inBatch = new Set(batch.ids);
+                        state.batch = batch;
+                        state.isUploading = true;
+                        for (const { file, relativePath } of slice) {
+                           const objectKey = `${prefix}${relativePath}`;
+                           const id = entryId(bucketName, objectKey);
+                           const prev = state.entries[id];
+                           if (prev && inBatch.has(id))
+                              count(batch, prev.status, -1);
+                           jobs.get(id)?.abort?.();
+                           jobs.set(id, {
+                              file,
+                              serverId,
+                              bucketName,
+                              objectKey,
+                              contentType: file.type || DEFAULT_CONTENT_TYPE,
+                              abort: null,
+                           });
+                           state.entries[id] = {
+                              id,
+                              fileName: file.name,
+                              relativePath,
+                              size: file.size,
+                              uploadedBytes: 0,
+                              status: "pending",
+                              error: null,
+                           };
+                           if (!prev) state.order.push(id);
+                           if (prev?.status !== "pending") state.queue.push(id);
+                           if (!inBatch.has(id)) {
+                              inBatch.add(id);
+                              batch.ids.push(id);
+                           }
+                        }
+                     });
+                     pump();
+                     if (slice.length === ENQUEUE_CHUNK_SIZE)
+                        await yieldToEventLoop();
                   }
+               } finally {
+                  activeEnqueues--;
+                  pump();
                }
-            });
-            pump();
+            })();
          },
 
          cancel: (id) => cancelMany([id]),
 
-         cancelAll: () => cancelMany(get().order),
+         cancelAll: () => {
+            enqueueGeneration++;
+            cancelMany(get().order);
+         },
 
          dismiss: () => {
             get().cancelAll();

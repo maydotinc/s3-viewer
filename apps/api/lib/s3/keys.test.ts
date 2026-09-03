@@ -26,6 +26,16 @@ describe("contentDispositionFilename", () => {
       );
    });
 
+   it("strips control characters out of the RFC 5987 value too, not just the quoted one", () => {
+      const withControlChars = "evil\x00\x01\x1b\x7f\r\nname.txt";
+      const result = contentDispositionFilename(withControlChars);
+      expect(result).toBe(
+         `attachment; filename="evilname.txt"; filename*=UTF-8''evilname.txt`
+      );
+      // eslint-disable-next-line no-control-regex
+      expect(/[\x00-\x1f\x7f]/.test(result)).toBe(false);
+   });
+
    it("keeps unicode in filename* with an ASCII fallback", () => {
       expect(contentDispositionFilename("photos/été (1)*.jpg")).toBe(
          `attachment; filename="_t_ (1)*.jpg"; filename*=UTF-8''%C3%A9t%C3%A9%20%281%29%2A.jpg`

@@ -1,4 +1,5 @@
 import { ErrorCode } from "@s3-viewer/types";
+import { PRIVATE_ADDRESS_CODE } from "../utils/endpoint";
 
 type HttpFailure = { status: number; message: string; code?: ErrorCode };
 
@@ -42,6 +43,7 @@ const NETWORK_NAMES: ReadonlySet<string> = new Set([
    "CERT_HAS_EXPIRED",
    "DEPTH_ZERO_SELF_SIGNED_CERT",
    "UNABLE_TO_VERIFY_LEAF_SIGNATURE",
+   PRIVATE_ADDRESS_CODE,
 ]);
 
 const OBJECT_NOT_FOUND: HttpFailure = {

@@ -13,9 +13,28 @@ import type {
 import { UploadCancelled } from "./upload-cancelled";
 
 const NETWORK_RETRIES = 2;
+const MIN_UPLOAD_TIMEOUT_MS = 30_000;
+const MIN_UPLOAD_THROUGHPUT_BYTES_PER_SEC = 50 * 1024;
 
-const sleep = (ms: number) =>
-   new Promise<void>((resolve) => setTimeout(resolve, ms));
+const uploadTimeoutMs = (size: number) =>
+   Math.max(
+      MIN_UPLOAD_TIMEOUT_MS,
+      Math.ceil((size / MIN_UPLOAD_THROUGHPUT_BYTES_PER_SEC) * 1000)
+   );
+
+const sleep = (ms: number, signal: AbortSignal) =>
+   new Promise<void>((resolve) => {
+      if (signal.aborted) return resolve();
+      const onAbort = () => {
+         clearTimeout(timer);
+         resolve();
+      };
+      const timer = setTimeout(() => {
+         signal.removeEventListener("abort", onAbort);
+         resolve();
+      }, ms);
+      signal.addEventListener("abort", onAbort, { once: true });
+   });
 
 type UploadParams = {
    serverId: string;
@@ -62,10 +81,12 @@ const putOnce = (
          }
       };
       xhr.onerror = () => reject(networkError());
+      xhr.ontimeout = () => reject(networkError());
       xhr.onabort = () =>
          reject(cancelled ? new UploadCancelled() : networkError());
       xhr.open("PUT", url);
       xhr.withCredentials = true;
+      xhr.timeout = uploadTimeoutMs(file.size);
       xhr.setRequestHeader("Content-Type", contentType);
       xhr.send(file);
    });
@@ -89,12 +110,12 @@ const uploadObject = ({
    const url = apiUrl(
       `${objectsPath(serverId, bucketName)}${qs({ objectKey, contentType })}`
    );
-   let cancelled = false;
+   const controller = new AbortController();
    let current: UploadHandle | null = null;
 
    const run = async (): Promise<S3ObjectUploaded> => {
       for (let attempt = 0; ; attempt++) {
-         if (cancelled) throw new UploadCancelled();
+         if (controller.signal.aborted) throw new UploadCancelled();
          current = putOnce(url, file, contentType, onProgress);
          try {
             return await current.done;
@@ -105,13 +126,13 @@ const uploadObject = ({
                attempt < NETWORK_RETRIES;
             if (!retry) throw error;
             onProgress(0);
-            await sleep(500 * 2 ** attempt);
+            await sleep(500 * 2 ** attempt, controller.signal);
          }
       }
    };
 
    const abort = () => {
-      cancelled = true;
+      controller.abort();
       current?.abort();
    };
 

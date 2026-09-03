@@ -1,4 +1,5 @@
 import { GITHUB_URL } from "@/lib/site-config";
+import { blurProps } from "@/lib/blur-placeholder";
 import { Button } from "@s3-viewer/ui/components/button";
 import Image from "next/image";
 import Link from "next/link";
@@ -55,6 +56,7 @@ const IntroBlock = () => {
                   sizes="(max-width: 1024px) 100vw, 1024px"
                   priority
                   quality={100}
+                  {...blurProps("/landing/bucketview.png")}
                   draggable={false}
                   className="h-auto w-full select-none"
                />

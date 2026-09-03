@@ -45,6 +45,8 @@ const userLimit = limiter(MINUTE_MS, 1800, byUser);
 
 const connectLimit = limiter(MINUTE_MS, 30, byUser);
 
+const inviteLimit = limiter(MINUTE_MS, 20, byUser);
+
 const authFlowIpLimit = limiter(MINUTE_MS, 5);
 
 const authFlowEmailLimit = limiter(
@@ -61,5 +63,6 @@ export {
    bucketIpLimit,
    connectLimit,
    globalIpLimit,
+   inviteLimit,
    userLimit,
 };

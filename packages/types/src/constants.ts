@@ -47,4 +47,5 @@ export const MAX_BATCH_KEY_CHARS = 256 * 1024;
 export const MAX_RENAME_BYTES = 5 * 1024 ** 3;
 
 export const MAX_INVITE_EMAILS = 5;
+export const MAX_PENDING_INVITES = 30;
 export const INVITE_TTL_DAYS = 7;

@@ -1,8 +1,11 @@
+import { env } from "@/lib/env";
 import { ApiHttpError, noContent } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { getAuth, requireUser } from "@/lib/middleware/authorize";
+import { inviteLimit } from "@/lib/middleware/rate-limit";
 import { serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
+import { exceedsPendingInviteCap } from "@/lib/services/invite-cap";
 import {
    inviteExpiry,
    inviteSelect,
@@ -11,10 +14,12 @@ import {
 } from "@/lib/services/invites";
 import { assertBucketGrants } from "@/lib/services/members";
 import { loadServerSettings } from "@/lib/services/servers";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import { sendServerInviteEmail } from "@s3-viewer/email";
 import { Permission, ROLE_LABELS, canManageRole } from "@s3-viewer/permissions";
 import {
+   MAX_PENDING_INVITES,
    Role,
    revokeInviteSchema,
    sendInviteSchema,
@@ -44,7 +49,7 @@ const memberEmails = async (
    emails: string[]
 ): Promise<string[]> => {
    const rows = await prisma.serverAccess.findMany({
-      where: { serverId, user: { email: { in: emails, mode: "insensitive" } } },
+      where: { serverId, user: { email: { in: emails } } },
       select: { user: { select: { email: true } } },
    });
    return rows.map((r) => r.user.email.toLowerCase());
@@ -76,8 +81,12 @@ type InviteWrite = Pick<SendInviteInput, "role" | "bucketAccess"> & {
    expiresAt: Date;
 };
 
-const upsertInvite = (email: string, w: InviteWrite) =>
-   prisma.pendingInvitation.upsert({
+const upsertInvite = (
+   client: Prisma.TransactionClient,
+   email: string,
+   w: InviteWrite
+) =>
+   client.pendingInvitation.upsert({
       where: { email_serverId: { email, serverId: w.serverId } },
       update: {
          role: w.role,
@@ -124,6 +133,34 @@ const emailInvites = async (
    }
 };
 
+const assertUnderPendingCap = async (
+   tx: Prisma.TransactionClient,
+   serverId: string,
+   pending: string[]
+): Promise<void> => {
+   if (pending.length === 0) return;
+   await tx.pendingInvitation.deleteMany({
+      where: { serverId, expiresAt: { lte: new Date() } },
+   });
+   const existingTotal = await tx.pendingInvitation.count({
+      where: { serverId },
+   });
+   const alreadyInvited = await tx.pendingInvitation.findMany({
+      where: { serverId, email: { in: pending } },
+      select: { email: true },
+   });
+   const newInvites = pending.length - alreadyInvited.length;
+   if (exceedsPendingInviteCap(existingTotal, newInvites)) {
+      const contact = env.SUPPORT_EMAIL
+         ? ` or contact ${env.SUPPORT_EMAIL} for a higher limit`
+         : "";
+      throw new ApiHttpError(
+         409,
+         `This server already has ${existingTotal} pending invites, and can have at most ${MAX_PENDING_INVITES}. Revoke some existing invites${contact}.`
+      );
+   }
+};
+
 const sendInvites = async (req: Request, res: Response) => {
    const actor = requireUser(req);
    const { serverId, emails, role, bucketAccess } = input<SendInviteInput>(res);
@@ -145,10 +182,23 @@ const sendInvites = async (req: Request, res: Response) => {
       invitedById: actor.id,
       expiresAt: inviteExpiry(),
    };
-   const rows = await prisma.$transaction(
-      pending.map((e) => upsertInvite(e, write))
-   );
-   const invites = rows.map(toServerInvite);
+   const invites = await prisma.$transaction(async (tx) => {
+      const [{ locked }] = await tx.$queryRaw<[{ locked: boolean }]>`
+         SELECT pg_try_advisory_xact_lock(hashtext(${serverId})::bigint) AS locked
+      `;
+      if (!locked) {
+         throw new ApiHttpError(
+            409,
+            "Another invite is being sent for this server. Try again."
+         );
+      }
+      await assertUnderPendingCap(tx, serverId, pending);
+      const written: ServerInvite[] = [];
+      for (const e of pending) {
+         written.push(toServerInvite(await upsertInvite(tx, e, write)));
+      }
+      return written;
+   });
    await emailInvites(invites, actor.name, invitesUrl, serverId);
    const result: SendInviteResult = { invites, alreadyMembers };
    res.json(result);
@@ -177,6 +227,7 @@ serverInvitesRouter.get(
 );
 serverInvitesRouter.post(
    "/:serverId/invites",
+   inviteLimit,
    ...serverRoute(Permission.MANAGE_MEMBERS, sendInviteSchema, sendInvites)
 );
 serverInvitesRouter.delete(

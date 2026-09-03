@@ -8,3 +8,4 @@ pnpm-lock.yaml
 packages/db/prisma/migrations
 packages/db/generated
 next-env.d.ts
+apps/landing/public/landing/serverconnect.json

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { MAX_INVITE_EMAILS } from "../constants";
 import {
+   MAX_BUCKET_NAMES,
    bucketAccessEntrySchema,
    emailSchema,
    grantableRoleSchema,
@@ -22,7 +23,7 @@ export const sendInviteSchema = z.object({
       .max(MAX_INVITE_EMAILS)
       .transform((v) => [...new Set(v)]),
    role: grantableRoleSchema,
-   bucketAccess: z.array(bucketAccessEntrySchema).min(1),
+   bucketAccess: z.array(bucketAccessEntrySchema).min(1).max(MAX_BUCKET_NAMES),
 });
 export type SendInviteInput = z.infer<typeof sendInviteSchema>;
 
@@ -30,7 +31,10 @@ export const updateRoleSchema = z.object({
    serverId: idSchema,
    userId: idSchema,
    role: grantableRoleSchema,
-   bucketAccess: z.array(bucketAccessEntrySchema).optional(),
+   bucketAccess: z
+      .array(bucketAccessEntrySchema)
+      .max(MAX_BUCKET_NAMES)
+      .optional(),
 });
 export type UpdateRoleInput = z.infer<typeof updateRoleSchema>;
 

@@ -71,8 +71,10 @@ const request = async <T>(
 const api = {
    get: <T>(path: string, signal?: AbortSignal) =>
       request<T>("GET", path, undefined, signal),
-   post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
-   patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
+   post: <T>(path: string, body?: unknown, signal?: AbortSignal) =>
+      request<T>("POST", path, body, signal),
+   patch: <T>(path: string, body?: unknown, signal?: AbortSignal) =>
+      request<T>("PATCH", path, body, signal),
    delete: <T>(path: string, body?: unknown, signal?: AbortSignal) =>
       request<T>("DELETE", path, body, signal),
 };

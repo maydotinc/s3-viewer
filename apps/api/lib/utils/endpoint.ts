@@ -1,6 +1,6 @@
 import { ApiHttpError } from "@/lib/http";
 import dns from "node:dns";
-import { isIP } from "node:net";
+import { isIP, type LookupFunction } from "node:net";
 
 const REJECTION = "Endpoint must be a public https URL";
 
@@ -134,4 +134,42 @@ const assertPublicEndpoint = async (endpoint: string): Promise<void> => {
    }
 };
 
-export { assertPublicEndpoint, isPrivateAddress, publicHostname };
+const PRIVATE_ADDRESS_CODE = "EPRIVATEADDRESS";
+
+const privateAddressError = (): NodeJS.ErrnoException => {
+   const err = new Error(REJECTION) as NodeJS.ErrnoException;
+   err.code = PRIVATE_ADDRESS_CODE;
+   return err;
+};
+
+type DnsLookupCallback = (
+   err: NodeJS.ErrnoException | null,
+   address: string | dns.LookupAddress[],
+   family: number
+) => void;
+
+const publicOnlyLookup: LookupFunction = (hostname, options, callback) => {
+   const onLookup: DnsLookupCallback = (err, address, family) => {
+      if (err) {
+         callback(err, address, family);
+         return;
+      }
+      const addresses = Array.isArray(address)
+         ? address.map((a) => a.address)
+         : [address];
+      if (addresses.some(isPrivateAddress)) {
+         callback(privateAddressError(), address, family);
+         return;
+      }
+      callback(null, address, family);
+   };
+   dns.lookup(hostname, options as dns.LookupAllOptions, onLookup);
+};
+
+export {
+   assertPublicEndpoint,
+   isPrivateAddress,
+   PRIVATE_ADDRESS_CODE,
+   publicHostname,
+   publicOnlyLookup,
+};

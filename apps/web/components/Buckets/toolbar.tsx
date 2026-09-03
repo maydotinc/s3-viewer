@@ -3,6 +3,7 @@ import { usePermission } from "@/lib/hooks/usePermission";
 import { useShortcut } from "@/lib/shortcuts";
 import { Permission } from "@s3-viewer/permissions";
 import usePreferencesStore from "@/lib/stores/preferencesStore";
+import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -12,7 +13,13 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
-import { ArrowDownAZ, ChevronDown, RefreshCw, Trash2 } from "lucide-react";
+import {
+   ArrowDownAZ,
+   ChevronDown,
+   Info,
+   RefreshCw,
+   Trash2,
+} from "lucide-react";
 import { useBucketContext } from "./Context";
 import PrefixSearch from "./Grid/prefix-search";
 import UploadMenu from "./Upload/upload-menu";
@@ -21,36 +28,63 @@ import useObjectCommands from "./useObjectCommands";
 const SORT_LABEL = { first: "Folders first", mixed: "By name" } as const;
 type SortOrder = keyof typeof SORT_LABEL;
 
+const FOLDERS_FIRST_HINT =
+   '"Folders first" only groups folders within each page of 1,000 objects, so past the first page some folders can still show up below files. Turn it off to sort strictly by name.';
+
 const SortMenu = () => {
    const foldersFirst = usePreferencesStore((state) => state.foldersFirst);
    const setFoldersFirst = usePreferencesStore(
       (state) => state.setFoldersFirst
    );
+   const { rowCount } = useGridContext();
    const value: SortOrder = foldersFirst ? "first" : "mixed";
+   const spansMultipleBlocks = foldersFirst && rowCount > MAX_LIST_BLOCK_SIZE;
    return (
-      <DropdownMenu>
-         <SimpleTooltip label="Sort order">
-            <DropdownMenuTrigger asChild>
-               <Button variant="outline" className="min-w-36 justify-between">
-                  <ArrowDownAZ aria-hidden="true" />
-                  {SORT_LABEL[value]}
-                  <ChevronDown aria-hidden="true" />
-               </Button>
-            </DropdownMenuTrigger>
-         </SimpleTooltip>
-         <DropdownMenuContent align="end" className="w-40">
-            <DropdownMenuRadioGroup
-               value={value}
-               onValueChange={(next) => setFoldersFirst(next === "first")}
+      <div className="flex items-center gap-1">
+         <DropdownMenu>
+            <SimpleTooltip label="Sort order">
+               <DropdownMenuTrigger asChild>
+                  <Button
+                     variant="outline"
+                     className="min-w-36 justify-between"
+                  >
+                     <ArrowDownAZ aria-hidden="true" />
+                     {SORT_LABEL[value]}
+                     <ChevronDown aria-hidden="true" />
+                  </Button>
+               </DropdownMenuTrigger>
+            </SimpleTooltip>
+            <DropdownMenuContent align="end" className="w-40">
+               <DropdownMenuRadioGroup
+                  value={value}
+                  onValueChange={(next) => setFoldersFirst(next === "first")}
+               >
+                  {(Object.keys(SORT_LABEL) as SortOrder[]).map((order) => (
+                     <DropdownMenuRadioItem key={order} value={order}>
+                        {SORT_LABEL[order]}
+                     </DropdownMenuRadioItem>
+                  ))}
+               </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+         </DropdownMenu>
+         {spansMultipleBlocks && (
+            <SimpleTooltip
+               label={
+                  <span className="max-w-56 leading-relaxed">
+                     {FOLDERS_FIRST_HINT}
+                  </span>
+               }
             >
-               {(Object.keys(SORT_LABEL) as SortOrder[]).map((order) => (
-                  <DropdownMenuRadioItem key={order} value={order}>
-                     {SORT_LABEL[order]}
-                  </DropdownMenuRadioItem>
-               ))}
-            </DropdownMenuRadioGroup>
-         </DropdownMenuContent>
-      </DropdownMenu>
+               <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="About folder sorting on large buckets"
+               >
+                  <Info aria-hidden="true" />
+               </Button>
+            </SimpleTooltip>
+         )}
+      </div>
    );
 };
 

@@ -3,6 +3,7 @@ import { DEFAULT_CONTENT_TYPE } from "../constants";
 import {
    bucketNameSchema,
    contentTypeSchema,
+   emailSchema,
    idSchema,
    objectKeySchema,
 } from "./primitives";
@@ -79,6 +80,18 @@ describe("objectKeySchema", () => {
          "a".repeat(1025),
       ]) {
          expect(objectKeySchema.safeParse(key).success).toBe(false);
+      }
+   });
+});
+
+describe("emailSchema", () => {
+   it("trims and lowercases", () => {
+      expect(emailSchema.parse("  Ada@Example.COM  ")).toBe("ada@example.com");
+   });
+
+   it("rejects invalid addresses", () => {
+      for (const value of ["", "not-an-email", "a@b", "a".repeat(255)]) {
+         expect(emailSchema.safeParse(value).success, value).toBe(false);
       }
    });
 });

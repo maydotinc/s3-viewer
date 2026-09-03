@@ -54,6 +54,39 @@ Schema authors run `pnpm --filter @s3-viewer/db db:migrate` (`prisma migrate dev
 and commit the generated migration. Everyone else applies migrations with
 `pnpm --filter @s3-viewer/db db:deploy`.
 
+## Conventions
+
+- **Icons**: [`lucide-react`](https://lucide.dev) for all UI icons (`apps/web`,
+  `packages/ui`). [`react-icons`](https://react-icons.github.io/react-icons) is
+  only for third-party brand marks (e.g. `FaGithub`, `FaLinkedinIn`) in
+  `apps/landing` — don't reach for it for anything else.
+- **Dependency versions**: shared versions live in the pnpm `catalog:` in
+  [`pnpm-workspace.yaml`](./pnpm-workspace.yaml). Edit the version there, not
+  in a package's `package.json` — packages reference it with
+  `"<dep>": "catalog:"`.
+- **Test coverage**: there is no coverage tooling wired up yet
+  (`@vitest/coverage-v8` is not installed, so `vitest --coverage` will fail).
+  Once it's added, run it with `pnpm test -- --coverage`.
+- **Landing image assets**: `pnpm landing:assets` (`scripts/optimize-landing-assets.ts`)
+  recompresses the raster images and Lottie file under `apps/landing/public/landing`
+  and regenerates `apps/landing/components/Landing/image-placeholders.ts`, the blur
+  placeholders `next/image` uses for those assets. Re-run it after adding or
+  replacing any image in that directory — a missing placeholder degrades to
+  `placeholder="empty"` (see `apps/landing/lib/blur-placeholder.ts`) rather than
+  breaking the page, but the new image will render unblurred until you do. Known
+  wrinkle: the script resolves `sharp` by hand out of `node_modules/.pnpm` because
+  it isn't a declared dependency anywhere it runs from — it fails with a clear
+  error if `pnpm install` hasn't hoisted it.
+
+## Upgrading
+
+- `packages/db/prisma/migrations/20260903000000_account_provider_account_unique`
+  deletes duplicate `account` rows before adding a unique constraint (kept rows
+  preserved in `account_dedupe_backup` for recovery). Dry-run the dedupe with a
+  `SELECT` before applying it in production: a duplicate spanning two different
+  users deletes the newer user's OAuth sign-in link, so know ahead of time
+  whether any of your rows would be affected.
+
 ## Reporting problems
 
 Bugs and feature requests go in GitHub Issues. Security issues go to

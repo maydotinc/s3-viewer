@@ -9,6 +9,11 @@ const optionalString = z
    .optional()
    .transform((value) => value || undefined);
 
+const MIB = 1024 * 1024;
+const DEFAULT_UPLOAD_PART_BYTES = 25 * MIB;
+const MIN_UPLOAD_PART_BYTES = 5 * MIB;
+const MAX_UPLOAD_PART_BYTES = 5 * 1024 * MIB;
+
 const schema = z
    .object({
       NODE_ENV: z
@@ -21,12 +26,29 @@ const schema = z
       NEXT_PUBLIC_API_URL: z.string().url(),
       RESEND_KEY: optionalString,
       EMAIL_FROM: optionalString,
+      SUPPORT_EMAIL: optionalString,
       GITHUB_CLIENT_ID: optionalString,
       GITHUB_CLIENT_SECRET: optionalString,
       PORT: z.coerce.number().int().min(1).max(65535).default(5001),
       MAX_UPLOAD_BYTES: optionalString.pipe(
          z.coerce.number().int().positive().optional()
       ),
+      UPLOAD_PART_BYTES: optionalString
+         .pipe(
+            z.coerce
+               .number()
+               .int()
+               .min(
+                  MIN_UPLOAD_PART_BYTES,
+                  `must be at least ${MIN_UPLOAD_PART_BYTES} bytes (S3's minimum part size)`
+               )
+               .max(
+                  MAX_UPLOAD_PART_BYTES,
+                  `must be at most ${MAX_UPLOAD_PART_BYTES} bytes`
+               )
+               .optional()
+         )
+         .transform((value) => value ?? DEFAULT_UPLOAD_PART_BYTES),
       TRUST_PROXY: z
          .string()
          .trim()
@@ -65,4 +87,4 @@ if (!parsed.success) {
 const env = parsed.data;
 const siteOrigin = new URL(env.NEXT_PUBLIC_SITE_URL).origin;
 
-export { env, siteOrigin };
+export { env, MAX_UPLOAD_PART_BYTES, siteOrigin };

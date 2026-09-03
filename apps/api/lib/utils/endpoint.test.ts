@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { isPrivateAddress, publicHostname } from "./endpoint";
+import {
+   isPrivateAddress,
+   PRIVATE_ADDRESS_CODE,
+   publicHostname,
+   publicOnlyLookup,
+} from "./endpoint";
 
 const originalEnv = process.env.NODE_ENV;
 afterEach(() => {
@@ -84,5 +89,33 @@ describe("publicHostname", () => {
 
    it("allows public IP literals", () => {
       expect(publicHostname("https://8.8.8.8")).toBe("8.8.8.8");
+   });
+});
+
+describe("publicOnlyLookup", () => {
+   const lookup = (
+      hostname: string
+   ): Promise<{
+      err: NodeJS.ErrnoException | null;
+      address: string | undefined;
+   }> =>
+      new Promise((resolve) => {
+         publicOnlyLookup(hostname, {}, (err, address) => {
+            resolve({
+               err,
+               address: Array.isArray(address) ? undefined : address,
+            });
+         });
+      });
+
+   it("rejects a private address at connect time, even though it skipped a real DNS query", async () => {
+      const { err } = await lookup("127.0.0.1");
+      expect(err?.code).toBe(PRIVATE_ADDRESS_CODE);
+   });
+
+   it("allows a public IP literal through", async () => {
+      const { err, address } = await lookup("8.8.8.8");
+      expect(err).toBeNull();
+      expect(address).toBe("8.8.8.8");
    });
 });

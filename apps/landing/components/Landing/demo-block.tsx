@@ -1,7 +1,8 @@
 import { Spinner } from "@s3-viewer/ui/components/spinner";
+import { blurProps } from "@/lib/blur-placeholder";
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import BasicBlock, { SectionHeading } from "../basic-block";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
@@ -29,10 +30,11 @@ const LottieBox = ({
    </div>
 );
 
-const useLottieData = (src: string) => {
+const useLottieData = (src: string | null) => {
    const [data, setData] = useState<object | null>(null);
 
    useEffect(() => {
+      if (!src) return;
       let cancelled = false;
       fetch(src)
          .then((res) => (res.ok ? res.json() : null))
@@ -50,8 +52,32 @@ const useLottieData = (src: string) => {
    return data;
 };
 
+const useIsVisible = <T extends Element>(rootMargin = "200px") => {
+   const ref = useRef<T>(null);
+   const [isVisible, setIsVisible] = useState(false);
+
+   useEffect(() => {
+      const el = ref.current;
+      if (!el || isVisible) return;
+      const observer = new IntersectionObserver(
+         ([entry]) => {
+            if (entry?.isIntersecting) setIsVisible(true);
+         },
+         { rootMargin }
+      );
+      observer.observe(el);
+      return () => observer.disconnect();
+   }, [isVisible, rootMargin]);
+
+   return [ref, isVisible] as const;
+};
+
 const DemoBlock = () => {
-   const serverConnect = useLottieData("/landing/serverconnect.json");
+   const [lottiePanelRef, isLottiePanelVisible] =
+      useIsVisible<HTMLDivElement>();
+   const serverConnect = useLottieData(
+      isLottiePanelVisible ? "/landing/serverconnect.json" : null
+   );
 
    return (
       <BasicBlock sectionClassName="border-y border-viewerborder bg-viewergray">
@@ -68,6 +94,7 @@ const DemoBlock = () => {
                width={3064}
                height={1561}
                sizes="(max-width: 1152px) 100vw, 1104px"
+               {...blurProps("/landing/objectview.png")}
                draggable={false}
                className="h-auto w-full select-none"
             />
@@ -75,7 +102,10 @@ const DemoBlock = () => {
 
          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="flex flex-col gap-5 rounded-xl border border-viewerborder bg-viewerwhite p-6">
-               <div className="grid aspect-[4/3] w-full place-items-center overflow-hidden rounded-lg bg-viewergray">
+               <div
+                  ref={lottiePanelRef}
+                  className="grid aspect-[4/3] w-full place-items-center overflow-hidden rounded-lg bg-viewergray"
+               >
                   <LottieBox
                      animationData={serverConnect}
                      className="size-full"
@@ -100,6 +130,7 @@ const DemoBlock = () => {
                      width={756}
                      height={815}
                      sizes="(max-width: 767px) 80vw, 320px"
+                     {...blurProps("/landing/serverselect.png")}
                      draggable={false}
                      className="h-full w-auto max-w-full object-contain select-none"
                   />

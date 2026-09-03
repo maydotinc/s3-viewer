@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { localPart } from "./utils";
+import { localPart, normalizeEmail } from "./utils";
+
+describe("normalizeEmail", () => {
+   it("trims and lowercases", () => {
+      expect(normalizeEmail("  Ada@Example.COM  ")).toBe("ada@example.com");
+   });
+});
 
 describe("localPart", () => {
    it("returns the part before the @", () => {

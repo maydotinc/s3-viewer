@@ -9,9 +9,11 @@ import { isBucketAllowed, loadServerSettings } from "@/lib/services/servers";
 import {
    CreateBucketCommand,
    ListBucketsCommand,
+   S3ServiceException,
    type BucketLocationConstraint,
    type S3Client,
 } from "@aws-sdk/client-s3";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import { Permission, isAtLeast } from "@s3-viewer/permissions";
 import {
@@ -48,6 +50,9 @@ const createBucketConfiguration = async (
       ? undefined
       : { LocationConstraint: region as BucketLocationConstraint };
 };
+
+const isBucketAlreadyOwnedByYou = (err: unknown): boolean =>
+   err instanceof S3ServiceException && err.name === "BucketAlreadyOwnedByYou";
 
 const listAllBuckets = async (client: S3Client): Promise<S3Bucket[]> => {
    const buckets: S3Bucket[] = [];
@@ -107,7 +112,7 @@ bucketsRouter.post(
       const { serverId, bucketName } = input<BucketScope>(res);
       const { userId, serverRole } = getAuth(res);
 
-      const [client, { allowedBuckets, provider }] = await Promise.all([
+      const [client, { provider }] = await Promise.all([
          getS3Client(serverId),
          loadServerSettings(serverId),
       ]);
@@ -121,26 +126,38 @@ bucketsRouter.post(
                ),
             })
          )
-         .catch(throwHttpError);
-
-      if (!isBucketAllowed(allowedBuckets, bucketName)) {
-         await prisma.server.update({
-            where: { id: serverId },
-            data: { allowedBuckets: { push: bucketName } },
+         .catch((err) => {
+            if (serverRole !== Role.OWNER || !isBucketAlreadyOwnedByYou(err)) {
+               throwHttpError(err);
+            }
          });
-      }
 
       let userRole: Role = Role.OWNER;
       if (serverRole !== Role.OWNER) {
          userRole = isAtLeast(serverRole, Role.ADMIN) ? Role.ADMIN : serverRole;
-         await prisma.bucketAccess.upsert({
-            where: {
-               userId_serverId_bucketName: { userId, serverId, bucketName },
-            },
-            create: { userId, serverId, bucketName, role: userRole },
-            update: {},
-         });
       }
+
+      const operations: Prisma.PrismaPromise<unknown>[] = [
+         prisma.$executeRaw`
+            UPDATE "server"
+            SET "allowedBuckets" = array_append("allowedBuckets", ${bucketName})
+            WHERE "id" = ${serverId}
+              AND cardinality("allowedBuckets") > 0
+              AND NOT (${bucketName} = ANY("allowedBuckets"))
+         `,
+      ];
+      if (serverRole !== Role.OWNER) {
+         operations.push(
+            prisma.bucketAccess.upsert({
+               where: {
+                  userId_serverId_bucketName: { userId, serverId, bucketName },
+               },
+               create: { userId, serverId, bucketName, role: userRole },
+               update: {},
+            })
+         );
+      }
+      await prisma.$transaction(operations);
 
       res.status(201).json({
          bucket: toBucket(bucketName, userRole, new Date().toISOString()),
@@ -152,14 +169,8 @@ bucketsRouter.delete(
    "/:bucketName",
    ...serverRoute(Permission.DELETE_BUCKET, bucketScope, async (req, res) => {
       const { serverId, bucketName } = input<BucketScope>(res);
-      const allowedBuckets = await loadAllowedBuckets(serverId);
       await prisma.$transaction([
-         prisma.server.update({
-            where: { id: serverId },
-            data: {
-               allowedBuckets: allowedBuckets.filter((b) => b !== bucketName),
-            },
-         }),
+         prisma.$executeRaw`UPDATE "server" SET "allowedBuckets" = array_remove("allowedBuckets", ${bucketName}) WHERE "id" = ${serverId}`,
          prisma.bucketAccess.deleteMany({ where: { serverId, bucketName } }),
       ]);
       noContent(res);

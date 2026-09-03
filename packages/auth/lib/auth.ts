@@ -16,7 +16,7 @@ import { emailOTP, magicLink } from "better-auth/plugins";
 import { authFlowContext, type AuthFlowStore } from "./auth-flow-context";
 import { authEnv } from "./env";
 import { validateProfile } from "./profile";
-import { localPart } from "./utils";
+import { localPart, normalizeEmail } from "./utils";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
 const AUTH_CODE_TTL_SECONDS = AUTH_CODE_TTL_MINUTES * 60;
@@ -86,18 +86,24 @@ const auth = betterAuth({
             // `image: null` is the last word on profile pictures: the column
             // exists because Better Auth's core user model declares it, but
             // nothing in the product ever fills it in. Avatars are drawn from
-            // the name in the web app.
+            // the name in the web app. `email` is normalized here too:
+            // `emailSchema` lowercases our own routes' input, but Better
+            // Auth's own OTP/OAuth endpoints don't run through it, so this
+            // hook is the one place every stored email is guaranteed lower.
             before: async (user) => ({
                data: {
                   ...user,
                   name: user.name || localPart(user.email),
+                  email: normalizeEmail(user.email),
                   image: null,
                },
             }),
          },
          update: {
             // `/update-user` accepts any name/image; this is the one place
-            // the name is checked and any image is stripped.
+            // the name is checked and any image is stripped. Any email that
+            // passes through an update is normalized for the same reason as
+            // on create.
             before: async (user) => {
                const result = validateProfile(user);
                if (!result.ok) {
@@ -105,7 +111,23 @@ const auth = betterAuth({
                      message: result.message,
                   });
                }
-               return { data: { ...user, ...result.data } };
+               return {
+                  data: {
+                     ...user,
+                     ...result.data,
+                     ...(user.email !== undefined && {
+                        email: normalizeEmail(user.email),
+                     }),
+                  },
+               };
+            },
+         },
+      },
+      session: {
+         create: {
+            before: async (session) => {
+               const { userAgent: _userAgent, ...data } = session;
+               return { data };
             },
          },
       },

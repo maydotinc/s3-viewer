@@ -16,7 +16,7 @@ const isAccessDenied = (err: unknown): boolean =>
 /** Classifies a probe failure and logs it under the flow that ran it ("Establish", "Credential update"). */
 const probeFailure = (err: unknown, event: string): ApiHttpError => {
    const { status, message, code, name } = classifyS3Error(err);
-   logger.info(`${event} failed`, { s3Error: name, status });
+   logger.warn(`${event} failed`, { s3Error: name, status });
    return new ApiHttpError(status, message, code);
 };
 

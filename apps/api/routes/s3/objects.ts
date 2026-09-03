@@ -1,4 +1,4 @@
-import { env } from "@/lib/env";
+import { env, MAX_UPLOAD_PART_BYTES } from "@/lib/env";
 import { ApiHttpError, noContent } from "@/lib/http";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
@@ -8,7 +8,14 @@ import { isNotFound, throwHttpError, toHttpError } from "@/lib/s3/errors";
 import { contentDispositionFilename, encodeCopySource } from "@/lib/s3/keys";
 import { listKeysPage, listPage } from "@/lib/s3/listing";
 import { presignedUrl } from "@/lib/s3/presign";
-import { declaredLength, exceedsLimit, streamUpload } from "@/lib/s3/upload";
+import {
+   declaredLength,
+   exceedsLimit,
+   exceedsMaxPartSize,
+   MAX_OBJECT_BYTES,
+   partSizeFor,
+   streamUpload,
+} from "@/lib/s3/upload";
 import {
    CopyObjectCommand,
    DeleteObjectCommand,
@@ -184,6 +191,12 @@ objectsRouter.put(
                `Uploads are limited to ${env.MAX_UPLOAD_BYTES} bytes`
             );
          }
+         if (exceedsMaxPartSize(contentLength, MAX_UPLOAD_PART_BYTES)) {
+            throw new ApiHttpError(
+               413,
+               `Uploads are limited to ${MAX_OBJECT_BYTES} bytes`
+            );
+         }
 
          const abortController = new AbortController();
          req.on("close", () => {
@@ -198,6 +211,7 @@ objectsRouter.put(
             contentType,
             body: req,
             contentLength,
+            partSize: partSizeFor(contentLength, env.UPLOAD_PART_BYTES),
             abortController,
          }).catch(throwHttpError);
          const uploaded: S3ObjectUploaded = { key: objectKey, size, eTag };

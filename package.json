@@ -16,6 +16,7 @@
       "db:generate": "turbo run db:generate",
       "db:deploy": "pnpm --filter @s3-viewer/db db:deploy",
       "db:migrate": "pnpm --filter @s3-viewer/db db:migrate",
+      "landing:assets": "tsx scripts/optimize-landing-assets.ts",
       "format": "prettier --write .",
       "format:check": "prettier --check ."
    },

@@ -23,8 +23,7 @@ const inviteSelect = {
    },
 } satisfies Prisma.PendingInvitationSelect;
 
-const addressedTo = (email: string) =>
-   ({ equals: email.toLowerCase(), mode: "insensitive" }) as const;
+const addressedTo = (email: string) => email.toLowerCase();
 
 type InviteRow = Prisma.PendingInvitationGetPayload<{
    select: typeof inviteSelect;
