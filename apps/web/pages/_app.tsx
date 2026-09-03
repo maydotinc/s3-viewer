@@ -8,10 +8,10 @@ import { PRODUCT_NAME } from "@s3-viewer/types";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
 import "@s3-viewer/ui/globals.css";
+import { inter } from "@/lib/fonts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { NextPage } from "next";
 import type { AppProps } from "next/app";
-import { Inter } from "next/font/google";
 import Head from "next/head";
 import { ReactElement, ReactNode, useState } from "react";
 
@@ -20,8 +20,6 @@ type NextPageWithLayout<P = Record<string, never>, IP = P> = NextPage<P, IP> & {
 };
 
 type AppPropsWithLayout = AppProps & { Component: NextPageWithLayout };
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 const App = ({ Component, pageProps }: AppPropsWithLayout) => {
    const [queryClient] = useState(makeQueryClient);
@@ -48,21 +46,20 @@ const App = ({ Component, pageProps }: AppPropsWithLayout) => {
             />
             <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
             <link rel="manifest" href="/site.webmanifest" />
+            <style>{`:root{--font-inter:${inter.style.fontFamily}}`}</style>
          </Head>
-         <div className={`${inter.variable} font-sans`}>
-            <ErrorBoundary>
-               <ModalProvider>
-                  <SessionManager />
-                  <AuthGuard>
-                     <SidebarProvider>
-                        {getLayout(<Component {...pageProps} />)}
-                        <ModalManager />
-                        <Toaster />
-                     </SidebarProvider>
-                  </AuthGuard>
-               </ModalProvider>
-            </ErrorBoundary>
-         </div>
+         <ErrorBoundary>
+            <ModalProvider>
+               <SessionManager />
+               <AuthGuard>
+                  <SidebarProvider>
+                     {getLayout(<Component {...pageProps} />)}
+                     <ModalManager />
+                     <Toaster />
+                  </SidebarProvider>
+               </AuthGuard>
+            </ModalProvider>
+         </ErrorBoundary>
       </QueryClientProvider>
    );
 };
