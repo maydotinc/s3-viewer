@@ -2,7 +2,7 @@ import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { Provider } from "@s3-viewer/types";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { ServerIcon, UserIcon } from "lucide-react";
 
 const PROVIDER_LABELS: Record<Provider, string> = {
@@ -12,7 +12,7 @@ const PROVIDER_LABELS: Record<Provider, string> = {
 };
 
 const CARD =
-   "flex min-w-40 items-center gap-2 rounded-xl border border-viewerborder p-2";
+   "flex h-14 min-w-40 items-center gap-2 rounded-xl border border-viewerborder p-2";
 
 const Card = ({
    icon,
@@ -40,8 +40,11 @@ const ServerInfo = () => {
    if (isServerListLoading) {
       return (
          <div className="flex flex-none gap-2" aria-busy="true">
-            <Skeleton className="h-14 w-40 shrink-0 rounded-xl" />
-            <Skeleton className="h-14 w-40 shrink-0 rounded-xl" />
+            {["provider", "role"].map((card) => (
+               <div key={card} className={`${CARD} justify-center`}>
+                  <Spinner size="sm" label={`Loading ${card}`} />
+               </div>
+            ))}
          </div>
       );
    }
@@ -52,7 +55,7 @@ const ServerInfo = () => {
    const role = currentServer ? ROLE_LABELS[currentServer.userRole] : "—";
 
    return (
-      <div className="flex flex-none gap-2">
+      <div className="fade-in flex flex-none gap-2">
          <Card
             icon={
                currentServer ? (

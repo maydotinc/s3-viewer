@@ -1,13 +1,24 @@
 import type { NextConfig } from "next";
+import { origin } from "./lib/origin";
 
 const isProduction = process.env.NODE_ENV === "production";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-if (!apiUrl) throw new Error("NEXT_PUBLIC_API_URL is not set");
-const apiOrigin = new URL(apiUrl).origin;
+const requiredOrigin = (name: string): string => {
+   const value = process.env[name];
+   const parsed = origin(value);
+   if (!parsed) {
+      throw new Error(
+         `${name} must be an http(s) URL such as https://example.com (got ${JSON.stringify(value ?? "")})`
+      );
+   }
+   return parsed;
+};
+
+requiredOrigin("NEXT_PUBLIC_SITE_URL");
+const apiOrigin = requiredOrigin("NEXT_PUBLIC_API_URL");
 
 const landingOrigin = process.env.LANDING_ORIGIN
-   ? ` ${new URL(process.env.LANDING_ORIGIN).origin}`
+   ? ` ${requiredOrigin("LANDING_ORIGIN")}`
    : "";
 
 const remote = isProduction ? "https:" : "https: http:";

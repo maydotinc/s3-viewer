@@ -258,7 +258,7 @@ const BrandKit = () => {
                   </span>
                </nav>
 
-               <div className="flex flex-col gap-5 max-w-[760px] motion-fade-up">
+               <div className="flex flex-col gap-5 max-w-[760px]">
                   <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
                      The S3 Viewer brand,
                      <br />

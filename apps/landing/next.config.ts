@@ -3,8 +3,11 @@ import type { NextConfig } from "next";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 if (!siteUrl) throw new Error("NEXT_PUBLIC_SITE_URL is not set");
 
-const assetPrefix = process.env.NEXT_PUBLIC_ASSET_PREFIX;
-if (!assetPrefix && process.env.NODE_ENV === "production") {
+const isProduction = process.env.NODE_ENV === "production";
+const assetPrefix = isProduction
+   ? process.env.NEXT_PUBLIC_ASSET_PREFIX
+   : undefined;
+if (isProduction && !assetPrefix) {
    throw new Error("NEXT_PUBLIC_ASSET_PREFIX is not set");
 }
 

@@ -108,6 +108,7 @@ const Objects = () => {
             ) : (
                <DropZone className="flex min-h-0 flex-1 flex-col">
                   <LazyGrid
+                     className="fade-in"
                      rowModel="infinite"
                      datasource={datasource}
                      cacheBlockSize={MAX_LIST_BLOCK_SIZE}

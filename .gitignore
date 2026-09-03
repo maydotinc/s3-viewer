@@ -48,3 +48,4 @@ next-env.d.ts
 # build artifacts
 /apps/api/dist
 /apps/web/dist
+.claude/launch.json

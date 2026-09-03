@@ -2,14 +2,14 @@ import useRevokeInvite from "@/lib/hooks/mutations/invites/useRevokeInvite";
 import { useSentInvites } from "@/lib/hooks/queries/server/useInvites";
 import { useUserId } from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";
-import InviteCard, { InviteEmpty, InviteListSkeleton } from "./invite-card";
+import InviteCard, { InviteEmpty, InviteListLoading } from "./invite-card";
 
 const SentInvites = ({ serverId }: { serverId: string }) => {
    const userId = useUserId();
    const { data: invites = [], isLoading, error } = useSentInvites(serverId);
    const revoke = useRevokeInvite();
 
-   if (!userId || isLoading) return <InviteListSkeleton />;
+   if (!userId || isLoading) return <InviteListLoading />;
    if (error) {
       return (
          <p role="alert" className="text-sm text-viewertextred">
@@ -21,7 +21,7 @@ const SentInvites = ({ serverId }: { serverId: string }) => {
       return <InviteEmpty>No pending invites</InviteEmpty>;
 
    return (
-      <ul className="flex flex-col gap-2">
+      <ul className="fade-in flex flex-col gap-2">
          {invites.map((invite) => {
             const revoking =
                revoke.isPending && revoke.variables?.inviteId === invite.id;

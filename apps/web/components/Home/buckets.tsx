@@ -46,7 +46,7 @@ const BucketFilter = ({
             disabled={!gridReady}
             onChange={(event) => onChange(event.target.value)}
             autoComplete="off"
-            className="h-9 w-full rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-3 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:ring-[3px] focus-visible:ring-viewerblue/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-9 w-full rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-3 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:border-viewerblue disabled:cursor-not-allowed disabled:opacity-50"
          />
       </div>
    );
@@ -87,6 +87,7 @@ const BucketsGrid = ({ filter }: { filter: string }) => {
 
    return (
       <LazyGrid
+         className="fade-in"
          rowModel="clientSide"
          rowData={buckets}
          quickFilterText={filter}

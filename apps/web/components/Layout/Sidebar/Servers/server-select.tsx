@@ -12,7 +12,7 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { CirclePlus } from "lucide-react";
-import ServerCard, { ServerCardSkeleton } from "./server-card";
+import ServerCard, { SERVER_CARD, ServerCardLoading } from "./server-card";
 import ServerItem from "./server-item";
 
 const ServerSelector = () => {
@@ -22,13 +22,13 @@ const ServerSelector = () => {
    const setServerId = useSessionStore((state) => state.setServerId);
    const userId = useUserId();
 
-   if (!userId || isServerListLoading) return <ServerCardSkeleton />;
+   if (!userId || isServerListLoading) return <ServerCardLoading />;
 
    if (serverError) {
       return (
          <p
             role="alert"
-            className="rounded-xl bg-viewergray p-2 text-center text-sm text-viewertextred"
+            className={`${SERVER_CARD} fade-in items-center justify-center text-center text-sm text-viewertextred`}
          >
             {serverError.message}
          </p>
@@ -37,8 +37,8 @@ const ServerSelector = () => {
 
    if (!currentServer) {
       return (
-         <div className="flex flex-col gap-2 rounded-xl bg-viewergray p-2">
-            <p className="text-center text-sm text-viewertext">
+         <div className={`${SERVER_CARD} fade-in`}>
+            <p className="text-center text-sm leading-none text-viewertext">
                No servers yet
             </p>
             <Button
@@ -57,7 +57,7 @@ const ServerSelector = () => {
       <DropdownMenu>
          <DropdownMenuTrigger
             aria-label="Switch server"
-            className="w-full rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
+            className="w-full rounded-xl border border-transparent outline-none focus-visible:border-viewerblue"
          >
             <ServerCard server={currentServer} />
          </DropdownMenuTrigger>

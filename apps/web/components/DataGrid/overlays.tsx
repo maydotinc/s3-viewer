@@ -1,5 +1,5 @@
 import { Button } from "@s3-viewer/ui/components/button";
-import { LoaderCircle } from "lucide-react";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 
 const EmptyState = ({
    title,
@@ -15,15 +15,8 @@ const EmptyState = ({
 );
 
 const LoadingOverlay = () => (
-   <div
-      className="flex h-full items-center justify-center"
-      role="status"
-      aria-label="Loading…"
-   >
-      <LoaderCircle
-         className="size-5 animate-spin text-viewerlighttext"
-         aria-hidden="true"
-      />
+   <div className="flex h-full items-center justify-center">
+      <Spinner size="lg" />
    </div>
 );
 

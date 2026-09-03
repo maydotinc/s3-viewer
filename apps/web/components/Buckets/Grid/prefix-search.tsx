@@ -65,7 +65,7 @@ const PrefixSearch = ({ className }: { className?: string }) => {
             }}
             autoComplete="off"
             spellCheck={false}
-            className="h-9 w-full min-w-0 rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-3 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:ring-[3px] focus-visible:ring-viewerblue/40 disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-9 w-full min-w-0 rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-3 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:border-viewerblue disabled:cursor-not-allowed disabled:opacity-50"
          />
          {suggestion && (
             <div

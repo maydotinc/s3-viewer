@@ -1,20 +1,11 @@
-const required = (name: string, value: string | undefined): string => {
-   if (!value) throw new Error(`${name} is not set`);
-   return value;
-};
+import { origin } from "@/lib/origin";
 
 const publicEnv = {
-   siteOrigin: new URL(
-      required("NEXT_PUBLIC_SITE_URL", process.env.NEXT_PUBLIC_SITE_URL)
-   ).origin,
-   apiOrigin: new URL(
-      required("NEXT_PUBLIC_API_URL", process.env.NEXT_PUBLIC_API_URL)
-   ).origin,
+   siteOrigin: origin(process.env.NEXT_PUBLIC_SITE_URL),
+   apiOrigin: origin(process.env.NEXT_PUBLIC_API_URL),
    githubLoginEnabled: process.env.NEXT_PUBLIC_GITHUB_LOGIN_ENABLED === "true",
 } as const;
 
-const landingOrigin = process.env.LANDING_ORIGIN
-   ? new URL(process.env.LANDING_ORIGIN).origin
-   : undefined;
+const landingOrigin = origin(process.env.LANDING_ORIGIN) || undefined;
 
 export { landingOrigin, publicEnv };

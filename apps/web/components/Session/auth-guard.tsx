@@ -1,6 +1,6 @@
-import FullPageSkeleton from "@/components/Session/full-page-skeleton";
-import { authClient } from "@/lib/auth";
+import FullPageSpinner from "@/components/Session/full-page-spinner";
 import { loginPathFor } from "@/lib/auth-redirect";
+import { useSessionState } from "@/lib/hooks/useSessionState";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { useRouter } from "next/router";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -10,15 +10,14 @@ const PUBLIC_PATHS = new Set([
    SITE_PATHS.signup,
    SITE_PATHS.verify,
    "/404",
-   "/500",
    "/_error",
 ]);
 
 const AuthGuard = ({ children }: { children: ReactNode }) => {
    const router = useRouter();
-   const { data: session, isPending } = authClient.useSession();
+   const sessionState = useSessionState();
    const isPublic = PUBLIC_PATHS.has(router.pathname);
-   const signedOut = !isPending && !session;
+   const signedOut = sessionState === "signedOut";
    const redirected = useRef(false);
 
    useEffect(() => {
@@ -32,7 +31,7 @@ const AuthGuard = ({ children }: { children: ReactNode }) => {
    }, [isPublic, signedOut, router]);
 
    if (isPublic) return children;
-   if (isPending || !session) return <FullPageSkeleton />;
+   if (sessionState !== "signedIn") return <FullPageSpinner />;
    return children;
 };
 

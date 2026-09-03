@@ -3,7 +3,7 @@ import PageSize from "@/components/DataGrid/page-size";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { useBucketContext } from "./Context";
 import PrefixSearch from "./Grid/prefix-search";
@@ -25,29 +25,28 @@ const ObjectsToolbar = () => {
             <RefreshCw aria-hidden="true" />
             Refresh
          </Button>
-         {isLoading ? (
-            <>
-               <Skeleton className="h-9 w-28 rounded-lg" />
-               <Skeleton className="h-9 w-28 rounded-lg" />
-            </>
-         ) : (
-            <>
-               {canUpload && <UploadMenu className="min-w-28" />}
-               {commands.can.delete && (
-                  <Button
-                     variant="destructive"
-                     className="min-w-28"
-                     disabled={count === 0}
-                     onClick={() =>
-                        commands.remove(selectedIds, clearSelection)
-                     }
-                  >
-                     <Trash2 aria-hidden="true" />
-                     Delete{count > 0 ? ` (${count})` : ""}
-                  </Button>
-               )}
-            </>
-         )}
+         <div className="flex h-9 min-w-[232px] items-center justify-end gap-2">
+            {isLoading ? (
+               <Spinner size="sm" label="Loading actions" />
+            ) : (
+               <div className="fade-in flex items-center gap-2">
+                  {canUpload && <UploadMenu className="min-w-28" />}
+                  {commands.can.delete && (
+                     <Button
+                        variant="destructive"
+                        className="min-w-28"
+                        disabled={count === 0}
+                        onClick={() =>
+                           commands.remove(selectedIds, clearSelection)
+                        }
+                     >
+                        <Trash2 aria-hidden="true" />
+                        Delete{count > 0 ? ` (${count})` : ""}
+                     </Button>
+                  )}
+               </div>
+            )}
+         </div>
       </div>
    );
 };

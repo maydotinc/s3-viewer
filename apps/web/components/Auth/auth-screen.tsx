@@ -1,11 +1,14 @@
 import BrandPanel from "@/components/Auth/brand-panel";
 import CodeStep from "@/components/Auth/code-step";
 import EmailStep from "@/components/Auth/email-step";
-import { authClient } from "@/lib/auth";
+import FullPageSpinner from "@/components/Session/full-page-spinner";
+import { signInWithGithub } from "@/lib/auth";
 import { afterLoginPath } from "@/lib/auth-redirect";
 import { publicEnv } from "@/lib/env";
+import { useSessionState } from "@/lib/hooks/useSessionState";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/site-config";
 import { PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -43,13 +46,21 @@ const STEP_HEIGHT = publicEnv.githubLoginEnabled
    ? "min-h-[27rem]"
    : "min-h-[20.5rem]";
 
+const TEXT_LINK =
+   "rounded-sm border border-transparent font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:border-viewerblue";
+
+const LEGAL_LINK =
+   "rounded-sm border border-transparent underline underline-offset-4 outline-none hover:text-viewertext focus-visible:border-viewerblue";
+
 const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
    const router = useRouter();
-   const { data: session, isPending } = authClient.useSession();
+   const sessionState = useSessionState();
    const [email, setEmail] = useState(initialEmail ?? "");
    const [step, setStep] = useState<"email" | "code">(
       initialEmail ? "code" : "email"
    );
+   const [leavingForGithub, setLeavingForGithub] = useState(false);
+   const [githubError, setGithubError] = useState<string | null>(null);
    const redirected = useRef(false);
 
    const destination = afterLoginPath(router.query.next);
@@ -59,10 +70,22 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
    const notice = NOTICES[reason] ?? null;
 
    useEffect(() => {
-      if (isPending || !session || redirected.current) return;
+      if (sessionState !== "signedIn" || redirected.current) return;
       redirected.current = true;
       void router.replace(destination);
-   }, [isPending, session, destination, router]);
+   }, [sessionState, destination, router]);
+
+   const github = async () => {
+      setGithubError(null);
+      setLeavingForGithub(true);
+      const { error } = await signInWithGithub();
+      if (error) {
+         setGithubError(error);
+         setLeavingForGithub(false);
+      }
+   };
+
+   if (sessionState !== "signedOut") return <FullPageSpinner />;
 
    const switchHref = {
       pathname: copy.switchHref,
@@ -74,99 +97,98 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
 
    return (
       <div className="grid min-h-dvh w-full lg:grid-cols-2">
-         <main className="flex flex-col justify-center px-6 py-12 sm:px-12">
-            <div className="mx-auto w-full max-w-sm">
-               <Link
-                  href={SITE_PATHS.login}
-                  aria-label={PRODUCT_NAME}
-                  className="mb-10 inline-flex rounded-sm outline-none focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
-               >
-                  <Image
-                     src="/icons/viewer.svg"
-                     alt=""
-                     width={150}
-                     height={32}
-                     priority
-                     draggable={false}
-                     className="h-7 w-[131px]"
-                  />
-               </Link>
+         <main className="relative flex flex-col justify-center px-6 pb-12 pt-24 sm:px-12">
+            <a
+               href={`${publicEnv.siteOrigin}/`}
+               aria-label={`${PRODUCT_NAME} home`}
+               className="absolute left-6 top-6 inline-flex rounded-sm border border-transparent outline-none focus-visible:border-viewerblue sm:left-12 sm:top-10"
+            >
+               <Image
+                  src="/icons/viewer.svg"
+                  alt=""
+                  width={150}
+                  height={32}
+                  priority
+                  draggable={false}
+                  className="h-7 w-[131px]"
+               />
+            </a>
 
-               <div key={step} className={`motion-fade-in ${STEP_HEIGHT}`}>
-                  {step === "email" ? (
-                     <>
-                        <h1 className="text-title">{copy.title}</h1>
-                        <p className="mt-2 text-sm text-viewertext">
-                           {copy.subtitle}
-                        </p>
-                        <div className="mt-8">
-                           <EmailStep
-                              initialEmail={email}
-                              notice={notice}
-                              onSent={(sent) => {
-                                 setEmail(sent);
-                                 setStep("code");
-                              }}
-                           />
-                        </div>
-                        <p className="mt-8 text-sm text-viewertext">
-                           {copy.switchPrompt}{" "}
-                           <Link
-                              href={switchHref}
-                              className="rounded-sm font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
-                           >
-                              {copy.switchLabel}
-                           </Link>
-                        </p>
-                     </>
-                  ) : (
-                     <>
-                        <h1 className="text-title">Check your inbox</h1>
-                        <p className="mt-2 text-sm text-viewertext">
-                           We sent a code and a sign-in link to{" "}
-                           <span className="font-medium text-viewerblack">
-                              {email}
-                           </span>
-                           .{" "}
-                           <button
-                              type="button"
-                              onClick={() => setStep("email")}
-                              className="rounded-sm font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
-                           >
-                              Edit
-                           </button>
-                        </p>
-                        <div className="mt-8">
-                           <CodeStep
-                              email={email}
-                              onVerified={async () => {
-                                 redirected.current = true;
-                                 await router.replace(destination);
-                              }}
-                           />
-                        </div>
-                     </>
-                  )}
+            {leavingForGithub ? (
+               <div className="flex flex-1 items-center justify-center">
+                  <Spinner size="lg" label="Opening GitHub sign-in" />
                </div>
+            ) : (
+               <div className="mx-auto w-full max-w-sm">
+                  <div key={step} className={`motion-fade-in ${STEP_HEIGHT}`}>
+                     {step === "email" ? (
+                        <>
+                           <h1 className="text-title">{copy.title}</h1>
+                           <p className="mt-2 text-sm text-viewertext">
+                              {copy.subtitle}
+                           </p>
+                           <div className="mt-8">
+                              <EmailStep
+                                 initialEmail={email}
+                                 notice={notice}
+                                 onSent={(sent) => {
+                                    setEmail(sent);
+                                    setStep("code");
+                                 }}
+                                 onGithub={() => void github()}
+                                 githubError={githubError}
+                              />
+                           </div>
+                           <p className="mt-8 text-sm text-viewertext">
+                              {copy.switchPrompt}{" "}
+                              <Link href={switchHref} className={TEXT_LINK}>
+                                 {copy.switchLabel}
+                              </Link>
+                           </p>
+                        </>
+                     ) : (
+                        <>
+                           <h1 className="text-title">Check your inbox</h1>
+                           <p className="mt-2 text-sm text-viewertext">
+                              We sent a code and a sign-in link to{" "}
+                              <span className="font-medium text-viewerblack">
+                                 {email}
+                              </span>
+                              .{" "}
+                              <button
+                                 type="button"
+                                 onClick={() => setStep("email")}
+                                 className={TEXT_LINK}
+                              >
+                                 Edit
+                              </button>
+                           </p>
+                           <div className="mt-8">
+                              <CodeStep
+                                 email={email}
+                                 onVerified={async () => {
+                                    redirected.current = true;
+                                    await router.replace(destination);
+                                 }}
+                              />
+                           </div>
+                        </>
+                     )}
+                  </div>
 
-               <p className="mt-10 text-meta">
-                  By continuing you agree to the{" "}
-                  <a
-                     href={TERMS_URL}
-                     className="rounded-sm underline underline-offset-4 outline-none hover:text-viewertext focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
-                  >
-                     terms of service
-                  </a>{" "}
-                  and{" "}
-                  <a
-                     href={PRIVACY_URL}
-                     className="rounded-sm underline underline-offset-4 outline-none hover:text-viewertext focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
-                  >
-                     privacy policy
-                  </a>
-                  .
-               </p>
-            </div>
+                  <p className="text-meta mt-10">
+                     By continuing you agree to the{" "}
+                     <a href={TERMS_URL} className={LEGAL_LINK}>
+                        Terms of Service
+                     </a>{" "}
+                     and{" "}
+                     <a href={PRIVACY_URL} className={LEGAL_LINK}>
+                        Privacy Policy
+                     </a>
+                     .
+                  </p>
+               </div>
+            )}
          </main>
          <BrandPanel />
       </div>

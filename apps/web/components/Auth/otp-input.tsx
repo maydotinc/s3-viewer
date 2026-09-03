@@ -101,11 +101,10 @@ const OtpInput = ({
                onKeyDown={handleKeyDown(index)}
                onFocus={(event) => event.target.select()}
                className={cn(
-                  "h-12 w-full min-w-0 rounded-lg border border-viewerborder bg-viewerwhite text-center font-mono text-xl font-semibold text-viewerblack outline-none transition-[color,box-shadow,border-color]",
-                  "focus-visible:border-viewerblue focus-visible:ring-[3px] focus-visible:ring-viewerblue/30",
+                  "h-12 w-full min-w-0 rounded-lg border border-viewerborder bg-viewerwhite text-center font-mono text-xl font-semibold text-viewerblack outline-none transition-[color,border-color]",
+                  "focus-visible:border-viewerblue",
                   "disabled:cursor-not-allowed disabled:opacity-50",
-                  invalid &&
-                     "border-viewertextred ring-[3px] ring-viewertextred/20"
+                  invalid && "border-viewertextred"
                )}
             />
          ))}

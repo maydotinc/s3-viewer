@@ -19,13 +19,13 @@ const Header = () => {
    return (
       <header
          className={cn(
-            "sticky top-0 z-50 flex w-full items-center justify-center border-b transition-[border-color,background-color] duration-200",
+            "sticky top-0 z-50 flex h-20 w-full flex-none items-center justify-center border-b transition-[border-color,background-color] duration-200",
             scrolled
                ? "border-viewerborder bg-viewerwhite/85 backdrop-blur-md"
                : "border-transparent bg-viewerwhite"
          )}
       >
-         <div className="flex w-full max-w-screen-2xl items-center justify-between gap-4 py-5 px-30 max-xl:px-15 max-md:px-4">
+         <div className="flex h-full w-full max-w-screen-2xl items-center justify-between gap-4 px-30 max-xl:px-15 max-md:px-4">
             <Link
                href="/"
                draggable={false}
@@ -77,7 +77,7 @@ const Header = () => {
 
                <Button
                   size="lg"
-                  variant="secondary"
+                  variant="default"
                   className="h-10 text-[13.5px]"
                   asChild
                >

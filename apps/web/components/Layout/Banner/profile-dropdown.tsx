@@ -11,7 +11,7 @@ import {
    DropdownMenuSeparator,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { ChevronDown, FileText, LogOut, Mail, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -23,10 +23,9 @@ const ProfileDropdown = () => {
 
    if (!user) {
       return (
-         <Skeleton
-            className="h-11 w-11 rounded-full sm:w-36"
-            aria-hidden="true"
-         />
+         <div className="flex h-11 w-11 items-center justify-center rounded-full border border-viewerborder bg-viewerwhite sm:w-36">
+            <Spinner size="sm" label="Loading account" />
+         </div>
       );
    }
 
@@ -35,7 +34,7 @@ const ProfileDropdown = () => {
          <DropdownMenu>
             <DropdownMenuTrigger
                aria-label="Account menu"
-               className="flex h-11 items-center gap-2 rounded-full border border-viewerborder bg-viewerwhite py-1 pl-1 pr-1 text-sm sm:pr-3 text-viewerblack outline-none hover:bg-viewergray focus-visible:ring-[3px] focus-visible:ring-viewerblue/40 data-[state=open]:[&_svg]:rotate-180"
+               className="fade-in flex h-11 items-center gap-2 rounded-full border border-viewerborder bg-viewerwhite py-1 pl-1 pr-1 text-sm sm:pr-3 text-viewerblack outline-none hover:bg-viewergray focus-visible:border-viewerblue data-[state=open]:[&_svg]:rotate-180"
             >
                <Avatar name={user.name} image={user.image} size={36} />
                <span className="hidden max-w-32 truncate sm:inline">

@@ -2,7 +2,7 @@ import { useBucketContext } from "@/components/Buckets/Context";
 import useObjectCommands from "@/components/Buckets/useObjectCommands";
 import { folderHref, objectHref } from "@/lib/utils/s3/paths";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { toast } from "@s3-viewer/ui/components/toast";
 import {
    Check,
@@ -95,16 +95,11 @@ const ObjectHeader = ({ bucketName, objectKey, path }: ObjectHeaderProps) => {
             </Button>
          </div>
 
-         <div className="flex flex-wrap items-center gap-2">
+         <div className="flex min-h-9 flex-wrap items-center justify-end gap-2 lg:min-w-[440px]">
             {isLoading ? (
-               <>
-                  <Skeleton className="h-9 w-28 rounded-lg" />
-                  <Skeleton className="h-9 w-28 rounded-lg" />
-                  <Skeleton className="h-9 w-24 rounded-lg" />
-                  <Skeleton className="h-9 w-24 rounded-lg" />
-               </>
+               <Spinner size="sm" label="Loading actions" />
             ) : (
-               <>
+               <div className="fade-in flex flex-wrap items-center justify-end gap-2">
                   {can.download && (
                      <>
                         <Button
@@ -160,7 +155,7 @@ const ObjectHeader = ({ bucketName, objectKey, path }: ObjectHeaderProps) => {
                         Delete
                      </Button>
                   )}
-               </>
+               </div>
             )}
          </div>
       </div>

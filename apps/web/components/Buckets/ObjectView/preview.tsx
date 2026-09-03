@@ -7,7 +7,7 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { Eye, FileWarning } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { PREVIEW_ASPECT, PREVIEW_BOX, PreviewSkeleton } from "./preview-frame";
+import { PREVIEW_ASPECT, PREVIEW_BOX, PreviewLoading } from "./preview-frame";
 
 type ObjectPreviewProps = {
    preview: S3ObjectPreview | undefined;
@@ -67,7 +67,7 @@ const ObjectPreview = ({
    objectKey,
    fileName,
 }: ObjectPreviewProps) => {
-   if (isLoading) return <PreviewSkeleton />;
+   if (isLoading) return <PreviewLoading />;
 
    if (isError || !preview) {
       return (
@@ -107,7 +107,7 @@ const ObjectPreview = ({
    }
 
    return (
-      <div className={PREVIEW_BOX}>
+      <div className={`${PREVIEW_BOX} fade-in`}>
          {kind === "image" && (
             <div className={`${PREVIEW_ASPECT} relative`}>
                <Image

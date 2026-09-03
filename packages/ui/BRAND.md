@@ -10,7 +10,7 @@ Defined as Tailwind theme colors in `src/styles/globals.css`.
 
 | Token             | Hex       | Use it for                                        |
 | ----------------- | --------- | ------------------------------------------------- |
-| `viewerblue`      | `#3658C1` | Primary. CTAs, links, active state, focus rings.  |
+| `viewerblue`      | `#3658C1` | Primary. CTAs, links, active state, focus border. |
 | `viewerdarkblue`  | `#253977` | Hero/emphasis surfaces, primary button hover.     |
 | `viewerblack`     | `#0E121B` | Headings and high-emphasis text.                  |
 | `viewertext`      | `#525866` | Body copy and secondary text. Default `color`.    |
@@ -65,9 +65,26 @@ needed. `h1`–`h6` default to viewerblack.
 - `destructive` — viewertextred fill, white text.
 - `link` — viewerblue, underline on hover.
 
-Focus rings are viewerblue, disabled is 50% opacity. Every variant accepts
-`loading` — it shows a `Loader2` spinner and disables the button, so app code
-should not re-implement that.
+Disabled is 50% opacity. Every variant accepts `loading` — it shows a
+`Loader2` spinner, disables the button and keeps the button's idle width, so
+app code should not re-implement that.
+
+## Focus
+
+No focus rings; focus is a border colour change. Every focusable control
+carries a 1px border (transparent where the design has none, so nothing shifts)
+and turns it `viewerblue` on `focus-visible`; `aria-invalid` turns it
+`viewertextred`. Never use `ring-*`, `focus:ring-*`, `focus-visible:ring-*`,
+`ring-offset-*` or `outline-ring`. Set `outline-none` and style the border.
+
+## Loading
+
+`src/components/spinner.tsx` is the one loading indicator: sizes `sm`, `md`,
+`lg`, viewerblue, `role="status"` with an `aria-label`. Centre it inside a
+container that already has the final dimensions so nothing moves when data
+arrives. Skeletons are reserved for large areas whose loaded shape is known
+(a table body). Wrap content that replaces a spinner in `.fade-in` (150 ms
+opacity, off under reduced motion).
 
 ## Writing rules
 

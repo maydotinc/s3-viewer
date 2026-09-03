@@ -10,7 +10,7 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@s3-viewer/ui/components/select";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { useId } from "react";
 import { grantableBucketRoles, lowestRole } from "./roles";
 
@@ -94,14 +94,9 @@ const BucketAccessPicker = ({
          </div>
          <div className="max-h-48 overflow-y-auto rounded-lg border border-viewerborder">
             {isLoading ? (
-               <ul className="flex flex-col divide-y divide-viewerborder">
-                  {[0, 1, 2].map((i) => (
-                     <li key={i} className="flex h-10 items-center gap-2 px-3">
-                        <Skeleton className="size-4 rounded" />
-                        <Skeleton className="h-4 w-32" />
-                     </li>
-                  ))}
-               </ul>
+               <div className="flex h-[120px] items-center justify-center">
+                  <Spinner label="Loading buckets" />
+               </div>
             ) : buckets.length === 0 ? (
                <p className="px-3 py-3 text-sm text-viewerlighttext">
                   No buckets

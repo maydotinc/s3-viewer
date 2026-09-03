@@ -67,7 +67,7 @@ const PageControls = ({ className }: { className?: string }) => {
                onKeyDown={(event) => {
                   if (event.key === "Enter") commitDraft();
                }}
-               className="h-7 w-12 rounded-md border border-viewerborder bg-viewerwhite text-center text-sm text-viewerblack outline-none focus-visible:ring-[3px] focus-visible:ring-viewerblue/40 disabled:opacity-50"
+               className="h-7 w-12 rounded-md border border-viewerborder bg-viewerwhite text-center text-sm text-viewerblack outline-none focus-visible:border-viewerblue disabled:opacity-50"
             />
             {lastKnown && <span>of {totalPages}</span>}
          </label>

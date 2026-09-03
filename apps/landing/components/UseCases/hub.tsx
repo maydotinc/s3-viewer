@@ -27,7 +27,7 @@ const Hub = () => {
                   </span>
                </nav>
 
-               <div className="flex flex-col gap-5 max-w-[760px] motion-fade-up">
+               <div className="flex flex-col gap-5 max-w-[760px]">
                   <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
                      One viewer.
                      <br />
@@ -50,7 +50,7 @@ const Hub = () => {
                      <Link
                         key={u.slug}
                         href={`/use-cases/${u.slug}`}
-                        className="motion-fade-up group relative flex h-full flex-col gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-6 sm:p-7 transition-colors duration-200 hover:border-viewerblue/40 focus-visible:outline-none focus-visible:border-viewerblue focus-visible:ring-2 focus-visible:ring-viewerblue/20"
+                        className="motion-fade-up group relative flex h-full flex-col gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-6 sm:p-7 transition-colors duration-200 hover:border-viewerblue/40 outline-none focus-visible:outline-none focus-visible:border-viewerblue"
                         style={{ animationDelay: `${i * 70}ms` }}
                      >
                         <div className="flex items-start justify-end">

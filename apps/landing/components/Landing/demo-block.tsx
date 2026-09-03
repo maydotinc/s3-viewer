@@ -1,9 +1,33 @@
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import BasicBlock from "../basic-block";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
+
+const LottieBox = ({
+   animationData,
+   className,
+}: {
+   animationData: object | null;
+   className: string;
+}) => (
+   <div className={className}>
+      {animationData ? (
+         <Lottie
+            animationData={animationData}
+            loop
+            autoplay
+            className="motion-fade-in-fast object-contain size-full"
+         />
+      ) : (
+         <div className="grid size-full place-items-center">
+            <Spinner size="md" />
+         </div>
+      )}
+   </div>
+);
 
 const useLottieData = (src: string) => {
    const [data, setData] = useState<object | null>(null);
@@ -46,16 +70,10 @@ const DemoBlock = () => {
                   />
                </div>
                <div className="select-none max-md:order-first md:flex-1 flex items-center justify-center relative max-md:items-start max-md:-my-[10%]">
-                  <div className="w-full aspect-square md:absolute max-md:scale-[1.1]">
-                     {objectUpload && (
-                        <Lottie
-                           animationData={objectUpload}
-                           loop
-                           autoplay
-                           className="object-contain size-full"
-                        />
-                     )}
-                  </div>
+                  <LottieBox
+                     animationData={objectUpload}
+                     className="w-full aspect-square md:absolute max-md:scale-[1.1]"
+                  />
                </div>
             </div>
             <div className="flex flex-col items-start w-full gap-2">
@@ -71,16 +89,10 @@ const DemoBlock = () => {
          <BasicBlock className="md:flex-row max-md:border-b max-md:border-viewerborder">
             <div className="flex-1 flex flex-col gap-6">
                <div className="w-full bg-viewergray flex-1 border border-viewerborder px-8 flex items-center justify-center">
-                  <div className="w-full aspect-[4/3]">
-                     {serverConnect && (
-                        <Lottie
-                           animationData={serverConnect}
-                           loop
-                           autoplay
-                           className="object-contain size-full"
-                        />
-                     )}
-                  </div>
+                  <LottieBox
+                     animationData={serverConnect}
+                     className="w-full aspect-[4/3]"
+                  />
                </div>
                <div className="flex flex-col gap-2">
                   <h2 className="md:text-3xl text-2xl text-viewerblack font-semibold">

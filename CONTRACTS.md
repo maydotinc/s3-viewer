@@ -198,7 +198,7 @@ with `/`) first, then objects, and keeps fetching from S3 until at least
   Buttons the user cannot use are NOT rendered (not disabled).
 - Toasts only after the request resolves; never "success" for partial failures.
   Errors show `ApiError.message`.
-- Skeletons match loaded geometry; toolbars never swap controls (disable instead).
+- Loading states are spinners inside containers that already have the final size; skeletons only for large, known-shape areas. Toolbars never swap controls (disable instead).
 - Uploads: one `PUT …/objects` per file, streamed through the API into the
   bucket — no bucket configuration needed; `contentType` defaults to
   `application/octet-stream`; 3 files at a time; 2 retries on network errors

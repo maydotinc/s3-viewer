@@ -113,10 +113,10 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 
 `apps/landing/.env`:
 
-| Variable                   | Required | Local value                 | Production value                    | What it does                                                                            |
-| -------------------------- | :------: | --------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`     |    ✅    | `https://web.localhost`     | `https://s3-viewer.com`             | The public origin this site is proxied under: canonical, OG and absolute links.         |
-| `NEXT_PUBLIC_ASSET_PREFIX` |  build   | `https://landing.localhost` | `https://<your-landing>.vercel.app` | This deployment's own origin, so `/_next/*` still resolves here when pages are proxied. |
+| Variable                   | Required | Local value             | Production value                    | What it does                                                                            |
+| -------------------------- | :------: | ----------------------- | ----------------------------------- | --------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`     |    ✅    | `https://web.localhost` | `https://s3-viewer.com`             | The public origin this site is proxied under: canonical, OG and absolute links.         |
+| `NEXT_PUBLIC_ASSET_PREFIX` |  build   | leave empty             | `https://<your-landing>.vercel.app` | This deployment's own origin, so `/_next/*` still resolves here when pages are proxied. |
 
 Every `NEXT_PUBLIC_*` value is inlined at build time, so it has to be present when you run `pnpm build`, not only at runtime.
 

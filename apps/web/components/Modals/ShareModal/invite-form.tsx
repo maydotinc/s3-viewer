@@ -146,7 +146,7 @@ const InviteForm = ({
                               aria-label={`Remove ${address}`}
                               disabled={sendInvite.isPending}
                               onClick={() => removeEmail(address)}
-                              className="rounded-sm p-0.5 outline-none hover:bg-viewerborder focus-visible:ring-[3px] focus-visible:ring-viewerblue/40 disabled:opacity-50"
+                              className="rounded-sm border border-transparent p-0.5 outline-none hover:bg-viewerborder focus-visible:border-viewerblue disabled:opacity-50"
                            >
                               <X aria-hidden="true" className="size-3" />
                            </button>

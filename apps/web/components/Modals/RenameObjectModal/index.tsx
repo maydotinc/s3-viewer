@@ -139,7 +139,7 @@ const RenameObjectModal = ({
                            acceptSuggestion();
                         }
                      }}
-                     className="h-9 w-full rounded-lg border border-viewerborder bg-viewerwhite px-3 py-1 text-sm text-viewerblack outline-none focus-visible:ring-[3px] focus-visible:ring-viewerblue/40 aria-invalid:border-viewertextred"
+                     className="h-9 w-full rounded-lg border border-viewerborder bg-viewerwhite px-3 py-1 text-sm text-viewerblack outline-none focus-visible:border-viewerblue aria-invalid:border-viewertextred"
                   />
                   {suggestion && (
                      <div

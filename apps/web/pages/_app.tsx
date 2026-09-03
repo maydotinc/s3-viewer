@@ -1,5 +1,6 @@
 import ModalManager from "@/components/Modals/ModalManager";
 import AuthGuard from "@/components/Session/auth-guard";
+import ErrorBoundary from "@/components/Session/error-boundary";
 import SessionManager from "@/components/Session/session-manager";
 import { ModalProvider } from "@/lib/contexts/ModalContext";
 import { makeQueryClient } from "@/lib/queryClient";
@@ -49,16 +50,18 @@ const App = ({ Component, pageProps }: AppPropsWithLayout) => {
             <link rel="manifest" href="/site.webmanifest" />
          </Head>
          <div className={`${inter.variable} font-sans`}>
-            <ModalProvider>
-               <SessionManager />
-               <AuthGuard>
-                  <SidebarProvider>
-                     {getLayout(<Component {...pageProps} />)}
-                     <ModalManager />
-                     <Toaster />
-                  </SidebarProvider>
-               </AuthGuard>
-            </ModalProvider>
+            <ErrorBoundary>
+               <ModalProvider>
+                  <SessionManager />
+                  <AuthGuard>
+                     <SidebarProvider>
+                        {getLayout(<Component {...pageProps} />)}
+                        <ModalManager />
+                        <Toaster />
+                     </SidebarProvider>
+                  </AuthGuard>
+               </ModalProvider>
+            </ErrorBoundary>
          </div>
       </QueryClientProvider>
    );

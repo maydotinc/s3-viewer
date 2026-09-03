@@ -6,7 +6,7 @@ import { useUserId } from "@/lib/stores/sessionStore";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import Link from "next/link";
-import InviteCard, { InviteEmpty, InviteListSkeleton } from "./invite-card";
+import InviteCard, { InviteEmpty, InviteListLoading } from "./invite-card";
 
 const ReceivedInvites = () => {
    const userId = useUserId();
@@ -14,7 +14,7 @@ const ReceivedInvites = () => {
    const accept = useAcceptInvite();
    const reject = useRejectInvite();
 
-   if (!userId || isLoading) return <InviteListSkeleton />;
+   if (!userId || isLoading) return <InviteListLoading />;
 
    if (error instanceof ApiError && error.code === "EMAIL_UNVERIFIED") {
       return (
@@ -42,7 +42,7 @@ const ReceivedInvites = () => {
       return <InviteEmpty>No invites waiting for you</InviteEmpty>;
 
    return (
-      <ul className="flex flex-col gap-2">
+      <ul className="fade-in flex flex-col gap-2">
          {invites.map((invite) => {
             const accepting =
                accept.isPending && accept.variables?.inviteId === invite.id;

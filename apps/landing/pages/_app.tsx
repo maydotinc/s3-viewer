@@ -1,7 +1,8 @@
-import "@s3-viewer/ui/globals.css";
+import "@/styles/globals.css";
+import ErrorBoundary from "@/components/error-boundary";
+import { inter } from "@/lib/fonts";
 import { NextPage } from "next";
 import type { AppProps } from "next/app";
-import { Inter } from "next/font/google";
 import Head from "next/head";
 import { ReactElement, ReactNode } from "react";
 
@@ -16,8 +17,6 @@ type AppPropsWithLayout = AppProps & {
    Component: NextPageWithLayout;
 };
 
-const inter = Inter({ subsets: ["latin"] });
-
 export default function App({ Component, pageProps }: AppPropsWithLayout) {
    const getLayout = Component.getLayout ?? ((page) => page);
    const page: ReactNode = getLayout(<Component {...pageProps} />);
@@ -30,14 +29,14 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
                name="viewport"
                content="width=device-width, initial-scale=1"
             />
-            <meta name="theme-color" content="#2563eb" />
+            <meta name="theme-color" content="#3658C1" />
             <link rel="icon" href="/logo.svg" />
             <link rel="apple-touch-icon" href="/logo.svg" />
             <meta name="application-name" content="S3 Viewer" />
             <meta name="apple-mobile-web-app-title" content="S3 Viewer" />
             <meta name="apple-mobile-web-app-capable" content="yes" />
          </Head>
-         {page}
+         <ErrorBoundary>{page}</ErrorBoundary>
       </main>
    );
 }

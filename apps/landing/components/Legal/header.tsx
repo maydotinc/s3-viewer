@@ -40,7 +40,7 @@ const LegalHeader = ({
                <span className="font-medium text-viewerblack">{eyebrow}</span>
             </nav>
 
-            <div className="flex flex-col items-start gap-5 max-w-[820px] motion-fade-up">
+            <div className="flex flex-col items-start gap-5 max-w-[820px]">
                <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
                   {title}
                </h1>

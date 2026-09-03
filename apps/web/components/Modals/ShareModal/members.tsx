@@ -23,7 +23,7 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@s3-viewer/ui/components/select";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { ChevronDown, X } from "lucide-react";
 import { useState } from "react";
 import BucketAccessPicker from "./bucket-access-picker";
@@ -214,27 +214,15 @@ const Members = ({
             Members{!isLoading && ` (${members.length})`}
          </h3>
          {isLoading ? (
-            <ul className="flex flex-col gap-1">
-               {[0, 1].map((i) => (
-                  <li
-                     key={i}
-                     className="flex h-14 items-center gap-2 rounded-lg border border-viewerborder p-2"
-                  >
-                     <span className="size-6 shrink-0" />
-                     <Skeleton className="size-8 rounded-full" />
-                     <div className="flex flex-1 flex-col gap-1">
-                        <Skeleton className="h-3.5 w-28" />
-                        <Skeleton className="h-3 w-40" />
-                     </div>
-                  </li>
-               ))}
-            </ul>
+            <div className="flex h-[116px] items-center justify-center">
+               <Spinner label="Loading members" />
+            </div>
          ) : error ? (
             <p role="alert" className="text-sm text-viewertextred">
                {error.message}
             </p>
          ) : (
-            <ul className="flex flex-col gap-1">
+            <ul className="fade-in flex flex-col gap-1">
                {members.map((member) => (
                   <MemberRow
                      key={`${member.id}:${dataUpdatedAt}`}

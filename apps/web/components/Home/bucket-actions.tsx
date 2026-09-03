@@ -3,7 +3,7 @@ import useServers from "@/lib/hooks/queries/server/useServers";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { Plus, UserRoundPlus } from "lucide-react";
 
 const BucketActions = () => {
@@ -15,15 +15,14 @@ const BucketActions = () => {
 
    if (isSessionPending || isServerListLoading) {
       return (
-         <div className="flex gap-2" aria-busy="true">
-            <Skeleton className="h-9 w-24 rounded-lg" />
-            <Skeleton className="h-9 w-32 rounded-lg" />
+         <div className="flex h-9 min-w-[232px] items-center justify-end">
+            <Spinner size="sm" label="Loading actions" />
          </div>
       );
    }
 
    return (
-      <div className="flex gap-2">
+      <div className="fade-in flex h-9 min-w-[232px] items-center justify-end gap-2">
          {canShare && (
             <Button
                variant="outline"

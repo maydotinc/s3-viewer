@@ -105,7 +105,7 @@ const CodeStep = ({ email, onVerified }: CodeStepProps) => {
                type="button"
                onClick={resend}
                disabled={!canResend}
-               className="rounded-sm font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:ring-[3px] focus-visible:ring-viewerblue/40 disabled:cursor-default disabled:text-viewerlighttext disabled:no-underline"
+               className="rounded-sm border border-transparent font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:border-viewerblue disabled:cursor-default disabled:text-viewerlighttext disabled:no-underline"
             >
                {resending
                   ? "Sending…"

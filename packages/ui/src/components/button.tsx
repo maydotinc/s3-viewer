@@ -6,15 +6,16 @@ import * as React from "react";
 import { cn } from "@s3-viewer/ui/lib/utils";
 
 const buttonVariants = cva(
-   "inline-flex hover:cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-viewerblue/40 focus-visible:ring-[3px] focus-visible:ring-offset-1 focus-visible:ring-offset-viewerwhite aria-invalid:ring-viewertextred/20 aria-invalid:border-viewertextred",
+   "inline-flex hover:cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-transparent text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-viewerblue aria-invalid:border-viewertextred",
    {
       variants: {
          variant: {
-            default: "bg-viewerblue text-viewerwhite hover:bg-viewerdarkblue",
+            default:
+               "bg-viewerblue text-viewerwhite hover:bg-viewerdarkblue focus-visible:border-viewerdarkblue",
             destructive:
-               "bg-viewertextred text-viewerwhite hover:bg-viewertextred/90 focus-visible:ring-viewertextred/40",
+               "bg-viewertextred text-viewerwhite hover:bg-viewertextred/90 focus-visible:border-viewerblack",
             outline:
-               "border border-viewerborder bg-viewerwhite text-viewertext hover:bg-viewergray hover:text-viewerblack",
+               "border-viewerborder bg-viewerwhite text-viewertext hover:bg-viewergray hover:text-viewerblack",
             secondary:
                "bg-viewergray text-viewerblack hover:bg-viewerborder/70",
             ghost: "text-viewertext hover:bg-viewergray hover:text-viewerblack",
@@ -34,6 +35,31 @@ const buttonVariants = cva(
    }
 );
 
+type ButtonElement = HTMLElement & { style: CSSStyleDeclaration };
+
+const useKeepWidthWhileLoading = (
+   loading: boolean,
+   forwardedRef: React.Ref<HTMLButtonElement> | undefined
+) => {
+   const element = React.useRef<ButtonElement | null>(null);
+   const idleWidth = React.useRef<number | null>(null);
+
+   React.useLayoutEffect(() => {
+      const node = element.current;
+      if (!node) return;
+      const minWidth =
+         loading && idleWidth.current ? `${idleWidth.current}px` : "";
+      if (node.style.minWidth !== minWidth) node.style.minWidth = minWidth;
+      if (!loading) idleWidth.current = node.offsetWidth;
+   });
+
+   return (node: HTMLButtonElement | null) => {
+      element.current = node;
+      if (typeof forwardedRef === "function") forwardedRef(node);
+      else if (forwardedRef) forwardedRef.current = node;
+   };
+};
+
 function Button({
    className,
    variant,
@@ -42,12 +68,15 @@ function Button({
    loading = false,
    disabled,
    children,
+   ref,
    ...props
 }: React.ComponentProps<"button"> &
    VariantProps<typeof buttonVariants> & {
       asChild?: boolean;
       loading?: boolean;
    }) {
+   const setRef = useKeepWidthWhileLoading(loading, ref);
+
    if (asChild) {
       const child = React.isValidElement<{ children?: React.ReactNode }>(
          children
@@ -57,6 +86,7 @@ function Button({
 
       return (
          <Slot
+            ref={setRef}
             data-slot="button"
             data-loading={loading || undefined}
             aria-busy={loading || undefined}
@@ -82,6 +112,7 @@ function Button({
 
    return (
       <button
+         ref={setRef}
          data-slot="button"
          data-loading={loading || undefined}
          aria-busy={loading || undefined}

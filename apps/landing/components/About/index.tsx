@@ -119,7 +119,7 @@ const About = () => {
                </nav>
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-end">
-                  <div className="lg:col-span-7 flex flex-col gap-6 motion-fade-up">
+                  <div className="lg:col-span-7 flex flex-col gap-6">
                      <h1 className="text-[32px] sm:text-[48px] lg:text-[68px] font-semibold tracking-[-0.02em] leading-[1.04] sm:leading-[1.02] text-viewerblack">
                         Object storage was
                         <br />
@@ -138,7 +138,7 @@ const About = () => {
                      </p>
                      <div className="flex flex-wrap gap-3 pt-2">
                         <Button
-                           variant="secondary"
+                           variant="default"
                            size="lg"
                            className="h-12"
                            asChild
@@ -166,7 +166,7 @@ const About = () => {
                      </div>
                   </div>
 
-                  <div className="lg:col-span-5 motion-fade-up motion-delay-150">
+                  <div className="lg:col-span-5">
                      <div className="relative rounded-2xl border border-viewerborder bg-viewerwhite p-6 sm:p-7">
                         <div className="absolute -top-3 left-6 inline-flex items-center gap-2 rounded-full border border-viewerborder bg-viewerwhite px-3 py-1 text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewertext">
                            Built by

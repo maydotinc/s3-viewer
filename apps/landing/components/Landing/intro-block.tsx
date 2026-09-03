@@ -12,22 +12,22 @@ const IntroBlock = () => {
                <Link
                   target="_blank"
                   href="https://github.com/maydotinc/s3-viewer"
-                  className="motion-fade-up flex cursor-pointer items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite"
+                  className="flex cursor-pointer items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite"
                >
                   <FaGithub className="size-4" />
                   <span className="text-md">OPEN SOURCE</span>
                </Link>
-               <h1 className="motion-fade-up motion-delay-75 md:text-[42px] text-4xl font-semibold text-viewerblack">
+               <h1 className="md:text-[42px] text-4xl font-semibold text-viewerblack">
                   Explore S3-compatible Object Storage Online
                </h1>
-               <p className="motion-fade-up motion-delay-150 md:text-xl text-lg text-viewertext">
+               <p className="md:text-xl text-lg text-viewertext">
                   Manage all your buckets in one place, with a Google Drive-like
                   interface that just works.
                </p>
                <Button
-                  variant="secondary"
+                  variant="default"
                   size="lg"
-                  className="motion-fade-up motion-delay-300 h-12 text-md w-fit"
+                  className="h-12 text-md w-fit"
                   asChild
                >
                   <Link href="/dashboard">Connect your server</Link>

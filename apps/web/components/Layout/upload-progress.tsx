@@ -4,13 +4,14 @@ import { formatBytes } from "@/lib/utils/format";
 import { Button } from "@s3-viewer/ui/components/button";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import {
    Ban,
    CheckCircle2,
    ChevronUp,
+   Circle,
    CircleAlert,
    File,
-   LoaderCircle,
    X,
 } from "lucide-react";
 import { useId, useRef, useState } from "react";
@@ -51,16 +52,10 @@ const StatusIcon = ({ status }: { status: UploadEntry["status"] }) => {
             />
          );
       case "active":
-         return (
-            <LoaderCircle
-               className="size-3.5 animate-spin text-viewerblue"
-               role="img"
-               aria-label="Uploading…"
-            />
-         );
+         return <Spinner size="sm" className="size-3.5" label="Uploading…" />;
       default:
          return (
-            <LoaderCircle
+            <Circle
                className="size-3.5 text-viewerlighttext"
                role="img"
                aria-label="Waiting…"
@@ -227,16 +222,13 @@ const UploadProgressSheet = () => {
             <div className="flex h-[var(--header-height)] items-center justify-between gap-2 border-b border-viewerborder bg-viewergray px-3">
                <button
                   type="button"
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left text-sm font-medium text-viewerblack outline-none focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent px-1 py-2 text-left text-sm font-medium text-viewerblack outline-none focus-visible:border-viewerblue"
                   aria-expanded={expanded}
                   aria-controls={panelId}
                   onClick={() => setExpanded((open) => !open)}
                >
                   {isUploading ? (
-                     <LoaderCircle
-                        className="size-4 shrink-0 animate-spin text-viewerblue"
-                        aria-hidden="true"
-                     />
+                     <Spinner size="sm" label="Uploading" />
                   ) : (
                      <CheckCircle2
                         className="size-4 shrink-0 text-viewerblue"

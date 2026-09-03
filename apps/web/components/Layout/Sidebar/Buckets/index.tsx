@@ -2,7 +2,7 @@ import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { folderHref } from "@/lib/utils/s3/paths";
 import { SITE_PATHS } from "@s3-viewer/types";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Folder } from "lucide-react";
 import Link from "next/link";
@@ -22,27 +22,25 @@ const BucketList = () => {
 
    if (isBucketsLoading) {
       return (
-         <ul className="flex flex-col gap-1 px-2" aria-hidden="true">
-            {[0, 1, 2].map((i) => (
-               <li key={i} className="flex h-10 items-center gap-2 p-2">
-                  <Skeleton className="size-4 rounded" />
-                  <Skeleton className="h-4 w-28" />
-               </li>
-            ))}
-         </ul>
+         <div className="flex h-32 items-center justify-center">
+            <Spinner label="Loading buckets" />
+         </div>
       );
    }
 
    if (buckets.length === 0) {
       return (
-         <p className="px-4 py-2 text-sm text-viewerlighttext">
+         <p className="fade-in flex h-32 items-center justify-center text-sm text-viewerlighttext">
             No buckets yet
          </p>
       );
    }
 
    return (
-      <nav aria-label="Buckets" className="min-h-0 overflow-y-auto px-2 pb-2">
+      <nav
+         aria-label="Buckets"
+         className="fade-in min-h-0 overflow-y-auto px-2 pb-2"
+      >
          <ul className="flex flex-col gap-1">
             {buckets.map((bucket) => (
                <li key={bucket.name}>

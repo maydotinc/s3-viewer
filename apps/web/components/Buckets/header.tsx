@@ -10,14 +10,13 @@ import {
    BreadcrumbPage,
    BreadcrumbSeparator,
 } from "@s3-viewer/ui/components/breadcrumb";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { House } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";
 import { useBucketContext } from "./Context";
 
 const VISIBLE_TAIL = 3;
-const MAX_SKELETON_CH = 24;
 
 const shell =
    "flex min-h-[var(--header-height)] w-full items-center gap-2 border-b border-viewerborder px-8 py-4";
@@ -29,21 +28,9 @@ const BucketHeader = () => {
    if (!session && !isPending) return null;
 
    if (isLoading || isPending) {
-      const segments = [bucketName, ...path.slice(-VISIBLE_TAIL)];
       return (
-         <div className={shell} aria-busy="true">
-            <Skeleton className="size-5 shrink-0 rounded" />
-            {segments.map((segment, index) => (
-               <Fragment key={index}>
-                  <span className="text-viewerborder">/</span>
-                  <Skeleton
-                     className="h-4 rounded"
-                     style={{
-                        width: `${Math.min(Math.max(segment.length, 4), MAX_SKELETON_CH)}ch`,
-                     }}
-                  />
-               </Fragment>
-            ))}
+         <div className={shell}>
+            <Spinner size="sm" label="Loading bucket" />
          </div>
       );
    }
@@ -54,7 +41,7 @@ const BucketHeader = () => {
 
    return (
       <div className={shell}>
-         <Breadcrumb>
+         <Breadcrumb className="fade-in">
             <BreadcrumbList>
                <BreadcrumbItem>
                   <BreadcrumbLink asChild>

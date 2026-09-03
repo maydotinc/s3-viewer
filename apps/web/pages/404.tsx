@@ -7,10 +7,7 @@ const NotFound = () => (
          title="Page not found"
          description="This page doesn't exist in S3 Viewer."
       />
-      <ErrorPage
-         title="Page not found"
-         description="This page doesn't exist, or you no longer have access to it. Check the link, or head back to your buckets."
-      />
+      <ErrorPage code={404} />
    </>
 );
 

@@ -3,7 +3,7 @@ import { formatDay, pluralize } from "@/lib/utils/format";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { ServerInvite } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { ReactNode } from "react";
 
 type InviteCardProps = {
@@ -43,17 +43,21 @@ const InviteCard = ({ invite, subtitle, actions }: InviteCardProps) => {
    );
 };
 
-const InviteListSkeleton = () => (
-   <ul className="flex flex-col gap-2" aria-hidden="true">
-      {[0, 1].map((i) => (
-         <Skeleton key={i} className="h-[138px] rounded-lg" />
-      ))}
-   </ul>
+const LIST_HEIGHT = "min-h-[138px]";
+
+const InviteListLoading = () => (
+   <div className={`${LIST_HEIGHT} flex items-center justify-center`}>
+      <Spinner label="Loading invites" />
+   </div>
 );
 
 const InviteEmpty = ({ children }: { children: ReactNode }) => (
-   <p className="py-8 text-center text-sm text-viewerlighttext">{children}</p>
+   <p
+      className={`${LIST_HEIGHT} fade-in flex items-center justify-center text-center text-sm text-viewerlighttext`}
+   >
+      {children}
+   </p>
 );
 
 export default InviteCard;
-export { InviteEmpty, InviteListSkeleton };
+export { InviteEmpty, InviteListLoading, LIST_HEIGHT };

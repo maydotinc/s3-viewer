@@ -116,7 +116,7 @@ const UseCasePage = ({
                      </ul>
                      <div className="flex flex-wrap gap-3 mt-2">
                         <Button
-                           variant="secondary"
+                           variant="default"
                            size="lg"
                            className="h-12"
                            asChild

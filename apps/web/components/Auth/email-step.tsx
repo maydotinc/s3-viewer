@@ -1,6 +1,6 @@
 import GithubIcon from "@/components/Auth/github-icon";
 import { errorMessage } from "@/lib/api";
-import { signInWithGithub, startAuthFlow } from "@/lib/auth";
+import { startAuthFlow } from "@/lib/auth";
 import { publicEnv } from "@/lib/env";
 import { emailSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -12,13 +12,21 @@ type EmailStepProps = {
    initialEmail: string;
    notice: string | null;
    onSent: (email: string) => void;
+   onGithub: () => void;
+   githubError: string | null;
 };
 
-const EmailStep = ({ initialEmail, notice, onSent }: EmailStepProps) => {
+const EmailStep = ({
+   initialEmail,
+   notice,
+   onSent,
+   onGithub,
+   githubError,
+}: EmailStepProps) => {
    const [email, setEmail] = useState(initialEmail);
    const [error, setError] = useState<string | null>(null);
    const [sending, setSending] = useState(false);
-   const [redirecting, setRedirecting] = useState(false);
+   const shownError = error ?? githubError;
 
    const submit = async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -38,18 +46,6 @@ const EmailStep = ({ initialEmail, notice, onSent }: EmailStepProps) => {
       }
    };
 
-   const github = async () => {
-      setError(null);
-      setRedirecting(true);
-      const { error: githubError } = await signInWithGithub();
-      if (githubError) {
-         setError(githubError);
-         setRedirecting(false);
-      }
-   };
-
-   const busy = sending || redirecting;
-
    return (
       <div className="flex flex-col gap-6">
          {notice && (
@@ -68,15 +64,14 @@ const EmailStep = ({ initialEmail, notice, onSent }: EmailStepProps) => {
                   variant="outline"
                   size="lg"
                   className="w-full"
-                  loading={redirecting}
-                  disabled={busy}
-                  onClick={github}
+                  disabled={sending}
+                  onClick={onGithub}
                >
-                  {!redirecting && <GithubIcon className="size-4" />}
-                  {redirecting ? "Redirecting…" : "Continue with GitHub"}
+                  <GithubIcon className="size-4" />
+                  Continue with GitHub
                </Button>
                <div
-                  className="flex items-center gap-3 text-meta"
+                  className="text-meta flex items-center gap-3"
                   aria-hidden="true"
                >
                   <span className="h-px flex-1 bg-viewerborder" />
@@ -99,7 +94,7 @@ const EmailStep = ({ initialEmail, notice, onSent }: EmailStepProps) => {
                   required
                   placeholder="you@example.com"
                   value={email}
-                  disabled={busy}
+                  disabled={sending}
                   aria-invalid={error ? true : undefined}
                   aria-describedby="email-error"
                   onChange={(event) => {
@@ -112,7 +107,7 @@ const EmailStep = ({ initialEmail, notice, onSent }: EmailStepProps) => {
                   role="alert"
                   className="min-h-5 text-sm leading-5 text-viewertextred"
                >
-                  {error}
+                  {shownError}
                </p>
             </div>
             <Button
@@ -120,7 +115,6 @@ const EmailStep = ({ initialEmail, notice, onSent }: EmailStepProps) => {
                size="lg"
                className="w-full"
                loading={sending}
-               disabled={busy}
             >
                {sending ? "Sending…" : "Continue"}
             </Button>

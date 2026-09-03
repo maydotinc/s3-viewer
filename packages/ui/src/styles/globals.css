@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@source "../";
+
 @theme {
    --color-viewerblue: #3658c1;
    --color-viewerdarkblue: #253977;
@@ -91,7 +93,7 @@ body {
 
 @layer base {
    * {
-      @apply border-border outline-ring/50;
+      @apply border-border;
    }
 
    body {
@@ -154,6 +156,10 @@ body {
    animation: motion-fade-in 0.6s ease-out both;
 }
 
+.fade-in {
+   animation: motion-fade-in 150ms ease-out both;
+}
+
 .motion-delay-75 {
    animation-delay: 75ms;
 }
@@ -166,7 +172,8 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
    .motion-fade-up,
-   .motion-fade-in {
+   .motion-fade-in,
+   .fade-in {
       animation: none !important;
    }
 }
