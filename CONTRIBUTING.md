@@ -12,7 +12,7 @@ pnpm bootstrap                              # local HTTPS dev URLs via portless
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 cp apps/landing/.env.example apps/landing/.env
-pnpm --filter @s3-viewer/db db:deploy       # apply migrations
+pnpm --filter @s3-viewer/db db:deploy
 pnpm dev
 ```
 
