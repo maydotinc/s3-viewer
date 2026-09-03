@@ -130,9 +130,7 @@ const groupShortcuts = (
    })).filter((section) => section.items.length > 0);
 
 export {
-   MOD,
    SEQUENCE_WINDOW_MS,
-   SHORTCUT_GROUPS,
    chordSequence,
    eventToken,
    groupShortcuts,

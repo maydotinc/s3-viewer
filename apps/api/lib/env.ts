@@ -64,6 +64,5 @@ if (!parsed.success) {
 
 const env = parsed.data;
 const siteOrigin = new URL(env.NEXT_PUBLIC_SITE_URL).origin;
-const isProduction = env.NODE_ENV === "production";
 
-export { env, isProduction, siteOrigin };
+export { env, siteOrigin };

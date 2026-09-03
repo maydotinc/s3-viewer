@@ -64,11 +64,6 @@ const nextConfig: NextConfig = {
       "@s3-viewer/permissions",
       "@s3-viewer/types",
    ],
-   images: {
-      remotePatterns: [
-         { protocol: "https", hostname: "avatars.githubusercontent.com" },
-      ],
-   },
    headers: async () => [{ source: "/(.*)", headers: securityHeaders }],
 };
 

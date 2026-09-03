@@ -239,7 +239,7 @@ Then:
 
 Kept in your PostgreSQL database, and nowhere else:
 
-- **Account**: user id, email address, name (it defaults to the local part of the email), and an optional avatar URL (from GitHub, if you sign in that way).
+- **Account**: user id, email address, and name (it defaults to the local part of the email). There are no profile pictures: your avatar is your initials on a colour generated from your name, so nothing is uploaded and nothing is stored — not even the avatar URL GitHub offers when you sign in that way.
 - **Sessions**: session tokens with their expiry and the browser's user-agent string, so you stay signed in. IP tracking is disabled (`advanced.ipAddress.disableIpTracking`), so the session's `ipAddress` column is never filled in.
 - **Linked GitHub account**: only if you sign in with GitHub — the provider account id and the OAuth tokens it returns.
 - **Servers**: the name you gave the server, the provider it points at, and the bucket names you allowed. Its endpoint, region, access key and secret live inside one **encrypted** blob: encrypted with your RSA public key in the browser, so the server stores only ciphertext and decrypts it in memory when it needs to talk to your provider.

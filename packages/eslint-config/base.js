@@ -37,5 +37,3 @@ export const config = [
    },
    eslintConfigPrettier,
 ];
-
-export default config;

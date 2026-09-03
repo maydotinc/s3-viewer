@@ -24,4 +24,3 @@ const useSessionState = (): SessionState => {
 };
 
 export { useSessionState };
-export type { SessionState };

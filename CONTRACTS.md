@@ -196,6 +196,12 @@ with `/`) first, then objects, and keeps fetching from S3 until at least
   its own email. Responses never reveal whether an account exists.
 - GitHub OAuth is optional: enabled only when `GITHUB_CLIENT_ID` is set; the web
   shows the button only when `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`.
+- No profile pictures. Name and email are the whole profile; the avatar is
+  generated from the name (`apps/web/lib/utils/avatar.ts`) and is never stored,
+  uploaded or editable. The `user.image` column stays because Better Auth's core
+  user model declares it, but nothing writes it: `mapProfileToUser` drops
+  GitHub's `avatar_url`, `databaseHooks.user.create.before` forces `image: null`,
+  and `validateProfile` strips any `image` off an `/update-user` body.
 - Cookies: `sameSite: "lax"`, `secure` when `NEXT_PUBLIC_API_URL` is https, `httpOnly`.
   `advanced.ipAddress.disableIpTracking: true`. Session 30 days, refreshed daily.
 - `user.deleteUser` is enabled (`POST /auth/delete-user`, fresh session required).

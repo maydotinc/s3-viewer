@@ -160,4 +160,3 @@ const GridPagination = ({ className }: { className?: string }) => {
 };
 
 export default GridPagination;
-export { GridPagination };

@@ -13,6 +13,3 @@ export const nextJsConfig = [
       },
    },
 ];
-
-export const config = nextJsConfig;
-export default nextJsConfig;

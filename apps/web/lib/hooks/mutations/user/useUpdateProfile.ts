@@ -4,38 +4,28 @@ import { GENERIC_ERROR_MESSAGE } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
 
-type ProfileUpdate = { name?: string; image?: string | null };
-
-const messages = (update: ProfileUpdate) => {
-   if (update.image === null) {
-      return { success: "Photo removed", failure: "Couldn't remove the photo" };
-   }
-   if (update.image !== undefined) {
-      return { success: "Photo updated", failure: "Couldn't update the photo" };
-   }
-   return { success: "Name updated", failure: "Couldn't update your name" };
-};
+type ProfileUpdate = { name: string };
 
 /**
- * Updates the signed-in user's name or picture through Better Auth. The
- * client refetches `useSession()` on its own after `/update-user`, so every
- * avatar and name on screen follows without a reload.
+ * Updates the signed-in user's name through Better Auth — the only profile
+ * field there is. The client refetches `useSession()` on its own after
+ * `/update-user`, so every name and avatar on screen follows without a
+ * reload (the avatar is generated from the name).
  */
 const useUpdateProfile = () =>
    useMutation<void, Error, ProfileUpdate>({
-      mutationFn: async (update) => {
-         const { error } = await authClient.updateUser(update);
+      mutationFn: async ({ name }) => {
+         const { error } = await authClient.updateUser({ name });
          if (error) throw new Error(error.message ?? GENERIC_ERROR_MESSAGE);
       },
-      onSuccess: (_data, update) => {
-         toast.success(messages(update).success);
+      onSuccess: () => {
+         toast.success("Name updated");
       },
-      onError: (error, update) => {
-         toast.error(messages(update).failure, {
+      onError: (error) => {
+         toast.error("Couldn't update your name", {
             description: errorMessage(error),
          });
       },
    });
 
 export default useUpdateProfile;
-export type { ProfileUpdate };

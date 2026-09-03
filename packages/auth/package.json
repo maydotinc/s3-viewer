@@ -15,7 +15,6 @@
       "@s3-viewer/db": "workspace:*",
       "@s3-viewer/email": "workspace:*",
       "@s3-viewer/types": "workspace:*",
-      "@s3-viewer/ui": "workspace:*",
       "better-auth": "catalog:",
       "dotenv": "^16.5.0"
    },

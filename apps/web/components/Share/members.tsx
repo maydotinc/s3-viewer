@@ -1,4 +1,3 @@
-import Avatar from "@/components/Avatar";
 import useRemoveMember from "@/lib/hooks/mutations/invites/useRemoveMember";
 import useUpdateRole from "@/lib/hooks/mutations/invites/useUpdateRole";
 import useMembers from "@/lib/hooks/queries/server/useMembers";
@@ -104,24 +103,16 @@ const MemberRow = ({
       <Fragment>
          <TableRow className={open ? "border-0" : undefined}>
             <TableCell className="min-w-0 whitespace-normal">
-               <div className="flex min-w-0 items-center gap-3">
-                  <Avatar
-                     name={member.name}
-                     image={member.image}
-                     size={32}
-                     className="size-8"
-                  />
-                  <div className="flex min-w-0 flex-col">
-                     <span className="min-w-0 truncate text-sm leading-5 text-viewerblack">
-                        {member.name}
-                        {isMe && (
-                           <span className="text-viewerlighttext"> (you)</span>
-                        )}
-                     </span>
-                     <span className="min-w-0 truncate text-xs leading-4 text-viewerlighttext">
-                        {member.email}
-                     </span>
-                  </div>
+               <div className="flex min-w-0 flex-col">
+                  <span className="min-w-0 truncate text-sm leading-5 text-viewerblack">
+                     {member.name}
+                     {isMe && (
+                        <span className="text-viewerlighttext"> (you)</span>
+                     )}
+                  </span>
+                  <span className="min-w-0 truncate text-xs leading-4 text-viewerlighttext">
+                     {member.email}
+                  </span>
                </div>
             </TableCell>
             <TableCell>
@@ -187,10 +178,7 @@ const MemberRow = ({
                   colSpan={COLUMNS}
                   className="h-auto px-4 pt-0 pb-4 whitespace-normal"
                >
-                  <div
-                     id={panelId}
-                     className="flex min-w-0 flex-col gap-2 pl-11"
-                  >
+                  <div id={panelId} className="flex min-w-0 flex-col gap-2">
                      <BucketAccessPicker
                         label={`Bucket access for ${member.name}`}
                         myRole={myRole}
@@ -239,9 +227,9 @@ const SkeletonRows = () => (
       {[0, 1, 2].map((row) => (
          <TableRow key={row}>
             <TableCell>
-               <div className="flex items-center gap-3">
-                  <Skeleton className="size-8 rounded-full" />
+               <div className="flex flex-col gap-1">
                   <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-52" />
                </div>
             </TableCell>
             <TableCell>

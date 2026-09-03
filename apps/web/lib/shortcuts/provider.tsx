@@ -211,4 +211,3 @@ const useShortcutsContext = (): ShortcutsValue => {
 };
 
 export { ShortcutsProvider, useShortcutsContext };
-export type { Registration };

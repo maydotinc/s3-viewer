@@ -32,7 +32,6 @@ const memberSelect = (serverId: string) =>
             id: true,
             name: true,
             email: true,
-            image: true,
             bucketAccess: {
                where: { serverId },
                select: bucketGrantSelect,
@@ -50,7 +49,6 @@ const toServerUser = (row: MemberRow): ServerUser => ({
    id: row.user.id,
    name: row.user.name,
    email: row.user.email,
-   image: row.user.image ?? null,
    role: Role[row.role],
    bucketAccess: row.user.bucketAccess.map(toBucketEntry),
 });

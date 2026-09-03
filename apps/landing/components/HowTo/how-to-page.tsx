@@ -19,7 +19,7 @@ export type HowToFAQ = {
 
 type LinkRef = { href: string; title: string; description: string };
 
-export type HowToPageProps = {
+type HowToPageProps = {
    eyebrow: string;
    title: string;
    tldr: string;

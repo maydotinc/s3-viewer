@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { FaGithub } from "react-icons/fa";
 
-export type UseCaseFeature = {
+type UseCaseFeature = {
    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
    title: string;
    body: string;
@@ -23,7 +23,7 @@ export type UseCaseFAQ = {
 
 type LinkRef = { href: string; title: string; description: string };
 
-export type UseCasePageProps = {
+type UseCasePageProps = {
    eyebrow: string;
    title: string;
    subtitle: string;

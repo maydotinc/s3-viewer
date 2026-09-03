@@ -83,13 +83,21 @@ const auth = betterAuth({
    databaseHooks: {
       user: {
          create: {
+            // `image: null` is the last word on profile pictures: the column
+            // exists because Better Auth's core user model declares it, but
+            // nothing in the product ever fills it in. Avatars are drawn from
+            // the name in the web app.
             before: async (user) => ({
-               data: { ...user, name: user.name || localPart(user.email) },
+               data: {
+                  ...user,
+                  name: user.name || localPart(user.email),
+                  image: null,
+               },
             }),
          },
          update: {
             // `/update-user` accepts any name/image; this is the one place
-            // they are checked (length, image type and size).
+            // the name is checked and any image is stripped.
             before: async (user) => {
                const result = validateProfile(user);
                if (!result.ok) {
@@ -132,7 +140,18 @@ const auth = betterAuth({
          },
       }),
    ],
-   socialProviders: authEnv.github ? { github: authEnv.github } : undefined,
+   socialProviders: authEnv.github
+      ? {
+           github: {
+              ...authEnv.github,
+              // Drop GitHub's avatar_url before it reaches the user row.
+              // The option's return type only allows `string | undefined`,
+              // and `undefined` is enough: it overrides `avatar_url` in the
+              // provider's spread, and the create hook below writes `null`.
+              mapProfileToUser: () => ({ image: undefined }),
+           },
+        }
+      : undefined,
 });
 
 export { auth, sendAuthFlowEmail };

@@ -26,6 +26,12 @@ Defined as Tailwind theme colors in `src/styles/globals.css`.
 Viewer Blue is the only brand-defining color; everything else is grayscale. No
 gradients.
 
+The one exception is the user avatar (`apps/web/components/Avatar.tsx`): white
+initials on a 135° two-stop HSL gradient hashed from the user's name. It is
+identity, not chrome — the hue is a person, not a brand color — and it appears
+in exactly one place, the top-right profile menu trigger. Do not reach for a
+gradient anywhere else, and do not add these hues to the palette.
+
 The shadcn semantic tokens map onto the above, so `bg-primary`,
 `text-muted-foreground`, `bg-destructive` and friends are already on-brand:
 `primary` = viewerblue on white, `secondary` = viewergray on viewerblack,
@@ -47,12 +53,11 @@ Inter everywhere, wired through `--font-sans` (apps set `--font-inter` with
 
 Utilities in `globals.css` (`@layer components`):
 
-| Class           | Spec                                        |
-| --------------- | ------------------------------------------- |
-| `.text-title`   | 30/36 semibold, tight tracking, viewerblack |
-| `.text-heading` | 20/28 semibold, viewerblack                 |
-| `.text-body`    | 16/28 regular, viewertext                   |
-| `.text-meta`    | 12/18 medium, viewerlighttext               |
+| Class         | Spec                                        |
+| ------------- | ------------------------------------------- |
+| `.text-title` | 30/36 semibold, tight tracking, viewerblack |
+| `.text-body`  | 16/28 regular, viewertext                   |
+| `.text-meta`  | 12/18 medium, viewerlighttext               |
 
 They set a color too; override it with a normal Tailwind `text-*` utility when
 needed. `h1`–`h6` default to viewerblack.
@@ -114,10 +119,6 @@ swap is a colour change and nothing shifts.
 Buttons, dialog close buttons, badges and menu items get **no focus styling**
 — no ring, and no focus-only border change either. Their hover state is the
 whole visual vocabulary.
-
-The one exception is `TabsTrigger` in `tabs-slider.tsx`, which keeps its
-`focus-visible` border swap because the tab strip has no other keyboard focus
-indicator.
 
 ## Motion
 

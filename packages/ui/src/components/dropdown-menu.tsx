@@ -12,7 +12,7 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 const ENTER = "data-[state=open]:animate-fade-in";
 
 const SURFACE =
-   "z-50 overflow-y-auto overflow-x-hidden rounded-lg border border-viewerborder bg-viewerwhite p-1 shadow-md outline-none";
+   "z-50 flex flex-col gap-0.5 overflow-y-auto overflow-x-hidden rounded-lg border border-viewerborder bg-viewerwhite p-1 shadow-md outline-none";
 
 const ITEM_BASE =
    "relative flex cursor-pointer select-none items-center gap-2 rounded-md px-2.5 py-2 text-sm outline-none transition-colors data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4";
@@ -172,7 +172,9 @@ function DropdownMenuSubTrigger({
 function DropdownMenuSubContent({
    className,
    sideOffset = 4,
-   alignOffset = -4,
+   // 0 lines the submenu box up with the trigger row box (both sit inside
+   // the same 4px content padding), which reads as "attached to this row".
+   alignOffset = 0,
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
    return (
@@ -181,9 +183,10 @@ function DropdownMenuSubContent({
             data-slot="dropdown-menu-sub-content"
             sideOffset={sideOffset}
             alignOffset={alignOffset}
+            // No fade here: submenus open on hover intent and must be readable
+            // the instant the pointer arrives.
             className={cn(
                SURFACE,
-               ENTER,
                "max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[12rem]",
                className
             )}

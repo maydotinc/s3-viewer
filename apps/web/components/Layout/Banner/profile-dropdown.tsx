@@ -35,7 +35,7 @@ const ProfileDropdown = () => {
             aria-label="Account menu"
             className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full outline-none"
          >
-            <Avatar name={user.name} image={user.image} size={32} />
+            <Avatar name={user.name} size={32} />
          </DropdownMenuTrigger>
          <DropdownMenuContent align="end" className="min-w-[14rem]">
             <div className="flex flex-col px-2.5 py-2">

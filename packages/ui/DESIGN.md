@@ -87,8 +87,10 @@ text-viewerlighttext`; separator `-mx-1 my-1`; destructive item red.
 - Submenus (DropdownMenuSub): open on hover after 150ms intent delay AND on
   click/→ key; a `ChevronRight` `size-4 text-viewerlighttext` at the row end;
   submenu content aligned to the trigger row (`sideOffset 4`, `alignOffset -4`)
-  with the same menu styling. Moving the pointer diagonally into the submenu
-  must not close it (Radix handles this — do not add manual pointer handlers).
+  with the same menu styling and no fade (it must be readable the instant the
+  pointer arrives). Menu items are separated by a 2px gap so hover fills never
+  touch. Moving the pointer diagonally into the submenu must not close it
+  (Radix handles this — do not add manual pointer handlers).
 - Shortcut hints: `DropdownMenuShortcut` renders `Kbd` at the row end
   (`ml-auto`), muted.
 
@@ -110,12 +112,12 @@ Tooltips appear on every icon-only button (label + shortcut when any).
   chevron (`size-9` ghost, tooltip "Back", `Esc` also goes back) + "Share
   {server}" + description. Sections as cards with `gap-6`: **Invite people**
   (emails input, role select, bucket access list, Send invite), **Members**
-  (table: avatar+name+email, role select, bucket summary, remove), **Pending
+  (table: name+email, role select, bucket summary, remove), **Pending
   invites** (table: email, role, sent by, expires, revoke — expiry is relative
   with the full date in a tooltip). Uses the Table primitive; both tables are
   `table-fixed` with a min width so they scroll inside the card below `lg`.
 - Settings `/settings` with a left sub-nav (`w-48`, rows like the sidebar) and
-  routes `/settings/profile` (avatar + name editable, email read-only, danger
+  routes `/settings/profile` (name editable, email read-only, danger
   zone: delete account) and `/settings/invites` (received invites with
   accept/decline, sent invites with revoke, "Invite people" → share page).
   `/invites` redirects to `/settings/invites`.
