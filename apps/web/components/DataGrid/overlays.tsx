@@ -3,9 +3,10 @@ import useServers from "@/lib/hooks/queries/server/useServers";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import type { ColDef } from "ag-grid-community";
 import { CircleAlert, Inbox, ServerOff, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { SkeletonRows } from "./skeleton";
 
 const IconTile = ({ icon: Icon }: { icon: LucideIcon }) => (
    <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-viewergray">
@@ -113,17 +114,13 @@ const CredentialsErrorState = ({
    );
 };
 
-/** Skeleton rows, not a spinner — the loaded shape of a grid body is known. */
-const LoadingOverlay = () => (
-   <div
-      className="flex size-full flex-col gap-2 p-4"
-      aria-busy="true"
-      aria-label="Loading rows"
-   >
-      {Array.from({ length: 7 }, (_, index) => (
-         <Skeleton key={index} className="h-11 w-full shrink-0 rounded-lg" />
-      ))}
-   </div>
+/**
+ * Skeleton rows, not a spinner — the loaded shape of a grid body is known.
+ * AG Grid mounts this under its own header and passes the grid's columns
+ * (`loadingOverlayComponentParams`), so the bars line up with the real cells.
+ */
+const LoadingOverlay = ({ columns }: { columns?: readonly ColDef[] }) => (
+   <SkeletonRows columns={columns} />
 );
 
 export {

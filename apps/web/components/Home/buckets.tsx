@@ -130,7 +130,7 @@ const BucketsPanel = ({ filter }: { filter: string }) => {
    return (
       <div className={GRID_CARD}>
          {isPending || isServerListLoading || isBucketsLoading ? (
-            <GridSkeleton />
+            <GridSkeleton columns={bucketColumns} />
          ) : !serverId ? (
             <EmptyState
                icon={ServerOff}

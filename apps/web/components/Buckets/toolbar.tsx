@@ -3,7 +3,6 @@ import { usePermission } from "@/lib/hooks/usePermission";
 import { useShortcut } from "@/lib/shortcuts";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { useBucketContext } from "./Context";
@@ -31,10 +30,13 @@ const ObjectsToolbar = () => {
       aliases: ["delete"],
       label: "Delete selected objects",
       group: "Objects",
-      when: () => commands.can.delete && count > 0,
+      when: () => !isLoading && commands.can.delete && count > 0,
       handler: () => commands.remove(selectedIds, clearSelection),
    });
 
+   // While the bucket loads the real buttons render disabled rather than as
+   // placeholders: a placeholder can only approximate a label's width, so the
+   // row visibly settled by a few pixels when the buttons replaced it.
    return (
       <div className="flex min-h-9 flex-wrap items-center gap-2">
          <PrefixSearch className="w-72 shrink-0" />
@@ -48,35 +50,24 @@ const ObjectsToolbar = () => {
                   Refresh
                </Button>
             </SimpleTooltip>
-            {/* A placeholder only where a button is actually going to land:
-                a viewer who cannot upload should not watch an Upload-sized
-                skeleton appear and then vanish. */}
-            {canUpload &&
-               (isLoading ? (
-                  <Skeleton className="h-9 w-32 rounded-lg" />
-               ) : (
-                  <UploadMenu />
-               ))}
-            {commands.can.delete &&
-               (isLoading ? (
-                  <Skeleton className="h-9 w-24 rounded-lg" />
-               ) : (
-                  <SimpleTooltip label="Delete selection" shortcut="backspace">
-                     <Button
-                        variant="destructive"
-                        disabled={count === 0}
-                        onClick={() =>
-                           commands.remove(selectedIds, clearSelection)
-                        }
-                     >
-                        <Trash2 aria-hidden="true" />
-                        Delete
-                        {count > 0 && (
-                           <span className="tabular-nums">({count})</span>
-                        )}
-                     </Button>
-                  </SimpleTooltip>
-               ))}
+            {canUpload && <UploadMenu disabled={isLoading} />}
+            {commands.can.delete && (
+               <SimpleTooltip label="Delete selection" shortcut="backspace">
+                  <Button
+                     variant="destructive"
+                     disabled={isLoading || count === 0}
+                     onClick={() =>
+                        commands.remove(selectedIds, clearSelection)
+                     }
+                  >
+                     <Trash2 aria-hidden="true" />
+                     Delete
+                     {count > 0 && (
+                        <span className="tabular-nums">({count})</span>
+                     )}
+                  </Button>
+               </SimpleTooltip>
+            )}
          </div>
       </div>
    );

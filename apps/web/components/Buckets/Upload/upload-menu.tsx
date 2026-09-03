@@ -33,7 +33,13 @@ const MODE_KEYS: Partial<Record<UploadMode, string>> = { files: "u" };
 
 const FOLDER_INPUT_ATTRS = { webkitdirectory: "" } as const;
 
-const UploadMenu = ({ className }: { className?: string }) => {
+type UploadMenuProps = {
+   className?: string;
+   /** The bucket is still loading: shown, but not yet usable. */
+   disabled?: boolean;
+};
+
+const UploadMenu = ({ className, disabled = false }: UploadMenuProps) => {
    const { upload, isChecking } = useUploader();
    const inputs = useRef<Partial<Record<UploadMode, HTMLInputElement | null>>>(
       {}
@@ -43,7 +49,7 @@ const UploadMenu = ({ className }: { className?: string }) => {
       keys: "u",
       label: "Upload files",
       group: "Objects",
-      when: () => !isChecking,
+      when: () => !disabled && !isChecking,
       // A keypress is a user gesture, so the picker is allowed to open.
       handler: () => inputs.current.files?.click(),
    });
@@ -56,6 +62,7 @@ const UploadMenu = ({ className }: { className?: string }) => {
                   <Button
                      variant="outline"
                      loading={isChecking}
+                     disabled={disabled}
                      className={cn("[&_svg]:size-4", className)}
                   >
                      <Upload aria-hidden="true" />

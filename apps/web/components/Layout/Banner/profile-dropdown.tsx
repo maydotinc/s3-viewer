@@ -14,10 +14,46 @@ import {
 import { toast } from "@s3-viewer/ui/components/toast";
 import { LifeBuoy, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
+
+/** A click the browser handles itself: new tab, new window, middle button. */
+const isModifiedClick = (event: MouseEvent) =>
+   event.metaKey ||
+   event.ctrlKey ||
+   event.shiftKey ||
+   event.altKey ||
+   event.button !== 0;
 
 const ProfileDropdown = () => {
    const { data: session } = authClient.useSession();
    const user = session?.user;
+   const router = useRouter();
+   const [open, setOpen] = useState(false);
+   // Written by the link's own click handler, which runs before Radix selects
+   // the item, so `onSelect` knows whether the browser is handling the click.
+   const modifiedClick = useRef(false);
+
+   // Navigating from the menu is one visual step: the menu stays up until the
+   // new page has rendered and closes together with the page change, instead
+   // of vanishing first and leaving the old page on screen until the route
+   // resolves.
+   useEffect(() => {
+      if (!open) return;
+      const close = () => setOpen(false);
+      router.events.on("routeChangeComplete", close);
+      router.events.on("routeChangeError", close);
+      return () => {
+         router.events.off("routeChangeComplete", close);
+         router.events.off("routeChangeError", close);
+      };
+   }, [open, router.events]);
+
+   const holdOpenUntilRouted = (href: string) => (event: Event) => {
+      // Already on the page, or the click opens it elsewhere: close as usual.
+      if (modifiedClick.current || router.asPath === href) return;
+      event.preventDefault();
+   };
 
    // Same footprint as the trigger so the banner never shifts.
    if (!user) {
@@ -30,7 +66,7 @@ const ProfileDropdown = () => {
    }
 
    return (
-      <DropdownMenu>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
          <DropdownMenuTrigger
             aria-label="Account menu"
             className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full outline-none"
@@ -47,8 +83,16 @@ const ProfileDropdown = () => {
                </span>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-               <Link href={SITE_PATHS.settingsProfile}>
+            <DropdownMenuItem
+               asChild
+               onSelect={holdOpenUntilRouted(SITE_PATHS.settingsProfile)}
+            >
+               <Link
+                  href={SITE_PATHS.settingsProfile}
+                  onClick={(event) => {
+                     modifiedClick.current = isModifiedClick(event);
+                  }}
+               >
                   <Settings aria-hidden="true" />
                   Settings
                   <DropdownMenuShortcut keys="g s" />

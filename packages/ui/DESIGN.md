@@ -15,19 +15,19 @@ sections 32.
 
 ## 2. App shell (exact)
 
-| Region                | Size / padding                                                                                                                                                                                                                                            |
-| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Top bar               | `h-14 px-6 border-b border-viewerborder bg-viewerwhite`                                                                                                                                                                                                   |
-| Logo                  | `h-6 w-auto`, sits on the 24px left padding, vertically centred                                                                                                                                                                                           |
-| Top-bar right cluster | `gap-2`, avatar `size-8`                                                                                                                                                                                                                                  |
-| Sidebar               | `w-64 border-r border-viewerborder bg-viewerwhite px-4 py-5 gap-6`                                                                                                                                                                                        |
-| Sidebar section label | `mb-2 px-2 text-[11px] font-medium uppercase tracking-wide text-viewerlighttext`                                                                                                                                                                          |
-| Sidebar row           | `h-9 rounded-lg px-2 gap-2.5 text-sm`, active `bg-viewergray text-viewerblack font-medium`, hover `bg-viewergray/70`                                                                                                                                      |
-| Server switcher card  | `h-12 rounded-lg border px-3`, name `text-sm font-medium`, role `text-xs`                                                                                                                                                                                 |
-| Main                  | `min-w-0 flex-1 overflow-hidden`                                                                                                                                                                                                                          |
-| Page                  | `mx-auto w-full max-w-[1400px] px-8 py-6 flex flex-col gap-6`                                                                                                                                                                                             |
-| Page header           | one row `min-h-9 flex items-center justify-between gap-4`: left = breadcrumb or `h1 text-xl font-semibold tracking-tight text-viewerblack` (+ optional `text-sm text-viewertext` description on a second line), right = actions `flex items-center gap-2` |
-| Toolbar row           | `flex h-9 items-center gap-2` — search `w-72` (fixed, not flex-1), actions pushed right with `ml-auto`                                                                                                                                                    |
+| Region                | Size / padding                                                                                                                                                                                                                                                       |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Top bar               | `h-14 px-6 border-b border-viewerborder bg-viewerwhite`                                                                                                                                                                                                              |
+| Logo                  | `h-6 w-auto`, sits on the 24px left padding, vertically centred                                                                                                                                                                                                      |
+| Top-bar right cluster | `gap-2`, avatar `size-8`                                                                                                                                                                                                                                             |
+| Sidebar               | `w-64 border-r border-viewerborder bg-viewerwhite px-4 py-5 gap-6`                                                                                                                                                                                                   |
+| Sidebar section label | `mb-2 px-2 text-[11px] font-medium uppercase tracking-wide text-viewerlighttext`                                                                                                                                                                                     |
+| Sidebar row           | `h-9 rounded-lg px-2 gap-2.5 text-sm`, active `bg-viewergray text-viewerblack font-medium`, hover `bg-viewergray/70`                                                                                                                                                 |
+| Server switcher card  | `h-12 rounded-lg border px-3`, name `text-sm font-medium`, role `text-xs`                                                                                                                                                                                            |
+| Main                  | `min-w-0 flex-1 overflow-hidden`                                                                                                                                                                                                                                     |
+| Page                  | `mx-auto w-full max-w-[1400px] px-8 py-6 flex flex-col gap-6`                                                                                                                                                                                                        |
+| Page header           | one row `min-h-9 flex items-center justify-between gap-4`: left = breadcrumb or `h1 text-xl font-semibold tracking-tight text-viewerblack` (+ optional `text-sm text-viewertext` description on a second line), right = actions `flex items-center gap-2`            |
+| Toolbar row           | `flex h-9 items-center gap-2` — search `w-72` (fixed, not flex-1), actions pushed right with `ml-auto`. While data loads the buttons render `disabled`, never as skeletons: a placeholder only approximates a label's width and the row visibly settles when swapped |
 
 Nothing may sit closer than 24px to the viewport edge on desktop. Sidebar items
 align to the same 16px inset as the sidebar padding; content in the main area
@@ -46,7 +46,11 @@ aligns to the 32px page padding.
 - Row action: ghost `size-8` icon button at the row end, visible on hover/focus
   or always on touch. Menu `align="end"`.
 - Empty state inside the card: icon tile + one line + one action, centred,
-  `py-16`. Loading: skeleton rows matching row height, no spinner.
+  `py-16`. Loading: the table's own anatomy, no spinner — a `h-11
+bg-viewergray/60` header band and `h-11` hairline rows, each cell at its
+  real width and `px-4` with a `h-3.5` bar where the text will be
+  (`GridSkeleton` before the grid exists, `LoadingOverlay` inside it). Never
+  a padded stack of pills.
 - Pagination bar: `h-12 px-4 border-t flex items-center justify-between`;
   left "Showing 1–25 of 120" `text-sm text-viewertext tabular-nums`; right
   "Rows per page" select + first/prev/next/last `size-8` ghost icon buttons.
@@ -66,8 +70,10 @@ aligns to the 32px page padding.
   optional `text-sm text-viewertext` helper, `mb-3`.
 - Forms: field = Label (`text-sm font-medium text-viewerblack`) + control +
   optional one-line hint (`text-xs text-viewertext`) only if it adds
-  information; error line reserved (`min-h-5 text-xs text-viewertextred`).
-  Fields stack with `gap-4`. Two-column field grids use `grid gap-4 sm:grid-cols-2`.
+  information; error line `text-xs text-viewertextred`, reserved (`min-h-5`)
+  in dialogs and auth steps where the primary action sits right under the
+  field, rendered only when set on settings cards so stacked fields keep a
+  single 16px rhythm. Fields stack with `gap-4`. Two-column field grids use `grid gap-4 sm:grid-cols-2`.
 
 ## 5. Dialogs and menus
 

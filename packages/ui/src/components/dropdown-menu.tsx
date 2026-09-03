@@ -91,20 +91,33 @@ function DropdownMenuItem({
    );
 }
 
+/**
+ * Groups are plain divs inside the flex column, so they must repeat the
+ * surface's 2px item gap or their rows' hover fills touch (DESIGN.md §5).
+ */
+const GROUP = "flex flex-col gap-0.5";
+
 function DropdownMenuGroup({
+   className,
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
    return (
-      <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
+      <DropdownMenuPrimitive.Group
+         data-slot="dropdown-menu-group"
+         className={cn(GROUP, className)}
+         {...props}
+      />
    );
 }
 
 function DropdownMenuRadioGroup({
+   className,
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
    return (
       <DropdownMenuPrimitive.RadioGroup
          data-slot="dropdown-menu-radio-group"
+         className={cn(GROUP, className)}
          {...props}
       />
    );

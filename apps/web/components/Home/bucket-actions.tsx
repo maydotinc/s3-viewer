@@ -5,7 +5,6 @@ import { usePermission } from "@/lib/hooks/usePermission";
 import { focusToolbarFilter, useShortcut } from "@/lib/shortcuts";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { Plus, RefreshCw, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
@@ -45,9 +44,10 @@ const BucketActions = () => {
       handler: () => openCreateBucketModal({}),
    });
 
-   // Placeholders the size of the real buttons, so the row does not reflow
-   // when the actions arrive — but only for the buttons this user is going to
-   // get. Refresh needs no permission, so it is never a placeholder.
+   // While the session and server list load the real buttons render disabled
+   // rather than as placeholders: a placeholder can only approximate a label's
+   // width, so the row visibly settled when the buttons replaced it. Only the
+   // buttons this user is going to get are rendered at all.
    return (
       <div
          ref={actionsRef}
@@ -60,30 +60,34 @@ const BucketActions = () => {
                Refresh
             </Button>
          </SimpleTooltip>
-         {canShare &&
-            (pending || !currentServer ? (
-               <Skeleton className="h-9 w-24 rounded-lg" />
-            ) : (
-               <SimpleTooltip label="Manage who can see this server">
+         {canShare && (
+            <SimpleTooltip label="Manage who can see this server">
+               {pending || !currentServer ? (
+                  <Button variant="outline" disabled>
+                     <UserRoundPlus aria-hidden="true" />
+                     Share
+                  </Button>
+               ) : (
                   <Button variant="outline" asChild>
                      <Link href={`/servers/${currentServer.id}/share`}>
                         <UserRoundPlus aria-hidden="true" />
                         Share
                      </Link>
                   </Button>
-               </SimpleTooltip>
-            ))}
-         {canCreate &&
-            (pending ? (
-               <Skeleton className="h-9 w-36 rounded-lg" />
-            ) : (
-               <SimpleTooltip label="Create bucket" shortcut="n">
-                  <Button onClick={() => openCreateBucketModal({})}>
-                     <Plus aria-hidden="true" />
-                     Create bucket
-                  </Button>
-               </SimpleTooltip>
-            ))}
+               )}
+            </SimpleTooltip>
+         )}
+         {canCreate && (
+            <SimpleTooltip label="Create bucket" shortcut="n">
+               <Button
+                  disabled={pending}
+                  onClick={() => openCreateBucketModal({})}
+               >
+                  <Plus aria-hidden="true" />
+                  Create bucket
+               </Button>
+            </SimpleTooltip>
+         )}
       </div>
    );
 };

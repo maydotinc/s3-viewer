@@ -107,6 +107,7 @@ const BaseGrid = <TData,>(props: BaseGridProps<TData>) => {
             suppressCellFocus
             noRowsOverlayComponent={noRowsOverlayComponent}
             loadingOverlayComponent={LoadingOverlay}
+            loadingOverlayComponentParams={{ columns: columnDefs }}
             onGridReady={handlers.onGridReady}
             onGridPreDestroyed={handlers.onGridPreDestroyed}
             onPaginationChanged={handlers.onPaginationChanged}
