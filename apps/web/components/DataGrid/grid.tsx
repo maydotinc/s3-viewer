@@ -11,6 +11,7 @@ import {
 import { AgGridReact } from "ag-grid-react";
 import { useGridContext } from "./context";
 import { LoadingOverlay } from "./overlays";
+import { SKELETON_ROWS } from "./skeleton";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -84,6 +85,11 @@ const BaseGrid = <TData,>(props: BaseGridProps<TData>) => {
               datasource: props.datasource,
               cacheBlockSize: props.cacheBlockSize,
               maxBlocksInCache: 10,
+              // Rows the grid draws before the first block answers. AG Grid
+              // defaults to 1, which leaves a single skeleton row stranded in
+              // an empty card; a page of them is the table's own anatomy
+              // (DESIGN.md §3), and each cell renders its own bar.
+              infiniteInitialRowCount: SKELETON_ROWS,
            }
          : {
               rowModelType: "clientSide" as const,
@@ -119,3 +125,4 @@ const BaseGrid = <TData,>(props: BaseGridProps<TData>) => {
 };
 
 export default BaseGrid;
+export type { BaseGridProps };

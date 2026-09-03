@@ -63,9 +63,22 @@ const NAME_WIDTHS = [
 ];
 
 // Enough to fill the tallest common viewport; the container clips the rest.
-const ROWS = 12;
+const SKELETON_ROWS = 12;
 
 const BAR = "h-3.5 rounded";
+
+/**
+ * The bar a cell shows where its text will be (DESIGN.md §3). Exported so the
+ * cells AG Grid renders for a not-yet-loaded row use the same weight as the
+ * standalone skeleton, and so the two never drift apart.
+ */
+const CellBar = ({ className }: { className?: string }) => (
+   <Skeleton className={cn(BAR, className)} />
+);
+
+/** The name-bar width for a row, so a loading page reads as text, not a block. */
+const nameBarWidth = (rowIndex: number): string =>
+   NAME_WIDTHS[Math.abs(rowIndex) % NAME_WIDTHS.length] ?? "w-40";
 
 /**
  * One 44px line of the table. Every cell keeps the grid's own width and 16px
@@ -131,12 +144,8 @@ const SkeletonRows = ({ columns, className }: SkeletonProps) => {
          aria-busy="true"
          aria-label="Loading rows"
       >
-         {Array.from({ length: ROWS }, (_, index) => (
-            <Line
-               key={index}
-               columns={layout}
-               name={NAME_WIDTHS[index % NAME_WIDTHS.length] ?? "w-40"}
-            />
+         {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+            <Line key={index} columns={layout} name={nameBarWidth(index)} />
          ))}
       </div>
    );
@@ -163,4 +172,4 @@ const GridSkeleton = ({ columns, className }: SkeletonProps) => {
    );
 };
 
-export { GridSkeleton, SkeletonRows };
+export { CellBar, GridSkeleton, nameBarWidth, SKELETON_ROWS, SkeletonRows };

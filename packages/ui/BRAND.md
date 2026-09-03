@@ -26,7 +26,14 @@ Defined as Tailwind theme colors in `src/styles/globals.css`.
 Viewer Blue is the only brand-defining color; everything else is grayscale. No
 gradients.
 
-The one exception is the user avatar (`apps/web/components/Avatar.tsx`): white
+The other exception is syntax colour. The JSON preview
+(`apps/web/components/Buckets/ObjectView/json-preview.tsx`) needs hue to carry
+meaning — key, string, number, literal — which grayscale cannot do, so
+`globals.css` defines `jsonkey`, `jsonstring`, `jsonnumber` and `jsonliteral`
+for it. They are for code and nothing else: no button, badge or chart may use
+them. Keys stay on `viewerdarkblue`, and all four clear 4.5:1 on white.
+
+The first exception is the user avatar (`apps/web/components/Avatar.tsx`): white
 initials on a 135° two-stop HSL gradient hashed from the user's name. It is
 identity, not chrome — the hue is a person, not a brand color — and it appears
 in exactly one place, the top-right profile menu trigger. Do not reach for a

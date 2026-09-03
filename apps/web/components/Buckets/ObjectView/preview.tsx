@@ -7,7 +7,13 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { Download, Eye, FileWarning } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
-import { PREVIEW_ASPECT, PREVIEW_BOX, PreviewLoading } from "./preview-frame";
+import JsonPreview from "./json-preview";
+import {
+   PREVIEW_ASPECT,
+   PREVIEW_BOX,
+   PreviewLoading,
+   TextFrame,
+} from "./preview-frame";
 
 type ObjectPreviewProps = {
    preview: S3ObjectPreview | undefined;
@@ -79,7 +85,9 @@ const ObjectPreview = ({
       );
    }
 
-   const kind = previewKind(preview.contentType);
+   // The file name matters: plenty of clients store a .json object as
+   // application/octet-stream, and only the extension gives it away.
+   const kind = previewKind(preview.contentType, fileName);
    if (kind === "none") {
       return (
          <div className={PREVIEW_BOX}>
@@ -103,6 +111,18 @@ const ObjectPreview = ({
          </div>
       );
    }
+
+   if (kind === "text")
+      return <TextFrame url={preview.url} fileName={fileName} />;
+
+   if (kind === "json")
+      return (
+         <JsonPreview
+            preview={preview}
+            objectKey={objectKey}
+            fileName={fileName}
+         />
+      );
 
    return (
       <div className={PREVIEW_BOX}>
@@ -147,14 +167,6 @@ const ObjectPreview = ({
             <iframe
                src={preview.url}
                title={`Preview of ${fileName}`}
-               className="size-full rounded-lg border border-viewerborder bg-viewerwhite"
-            />
-         )}
-         {kind === "text" && (
-            <iframe
-               src={preview.url}
-               title={`Preview of ${fileName}`}
-               sandbox=""
                className="size-full rounded-lg border border-viewerborder bg-viewerwhite"
             />
          )}

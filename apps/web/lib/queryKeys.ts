@@ -7,6 +7,19 @@ const bucket = (userId: string, serverId: string, bucketName: string) =>
 const bucketObjects = (userId: string, serverId: string, bucketName: string) =>
    [...bucket(userId, serverId, bucketName), "objects"] as const;
 
+const objectPreview = (
+   userId: string,
+   serverId: string,
+   bucketName: string,
+   objectKey: string
+) =>
+   [
+      ...bucket(userId, serverId, bucketName),
+      "object",
+      objectKey,
+      "preview",
+   ] as const;
+
 const queryKeys = {
    servers: (userId: string) => ["user", userId, "servers"] as const,
    server,
@@ -39,17 +52,17 @@ const queryKeys = {
          objectKey,
          "metadata",
       ] as const,
-   objectPreview: (
+   objectPreview,
+   /** The object's bytes, fetched from the presigned URL for an inline viewer. */
+   objectPreviewBody: (
       userId: string,
       serverId: string,
       bucketName: string,
       objectKey: string
    ) =>
       [
-         ...bucket(userId, serverId, bucketName),
-         "object",
-         objectKey,
-         "preview",
+         ...objectPreview(userId, serverId, bucketName, objectKey),
+         "body",
       ] as const,
 };
 
