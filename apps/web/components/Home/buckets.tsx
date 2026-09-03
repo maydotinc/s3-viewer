@@ -11,6 +11,7 @@ import {
    RetryButton,
 } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
+import { Page, PageHeader } from "@/components/Layout/page";
 import SignInPrompt from "@/components/Session/sign-in-prompt";
 import { ApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth";
@@ -18,11 +19,12 @@ import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { isCredentialsErrorCode } from "@s3-viewer/types";
-import { Input } from "@s3-viewer/ui/components/input";
+import { Kbd } from "@s3-viewer/ui/components/kbd";
 import { Folder, Search, ServerOff } from "lucide-react";
 import { useId, useState } from "react";
 import BucketActions from "./bucket-actions";
 import { bucketColumns, bucketRowId } from "./bucket-columns";
+import ServerInfo from "./header/server-info";
 
 const NoBucketsOverlay = () => (
    <EmptyState
@@ -32,6 +34,7 @@ const NoBucketsOverlay = () => (
    />
 );
 
+/** Same anatomy as the objects toolbar's prefix search, so the two match. */
 const BucketFilter = ({
    value,
    onChange,
@@ -40,26 +43,39 @@ const BucketFilter = ({
    onChange: (v: string) => void;
 }) => {
    const { gridReady } = useGridContext();
-   const id = useId();
+   const [focused, setFocused] = useState(false);
+   const inputId = useId();
+
    return (
-      <div className="relative flex min-w-0 max-w-sm flex-1 items-center">
-         <label htmlFor={id} className="sr-only">
+      <div className="relative flex h-9 w-full min-w-0 items-center sm:w-72 sm:shrink-0">
+         <label htmlFor={inputId} className="sr-only">
             Filter buckets
          </label>
          <Search
-            className="pointer-events-none absolute left-3 size-4 shrink-0 text-viewerlighttext"
+            className="pointer-events-none absolute left-3 z-10 size-4 shrink-0 text-viewerlighttext"
             aria-hidden="true"
          />
-         <Input
-            id={id}
+         <input
+            id={inputId}
             type="text"
+            disabled={!gridReady}
             placeholder="Filter buckets…"
             value={value}
-            disabled={!gridReady}
             onChange={(event) => onChange(event.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             autoComplete="off"
-            className="border-viewerborder pl-9 text-sm text-viewerblack"
+            spellCheck={false}
+            className="h-9 w-full min-w-0 rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-9 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:border-viewerblue disabled:cursor-not-allowed disabled:opacity-50"
          />
+         {/* The key that focuses this field, shown only while it is idle. */}
+         {gridReady && !focused && !value && (
+            <Kbd
+               keys="/"
+               className="pointer-events-none absolute right-3"
+               aria-hidden="true"
+            />
+         )}
       </div>
    );
 };
@@ -141,13 +157,14 @@ const Buckets = () => {
 
    return (
       <GridProvider>
-         <section className="flex min-h-0 w-full flex-1 flex-col gap-4 p-6">
-            <div className="flex h-9 items-center gap-2">
+         <Page>
+            <PageHeader title="Buckets" actions={<ServerInfo />} />
+            <div className="flex min-h-9 shrink-0 flex-wrap items-center gap-2">
                <BucketFilter value={filter} onChange={setFilter} />
                <BucketActions />
             </div>
             <BucketsPanel filter={filter} />
-         </section>
+         </Page>
       </GridProvider>
    );
 };

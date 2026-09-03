@@ -1,21 +1,16 @@
-import {
-   Sidebar,
-   SidebarContent,
-   SidebarGroup,
-   SidebarGroupContent,
-   useSidebar,
-} from "@s3-viewer/ui/components/sidebar";
+import { useShortcut } from "@/lib/shortcuts";
+import { Sidebar, useSidebar } from "@s3-viewer/ui/components/sidebar";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 import ServerManagement from "./Sidebar/server-management";
 
-type ViewerSidebarProps = {
-   mobileStrategy?: "fullscreen" | "hidden";
-};
-
-const ViewerSidebar = ({ mobileStrategy }: ViewerSidebarProps) => {
+/**
+ * The sidebar column of the shell. Sizing lives in the primitive (DESIGN.md
+ * §2: `w-64 px-4 py-5 gap-6`); this file fills it and owns its shortcut.
+ */
+const ViewerSidebar = () => {
    const { events } = useRouter();
-   const { setOpenMobile } = useSidebar();
+   const { setOpenMobile, toggleSidebar } = useSidebar();
 
    useEffect(() => {
       const close = () => setOpenMobile(false);
@@ -23,18 +18,19 @@ const ViewerSidebar = ({ mobileStrategy }: ViewerSidebarProps) => {
       return () => events.off("routeChangeComplete", close);
    }, [events, setOpenMobile]);
 
+   // The registry fires ⌘B and lists it in the `?` dialog.
+   useShortcut({
+      keys: "mod b",
+      label: "Toggle sidebar",
+      group: "Navigation",
+      handler: toggleSidebar,
+   });
+
    return (
-      <Sidebar
-         className="top-14 h-[calc(100svh-3.5rem)] select-none"
-         mobileStrategy={mobileStrategy}
-      >
-         <SidebarContent className="gap-0 p-3">
-            <SidebarGroup className="h-full p-0">
-               <SidebarGroupContent className="h-full">
-                  <ServerManagement />
-               </SidebarGroupContent>
-            </SidebarGroup>
-         </SidebarContent>
+      <Sidebar className="select-none">
+         <div className="flex min-h-0 flex-1 flex-col">
+            <ServerManagement />
+         </div>
       </Sidebar>
    );
 };

@@ -1,5 +1,7 @@
 # S3 Viewer brand in code
 
+Layout, spacing, motion and page anatomy live in `DESIGN.md` next to this file; read both.
+
 Source of truth for the visual brand is the public brand kit
 (`apps/landing/components/BrandKit/index.tsx`). This file describes how those
 decisions are encoded in `@s3-viewer/ui`.

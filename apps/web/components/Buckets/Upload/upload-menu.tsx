@@ -1,11 +1,14 @@
+import { useShortcut } from "@/lib/shortcuts";
 import { fromFileList } from "@/lib/utils/s3/dropEntries";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
    DropdownMenuContent,
    DropdownMenuItem,
+   DropdownMenuShortcut,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ChevronDown, FilePlus, FolderPlus, Upload } from "lucide-react";
 import { useRef } from "react";
@@ -25,6 +28,9 @@ const MODE_ICON: Record<UploadMode, typeof FilePlus> = {
    folder: FolderPlus,
 };
 
+/** Only the common half of the menu is worth a key of its own. */
+const MODE_KEYS: Partial<Record<UploadMode, string>> = { files: "u" };
+
 const FOLDER_INPUT_ATTRS = { webkitdirectory: "" } as const;
 
 const UploadMenu = ({ className }: { className?: string }) => {
@@ -33,23 +39,35 @@ const UploadMenu = ({ className }: { className?: string }) => {
       {}
    );
 
+   useShortcut({
+      keys: "u",
+      label: "Upload files",
+      group: "Objects",
+      when: () => !isChecking,
+      // A keypress is a user gesture, so the picker is allowed to open.
+      handler: () => inputs.current.files?.click(),
+   });
+
    return (
       <>
          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-               <Button
-                  variant="outline"
-                  loading={isChecking}
-                  className={cn("[&_svg]:size-4", className)}
-               >
-                  <Upload aria-hidden="true" />
-                  Upload
-                  <ChevronDown aria-hidden="true" />
-               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
+            <SimpleTooltip label="Upload" shortcut="u">
+               <DropdownMenuTrigger asChild>
+                  <Button
+                     variant="outline"
+                     loading={isChecking}
+                     className={cn("[&_svg]:size-4", className)}
+                  >
+                     <Upload aria-hidden="true" />
+                     Upload
+                     <ChevronDown aria-hidden="true" />
+                  </Button>
+               </DropdownMenuTrigger>
+            </SimpleTooltip>
+            <DropdownMenuContent align="end" className="w-48">
                {MODES.map((mode) => {
                   const Icon = MODE_ICON[mode];
+                  const keys = MODE_KEYS[mode];
                   return (
                      <DropdownMenuItem
                         key={mode}
@@ -57,6 +75,7 @@ const UploadMenu = ({ className }: { className?: string }) => {
                      >
                         <Icon aria-hidden="true" />
                         {MODE_LABEL[mode]}
+                        {keys && <DropdownMenuShortcut keys={keys} />}
                      </DropdownMenuItem>
                   );
                })}

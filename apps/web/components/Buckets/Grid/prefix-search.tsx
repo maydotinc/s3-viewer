@@ -3,9 +3,11 @@ import { useGridContext } from "@/components/DataGrid/context";
 import usePathSuggestion, {
    isAcceptSuggestionKey,
 } from "@/lib/hooks/usePathSuggestion";
+import { useShortcut } from "@/lib/shortcuts";
+import { Kbd } from "@s3-viewer/ui/components/kbd";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Search } from "lucide-react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 const DEBOUNCE_MS = 300;
 
@@ -13,6 +15,8 @@ const PrefixSearch = ({ className }: { className?: string }) => {
    const { bucketName, prefix, filter, setFilter } = useBucketContext();
    const { gridReady } = useGridContext();
    const [text, setText] = useState(filter);
+   const [focused, setFocused] = useState(false);
+   const inputRef = useRef<HTMLInputElement>(null);
    const inputId = useId();
 
    useEffect(() => {
@@ -24,6 +28,17 @@ const PrefixSearch = ({ className }: { className?: string }) => {
       const timer = setTimeout(() => setFilter(text), DEBOUNCE_MS);
       return () => clearTimeout(timer);
    }, [text, filter, setFilter]);
+
+   useShortcut({
+      keys: "/",
+      label: "Filter objects",
+      group: "Objects",
+      when: () => gridReady,
+      handler: () => {
+         inputRef.current?.focus();
+         inputRef.current?.select();
+      },
+   });
 
    const suggestion = usePathSuggestion(
       bucketName,
@@ -49,11 +64,14 @@ const PrefixSearch = ({ className }: { className?: string }) => {
          />
          <input
             id={inputId}
+            ref={inputRef}
             type="text"
             disabled={!gridReady}
             placeholder="Filter by prefix…"
             value={text}
             onChange={(event) => setText(event.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             onKeyDown={(event) => {
                if (
                   suggestion &&
@@ -65,16 +83,24 @@ const PrefixSearch = ({ className }: { className?: string }) => {
             }}
             autoComplete="off"
             spellCheck={false}
-            className="h-9 w-full min-w-0 rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-3 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:border-viewerblue disabled:cursor-not-allowed disabled:opacity-50"
+            className="h-9 w-full min-w-0 rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-9 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:border-viewerblue disabled:cursor-not-allowed disabled:opacity-50"
          />
          {suggestion && (
             <div
                aria-hidden="true"
-               className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre pl-9 pr-3 text-sm"
+               className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre pl-9 pr-9 text-sm"
             >
                <span className="invisible">{text}</span>
                <span className="text-viewerlighttext">{suggestion}</span>
             </div>
+         )}
+         {/* The key that focuses this field, shown only while it is idle. */}
+         {gridReady && !focused && !text && (
+            <Kbd
+               keys="/"
+               className="pointer-events-none absolute right-3"
+               aria-hidden="true"
+            />
          )}
       </div>
    );

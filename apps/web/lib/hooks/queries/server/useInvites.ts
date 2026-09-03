@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 type InvitesResponse = { invites: ServerInvite[] };
 
+/** Invites addressed to the signed-in user (unexpired). */
 const useReceivedInvites = () => {
    const userId = useUserId();
    return useQuery({
@@ -15,6 +16,7 @@ const useReceivedInvites = () => {
    });
 };
 
+/** Pending invites on one server (needs MANAGE_MEMBERS there). */
 const useSentInvites = (serverId: string) => {
    const userId = useUserId();
    return useQuery({
@@ -26,4 +28,15 @@ const useSentInvites = (serverId: string) => {
    });
 };
 
-export { useReceivedInvites, useSentInvites };
+/** Every invite the signed-in user sent, across all their servers. */
+const useAllSentInvites = () => {
+   const userId = useUserId();
+   return useQuery({
+      queryKey: queryKeys.sentInvitesAll(userId),
+      queryFn: async () =>
+         (await api.get<InvitesResponse>("/invites/sent")).invites,
+      enabled: Boolean(userId),
+   });
+};
+
+export { useAllSentInvites, useReceivedInvites, useSentInvites };

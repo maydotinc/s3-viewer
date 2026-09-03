@@ -55,5 +55,12 @@ const LEGACY_REDIRECTS: Readonly<Record<string, string>> = {
 
 const TERMS_URL = `${publicEnv.siteOrigin}/legal/terms-of-service`;
 const PRIVACY_URL = `${publicEnv.siteOrigin}/legal/privacy-policy`;
+const SUPPORT_URL = "https://github.com/maydotinc/s3-viewer/issues";
 
-export { LANDING_ROUTES, LEGACY_REDIRECTS, PRIVACY_URL, TERMS_URL };
+export {
+   LANDING_ROUTES,
+   LEGACY_REDIRECTS,
+   PRIVACY_URL,
+   SUPPORT_URL,
+   TERMS_URL,
+};

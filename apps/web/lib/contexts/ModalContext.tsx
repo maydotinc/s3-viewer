@@ -26,7 +26,6 @@ type ModalPropsMap = {
       onRenameSuccess?: (newObjectKey: string) => void;
    };
    disconnect: { server: ServerInfo };
-   share: { server?: ServerInfo };
    updateCredentials: { server: ServerInfo; onUpdated?: () => void };
 };
 
@@ -43,7 +42,6 @@ type ModalContextValue = {
    openRenameModal: (props: ModalPropsMap["rename"]) => void;
    openRenameObjectModal: (props: ModalPropsMap["renameObject"]) => void;
    openDisconnectModal: (props: ModalPropsMap["disconnect"]) => void;
-   openShareModal: (props: ModalPropsMap["share"]) => void;
    openUpdateCredentialsModal: (
       props: ModalPropsMap["updateCredentials"]
    ) => void;
@@ -90,7 +88,6 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
          openRenameModal: (p) => open("rename", p),
          openRenameObjectModal: (p) => open("renameObject", p),
          openDisconnectModal: (p) => open("disconnect", p),
-         openShareModal: (p) => open("share", p),
          openUpdateCredentialsModal: (p) => open("updateCredentials", p),
       }),
       [modals, closeModal, open]

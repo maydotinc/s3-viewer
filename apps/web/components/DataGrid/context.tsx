@@ -17,9 +17,18 @@ const PAGE_SIZES = [25, 50, 100] as const;
 
 const HIDDEN_HEADER_TEXT = "[&_.ag-header-cell-text]:sr-only";
 
-/** The grid and its pagination bar live inside one bordered card. */
+/**
+ * Numeric and date columns are right-aligned with tabular figures so the
+ * digits line up down the column (DESIGN.md §3).
+ */
+const RIGHT_ALIGNED = {
+   cellClass: "ag-right-aligned-cell tabular-nums",
+   headerClass: "ag-right-aligned-header",
+} as const;
+
+/** The grid and its pagination bar live inside one bordered card (DESIGN.md §3). */
 const GRID_CARD =
-   "flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-viewerborder bg-viewerwhite";
+   "flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite";
 
 type GridContextValue = {
    gridRef: React.RefObject<AgGridReact | null>;
@@ -137,5 +146,6 @@ export {
    GridProvider,
    HIDDEN_HEADER_TEXT,
    PAGE_SIZES,
+   RIGHT_ALIGNED,
    useGridContext,
 };

@@ -11,7 +11,7 @@ import { useRouter } from "next/router";
 const BucketList = () => {
    const router = useRouter();
    const { currentServer } = useServers();
-   const { buckets, isBucketsLoading } = useBuckets();
+   const { buckets, isBucketsLoading, bucketsError } = useBuckets();
    const selected =
       router.pathname.startsWith(SITE_PATHS.buckets) &&
       Array.isArray(router.query.slug)
@@ -24,15 +24,26 @@ const BucketList = () => {
       return (
          <div className="flex flex-col gap-1">
             {Array.from({ length: 4 }).map((_, index) => (
-               <Skeleton key={index} className="h-8 w-full rounded-md" />
+               <Skeleton key={index} className="h-9 w-full rounded-lg" />
             ))}
          </div>
       );
    }
 
+   if (bucketsError) {
+      return (
+         <p
+            role="alert"
+            className="flex h-9 items-center px-2 text-sm text-viewertextred"
+         >
+            <span className="min-w-0 truncate">{bucketsError.message}</span>
+         </p>
+      );
+   }
+
    if (buckets.length === 0) {
       return (
-         <p className="flex h-8 items-center px-2 text-sm text-viewerlighttext">
+         <p className="flex h-9 items-center px-2 text-sm text-viewerlighttext">
             No buckets yet
          </p>
       );
@@ -40,7 +51,7 @@ const BucketList = () => {
 
    return (
       <nav aria-label="Buckets" className="min-h-0 overflow-y-auto">
-         <ul className="flex flex-col gap-0.5">
+         <ul className="flex flex-col gap-1">
             {buckets.map((bucket) => (
                <li key={bucket.name}>
                   <Link
@@ -49,9 +60,9 @@ const BucketList = () => {
                         selected === bucket.name ? "page" : undefined
                      }
                      className={cn(
-                        "flex h-8 items-center gap-2 rounded-md px-2 text-sm text-viewertext transition-colors hover:bg-viewergray",
+                        "flex h-9 items-center gap-2.5 rounded-lg px-2 text-sm text-viewertext transition-colors duration-150 hover:bg-viewergray/70",
                         selected === bucket.name &&
-                           "bg-viewergray font-medium text-viewerblack"
+                           "bg-viewergray font-medium text-viewerblack hover:bg-viewergray"
                      )}
                   >
                      <Folder

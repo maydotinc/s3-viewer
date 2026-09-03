@@ -28,6 +28,11 @@ const dateTime = new Intl.DateTimeFormat(undefined, {
    timeStyle: "short",
 });
 const dateOnly = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+const relativeDays = new Intl.RelativeTimeFormat(undefined, {
+   numeric: "auto",
+});
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 const formatDate = (iso: string | null | undefined): string => {
    const date = parse(iso);
@@ -39,7 +44,20 @@ const formatDay = (iso: string | null | undefined): string => {
    return date ? dateOnly.format(date) : "—";
 };
 
+/**
+ * "in 5 days", "yesterday", "today" — whole days relative to now. Depends on
+ * the clock, so only render it after hydration.
+ */
+const formatRelativeDay = (iso: string | null | undefined): string => {
+   const date = parse(iso);
+   if (!date) return "—";
+   return relativeDays.format(
+      Math.round((date.getTime() - Date.now()) / DAY_MS),
+      "day"
+   );
+};
+
 const pluralize = (count: number, noun: string): string =>
    `${count} ${noun}${count === 1 ? "" : "s"}`;
 
-export { formatBytes, formatDate, formatDay, pluralize };
+export { formatBytes, formatDate, formatDay, formatRelativeDay, pluralize };

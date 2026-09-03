@@ -2,11 +2,14 @@ import ModalManager from "@/components/Modals/ModalManager";
 import AuthGuard from "@/components/Session/auth-guard";
 import ErrorBoundary from "@/components/Session/error-boundary";
 import SessionManager from "@/components/Session/session-manager";
+import ShortcutsHelp from "@/components/Shortcuts/help-dialog";
 import { ModalProvider } from "@/lib/contexts/ModalContext";
 import { getQueryClient } from "@/lib/queryClient";
+import { ShortcutsProvider } from "@/lib/shortcuts";
 import { PRODUCT_NAME } from "@s3-viewer/types";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
+import { TooltipProvider } from "@s3-viewer/ui/components/tooltip";
 import "@s3-viewer/ui/globals.css";
 import { inter } from "@/lib/fonts";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -52,11 +55,16 @@ const App = ({ Component, pageProps }: AppPropsWithLayout) => {
             <ModalProvider>
                <SessionManager />
                <AuthGuard>
-                  <SidebarProvider>
-                     {getLayout(<Component {...pageProps} />)}
-                     <ModalManager />
-                     <Toaster />
-                  </SidebarProvider>
+                  <TooltipProvider>
+                     <ShortcutsProvider>
+                        <SidebarProvider>
+                           {getLayout(<Component {...pageProps} />)}
+                           <ModalManager />
+                           <Toaster />
+                           <ShortcutsHelp />
+                        </SidebarProvider>
+                     </ShortcutsProvider>
+                  </TooltipProvider>
                </AuthGuard>
             </ModalProvider>
          </ErrorBoundary>

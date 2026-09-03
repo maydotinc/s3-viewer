@@ -16,33 +16,34 @@ const ROWS: { label: string; value: (m: S3ObjectMetadata) => string }[] = [
    { label: "ETag", value: (m) => m.eTag ?? "—" },
 ];
 
-const DETAILS_HEIGHT = "min-h-[264px]";
+/** Reserved so the card keeps its size while the metadata loads. */
+const BODY_HEIGHT = "min-h-[228px]";
 
 const ObjectDetails = ({ metadata, isLoading, error }: ObjectDetailsProps) => (
    <aside
-      className="w-full shrink-0 lg:w-72"
+      className="flex w-full shrink-0 flex-col gap-4 self-start rounded-xl border border-viewerborder bg-viewerwhite p-6 lg:w-80"
       aria-busy={isLoading || undefined}
    >
-      <h2 className="mb-4 text-sm font-semibold text-viewerblack">Details</h2>
+      <h2 className="text-base font-semibold text-viewerblack">Details</h2>
       {error ? (
-         <div className={`${DETAILS_HEIGHT} text-sm`} role="alert">
+         <div className={`${BODY_HEIGHT} text-sm`} role="alert">
             <p className="font-medium text-viewertextred">
                Couldn&apos;t load details
             </p>
             <p className="mt-1 text-viewertext">{error.message}</p>
          </div>
       ) : isLoading || !metadata ? (
-         <div className={`${DETAILS_HEIGHT} flex items-center justify-center`}>
+         <div className={`${BODY_HEIGHT} flex items-center justify-center`}>
             <Spinner label="Loading details" />
          </div>
       ) : (
-         <dl className={`${DETAILS_HEIGHT} space-y-4`}>
+         <dl
+            className={`${BODY_HEIGHT} grid grid-cols-[8rem_1fr] gap-y-3 text-sm`}
+         >
             {ROWS.map(({ label, value }) => (
-               <div key={label} className="flex flex-col gap-1">
-                  <dt className="text-xs leading-4 text-viewerlighttext">
-                     {label}
-                  </dt>
-                  <dd className="break-all text-sm font-medium leading-5 text-viewerblack">
+               <div key={label} className="contents">
+                  <dt className="text-viewertext">{label}</dt>
+                  <dd className="min-w-0 break-all font-medium text-viewerblack">
                      {value(metadata)}
                   </dd>
                </div>

@@ -7,19 +7,19 @@ import BucketList from "./Buckets";
 import ServerSelector from "./Servers/server-select";
 
 const SECTION_LABEL =
-   "text-[11px] font-medium tracking-wide text-viewerlighttext uppercase";
+   "px-2 text-[11px] font-medium tracking-wide text-viewerlighttext uppercase";
 
 const ServerManagement = () => {
    const { openCreateBucketModal } = useModalContext();
    const canCreateBucket = usePermission(Permission.CREATE_BUCKET);
 
    return (
-      <div className="flex h-full flex-col gap-4">
+      <div className="flex h-full flex-col gap-6">
          <div className="flex flex-col gap-2">
             <span className={SECTION_LABEL}>Servers</span>
             <ServerSelector />
          </div>
-         <div className="flex min-h-0 flex-1 flex-col gap-1">
+         <div className="flex min-h-0 flex-1 flex-col gap-2">
             <div className="flex h-8 items-center justify-between">
                <span className={SECTION_LABEL}>Buckets</span>
                {canCreateBucket && (

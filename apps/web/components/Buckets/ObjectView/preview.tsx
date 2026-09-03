@@ -50,7 +50,7 @@ const Message = ({
    objectKey: string;
 }) => (
    <div className="flex flex-col items-center gap-3 text-center text-viewertext">
-      <span className="flex size-10 items-center justify-center rounded-lg bg-viewerwhite">
+      <span className="flex size-10 items-center justify-center rounded-lg bg-viewergray">
          <Icon className="size-5 text-viewerlighttext" aria-hidden="true" />
       </span>
       <p className="max-w-sm text-sm">{text}</p>

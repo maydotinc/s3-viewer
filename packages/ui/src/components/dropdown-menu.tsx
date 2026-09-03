@@ -1,13 +1,16 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
-import { CircleIcon } from "lucide-react";
+import { Kbd } from "@s3-viewer/ui/components/kbd";
+import { ChevronRight, CircleIcon } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@s3-viewer/ui/lib/utils";
 
 /**
- * Menus open instantly — no zoom, fade or slide. Only `transition-colors` on
- * hover is allowed.
+ * Menus fade in over 120ms (opacity + 2px rise) and disappear instantly — no
+ * exit animation, no zoom or slide. Hover uses `transition-colors` only.
  */
+const ENTER = "data-[state=open]:animate-fade-in";
+
 const SURFACE =
    "z-50 overflow-y-auto overflow-x-hidden rounded-lg border border-viewerborder bg-viewerwhite p-1 shadow-md outline-none";
 
@@ -40,6 +43,9 @@ function DropdownMenuTrigger({
 function DropdownMenuContent({
    className,
    sideOffset = 4,
+   // Returning focus to the trigger on close steals it from a dialog opened by
+   // a menu item. Callers that need the default behaviour can pass their own.
+   onCloseAutoFocus = (event) => event.preventDefault(),
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
    return (
@@ -47,8 +53,10 @@ function DropdownMenuContent({
          <DropdownMenuPrimitive.Content
             data-slot="dropdown-menu-content"
             sideOffset={sideOffset}
+            onCloseAutoFocus={onCloseAutoFocus}
             className={cn(
                SURFACE,
+               ENTER,
                "max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[12rem]",
                className
             )}
@@ -83,6 +91,14 @@ function DropdownMenuItem({
    );
 }
 
+function DropdownMenuGroup({
+   ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
+   return (
+      <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
+   );
+}
+
 function DropdownMenuRadioGroup({
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
@@ -113,6 +129,83 @@ function DropdownMenuRadioItem({
          </span>
          {children}
       </DropdownMenuPrimitive.RadioItem>
+   );
+}
+
+function DropdownMenuSub({
+   ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
+   return (
+      <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
+   );
+}
+
+function DropdownMenuSubTrigger({
+   className,
+   inset,
+   children,
+   ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
+   inset?: boolean;
+}) {
+   return (
+      <DropdownMenuPrimitive.SubTrigger
+         data-slot="dropdown-menu-sub-trigger"
+         data-inset={inset}
+         className={cn(
+            ITEM_BASE,
+            ITEM_DEFAULT,
+            "data-[state=open]:bg-viewergray data-[inset]:pl-8",
+            className
+         )}
+         {...props}
+      >
+         {children}
+         <ChevronRight
+            aria-hidden="true"
+            className="ml-auto size-4 shrink-0 text-viewerlighttext"
+         />
+      </DropdownMenuPrimitive.SubTrigger>
+   );
+}
+
+function DropdownMenuSubContent({
+   className,
+   sideOffset = 4,
+   alignOffset = -4,
+   ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+   return (
+      <DropdownMenuPrimitive.Portal>
+         <DropdownMenuPrimitive.SubContent
+            data-slot="dropdown-menu-sub-content"
+            sideOffset={sideOffset}
+            alignOffset={alignOffset}
+            className={cn(
+               SURFACE,
+               ENTER,
+               "max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[12rem]",
+               className
+            )}
+            {...props}
+         />
+      </DropdownMenuPrimitive.Portal>
+   );
+}
+
+function DropdownMenuShortcut({
+   className,
+   keys,
+   ...props
+}: React.ComponentProps<"span"> & { keys: string }) {
+   return (
+      <span
+         data-slot="dropdown-menu-shortcut"
+         className={cn("ml-auto pl-4", className)}
+         {...props}
+      >
+         <Kbd keys={keys} />
+      </span>
    );
 }
 
@@ -152,10 +245,15 @@ function DropdownMenuSeparator({
 export {
    DropdownMenu,
    DropdownMenuContent,
+   DropdownMenuGroup,
    DropdownMenuItem,
    DropdownMenuLabel,
    DropdownMenuRadioGroup,
    DropdownMenuRadioItem,
    DropdownMenuSeparator,
+   DropdownMenuShortcut,
+   DropdownMenuSub,
+   DropdownMenuSubContent,
+   DropdownMenuSubTrigger,
    DropdownMenuTrigger,
 };

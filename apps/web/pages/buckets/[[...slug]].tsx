@@ -1,5 +1,4 @@
 import { BucketProvider } from "@/components/Buckets/Context";
-import BucketHeader from "@/components/Buckets/header";
 import ObjectView from "@/components/Buckets/ObjectView";
 import Objects from "@/components/Buckets/objects";
 import { GridProvider } from "@/components/DataGrid/context";
@@ -36,14 +35,11 @@ const BucketPage = () => {
          {bucketName && (
             <BucketProvider bucketName={bucketName} path={path}>
                <GridProvider>
-                  <div className="flex size-full min-h-0 flex-col">
-                     <BucketHeader />
-                     {view === "object" && path.length > 0 ? (
-                        <ObjectView />
-                     ) : (
-                        <Objects />
-                     )}
-                  </div>
+                  {view === "object" && path.length > 0 ? (
+                     <ObjectView />
+                  ) : (
+                     <Objects />
+                  )}
                </GridProvider>
             </BucketProvider>
          )}
@@ -52,7 +48,7 @@ const BucketPage = () => {
 };
 
 BucketPage.getLayout = (page: React.ReactNode) => (
-   <ViewerLayout mobileStrategy="hidden">{page}</ViewerLayout>
+   <ViewerLayout>{page}</ViewerLayout>
 );
 
 export default BucketPage;

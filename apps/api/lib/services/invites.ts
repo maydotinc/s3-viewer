@@ -15,7 +15,7 @@ const inviteSelect = {
    email: true,
    role: true,
    expiresAt: true,
-   server: { select: { name: true } },
+   server: { select: { id: true, name: true } },
    invitedBy: { select: { name: true, email: true } },
    bucketAccess: {
       select: bucketGrantSelect,
@@ -35,7 +35,7 @@ const toServerInvite = (row: InviteRow): ServerInvite => ({
    role: Role[row.role],
    expiresAt: row.expiresAt.toISOString(),
    email: row.email,
-   server: { name: row.server.name },
+   server: { id: row.server.id, name: row.server.name },
    invitedBy: { name: row.invitedBy.name, email: row.invitedBy.email },
    bucketAccess: row.bucketAccess.map(toBucketEntry),
 });
@@ -43,7 +43,7 @@ const toServerInvite = (row: InviteRow): ServerInvite => ({
 const inviteExpiry = (): Date =>
    new Date(Date.now() + INVITE_TTL_DAYS * DAY_MS);
 
-const invitesUrl = `${siteOrigin}${SITE_PATHS.invites}`;
+const invitesUrl = `${siteOrigin}${SITE_PATHS.settingsInvites}`;
 
 const grantServerRole = async (
    tx: Prisma.TransactionClient,

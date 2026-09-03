@@ -1,9 +1,11 @@
 import { useBucketContext } from "@/components/Buckets/Context";
 import useObjectCommands from "@/components/Buckets/useObjectCommands";
+import { PageHeader } from "@/components/Layout/page";
 import { folderHref, objectHref } from "@/lib/utils/s3/paths";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
+import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import {
    Check,
    ChevronLeft,
@@ -63,103 +65,103 @@ const ObjectHeader = ({ bucketName, objectKey, path }: ObjectHeaderProps) => {
 
    const { can } = commands;
 
-   return (
-      <div className="flex w-full items-center gap-4">
-         <div className="flex min-w-0 flex-1 items-center gap-2">
-            <Button variant="ghost" size="icon" className="size-8" asChild>
-               <Link href={backHref} aria-label="Back">
-                  <ChevronLeft aria-hidden="true" />
-               </Link>
+   const actions = isLoading ? (
+      <div className="flex h-9 items-center gap-2" aria-busy="true">
+         <Skeleton className="h-9 w-32 rounded-lg" />
+         <Skeleton className="h-9 w-28 rounded-lg" />
+         <Skeleton className="h-9 w-28 rounded-lg" />
+         <Skeleton className="h-9 w-24 rounded-lg" />
+      </div>
+   ) : (
+      <>
+         {can.download && (
+            <>
+               <Button
+                  variant="outline"
+                  loading={busy === "download"}
+                  disabled={busy !== null}
+                  onClick={() => void run("download")}
+               >
+                  <Download aria-hidden="true" />
+                  Download
+               </Button>
+               <Button
+                  variant="outline"
+                  loading={busy === "link"}
+                  disabled={busy !== null}
+                  onClick={() => void run("link")}
+               >
+                  <Link2 aria-hidden="true" />
+                  Copy link
+               </Button>
+            </>
+         )}
+         {can.rename && (
+            <Button
+               variant="outline"
+               onClick={() =>
+                  commands.rename(
+                     objectKey,
+                     (newObjectKey) =>
+                        void router.replace(
+                           objectHref(bucketName, newObjectKey)
+                        )
+                  )
+               }
+            >
+               <FilePen aria-hidden="true" />
+               Rename
             </Button>
+         )}
+         {can.delete && (
+            <Button
+               variant="destructive"
+               onClick={() =>
+                  commands.remove(
+                     [objectKey],
+                     () => void router.replace(backHref)
+                  )
+               }
+            >
+               <Trash2 aria-hidden="true" />
+               Delete
+            </Button>
+         )}
+      </>
+   );
+
+   return (
+      <PageHeader actions={actions}>
+         <div className="flex min-w-0 items-center gap-2">
+            <SimpleTooltip label="Back">
+               <Button variant="ghost" size="icon-sm" asChild>
+                  <Link href={backHref} aria-label="Back">
+                     <ChevronLeft aria-hidden="true" />
+                  </Link>
+               </Button>
+            </SimpleTooltip>
             <h1
-               className="min-w-0 truncate text-base font-semibold text-viewerblack"
+               className="min-w-0 truncate text-xl font-semibold tracking-tight text-viewerblack"
                title={objectKey}
             >
                {objectKey}
             </h1>
-            <Button
-               variant="ghost"
-               size="icon"
-               className="size-8"
-               aria-label="Copy object key"
-               onClick={() => void copyKey()}
-            >
-               {copied ? (
-                  <Check className="text-viewerblue" aria-hidden="true" />
-               ) : (
-                  <Copy aria-hidden="true" />
-               )}
-            </Button>
+            <SimpleTooltip label={copied ? "Copied" : "Copy object key"}>
+               <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Copy object key"
+                  onClick={() => void copyKey()}
+               >
+                  {copied ? (
+                     <Check className="text-viewerblue" aria-hidden="true" />
+                  ) : (
+                     <Copy aria-hidden="true" />
+                  )}
+               </Button>
+            </SimpleTooltip>
          </div>
-
-         {isLoading ? (
-            <div
-               className="flex h-9 shrink-0 items-center gap-2"
-               aria-busy="true"
-            >
-               <Skeleton className="h-9 w-32 rounded-lg" />
-               <Skeleton className="h-9 w-28 rounded-lg" />
-               <Skeleton className="h-9 w-28 rounded-lg" />
-               <Skeleton className="h-9 w-24 rounded-lg" />
-            </div>
-         ) : (
-            <div className="flex h-9 shrink-0 items-center gap-2">
-               {can.download && (
-                  <>
-                     <Button
-                        variant="outline"
-                        loading={busy === "download"}
-                        disabled={busy !== null}
-                        onClick={() => void run("download")}
-                     >
-                        <Download aria-hidden="true" />
-                        Download
-                     </Button>
-                     <Button
-                        variant="outline"
-                        loading={busy === "link"}
-                        disabled={busy !== null}
-                        onClick={() => void run("link")}
-                     >
-                        <Link2 aria-hidden="true" />
-                        Copy link
-                     </Button>
-                  </>
-               )}
-               {can.rename && (
-                  <Button
-                     variant="outline"
-                     onClick={() =>
-                        commands.rename(
-                           objectKey,
-                           (newObjectKey) =>
-                              void router.replace(
-                                 objectHref(bucketName, newObjectKey)
-                              )
-                        )
-                     }
-                  >
-                     <FilePen aria-hidden="true" />
-                     Rename
-                  </Button>
-               )}
-               {can.delete && (
-                  <Button
-                     variant="destructive"
-                     onClick={() =>
-                        commands.remove(
-                           [objectKey],
-                           () => void router.replace(backHref)
-                        )
-                     }
-                  >
-                     <Trash2 aria-hidden="true" />
-                     Delete
-                  </Button>
-               )}
-            </div>
-         )}
-      </div>
+      </PageHeader>
    );
 };
 

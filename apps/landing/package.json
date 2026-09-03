@@ -23,12 +23,12 @@
    "devDependencies": {
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
-      "@tailwindcss/postcss": "^4",
+      "@tailwindcss/postcss": "catalog:",
       "@types/node": "^20",
       "@types/react": "^19",
       "@types/react-dom": "^19",
       "eslint": "catalog:",
-      "tailwindcss": "^4",
+      "tailwindcss": "catalog:",
       "typescript": "catalog:"
    }
 }

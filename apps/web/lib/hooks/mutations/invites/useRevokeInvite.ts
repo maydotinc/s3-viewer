@@ -15,9 +15,12 @@ const useRevokeInvite = () => {
          api.delete<void>(serverInvitePath(serverId, inviteId)),
       onSuccess: (_data, { serverId }) => {
          toast.success("Invite revoked");
-         queryClient.invalidateQueries({
-            queryKey: queryKeys.sentInvites(userId, serverId),
-         });
+         for (const queryKey of [
+            queryKeys.sentInvites(userId, serverId),
+            queryKeys.sentInvitesAll(userId),
+         ]) {
+            queryClient.invalidateQueries({ queryKey });
+         }
       },
       onError: toastError("Couldn't revoke the invite"),
    });

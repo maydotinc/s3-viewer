@@ -140,6 +140,7 @@ GET    /servers/:serverId/invites        (MANAGE_MEMBERS)     → { invites: Ser
 POST   /servers/:serverId/invites        sendInviteSchema     → { invites: ServerInvite[], alreadyMembers: string[] }
 DELETE /servers/:serverId/invites/:inviteId (MANAGE_MEMBERS, outrank invite role) → 204
 GET    /invites                          (received, unexpired)→ { invites: ServerInvite[] }
+GET    /invites/sent                      (sent by me, on servers where I still hold MANAGE_MEMBERS) → { invites: ServerInvite[] }
 POST   /invites/:inviteId/accept                              → { server: ServerInfo }
 POST   /invites/:inviteId/reject                              → 204
 ```

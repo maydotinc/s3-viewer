@@ -14,27 +14,32 @@ import { LoadingOverlay } from "./overlays";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
+// DESIGN.md §3. The numbers here are the table spec: 44px rows and header,
+// 16px cell padding, hairline rows, no wrapper border.
 const viewerGridTheme = themeQuartz.withParams({
    accentColor: "var(--color-viewerblue)",
    backgroundColor: "var(--color-viewerwhite)",
    borderColor: "var(--color-viewerborder)",
-   borderRadius: 8,
+   borderRadius: 12,
+   cellHorizontalPadding: 16,
    columnBorder: false,
    fontFamily: "inherit",
    fontSize: 14,
-   foregroundColor: "var(--color-viewertext)",
-   headerBackgroundColor: "var(--color-viewerwhite)",
-   headerFontSize: 14,
+   foregroundColor: "var(--color-viewerblack)",
+   headerBackgroundColor:
+      "color-mix(in srgb, var(--color-viewergray) 60%, var(--color-viewerwhite))",
+   headerFontSize: 13,
    headerFontWeight: 500,
-   headerHeight: 40,
+   headerHeight: 44,
    headerRowBorder: true,
    headerTextColor: "var(--color-viewertext)",
    rangeSelectionBorderColor: "transparent",
    rowBorder: true,
-   rowHeight: 40,
-   rowHoverColor: "var(--color-viewergray)",
+   rowHeight: 44,
+   rowHoverColor:
+      "color-mix(in srgb, var(--color-viewergray) 60%, var(--color-viewerwhite))",
    selectedRowBackgroundColor:
-      "color-mix(in srgb, var(--color-viewerblue) 6%, transparent)",
+      "color-mix(in srgb, var(--color-viewerblue) 5%, transparent)",
    spacing: 8,
    // The card around the grid (GRID_CARD) draws the outer border, so the grid
    // must not draw a second one inside it.

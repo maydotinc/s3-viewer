@@ -8,6 +8,7 @@ import {
    DropdownMenuSeparator,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import type { ICellRendererParams } from "ag-grid-community";
 import { Download, Ellipsis, FilePen, Link2, Trash2 } from "lucide-react";
 import type { ObjectGridContext } from "./columns";
@@ -27,18 +28,19 @@ const RowActions = (
    if (data.isFolder ? !folderItems : !fileItems) return null;
 
    return (
-      <div className="flex h-full items-center justify-end pr-1">
+      <div className="flex h-full items-center justify-center">
          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-               <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  aria-label={`Actions for ${name}`}
-               >
-                  <Ellipsis aria-hidden="true" />
-               </Button>
-            </DropdownMenuTrigger>
+            <SimpleTooltip label={`Actions for ${name}`}>
+               <DropdownMenuTrigger asChild>
+                  <Button
+                     variant="ghost"
+                     size="icon-sm"
+                     aria-label={`Actions for ${name}`}
+                  >
+                     <Ellipsis aria-hidden="true" />
+                  </Button>
+               </DropdownMenuTrigger>
+            </SimpleTooltip>
             <DropdownMenuContent align="end" className="w-44">
                {data.isFolder ? (
                   <DropdownMenuItem

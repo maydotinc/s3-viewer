@@ -12,6 +12,7 @@ import {
 import { bucketGrantSelect } from "@/lib/services/members";
 import { serverInfoSelect, toServerInfo } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
+import { Permission, hasPermission } from "@s3-viewer/permissions";
 import { Role, inviteIdSchema, type InviteIdInput } from "@s3-viewer/types";
 import { Router, type Request, type Response } from "express";
 
@@ -26,6 +27,29 @@ const listReceived = async (req: Request, res: Response) => {
    const user = requireVerifiedUser(req);
    const rows = await prisma.pendingInvitation.findMany({
       where: { email: addressedTo(user.email), expiresAt: { gt: new Date() } },
+      select: inviteSelect,
+      orderBy: { createdAt: "desc" },
+   });
+   res.json({ invites: rows.map(toServerInvite) });
+};
+
+// Roles that may still revoke an invite; a sender who has since lost
+// MANAGE_MEMBERS on the server gets nothing to act on.
+const MANAGING_ROLES = Object.values(Role).filter((role) =>
+   hasPermission(role, Permission.MANAGE_MEMBERS)
+);
+
+const listSent = async (req: Request, res: Response) => {
+   const user = requireVerifiedUser(req);
+   const rows = await prisma.pendingInvitation.findMany({
+      where: {
+         invitedById: user.id,
+         server: {
+            serverAccess: {
+               some: { userId: user.id, role: { in: MANAGING_ROLES } },
+            },
+         },
+      },
       select: inviteSelect,
       orderBy: { createdAt: "desc" },
    });
@@ -81,6 +105,7 @@ const rejectInvite = async (req: Request, res: Response) => {
 };
 
 invitesRouter.get("/", asyncHandler(listReceived));
+invitesRouter.get("/sent", asyncHandler(listSent));
 invitesRouter.post(
    "/:inviteId/accept",
    ...validatedRoute(inviteIdSchema, acceptInvite)

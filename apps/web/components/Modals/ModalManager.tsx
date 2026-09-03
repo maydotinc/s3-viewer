@@ -5,7 +5,6 @@ import CreateBucketModal from "./CreateBucketModal";
 import DisconnectModal from "./DisconnectModal";
 import RenameModal from "./RenameModal";
 import RenameObjectModal from "./RenameObjectModal";
-import ShareModal from "./ShareModal";
 import UpdateCredentialsModal from "./UpdateCredentialsModal";
 
 const ModalManager = () => {
@@ -44,9 +43,6 @@ const ModalManager = () => {
                {...modals.disconnect}
                onClose={() => closeModal("disconnect")}
             />
-         )}
-         {modals.share && (
-            <ShareModal {...modals.share} onClose={() => closeModal("share")} />
          )}
          {modals.updateCredentials && (
             <UpdateCredentialsModal

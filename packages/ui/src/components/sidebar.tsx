@@ -6,9 +6,15 @@ import * as React from "react";
 import { Button } from "@s3-viewer/ui/components/button";
 import { cn } from "@s3-viewer/ui/lib/utils";
 
-const SIDEBAR_WIDTH = "16rem";
-const SIDEBAR_KEYBOARD_SHORTCUT = "b";
 const SIDEBAR_DESKTOP_QUERY = "(min-width: 48rem)";
+
+/**
+ * DESIGN.md §2: the sidebar is an ordinary 256px flex child of the app shell.
+ * No fixed positioning, no `--sidebar-width` dance, no gap element — the only
+ * floating variant is the small-screen drawer, which has to sit over content.
+ */
+const SIDEBAR_BASE =
+   "flex w-64 shrink-0 flex-col gap-6 border-r border-viewerborder bg-viewerwhite px-4 py-5";
 
 function useIsDesktop() {
    const [isDesktop, setIsDesktop] = React.useState(false);
@@ -50,7 +56,6 @@ function SidebarProvider({
    open: openProp,
    onOpenChange: setOpenProp,
    className,
-   style,
    children,
    ...props
 }: React.ComponentProps<"div"> & {
@@ -84,21 +89,6 @@ function SidebarProvider({
       if (isDesktop) setOpenMobile(false);
    }, [isDesktop]);
 
-   React.useEffect(() => {
-      const handleKeyDown = (event: KeyboardEvent) => {
-         if (
-            event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
-            (event.metaKey || event.ctrlKey)
-         ) {
-            event.preventDefault();
-            toggleSidebar();
-         }
-      };
-
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-   }, [toggleSidebar]);
-
    const state = open ? "expanded" : "collapsed";
 
    const contextValue = React.useMemo<SidebarContextProps>(
@@ -118,12 +108,6 @@ function SidebarProvider({
       <SidebarContext.Provider value={contextValue}>
          <div
             data-slot="sidebar-wrapper"
-            style={
-               {
-                  "--sidebar-width": SIDEBAR_WIDTH,
-                  ...style,
-               } as React.CSSProperties
-            }
             className={cn("flex min-h-svh w-full", className)}
             {...props}
          >
@@ -133,90 +117,96 @@ function SidebarProvider({
    );
 }
 
+const FOCUSABLE =
+   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
 function Sidebar({
-   side = "left",
-   mobileStrategy = "hidden",
    className,
    children,
    ...props
-}: React.ComponentProps<"div"> & {
-   side?: "left" | "right";
-   mobileStrategy?: "fullscreen" | "hidden";
-}) {
-   const { state, openMobile, setOpenMobile, isDesktop } = useSidebar();
-   const isDrawer = mobileStrategy === "hidden" && !isDesktop;
-   const isDrawerOpen = isDrawer && openMobile;
-
-   const isOffscreen =
-      (isDrawer && !openMobile) || (isDesktop && state === "collapsed");
+}: React.ComponentProps<"aside">) {
+   const { state, open, openMobile, setOpenMobile } = useSidebar();
+   const ref = React.useRef<HTMLElement>(null);
+   // Whatever opened the drawer gets the focus back when it closes.
+   const opener = React.useRef<HTMLElement | null>(null);
 
    React.useEffect(() => {
-      if (!isDrawerOpen) return;
-      const onKeyDown = (event: KeyboardEvent) => {
-         if (event.key === "Escape") setOpenMobile(false);
-      };
-      window.addEventListener("keydown", onKeyDown);
-      return () => window.removeEventListener("keydown", onKeyDown);
-   }, [isDrawerOpen, setOpenMobile]);
+      const panel = ref.current;
+      if (!openMobile || !panel) return;
 
-   const offscreenX =
-      side === "left"
-         ? "left-[calc(var(--sidebar-width)*-1)]"
-         : "right-[calc(var(--sidebar-width)*-1)]";
+      opener.current =
+         document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+      const focusables = () =>
+         Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      (focusables()[0] ?? panel).focus();
+
+      // The drawer covers the page, so the keyboard must stay inside it.
+      const onKeyDown = (event: KeyboardEvent) => {
+         if (event.key === "Escape") {
+            setOpenMobile(false);
+            return;
+         }
+         if (event.key !== "Tab") return;
+         const items = focusables();
+         const first = items[0];
+         const last = items[items.length - 1];
+         if (!first || !last) {
+            event.preventDefault();
+            return;
+         }
+         const active = document.activeElement;
+         if (!event.shiftKey && (active === last || !panel.contains(active))) {
+            event.preventDefault();
+            first.focus();
+         } else if (
+            event.shiftKey &&
+            (active === first || !panel.contains(active))
+         ) {
+            event.preventDefault();
+            last.focus();
+         }
+      };
+
+      document.addEventListener("keydown", onKeyDown);
+      return () => {
+         document.removeEventListener("keydown", onKeyDown);
+         opener.current?.focus();
+         opener.current = null;
+      };
+   }, [openMobile, setOpenMobile]);
 
    return (
-      <div
-         className="group peer text-sidebar-foreground"
-         data-state={state}
-         data-side={side}
-         data-slot="sidebar"
-      >
-         <div
-            data-slot="sidebar-gap"
-            className={cn(
-               "relative bg-transparent transition-[width] duration-200 ease-linear md:w-(--sidebar-width)",
-               mobileStrategy === "fullscreen" ? "w-full" : "w-0",
-               "md:group-data-[state=collapsed]:w-0"
-            )}
-         />
-         {isDrawerOpen && (
+      <>
+         {openMobile && (
             <button
                type="button"
                aria-label="Close the sidebar"
                onClick={() => setOpenMobile(false)}
-               className="fixed inset-0 z-[9] cursor-default bg-viewerblack/40 md:hidden"
+               className="fixed inset-0 z-10 cursor-default bg-viewerblack/40 md:hidden"
             />
          )}
-         <div
-            data-slot="sidebar-container"
+         <aside
+            ref={ref}
+            tabIndex={-1}
+            data-slot="sidebar"
+            data-state={state}
             className={cn(
-               "fixed inset-y-0 z-10 flex h-svh w-(--sidebar-width) transition-[left,right] duration-200 ease-linear",
-               "group-data-[side=left]:border-r group-data-[side=right]:border-l",
-               mobileStrategy === "fullscreen" &&
-                  "w-full md:w-(--sidebar-width)",
-               side === "left" ? "md:left-0" : "md:right-0",
-               mobileStrategy === "fullscreen" || isDrawerOpen
-                  ? side === "left"
-                     ? "left-0"
-                     : "right-0"
-                  : offscreenX,
-               side === "left"
-                  ? "md:group-data-[state=collapsed]:left-[calc(var(--sidebar-width)*-1)]"
-                  : "md:group-data-[state=collapsed]:right-[calc(var(--sidebar-width)*-1)]",
+               SIDEBAR_BASE,
+               // Small screens: a drawer under the 56px top bar. Desktop: an
+               // ordinary column, which ⌘B takes out of the row.
+               openMobile
+                  ? "fixed bottom-0 left-0 top-14 z-20 md:static md:z-auto"
+                  : "hidden md:flex",
+               !open && "md:hidden",
                className
             )}
-            {...(isOffscreen ? { inert: true, "aria-hidden": true } : {})}
             {...props}
          >
-            <div
-               data-sidebar="sidebar"
-               data-slot="sidebar-inner"
-               className="bg-sidebar flex h-full w-full flex-col"
-            >
-               {children}
-            </div>
-         </div>
-      </div>
+            {children}
+         </aside>
+      </>
    );
 }
 
@@ -248,51 +238,4 @@ function SidebarTrigger({
    );
 }
 
-function SidebarContent({ className, ...props }: React.ComponentProps<"div">) {
-   return (
-      <div
-         data-slot="sidebar-content"
-         data-sidebar="content"
-         className={cn(
-            "flex min-h-0 flex-1 flex-col gap-2 overflow-auto",
-            className
-         )}
-         {...props}
-      />
-   );
-}
-
-function SidebarGroup({ className, ...props }: React.ComponentProps<"div">) {
-   return (
-      <div
-         data-slot="sidebar-group"
-         data-sidebar="group"
-         className={cn("relative flex w-full min-w-0 flex-col p-2", className)}
-         {...props}
-      />
-   );
-}
-
-function SidebarGroupContent({
-   className,
-   ...props
-}: React.ComponentProps<"div">) {
-   return (
-      <div
-         data-slot="sidebar-group-content"
-         data-sidebar="group-content"
-         className={cn("w-full text-sm", className)}
-         {...props}
-      />
-   );
-}
-
-export {
-   Sidebar,
-   SidebarContent,
-   SidebarGroup,
-   SidebarGroupContent,
-   SidebarProvider,
-   SidebarTrigger,
-   useSidebar,
-};
+export { Sidebar, SidebarProvider, SidebarTrigger, useSidebar };

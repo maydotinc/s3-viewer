@@ -11,9 +11,11 @@ import {
 } from "@s3-viewer/types";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
 import { emailOTP, magicLink } from "better-auth/plugins";
 import { authFlowContext, type AuthFlowStore } from "./auth-flow-context";
 import { authEnv } from "./env";
+import { validateProfile } from "./profile";
 import { localPart } from "./utils";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
@@ -84,6 +86,19 @@ const auth = betterAuth({
             before: async (user) => ({
                data: { ...user, name: user.name || localPart(user.email) },
             }),
+         },
+         update: {
+            // `/update-user` accepts any name/image; this is the one place
+            // they are checked (length, image type and size).
+            before: async (user) => {
+               const result = validateProfile(user);
+               if (!result.ok) {
+                  throw new APIError("BAD_REQUEST", {
+                     message: result.message,
+                  });
+               }
+               return { data: { ...user, ...result.data } };
+            },
          },
       },
    },

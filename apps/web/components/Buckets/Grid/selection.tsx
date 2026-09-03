@@ -66,10 +66,13 @@ const SelectionHeader = (params: IHeaderParams<S3Object>) => {
    );
 };
 
+// DESIGN.md §3: a 40px checkbox column with the box centred in it.
 const selectionColumn: ColDef<S3Object> = {
    colId: "select",
    headerName: "Select",
-   width: 44,
+   width: 40,
+   minWidth: 40,
+   maxWidth: 40,
    cellRenderer: SelectionCell,
    headerComponent: SelectionHeader,
    cellStyle: { padding: 0 },

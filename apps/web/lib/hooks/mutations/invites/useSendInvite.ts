@@ -32,9 +32,12 @@ const useSendInvite = () => {
                   : `${alreadyMembers.length} of those people are already members`
             );
          }
-         queryClient.invalidateQueries({
-            queryKey: queryKeys.sentInvites(userId, serverId),
-         });
+         for (const queryKey of [
+            queryKeys.sentInvites(userId, serverId),
+            queryKeys.sentInvitesAll(userId),
+         ]) {
+            queryClient.invalidateQueries({ queryKey });
+         }
       },
       onError: toastError("Couldn't send invites"),
    });

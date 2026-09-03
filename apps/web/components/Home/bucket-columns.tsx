@@ -1,5 +1,8 @@
 import RemoveBucketDialog from "@/components/Buckets/remove-bucket-dialog";
-import { HIDDEN_HEADER_TEXT } from "@/components/DataGrid/context";
+import {
+   HIDDEN_HEADER_TEXT,
+   RIGHT_ALIGNED,
+} from "@/components/DataGrid/context";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { formatDate } from "@/lib/utils/format";
 import { folderHref } from "@/lib/utils/s3/paths";
@@ -12,6 +15,7 @@ import {
    DropdownMenuItem,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import type {
    ColDef,
    GetRowIdParams,
@@ -27,10 +31,10 @@ const BucketNameCell = (params: ICellRendererParams<S3Bucket, string>) => {
    return (
       <Link
          href={folderHref(data.name, [])}
-         className="flex h-full min-w-0 items-center gap-2 text-viewertext hover:text-viewerblue focus-visible:text-viewerblue"
+         className="flex h-full min-w-0 items-center gap-2.5 text-viewerblack transition-colors hover:text-viewerblue focus-visible:text-viewerblue"
       >
          <Folder
-            className="size-4 shrink-0 text-viewerblue"
+            className="size-4 shrink-0 text-viewertext"
             aria-hidden="true"
          />
          <span className="truncate">{data.name}</span>
@@ -45,18 +49,19 @@ const BucketRowActions = (params: ICellRendererParams<S3Bucket>) => {
    if (!data || !canRemove) return null;
 
    return (
-      <div className="flex h-full items-center justify-end pr-1">
+      <div className="flex h-full items-center justify-center">
          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-               <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-8"
-                  aria-label={`Actions for ${data.name}`}
-               >
-                  <Ellipsis aria-hidden="true" />
-               </Button>
-            </DropdownMenuTrigger>
+            <SimpleTooltip label={`Actions for ${data.name}`}>
+               <DropdownMenuTrigger asChild>
+                  <Button
+                     variant="ghost"
+                     size="icon-sm"
+                     aria-label={`Actions for ${data.name}`}
+                  >
+                     <Ellipsis aria-hidden="true" />
+                  </Button>
+               </DropdownMenuTrigger>
+            </SimpleTooltip>
             <DropdownMenuContent align="end" className="w-44">
                <DropdownMenuItem
                   variant="destructive"
@@ -85,8 +90,6 @@ const bucketColumns: ColDef<S3Bucket>[] = [
       valueGetter: (params) => params.data?.name,
       cellRenderer: BucketNameCell,
       getQuickFilterText: (params) => params.data.name,
-      cellStyle: { paddingLeft: "4px" },
-      headerStyle: { paddingLeft: "4px" },
    },
    {
       colId: "created",
@@ -95,6 +98,7 @@ const bucketColumns: ColDef<S3Bucket>[] = [
       valueGetter: (params) => params.data?.creationDate,
       valueFormatter: (params) => formatDate(params.data?.creationDate),
       getQuickFilterText: () => "",
+      ...RIGHT_ALIGNED,
    },
    {
       colId: "role",
@@ -109,7 +113,7 @@ const bucketColumns: ColDef<S3Bucket>[] = [
       colId: "actions",
       headerName: "Actions",
       headerClass: HIDDEN_HEADER_TEXT,
-      width: 56,
+      width: 64,
       cellRenderer: BucketRowActions,
       cellStyle: { padding: 0 },
       getQuickFilterText: () => "",

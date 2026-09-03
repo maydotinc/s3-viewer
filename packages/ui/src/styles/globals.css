@@ -13,8 +13,6 @@
    --color-viewerlighttext: #99a0ae;
    --color-viewertextred: #fb3748;
    --color-viewerbgred: #feebec;
-
-   --header-height: 80px;
 }
 
 :root {
@@ -120,5 +118,27 @@ body {
 
    .text-meta {
       @apply text-[12px] leading-[18px] font-medium text-viewerlighttext;
+   }
+}
+
+/* Tooltips and menus get a very short opacity fade; dialogs never animate. */
+@keyframes fade-in {
+   from {
+      opacity: 0;
+      transform: translateY(2px);
+   }
+   to {
+      opacity: 1;
+      transform: translateY(0);
+   }
+}
+
+@utility animate-fade-in {
+   animation: fade-in 120ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+   .animate-fade-in {
+      animation: none;
    }
 }

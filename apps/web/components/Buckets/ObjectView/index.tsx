@@ -1,8 +1,9 @@
 import BucketUnavailable from "@/components/Buckets/unavailable";
+import { Page } from "@/components/Layout/page";
 import SignInPrompt from "@/components/Session/sign-in-prompt";
+import { authClient } from "@/lib/auth";
 import useObjectMetadata from "@/lib/hooks/queries/s3/useObjectMetadata";
 import useObjectPreview from "@/lib/hooks/queries/s3/useObjectPreview";
-import { authClient } from "@/lib/auth";
 import { baseName } from "@s3-viewer/types";
 import { useBucketContext } from "../Context";
 import ObjectDetails from "./details";
@@ -23,13 +24,13 @@ const ObjectView = () => {
    if (notFound) return <BucketUnavailable bucketName={bucketName} />;
 
    return (
-      <section className="flex min-h-0 w-full flex-1 flex-col gap-4 overflow-hidden p-6">
+      <Page>
          <ObjectHeader
             bucketName={bucketName}
             objectKey={objectKey}
             path={path}
          />
-         <div className="flex min-h-0 flex-1 gap-6 max-lg:flex-col max-lg:overflow-y-auto">
+         <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
             <ObjectDetails
                metadata={metadata.data}
                isLoading={metadata.isPending}
@@ -43,7 +44,7 @@ const ObjectView = () => {
                fileName={baseName(objectKey)}
             />
          </div>
-      </section>
+      </Page>
    );
 };
 

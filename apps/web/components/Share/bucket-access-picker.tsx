@@ -6,7 +6,6 @@ import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { useId } from "react";
 import RoleSelect from "./role-select";
 import { grantableBucketRoles, lowestRole } from "./roles";
-import Section from "./section";
 
 type BucketAccessPickerProps = {
    myRole: Role;
@@ -19,7 +18,7 @@ type BucketAccessPickerProps = {
    disabled?: boolean;
    /** Accessible name for the group of checkboxes. */
    label: string;
-   /** Visible uppercase section label. Omit for the inline member panel. */
+   /** Visible section heading. Omit for the inline member panel. */
    heading?: string;
 };
 
@@ -71,20 +70,6 @@ const BucketAccessPicker = ({
    // the buckets resolve — it is only made invisible when there is nothing to
    // toggle.
    const canToggleAll = !isLoading && grantable.length > 0;
-   const toggleAllButton = (
-      <Button
-         type="button"
-         variant="link"
-         size="sm"
-         className={`h-auto shrink-0 px-0 ${canToggleAll ? "" : "invisible"}`}
-         onClick={toggleAll}
-         disabled={disabled || !canToggleAll}
-         aria-hidden={!canToggleAll}
-         tabIndex={canToggleAll ? undefined : -1}
-      >
-         {allSelected ? "Clear" : "Select all"}
-      </Button>
-   );
 
    const list = isLoading ? (
       <div className="flex h-24 items-center justify-center">
@@ -95,7 +80,7 @@ const BucketAccessPicker = ({
          No buckets on this server
       </p>
    ) : (
-      <ul className="max-h-56 divide-y divide-viewerborder overflow-y-auto">
+      <ul className="max-h-64 divide-y divide-viewerborder overflow-y-auto">
          {buckets.map((bucket) => {
             const roles = grantableBucketRoles(myRole, bucket);
             const entry = entryFor(bucket.name);
@@ -125,7 +110,7 @@ const BucketAccessPicker = ({
                   ) : (
                      <RoleSelect
                         size="sm"
-                        className="w-28 shrink-0"
+                        className="w-32 shrink-0"
                         label={`Role on ${bucket.name}`}
                         value={role}
                         roles={roles}
@@ -139,32 +124,38 @@ const BucketAccessPicker = ({
       </ul>
    );
 
-   const body = (
-      <div
-         role="group"
-         aria-label={label}
-         className="min-w-0 rounded-lg border border-viewerborder"
-      >
-         {list}
-      </div>
-   );
-
-   if (!heading)
-      return (
-         <div className="flex min-w-0 flex-col gap-2">
-            <div className="flex h-5 items-center justify-end">
-               {toggleAllButton}
-            </div>
-            {body}
-            {error !== undefined && <FormError>{error}</FormError>}
-         </div>
-      );
-
    return (
-      <Section title={heading} action={toggleAllButton}>
-         {body}
+      <div className="flex min-w-0 flex-col gap-2">
+         <div className="flex min-h-5 min-w-0 items-center justify-between gap-2">
+            {heading ? (
+               <h3 className="min-w-0 truncate text-sm font-medium text-viewerblack">
+                  {heading}
+               </h3>
+            ) : (
+               <span aria-hidden="true" />
+            )}
+            <Button
+               type="button"
+               variant="link"
+               size="sm"
+               className={`h-auto shrink-0 px-0 ${canToggleAll ? "" : "invisible"}`}
+               onClick={toggleAll}
+               disabled={disabled || !canToggleAll}
+               aria-hidden={!canToggleAll}
+               tabIndex={canToggleAll ? undefined : -1}
+            >
+               {allSelected ? "Clear" : "Select all"}
+            </Button>
+         </div>
+         <div
+            role="group"
+            aria-label={label}
+            className="min-w-0 rounded-lg border border-viewerborder"
+         >
+            {list}
+         </div>
          {error !== undefined && <FormError>{error}</FormError>}
-      </Section>
+      </div>
    );
 };
 

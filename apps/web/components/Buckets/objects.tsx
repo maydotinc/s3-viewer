@@ -2,12 +2,14 @@ import { GRID_CARD, useGridContext } from "@/components/DataGrid/context";
 import { LazyGrid } from "@/components/DataGrid/lazy-grid";
 import { EmptyState } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
+import { Page, PageHeader } from "@/components/Layout/page";
 import SignInPrompt from "@/components/Session/sign-in-prompt";
 import { authClient } from "@/lib/auth";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useBucketContext } from "./Context";
+import BucketHeader from "./header";
 import {
    objectColumns,
    objectRowId,
@@ -38,8 +40,6 @@ const NoObjectsOverlay = () => {
       />
    );
 };
-
-const SECTION = "flex min-h-0 w-full flex-1 flex-col gap-4 p-6";
 
 const Objects = () => {
    const { data: session, isPending: isSessionPending } =
@@ -123,7 +123,10 @@ const Objects = () => {
 
    if (notFound)
       return (
-         <section className={SECTION}>
+         <Page>
+            <PageHeader>
+               <BucketHeader />
+            </PageHeader>
             <div className={GRID_CARD}>
                <BucketUnavailable
                   bucketName={bucketName}
@@ -131,12 +134,15 @@ const Objects = () => {
                   retrying={isRefreshing || retrying}
                />
             </div>
-         </section>
+         </Page>
       );
 
    return (
       <UploadProvider>
-         <section className={SECTION}>
+         <Page>
+            <PageHeader>
+               <BucketHeader />
+            </PageHeader>
             <ObjectsToolbar />
             <div className={GRID_CARD}>
                {error ? (
@@ -165,7 +171,7 @@ const Objects = () => {
                   </>
                )}
             </div>
-         </section>
+         </Page>
       </UploadProvider>
    );
 };

@@ -12,6 +12,7 @@ import {
 } from "@s3-viewer/ui/components/breadcrumb";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { House } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";
@@ -19,9 +20,11 @@ import { useBucketContext } from "./Context";
 
 const VISIBLE_TAIL = 3;
 
-const shell =
-   "flex h-14 w-full shrink-0 items-center gap-2 border-b border-viewerborder bg-viewerwhite px-6";
-
+/**
+ * The left half of the bucket page's `PageHeader` (DESIGN.md §2/§7): a home
+ * button and the path. It draws no chrome of its own — the page header is the
+ * row, so there is no second bordered strip under the top bar.
+ */
 const BucketHeader = () => {
    const { data: session, isPending } = authClient.useSession();
    const { bucketName, path, isLoading } = useBucketContext();
@@ -30,8 +33,8 @@ const BucketHeader = () => {
 
    if (isLoading || isPending) {
       return (
-         <div className={shell} aria-busy="true">
-            <Skeleton className="size-8 shrink-0" />
+         <div className="flex min-w-0 items-center gap-2" aria-busy="true">
+            <Skeleton className="size-8 shrink-0 rounded-lg" />
             <Skeleton className="h-4 w-48" />
          </div>
       );
@@ -42,77 +45,72 @@ const BucketHeader = () => {
    const offset = path.length - visible.length;
 
    return (
-      <div className={shell}>
-         <Breadcrumb className="flex min-w-0 flex-1 items-center">
-            <BreadcrumbList className="min-w-0 flex-1 flex-nowrap gap-1.5 text-sm">
-               <BreadcrumbItem className="shrink-0">
-                  <Button
-                     variant="ghost"
-                     size="icon"
-                     className="size-8"
-                     asChild
-                  >
+      <Breadcrumb className="flex min-w-0 items-center">
+         <BreadcrumbList className="min-w-0 flex-nowrap gap-1.5 text-sm">
+            <BreadcrumbItem className="shrink-0">
+               <SimpleTooltip label="All buckets">
+                  <Button variant="ghost" size="icon-sm" asChild>
                      <Link href={SITE_PATHS.dashboard} aria-label="All buckets">
                         <House className="size-4" aria-hidden="true" />
                      </Link>
                   </Button>
-               </BreadcrumbItem>
-               <BreadcrumbSeparator />
-               <BreadcrumbItem>
-                  {path.length > 0 ? (
-                     <BreadcrumbLink asChild>
-                        <Link
-                           href={folderHref(bucketName, [])}
-                           className="max-w-none truncate"
-                        >
-                           {bucketName}
-                        </Link>
-                     </BreadcrumbLink>
-                  ) : (
-                     <BreadcrumbPage className="min-w-0 max-w-none truncate font-semibold text-viewerblack">
+               </SimpleTooltip>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem className="min-w-0">
+               {path.length > 0 ? (
+                  <BreadcrumbLink asChild>
+                     <Link
+                        href={folderHref(bucketName, [])}
+                        className="max-w-none truncate"
+                     >
                         {bucketName}
-                     </BreadcrumbPage>
-                  )}
-               </BreadcrumbItem>
-               {collapsed && (
-                  <>
-                     <BreadcrumbSeparator />
-                     <BreadcrumbItem className="shrink-0">
-                        <BreadcrumbEllipsis />
-                     </BreadcrumbItem>
-                  </>
+                     </Link>
+                  </BreadcrumbLink>
+               ) : (
+                  <BreadcrumbPage className="min-w-0 max-w-none truncate font-semibold text-viewerblack">
+                     {bucketName}
+                  </BreadcrumbPage>
                )}
-               {visible.map((segment, index) => {
-                  const depth = offset + index + 1;
-                  const isLast = depth === path.length;
-                  return (
-                     <Fragment key={depth}>
-                        <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                           {isLast ? (
-                              <BreadcrumbPage className="min-w-0 truncate font-semibold text-viewerblack">
+            </BreadcrumbItem>
+            {collapsed && (
+               <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem className="shrink-0">
+                     <BreadcrumbEllipsis />
+                  </BreadcrumbItem>
+               </>
+            )}
+            {visible.map((segment, index) => {
+               const depth = offset + index + 1;
+               const isLast = depth === path.length;
+               return (
+                  <Fragment key={depth}>
+                     <BreadcrumbSeparator />
+                     <BreadcrumbItem className="min-w-0">
+                        {isLast ? (
+                           <BreadcrumbPage className="min-w-0 truncate font-semibold text-viewerblack">
+                              {segment}
+                           </BreadcrumbPage>
+                        ) : (
+                           <BreadcrumbLink asChild>
+                              <Link
+                                 href={folderHref(
+                                    bucketName,
+                                    path.slice(0, depth)
+                                 )}
+                                 className="min-w-0 truncate"
+                              >
                                  {segment}
-                              </BreadcrumbPage>
-                           ) : (
-                              <BreadcrumbLink asChild>
-                                 <Link
-                                    href={folderHref(
-                                       bucketName,
-                                       path.slice(0, depth)
-                                    )}
-                                    className="min-w-0 truncate"
-                                 >
-                                    {segment}
-                                 </Link>
-                              </BreadcrumbLink>
-                           )}
-                        </BreadcrumbItem>
-                     </Fragment>
-                  );
-               })}
-            </BreadcrumbList>
-         </Breadcrumb>
-      </div>
+                              </Link>
+                           </BreadcrumbLink>
+                        )}
+                     </BreadcrumbItem>
+                  </Fragment>
+               );
+            })}
+         </BreadcrumbList>
+      </Breadcrumb>
    );
 };
 

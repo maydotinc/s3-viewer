@@ -8,6 +8,14 @@ type AvatarProps = {
    className?: string;
 };
 
+/** First letter of the first and last word: "Ada Lovelace" → "AL". */
+const initials = (name: string): string => {
+   const words = name.trim().split(/\s+/).filter(Boolean);
+   const first = words[0]?.charAt(0) ?? "";
+   const last = words.length > 1 ? (words.at(-1)?.charAt(0) ?? "") : "";
+   return (first + last).toUpperCase() || "?";
+};
+
 const Avatar = ({ name, image, size = 32, className }: AvatarProps) => {
    if (image) {
       return (
@@ -26,14 +34,15 @@ const Avatar = ({ name, image, size = 32, className }: AvatarProps) => {
       <span
          aria-hidden="true"
          className={cn(
-            "flex shrink-0 select-none items-center justify-center rounded-full bg-viewerblue/10 text-[13px] font-semibold text-viewerblue",
+            "flex shrink-0 items-center justify-center rounded-full bg-viewerblue/10 font-semibold text-viewerblue select-none",
             className
          )}
-         style={{ width: size, height: size }}
+         style={{ width: size, height: size, fontSize: Math.round(size * 0.4) }}
       >
-         {name.trim().charAt(0).toUpperCase() || "?"}
+         {initials(name)}
       </span>
    );
 };
 
 export default Avatar;
+export { initials };

@@ -46,7 +46,7 @@ type ServerInvite = {
    role: Role;
    expiresAt: string;
    email: string;
-   server: { name: string };
+   server: { id: string; name: string };
    invitedBy: { name: string; email: string };
    bucketAccess: BucketAccessEntry[];
 };

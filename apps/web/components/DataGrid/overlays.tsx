@@ -22,7 +22,7 @@ const EmptyState = ({
    description: string;
    icon?: LucideIcon;
 }) => (
-   <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+   <div className="flex h-full flex-col items-center justify-center gap-3 px-8 py-16 text-center">
       <IconTile icon={icon} />
       <div className="flex flex-col gap-1">
          <p className="text-sm font-medium text-viewerblack">{title}</p>
@@ -47,7 +47,7 @@ const GridErrorState = ({
    detail: string;
    children?: ReactNode;
 }) => (
-   <div className="flex min-h-0 flex-1 items-center justify-center p-6">
+   <div className="flex min-h-0 flex-1 items-center justify-center px-8 py-16">
       <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
          <IconTile icon={icon} />
          <div className="flex flex-col gap-1">
@@ -116,12 +116,12 @@ const CredentialsErrorState = ({
 /** Skeleton rows, not a spinner — the loaded shape of a grid body is known. */
 const LoadingOverlay = () => (
    <div
-      className="flex size-full flex-col gap-2 p-2"
+      className="flex size-full flex-col gap-2 p-4"
       aria-busy="true"
       aria-label="Loading rows"
    >
-      {Array.from({ length: 8 }, (_, index) => (
-         <Skeleton key={index} className="h-10 w-full shrink-0" />
+      {Array.from({ length: 7 }, (_, index) => (
+         <Skeleton key={index} className="h-11 w-full shrink-0 rounded-lg" />
       ))}
    </div>
 );

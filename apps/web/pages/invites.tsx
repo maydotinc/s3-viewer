@@ -1,24 +1,11 @@
-import Invites from "@/components/Invites";
-import ViewerLayout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { SITE_PATHS } from "@s3-viewer/types";
-import type { NextPageWithLayout } from "./_app";
+import type { GetServerSideProps } from "next";
 
-const InvitesPage: NextPageWithLayout = () => (
-   <>
-      <Seo
-         title="Invites"
-         description="Server invites you've received and sent."
-         canonical={SITE_PATHS.invites}
-      />
-      <Invites />
-   </>
-);
+// Invites moved into settings; invite emails and old links still point here.
+export const getServerSideProps: GetServerSideProps = async () => ({
+   redirect: { destination: SITE_PATHS.settingsInvites, permanent: false },
+});
 
-InvitesPage.getLayout = (page) => (
-   <ViewerLayout mobileStrategy="hidden" dashboardOnServerChange={false}>
-      {page}
-   </ViewerLayout>
-);
+const InvitesPage = () => null;
 
 export default InvitesPage;

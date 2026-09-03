@@ -14,7 +14,9 @@ export const SITE_PATHS = {
    login: "/login",
    signup: "/signup",
    verify: "/verify",
-   invites: "/invites",
+   settings: "/settings",
+   settingsProfile: "/settings/profile",
+   settingsInvites: "/settings/invites",
    buckets: "/buckets",
 } as const;
 

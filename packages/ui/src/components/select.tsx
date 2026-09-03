@@ -65,6 +65,8 @@ function SelectContent({
             sideOffset={position === "popper" ? sideOffset : undefined}
             className={cn(
                "relative z-50 max-h-[var(--radix-select-content-available-height)] min-w-[var(--radix-select-trigger-width)] overflow-x-hidden overflow-y-auto rounded-lg border border-viewerborder bg-viewerwhite p-1 shadow-md outline-none",
+               // Fades in over 120ms; closes instantly (no exit animation).
+               "data-[state=open]:animate-fade-in",
                className
             )}
             {...props}
