@@ -26,11 +26,13 @@ const ShareModal = ({ server: serverProp, onClose }: ShareModalProps) => {
    return (
       <Dialog open onOpenChange={(open) => !open && onClose()}>
          <DialogContent
-            className="flex max-h-[90svh] flex-col overflow-y-auto sm:max-w-lg"
+            className="flex max-h-[90svh] flex-col gap-5 overflow-y-auto sm:max-w-lg"
             onOpenAutoFocus={(e) => e.preventDefault()}
          >
             <DialogHeader className="text-left">
-               <DialogTitle>Share {server.name}</DialogTitle>
+               <DialogTitle className="min-w-0 truncate">
+                  Share {server.name}
+               </DialogTitle>
                <DialogDescription>
                   Invites expire after {INVITE_TTL_DAYS} days. Members only see
                   the buckets you grant.

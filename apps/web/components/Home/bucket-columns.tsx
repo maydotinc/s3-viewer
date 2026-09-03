@@ -17,7 +17,7 @@ import type {
    GetRowIdParams,
    ICellRendererParams,
 } from "ag-grid-community";
-import { EllipsisVertical, Folder, FolderMinus } from "lucide-react";
+import { Ellipsis, Folder, FolderMinus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -54,7 +54,7 @@ const BucketRowActions = (params: ICellRendererParams<S3Bucket>) => {
                   className="size-8"
                   aria-label={`Actions for ${data.name}`}
                >
-                  <EllipsisVertical aria-hidden="true" />
+                  <Ellipsis aria-hidden="true" />
                </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">

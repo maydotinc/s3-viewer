@@ -1,3 +1,4 @@
+import { GITHUB_URL } from "@/lib/site-config";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    ArrowUpRight,
@@ -99,10 +100,10 @@ const About = () => {
    return (
       <main className="w-full overflow-x-clip">
          <section className="border-b border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-14 md:pb-20">
+            <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -120,12 +121,12 @@ const About = () => {
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-end">
                   <div className="lg:col-span-7 flex flex-col gap-6">
-                     <h1 className="text-[32px] sm:text-[48px] lg:text-[68px] font-semibold tracking-[-0.02em] leading-[1.04] sm:leading-[1.02] text-viewerblack">
+                     <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                         Object storage was
                         <br />
                         never the problem.
                      </h1>
-                     <p className="text-[17px] sm:text-[18px] text-viewertext leading-[1.6] max-w-[620px]">
+                     <p className="text-lg text-viewertext max-w-[620px]">
                         We built S3 Viewer because the dashboards were. AWS
                         won&apos;t let you see your R2 buckets. Cloudflare
                         won&apos;t show your S3 data. Every provider keeps your
@@ -138,28 +139,27 @@ const About = () => {
                      </p>
                      <div className="flex flex-wrap gap-3 pt-2">
                         <Button
-                           variant="default"
-                           size="lg"
-                           className="h-12"
                            asChild
+                           size="lg"
+                           className="h-11 px-6 text-[15px]"
                         >
                            <Link href="/dashboard">
-                              Open Viewer
-                              <ChevronRight className="size-4" />
+                              Open app
+                              <ChevronRight />
                            </Link>
                         </Button>
                         <Button
+                           asChild
                            variant="outline"
                            size="lg"
-                           className="h-12 !bg-viewerwhite"
-                           asChild
+                           className="h-11 px-6 text-[15px]"
                         >
                            <Link
-                              href="https://github.com/maydotinc/s3-viewer"
+                              href={GITHUB_URL}
                               target="_blank"
                               rel="noreferrer"
                            >
-                              <FaGithub className="size-4" />
+                              <FaGithub />
                               Star on GitHub
                            </Link>
                         </Button>
@@ -167,8 +167,8 @@ const About = () => {
                   </div>
 
                   <div className="lg:col-span-5">
-                     <div className="relative rounded-2xl border border-viewerborder bg-viewerwhite p-6 sm:p-7">
-                        <div className="absolute -top-3 left-6 inline-flex items-center gap-2 rounded-full border border-viewerborder bg-viewerwhite px-3 py-1 text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewertext">
+                     <div className="relative rounded-xl border border-viewerborder bg-viewerwhite p-6 sm:p-7">
+                        <div className="absolute -top-3 left-6 inline-flex items-center gap-2 rounded-full border border-viewerborder bg-viewerwhite px-3 py-1 text-xs font-medium tracking-wide uppercase text-viewertext">
                            Built by
                         </div>
                         <div className="flex items-start gap-4">
@@ -182,10 +182,10 @@ const About = () => {
                               unoptimized
                            />
                            <div className="flex flex-col gap-1.5">
-                              <h2 className="text-[22px] font-semibold text-viewerblack">
+                              <h2 className="text-xl font-semibold text-viewerblack">
                                  May Inc.
                               </h2>
-                              <p className="text-[14px] text-viewertext leading-relaxed">
+                              <p className="text-sm text-viewertext leading-relaxed">
                                  We build tools we wish existed.
                               </p>
                            </div>
@@ -195,7 +195,7 @@ const About = () => {
                               href="https://may.inc"
                               target="_blank"
                               rel="noreferrer"
-                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-[13px] font-medium text-viewerblack transition-colors hover:bg-viewerwhite"
+                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-sm font-medium text-viewerblack transition-colors hover:bg-viewerwhite"
                            >
                               <span className="inline-flex items-center gap-2">
                                  <Globe className="size-3.5" />
@@ -207,7 +207,7 @@ const About = () => {
                               href="https://github.com/maydotinc"
                               target="_blank"
                               rel="noreferrer"
-                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-[13px] font-medium text-viewerblack transition-colors hover:bg-viewerwhite"
+                              className="group flex items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2.5 text-sm font-medium text-viewerblack transition-colors hover:bg-viewerwhite"
                            >
                               <span className="inline-flex items-center gap-2">
                                  <FaGithub className="size-3.5" />
@@ -223,29 +223,28 @@ const About = () => {
          </section>
 
          <section>
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="flex flex-col gap-3 mb-10 max-w-[680px]">
-                  <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                  <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                      What we believe
                   </span>
-                  <h2 className="text-[28px] sm:text-[34px] lg:text-[40px] font-semibold tracking-[-0.01em] leading-[1.1] text-viewerblack">
+                  <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                      Three rules we don&apos;t break.
                   </h2>
                </div>
                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {values.map((v, i) => (
+                  {values.map((v) => (
                      <div
                         key={v.title}
-                        className="motion-fade-up flex flex-col gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-6"
-                        style={{ animationDelay: `${i * 100}ms` }}
+                        className="flex flex-col gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-6"
                      >
-                        <span className="grid place-items-center size-10 rounded-[10px] border border-viewerborder bg-viewergray text-viewerblue">
+                        <span className="grid place-items-center size-10 rounded-lg bg-viewergray text-viewerblue">
                            <v.icon className="size-4.5" strokeWidth={1.8} />
                         </span>
-                        <h3 className="text-[18px] font-semibold text-viewerblack tracking-tight">
+                        <h3 className="text-lg font-semibold text-viewerblack tracking-tight">
                            {v.title}
                         </h3>
-                        <p className="text-[14px] text-viewertext leading-[1.65]">
+                        <p className="text-sm text-viewertext leading-relaxed">
                            {v.body}
                         </p>
                      </div>
@@ -255,33 +254,28 @@ const About = () => {
          </section>
 
          <section className="border-t border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
                   <div className="lg:col-span-5 flex flex-col gap-5">
-                     <h2 className="text-[28px] sm:text-[34px] lg:text-[40px] font-semibold tracking-[-0.01em] leading-[1.1] text-viewerblack">
+                     <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                         Built with love.
                      </h2>
-                     <Link
-                        href="https://github.com/maydotinc/s3-viewer/issues"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-md border border-viewerborder bg-viewerwhite hover:bg-viewergray transition-colors w-fit overflow-hidden"
-                     >
-                        <span className="flex items-center gap-2 px-4 h-11 text-[13.5px] font-medium text-viewerblack">
-                           <FaGithub className="size-4" />
-                           Help us out
-                        </span>
-                        <span className="flex items-center px-3 h-11 border-l border-viewerborder bg-viewergray text-[12.5px] text-viewertext">
+                     <Button asChild variant="outline" className="w-fit">
+                        <Link
+                           href={`${GITHUB_URL}/issues`}
+                           target="_blank"
+                           rel="noreferrer"
+                        >
+                           <FaGithub />
                            Open an issue
-                        </span>
-                     </Link>
+                        </Link>
+                     </Button>
                   </div>
                   <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                     {team.map((member, i) => (
+                     {team.map((member) => (
                         <div
                            key={member.profile}
-                           className="motion-fade-up flex items-center gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-4"
-                           style={{ animationDelay: `${i * 70}ms` }}
+                           className="flex items-center gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-4"
                         >
                            <div className="flex-none size-16 overflow-hidden rounded-xl bg-viewergray">
                               <Image
@@ -296,10 +290,10 @@ const About = () => {
                            </div>
                            <div className="flex flex-col gap-2 min-w-0 flex-1">
                               <div className="flex flex-col gap-0.5">
-                                 <span className="text-[15px] font-semibold text-viewerblack leading-tight">
+                                 <span className="text-sm font-semibold text-viewerblack leading-tight">
                                     {member.name}
                                  </span>
-                                 <span className="text-[12px] text-viewerlighttext leading-tight">
+                                 <span className="text-xs text-viewerlighttext leading-tight">
                                     {member.role}
                                  </span>
                               </div>
@@ -339,35 +333,42 @@ const About = () => {
          </section>
 
          <section className="border-t border-viewerborder">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-10 items-center">
                   <div className="flex flex-col gap-4">
-                     <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                     <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                         Get started
                      </span>
-                     <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-semibold tracking-[-0.01em] leading-[1.08] text-viewerblack">
+                     <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                         Connect a bucket and start browsing.
                      </h2>
-                     <p className="text-[15.5px] text-viewertext leading-[1.6] max-w-[540px]">
+                     <p className="text-viewertext max-w-[540px]">
                         Works with AWS S3, Cloudflare R2, MinIO, Backblaze B2,
                         Wasabi, and any S3-compatible API.
                      </p>
                   </div>
-                  <div className="flex flex-col sm:flex-row lg:flex-col gap-3 lg:items-stretch">
-                     <Link
-                        href="/dashboard"
-                        className="group flex items-center justify-between gap-3 rounded-xl border border-viewerblack bg-viewerblack px-5 py-4 text-[14.5px] font-semibold text-viewerwhite transition-colors hover:bg-viewerblack/85"
+                  <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                     <Button
+                        asChild
+                        size="lg"
+                        className="h-11 px-6 text-[15px]"
                      >
-                        Open Viewer
-                        <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                     </Link>
-                     <Link
-                        href="/use-cases"
-                        className="group flex items-center justify-between gap-3 rounded-xl border border-viewerborder bg-viewerwhite px-5 py-4 text-[14.5px] font-semibold text-viewerblack"
+                        <Link href="/dashboard">
+                           Open app
+                           <ChevronRight />
+                        </Link>
+                     </Button>
+                     <Button
+                        asChild
+                        variant="outline"
+                        size="lg"
+                        className="h-11 px-6 text-[15px]"
                      >
-                        Explore use cases
-                        <ArrowUpRight className="size-4 text-viewertext" />
-                     </Link>
+                        <Link href="/use-cases">
+                           Explore use cases
+                           <ArrowUpRight />
+                        </Link>
+                     </Button>
                   </div>
                </div>
             </div>

@@ -2,102 +2,58 @@ import FormError from "@/components/Modals/form-error";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    Dialog,
-   DialogClose,
+   DialogBody,
    DialogContent,
    DialogDescription,
    DialogFooter,
    DialogHeader,
    DialogTitle,
 } from "@s3-viewer/ui/components/dialog";
-import { cn } from "@s3-viewer/ui/lib/utils";
-import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
-
-type Tone = "default" | "destructive";
-
-const ICON_TONE: Record<Tone, string> = {
-   default: "text-viewerblue",
-   destructive: "text-viewertextred",
-};
-
-type CenteredDialogHeaderProps = {
-   icon: LucideIcon;
-   tone?: Tone;
-   title: ReactNode;
-   descriptionClassName?: string;
-   children: ReactNode;
-};
-
-const CenteredDialogHeader = ({
-   icon: Icon,
-   tone = "default",
-   title,
-   descriptionClassName,
-   children,
-}: CenteredDialogHeaderProps) => (
-   <DialogHeader className="items-center text-center">
-      <div className="rounded-2xl border border-viewerborder bg-viewergray p-4">
-         <Icon className={cn("size-7", ICON_TONE[tone])} aria-hidden="true" />
-      </div>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogDescription className={descriptionClassName}>
-         {children}
-      </DialogDescription>
-   </DialogHeader>
-);
-
-type ConfirmFooterProps = { cancelDisabled?: boolean; children: ReactNode };
-
-const ConfirmFooter = ({ cancelDisabled, children }: ConfirmFooterProps) => (
-   <DialogFooter className="gap-2 sm:flex-row">
-      <DialogClose asChild>
-         <Button
-            type="button"
-            variant="outline"
-            className="flex-1"
-            disabled={cancelDisabled}
-         >
-            Cancel
-         </Button>
-      </DialogClose>
-      {children}
-   </DialogFooter>
-);
 
 type ConfirmDialogProps = {
    open?: boolean;
+   /** Whether Escape or an overlay click may close the dialog. */
    closable?: boolean;
    onClose: () => void;
-   icon?: LucideIcon;
-   tone?: Tone;
    title: ReactNode;
+   /** One sentence describing the consequence of confirming. */
    description: ReactNode;
    descriptionClassName?: string;
+   /** Reserves a single error line under the header when not undefined. */
    error?: string | null;
    confirmLabel: string;
-   pendingLabel?: string;
    isPending?: boolean;
-   confirmVariant?: Tone;
+   confirmVariant?: "default" | "destructive";
    onConfirm: () => void;
+   /** Optional body below the error line. */
+   children?: ReactNode;
 };
 
+/**
+ * The one confirmation dialog.
+ *
+ * A destructive confirm is the single place a Cancel button is allowed: the X
+ * is hidden and Cancel sits next to the destructive action. Every other
+ * confirm keeps the X and shows only its primary action.
+ */
 const ConfirmDialog = ({
    open = true,
    closable = true,
    onClose,
-   icon,
-   tone,
    title,
    description,
    descriptionClassName,
    error,
    confirmLabel,
-   pendingLabel,
    isPending = false,
    confirmVariant = "default",
    onConfirm,
+   children,
 }: ConfirmDialogProps) => {
-   const label = isPending && pendingLabel ? pendingLabel : confirmLabel;
+   const hasBody = error !== undefined || children !== undefined;
+   const destructive = confirmVariant === "destructive";
+
    return (
       <Dialog
          open={open}
@@ -105,59 +61,44 @@ const ConfirmDialog = ({
             if (!next && closable) onClose();
          }}
       >
-         <DialogContent
-            className={icon ? "max-w-[95%] sm:max-w-md" : "sm:max-w-md"}
-         >
-            {icon ? (
-               <CenteredDialogHeader
-                  icon={icon}
-                  tone={tone}
-                  title={title}
-                  descriptionClassName={descriptionClassName}
-               >
+         <DialogContent showCloseButton={!destructive}>
+            <DialogHeader>
+               <DialogTitle>{title}</DialogTitle>
+               <DialogDescription className={descriptionClassName}>
                   {description}
-               </CenteredDialogHeader>
-            ) : (
-               <DialogHeader className="text-left">
-                  <DialogTitle>{title}</DialogTitle>
-                  <DialogDescription className={descriptionClassName}>
-                     {description}
-                  </DialogDescription>
-               </DialogHeader>
+               </DialogDescription>
+            </DialogHeader>
+            {hasBody && (
+               <DialogBody className="flex flex-col gap-1.5">
+                  {error !== undefined && <FormError>{error}</FormError>}
+                  {children}
+               </DialogBody>
             )}
-            {error !== undefined && <FormError>{error}</FormError>}
-            {icon ? (
-               <ConfirmFooter cancelDisabled={isPending}>
+            <DialogFooter>
+               {destructive && (
                   <Button
-                     variant={confirmVariant}
-                     className="flex-1"
-                     onClick={onConfirm}
-                     loading={isPending}
-                  >
-                     {label}
-                  </Button>
-               </ConfirmFooter>
-            ) : (
-               <DialogFooter className="sm:justify-end">
-                  <Button
+                     type="button"
                      variant="outline"
+                     className="flex-1 sm:flex-initial"
                      onClick={onClose}
                      disabled={isPending}
                   >
                      Cancel
                   </Button>
-                  <Button
-                     variant={confirmVariant}
-                     onClick={onConfirm}
-                     loading={isPending}
-                  >
-                     {label}
-                  </Button>
-               </DialogFooter>
-            )}
+               )}
+               <Button
+                  type="button"
+                  variant={confirmVariant}
+                  className={destructive ? "flex-1 sm:flex-initial" : undefined}
+                  onClick={onConfirm}
+                  loading={isPending}
+               >
+                  {confirmLabel}
+               </Button>
+            </DialogFooter>
          </DialogContent>
       </Dialog>
    );
 };
 
-export { CenteredDialogHeader, ConfirmDialog, ConfirmFooter };
+export { ConfirmDialog };

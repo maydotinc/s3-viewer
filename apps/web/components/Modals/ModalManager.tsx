@@ -6,6 +6,7 @@ import DisconnectModal from "./DisconnectModal";
 import RenameModal from "./RenameModal";
 import RenameObjectModal from "./RenameObjectModal";
 import ShareModal from "./ShareModal";
+import UpdateCredentialsModal from "./UpdateCredentialsModal";
 
 const ModalManager = () => {
    const { modals, closeModal } = useModalContext();
@@ -46,6 +47,12 @@ const ModalManager = () => {
          )}
          {modals.share && (
             <ShareModal {...modals.share} onClose={() => closeModal("share")} />
+         )}
+         {modals.updateCredentials && (
+            <UpdateCredentialsModal
+               {...modals.updateCredentials}
+               onClose={() => closeModal("updateCredentials")}
+            />
          )}
       </>
    );

@@ -1,9 +1,8 @@
-import { useGridContext } from "@/components/DataGrid/context";
+import { GRID_CARD, useGridContext } from "@/components/DataGrid/context";
 import { LazyGrid } from "@/components/DataGrid/lazy-grid";
-import { EmptyState, LoadError } from "@/components/DataGrid/overlays";
-import PageControls from "@/components/DataGrid/page-controls";
+import { EmptyState } from "@/components/DataGrid/overlays";
+import GridPagination from "@/components/DataGrid/page-controls";
 import SignInPrompt from "@/components/Session/sign-in-prompt";
-import { ApiError, errorMessage } from "@/lib/api";
 import { authClient } from "@/lib/auth";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
@@ -14,6 +13,7 @@ import {
    objectRowId,
    type ObjectGridContext,
 } from "./Grid/columns";
+import { failureOf, pinFailure, type ListFailure } from "./Grid/list-failure";
 import {
    createObjectDatasource,
    type ObjectDatasource,
@@ -39,18 +39,30 @@ const NoObjectsOverlay = () => {
    );
 };
 
-const isUnavailable = (error: unknown) =>
-   error instanceof ApiError && (error.status === 403 || error.status === 404);
+const SECTION = "flex min-h-0 w-full flex-1 flex-col gap-4 p-6";
 
 const Objects = () => {
    const { data: session, isPending: isSessionPending } =
       authClient.useSession();
    const serverId = useSessionStore((state) => state.serverId);
-   const { bucketName, prefix, filter, refresh, registerRefresh, notFound } =
-      useBucketContext();
+   const {
+      bucketName,
+      prefix,
+      filter,
+      refresh,
+      registerRefresh,
+      notFound,
+      bucketsError,
+      isRefreshing,
+   } = useBucketContext();
    const { gridRef, clearSelection } = useGridContext();
-   const [error, setError] = useState<unknown>(null);
+   const [failure, setFailure] = useState<ListFailure<ObjectDatasource> | null>(
+      null
+   );
+   const [retrying, setRetrying] = useState(false);
    const listPrefix = `${prefix}${filter}`;
+   // The datasource the grid is actually using. Set in an effect, not inside
+   // useMemo: strict mode runs the memo twice and keeps the first result.
    const latest = useRef<ObjectDatasource | null>(null);
 
    const datasource = useMemo(() => {
@@ -59,27 +71,44 @@ const Objects = () => {
          bucketName,
          prefix: listPrefix,
          getGridApi: () => gridRef.current?.api,
-         onError: (cause) => {
-            if (latest.current === source) setError(cause);
-         },
+         onError: (error) =>
+            setFailure((prev) =>
+               pinFailure(prev, latest.current, source, error)
+            ),
       });
-      latest.current = source;
       return source;
    }, [serverId, bucketName, listPrefix, gridRef]);
 
+   const error = bucketsError ?? failureOf(failure, datasource);
+
    useEffect(() => {
-      setError(null);
+      latest.current = datasource;
       clearSelection();
       gridRef.current?.api?.paginationGoToFirstPage();
    }, [datasource, clearSelection, gridRef]);
 
    useEffect(() => {
       registerRefresh(() => {
-         setError(null);
-         datasource.reset();
          const api = gridRef.current?.api;
-         api?.deselectAll();
-         api?.purgeInfiniteCache();
+         if (api) {
+            datasource.reset();
+            api.deselectAll();
+            api.purgeInfiniteCache();
+            return;
+         }
+         // The grid is hidden behind an error: prove the first page loads
+         // before showing it again, so "Try again" has a visible in-flight state.
+         setRetrying(true);
+         datasource
+            .prime()
+            .then(
+               () => setFailure(null),
+               (cause: unknown) =>
+                  setFailure((prev) =>
+                     pinFailure(prev, latest.current, datasource, cause)
+                  )
+            )
+            .finally(() => setRetrying(false));
       });
       return () => registerRefresh(null);
    }, [registerRefresh, datasource, gridRef]);
@@ -92,35 +121,50 @@ const Objects = () => {
    if (!session && !isSessionPending)
       return <SignInPrompt>Sign in to view your objects.</SignInPrompt>;
 
-   if (notFound || isUnavailable(error))
-      return <BucketUnavailable bucketName={bucketName} />;
+   if (notFound)
+      return (
+         <section className={SECTION}>
+            <div className={GRID_CARD}>
+               <BucketUnavailable
+                  bucketName={bucketName}
+                  onRetry={refresh}
+                  retrying={isRefreshing || retrying}
+               />
+            </div>
+         </section>
+      );
 
    return (
       <UploadProvider>
-         <section className="flex min-h-0 w-full flex-1 flex-col p-8 pt-6">
+         <section className={SECTION}>
             <ObjectsToolbar />
-            {error ? (
-               <LoadError
-                  title="Couldn't load objects"
-                  message={errorMessage(error)}
-                  onRetry={refresh}
-               />
-            ) : (
-               <DropZone className="flex min-h-0 flex-1 flex-col">
-                  <LazyGrid
-                     className="fade-in"
-                     rowModel="infinite"
-                     datasource={datasource}
-                     cacheBlockSize={MAX_LIST_BLOCK_SIZE}
-                     columnDefs={objectColumns}
-                     getRowId={objectRowId}
-                     context={gridContext}
-                     rowSelection={objectRowSelection}
-                     noRowsOverlayComponent={NoObjectsOverlay}
+            <div className={GRID_CARD}>
+               {error ? (
+                  <BucketUnavailable
+                     bucketName={bucketName}
+                     error={error}
+                     failedAt={bucketsError ? "buckets" : "objects"}
+                     onRetry={refresh}
+                     retrying={isRefreshing || retrying}
                   />
-               </DropZone>
-            )}
-            <PageControls className="pt-2" />
+               ) : (
+                  <>
+                     <DropZone className="flex min-h-0 flex-1 flex-col">
+                        <LazyGrid
+                           rowModel="infinite"
+                           datasource={datasource}
+                           cacheBlockSize={MAX_LIST_BLOCK_SIZE}
+                           columnDefs={objectColumns}
+                           getRowId={objectRowId}
+                           context={gridContext}
+                           rowSelection={objectRowSelection}
+                           noRowsOverlayComponent={NoObjectsOverlay}
+                        />
+                     </DropZone>
+                     <GridPagination />
+                  </>
+               )}
+            </div>
          </section>
       </UploadProvider>
    );

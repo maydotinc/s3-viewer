@@ -10,7 +10,7 @@ import {
    effectiveBucketRole,
    hasPermission,
 } from "@s3-viewer/permissions";
-import { Role, type UpdateRoleInput } from "@s3-viewer/types";
+import { ErrorCode, Role, type UpdateRoleInput } from "@s3-viewer/types";
 import type { Request, RequestHandler, Response } from "express";
 
 type AuthContext = {
@@ -34,7 +34,7 @@ const requireVerifiedUser = (req: Request): SessionUser => {
       throw new ApiHttpError(
          403,
          "Verify your email address to use invites",
-         "EMAIL_UNVERIFIED"
+         ErrorCode.EMAIL_UNVERIFIED
       );
    }
    return user;
@@ -114,7 +114,11 @@ const authorize = (
       const user = requireUser(req);
       const { serverId, bucketName } = input<ScopeInput>(res);
       if (scope === "bucket" && !bucketName) {
-         throw new ApiHttpError(400, "bucketName is required", "VALIDATION");
+         throw new ApiHttpError(
+            400,
+            "bucketName is required",
+            ErrorCode.VALIDATION
+         );
       }
       res.locals.auth =
          scope === "bucket" && bucketName

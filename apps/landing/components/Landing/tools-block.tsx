@@ -1,27 +1,24 @@
 import Image from "next/image";
-import BasicBlock from "../basic-block";
+import BasicBlock, { SectionHeading } from "../basic-block";
 
 const ToolsBlock = () => {
    return (
-      <BasicBlock className="py-20">
-         <div className="flex flex-col gap-2 items-center">
-            <h2 className="md:text-5xl text-3xl text-viewerblack font-semibold text-center">
-               Built with modern tools
-            </h2>
-            <p className="md:text-xl text-base text-viewertext text-center">
-               Powered by Next.js, TypeScript, and modern web technologies for
-               optimal performance and developer experience
-            </p>
-         </div>
-         <div className="bg-viewergray border border-viewerborder md:py-4 md:px-8 p-6 w-full flex justify-center items-center">
+      <BasicBlock>
+         <SectionHeading
+            eyebrow="Under the hood"
+            title="Built with modern tools"
+            description="Next.js, TypeScript and React — a thin client that stays fast as your buckets grow."
+         />
+
+         <div className="mt-10 flex w-full items-center justify-center rounded-xl border border-viewerborder bg-viewergray p-6 sm:p-10">
             <Image
                src="/landing/tools.svg"
                alt="Next.js, TypeScript, React and the other tools S3 Viewer is built with"
                width={953}
                height={393}
-               sizes="(max-width: 767px) 100vw, 900px"
+               sizes="(max-width: 1023px) 90vw, 900px"
                draggable={false}
-               className="select-none"
+               className="h-auto w-full max-w-[900px] select-none"
             />
          </div>
       </BasicBlock>

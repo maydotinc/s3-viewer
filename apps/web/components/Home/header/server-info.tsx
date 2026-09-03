@@ -2,7 +2,7 @@ import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { Provider } from "@s3-viewer/types";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { ServerIcon, UserIcon } from "lucide-react";
 
 const PROVIDER_LABELS: Record<Provider, string> = {
@@ -11,38 +11,19 @@ const PROVIDER_LABELS: Record<Provider, string> = {
    [Provider.Other]: "Other",
 };
 
-const CARD =
-   "flex h-14 min-w-40 items-center gap-2 rounded-xl border border-viewerborder p-2";
-
-const Card = ({
-   icon,
-   label,
-   value,
-}: {
-   icon: React.ReactNode;
-   label: string;
-   value: string;
-}) => (
-   <div className={CARD}>
-      {icon}
-      <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
-         <span className="text-xs leading-none text-viewertext">{label}</span>
-         <span className="max-w-[150px] min-w-24 truncate text-md font-semibold leading-none text-viewerblack">
-            {value}
-         </span>
-      </div>
-   </div>
-);
+const CHIP =
+   "flex h-9 items-center gap-2 rounded-lg border border-viewerborder px-3 text-sm text-viewerblack";
 
 const ServerInfo = () => {
    const { currentServer, isServerListLoading } = useServers();
 
    if (isServerListLoading) {
       return (
-         <div className="flex flex-none gap-2" aria-busy="true">
-            {["provider", "role"].map((card) => (
-               <div key={card} className={`${CARD} justify-center`}>
-                  <Spinner size="sm" label={`Loading ${card}`} />
+         <div className="flex shrink-0 items-center gap-2" aria-busy="true">
+            {["provider", "role"].map((chip) => (
+               <div key={chip} className={CHIP}>
+                  <Skeleton className="size-4 shrink-0 rounded" />
+                  <Skeleton className="h-3.5 w-16" />
                </div>
             ))}
          </div>
@@ -55,35 +36,25 @@ const ServerInfo = () => {
    const role = currentServer ? ROLE_LABELS[currentServer.userRole] : "—";
 
    return (
-      <div className="fade-in flex flex-none gap-2">
-         <Card
-            icon={
-               currentServer ? (
-                  <ServerLogo provider={currentServer.provider} />
-               ) : (
-                  <div className="flex-none rounded-lg bg-viewergray p-2">
-                     <ServerIcon
-                        className="size-5 text-viewerlighttext"
-                        aria-hidden="true"
-                     />
-                  </div>
-               )
-            }
-            label="Provider"
-            value={provider}
-         />
-         <Card
-            icon={
-               <div className="flex-none rounded-lg bg-viewerblue/5 p-2">
-                  <UserIcon
-                     className="size-5 text-viewerblue"
-                     aria-hidden="true"
-                  />
-               </div>
-            }
-            label="Role"
-            value={role}
-         />
+      <div className="flex shrink-0 items-center gap-2">
+         <div className={CHIP}>
+            {currentServer ? (
+               <ServerLogo provider={currentServer.provider} />
+            ) : (
+               <ServerIcon
+                  className="size-4 shrink-0 text-viewerlighttext"
+                  aria-hidden="true"
+               />
+            )}
+            <span>{provider}</span>
+         </div>
+         <div className={CHIP}>
+            <UserIcon
+               className="size-4 shrink-0 text-viewerlighttext"
+               aria-hidden="true"
+            />
+            <span>{role}</span>
+         </div>
       </div>
    );
 };

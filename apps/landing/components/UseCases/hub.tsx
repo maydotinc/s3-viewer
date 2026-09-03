@@ -6,10 +6,10 @@ const Hub = () => {
    return (
       <main className="w-full overflow-x-clip">
          <section className="border-b border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-14">
+            <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -28,12 +28,12 @@ const Hub = () => {
                </nav>
 
                <div className="flex flex-col gap-5 max-w-[760px]">
-                  <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
+                  <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                      One viewer.
                      <br />
                      Every S3 workflow.
                   </h1>
-                  <p className="text-[16px] sm:text-[17px] text-viewertext leading-relaxed max-w-[600px]">
+                  <p className="text-viewertext max-w-[600px]">
                      S3 Viewer is a developer-first dashboard for AWS S3,
                      Cloudflare R2, MinIO, Backblaze B2, and Wasabi — built to
                      replace the AWS console for the things you do every day.
@@ -44,34 +44,25 @@ const Hub = () => {
          </section>
 
          <section>
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-12 md:py-16 lg:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {USE_CASES.map((u, i) => (
+                  {USE_CASES.map((u) => (
                      <Link
                         key={u.slug}
                         href={`/use-cases/${u.slug}`}
-                        className="motion-fade-up group relative flex h-full flex-col gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-6 sm:p-7 transition-colors duration-200 hover:border-viewerblue/40 outline-none focus-visible:outline-none focus-visible:border-viewerblue"
-                        style={{ animationDelay: `${i * 70}ms` }}
+                        className="group flex h-full flex-col gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-6 transition-colors outline-none hover:border-viewerblue/40 focus-visible:border-viewerblue focus-visible:outline-none"
                      >
-                        <div className="flex items-start justify-end">
-                           <span
-                              aria-hidden
-                              className="flex-none size-8 rounded-full border border-viewerborder bg-viewerwhite grid place-items-center text-viewertext transition-colors duration-200 group-hover:bg-viewerblack group-hover:border-viewerblack group-hover:text-viewerwhite"
-                           >
-                              <ArrowUpRight
-                                 className="size-4"
-                                 strokeWidth={2.25}
-                              />
-                           </span>
-                        </div>
-                        <div className="flex flex-col gap-2 mt-auto">
-                           <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-tight text-viewerblack leading-snug">
+                        <div className="flex items-start justify-between gap-3">
+                           <h2 className="text-xl leading-snug font-semibold tracking-tight text-viewerblack">
                               {u.title}
                            </h2>
-                           <p className="text-[13.5px] sm:text-[14px] text-viewertext leading-relaxed">
-                              {u.tagline}
-                           </p>
+                           <ArrowUpRight
+                              aria-hidden
+                              className="mt-1 size-4 flex-none text-viewerlighttext transition-colors group-hover:text-viewerblack"
+                              strokeWidth={2}
+                           />
                         </div>
+                        <p className="text-sm text-viewertext">{u.tagline}</p>
                      </Link>
                   ))}
                </div>

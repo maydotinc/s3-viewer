@@ -3,7 +3,8 @@ import { formatDay, pluralize } from "@/lib/utils/format";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { ServerInvite } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { MailOpen } from "lucide-react";
 import { ReactNode } from "react";
 
 type InviteCardProps = {
@@ -20,7 +21,7 @@ const InviteCard = ({ invite, subtitle, actions }: InviteCardProps) => {
    return (
       <li className="flex flex-col gap-2 rounded-lg border border-viewerborder p-3">
          <div className="flex items-center justify-between gap-2">
-            <span className="truncate font-medium text-viewerblack">
+            <span className="min-w-0 flex-1 truncate font-medium text-viewerblack">
                {invite.server.name}
             </span>
             <Badge variant="outline">{ROLE_LABELS[invite.role]}</Badge>
@@ -46,17 +47,20 @@ const InviteCard = ({ invite, subtitle, actions }: InviteCardProps) => {
 const LIST_HEIGHT = "min-h-[138px]";
 
 const InviteListLoading = () => (
-   <div className={`${LIST_HEIGHT} flex items-center justify-center`}>
-      <Spinner label="Loading invites" />
+   <div className={`${LIST_HEIGHT} flex flex-col gap-2`} aria-busy="true">
+      <Skeleton className="h-[138px] w-full rounded-lg" />
    </div>
 );
 
 const InviteEmpty = ({ children }: { children: ReactNode }) => (
-   <p
-      className={`${LIST_HEIGHT} fade-in flex items-center justify-center text-center text-sm text-viewerlighttext`}
+   <div
+      className={`${LIST_HEIGHT} flex flex-col items-center justify-center gap-3 text-center`}
    >
-      {children}
-   </p>
+      <span className="flex size-10 items-center justify-center rounded-lg bg-viewergray">
+         <MailOpen className="size-5 text-viewerlighttext" aria-hidden="true" />
+      </span>
+      <p className="text-sm text-viewertext">{children}</p>
+   </div>
 );
 
 export default InviteCard;

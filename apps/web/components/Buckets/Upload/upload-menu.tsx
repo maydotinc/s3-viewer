@@ -6,6 +6,7 @@ import {
    DropdownMenuItem,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { ChevronDown, FilePlus, FolderPlus, Upload } from "lucide-react";
 import { useRef } from "react";
 import { useUploader } from "./provider";
@@ -37,12 +38,12 @@ const UploadMenu = ({ className }: { className?: string }) => {
          <DropdownMenu>
             <DropdownMenuTrigger asChild>
                <Button
-                  variant="secondary"
+                  variant="outline"
                   loading={isChecking}
-                  className={className}
+                  className={cn("[&_svg]:size-4", className)}
                >
-                  {!isChecking && <Upload aria-hidden="true" />}
-                  {isChecking ? "Checking…" : "Upload"}
+                  <Upload aria-hidden="true" />
+                  Upload
                   <ChevronDown aria-hidden="true" />
                </Button>
             </DropdownMenuTrigger>

@@ -16,6 +16,8 @@ type ObjectSourceParams = {
 
 type ObjectDatasource = IDatasource & {
    reset: () => void;
+   /** Starts over and fetches the first page, so a retry can be proven before the grid is shown again. */
+   prime: () => Promise<void>;
 };
 
 type Listing = {
@@ -84,6 +86,10 @@ const createObjectDatasource = ({
       getRows,
       reset: () => {
          listing = freshListing();
+      },
+      prime: () => {
+         listing = freshListing();
+         return ensureRows(listing, 1);
       },
    };
 };

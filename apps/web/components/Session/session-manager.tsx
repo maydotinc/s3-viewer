@@ -1,10 +1,18 @@
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { authClient } from "@/lib/auth";
-import useSessionStore from "@/lib/stores/sessionStore";
+import useSessionStore, { resolveServerId } from "@/lib/stores/sessionStore";
 import { useEffect } from "react";
 
+/**
+ * Mirrors the auth session into the persisted session store and keeps the
+ * selected server valid. Subscribes with selectors only: subscribing to the
+ * whole store would re-render on every `set`, including our own.
+ */
 const SessionManager = () => {
-   const { serverId, setUserId, setServerId, clearSession } = useSessionStore();
+   const serverId = useSessionStore((state) => state.serverId);
+   const setUserId = useSessionStore((state) => state.setUserId);
+   const setServerId = useSessionStore((state) => state.setServerId);
+   const clearSession = useSessionStore((state) => state.clearSession);
    const { data: session, isPending } = authClient.useSession();
    const { servers, isLoading: isServersLoading } = useServers();
    const userId = session?.user.id ?? null;
@@ -17,8 +25,8 @@ const SessionManager = () => {
 
    useEffect(() => {
       if (!userId || isServersLoading) return;
-      if (servers.some((server) => server.id === serverId)) return;
-      setServerId(servers[0]?.id ?? "");
+      const next = resolveServerId(servers, serverId);
+      if (next !== serverId) setServerId(next);
    }, [userId, isServersLoading, servers, serverId, setServerId]);
 
    return null;

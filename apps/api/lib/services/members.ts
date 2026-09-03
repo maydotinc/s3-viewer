@@ -5,6 +5,7 @@ import { prisma } from "@s3-viewer/db";
 import { ROLE_LABELS, canManageRole } from "@s3-viewer/permissions";
 import {
    BucketAccessEntry,
+   ErrorCode,
    Role,
    ServerUser,
    type UpdateRoleInput,
@@ -85,7 +86,7 @@ const assertBucketGrants = (
          throw new ApiHttpError(
             400,
             `Duplicate bucket: ${bucketName}`,
-            "VALIDATION"
+            ErrorCode.VALIDATION
          );
       }
       seen.add(bucketName);
@@ -93,7 +94,7 @@ const assertBucketGrants = (
          throw new ApiHttpError(
             400,
             `Unknown bucket: ${bucketName}`,
-            "VALIDATION"
+            ErrorCode.VALIDATION
          );
       }
       if (!canManageRole(actorRole, Role[role])) {

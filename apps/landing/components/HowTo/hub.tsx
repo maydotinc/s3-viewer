@@ -13,10 +13,10 @@ const Hub = () => {
    return (
       <main className="w-full overflow-x-clip">
          <section className="border-b border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-14">
+            <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -33,10 +33,10 @@ const Hub = () => {
                </nav>
 
                <div className="flex flex-col gap-5 max-w-[760px]">
-                  <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
+                  <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                      How-to guides for S3.
                   </h1>
-                  <p className="text-[16px] sm:text-[17px] text-viewertext leading-relaxed max-w-[600px]">
+                  <p className="text-viewertext max-w-[600px]">
                      Direct answers to the questions developers Google about AWS
                      S3, Cloudflare R2, and S3-compatible storage. AWS CLI and
                      SDK snippets included; one-click equivalents in S3 Viewer
@@ -47,31 +47,30 @@ const Hub = () => {
          </section>
 
          <section>
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-12 md:py-16 lg:py-20 flex flex-col gap-14">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20 flex flex-col gap-14">
                {CATEGORIES.map((cat) => {
                   const items = HOW_TOS.filter((h) => h.category === cat);
                   if (items.length === 0) return null;
                   return (
                      <div key={cat} className="flex flex-col gap-5">
                         <div className="flex items-end justify-between gap-4">
-                           <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-viewerblack">
+                           <h2 className="text-2xl font-semibold tracking-tight text-viewerblack">
                               {cat}
                            </h2>
-                           <span className="text-[12px] text-viewerlighttext">
+                           <span className="text-xs text-viewerlighttext">
                               {items.length}{" "}
                               {items.length === 1 ? "guide" : "guides"}
                            </span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                           {items.map((h, i) => (
+                           {items.map((h) => (
                               <Link
                                  key={h.slug}
                                  href={`/how-to/${h.slug}`}
-                                 className="motion-fade-up group flex flex-col gap-3 rounded-2xl border border-viewerborder bg-viewerwhite p-5 sm:p-6 transition-colors hover:border-viewerblue/40"
-                                 style={{ animationDelay: `${i * 50}ms` }}
+                                 className="group flex flex-col gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-5 sm:p-6 transition-colors hover:border-viewerblue/40"
                               >
                                  <div className="flex items-start justify-between gap-3">
-                                    <h3 className="text-[16px] sm:text-[17px] font-semibold tracking-tight text-viewerblack leading-snug">
+                                    <h3 className="text-base font-semibold tracking-tight text-viewerblack leading-snug">
                                        {h.title}
                                     </h3>
                                     <ArrowUpRight
@@ -79,7 +78,7 @@ const Hub = () => {
                                        strokeWidth={2}
                                     />
                                  </div>
-                                 <p className="text-[13px] text-viewertext leading-relaxed">
+                                 <p className="text-sm text-viewertext">
                                     {h.tagline}
                                  </p>
                               </Link>

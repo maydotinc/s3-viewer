@@ -10,7 +10,8 @@ import {
    BreadcrumbPage,
    BreadcrumbSeparator,
 } from "@s3-viewer/ui/components/breadcrumb";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
+import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { House } from "lucide-react";
 import Link from "next/link";
 import { Fragment } from "react";
@@ -19,7 +20,7 @@ import { useBucketContext } from "./Context";
 const VISIBLE_TAIL = 3;
 
 const shell =
-   "flex min-h-[var(--header-height)] w-full items-center gap-2 border-b border-viewerborder px-8 py-4";
+   "flex h-14 w-full shrink-0 items-center gap-2 border-b border-viewerborder bg-viewerwhite px-6";
 
 const BucketHeader = () => {
    const { data: session, isPending } = authClient.useSession();
@@ -29,8 +30,9 @@ const BucketHeader = () => {
 
    if (isLoading || isPending) {
       return (
-         <div className={shell}>
-            <Spinner size="sm" label="Loading bucket" />
+         <div className={shell} aria-busy="true">
+            <Skeleton className="size-8 shrink-0" />
+            <Skeleton className="h-4 w-48" />
          </div>
       );
    }
@@ -41,25 +43,33 @@ const BucketHeader = () => {
 
    return (
       <div className={shell}>
-         <Breadcrumb className="fade-in">
-            <BreadcrumbList>
-               <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
+         <Breadcrumb className="flex min-w-0 flex-1 items-center">
+            <BreadcrumbList className="min-w-0 flex-1 flex-nowrap gap-1.5 text-sm">
+               <BreadcrumbItem className="shrink-0">
+                  <Button
+                     variant="ghost"
+                     size="icon"
+                     className="size-8"
+                     asChild
+                  >
                      <Link href={SITE_PATHS.dashboard} aria-label="All buckets">
-                        <House className="size-5" aria-hidden="true" />
+                        <House className="size-4" aria-hidden="true" />
                      </Link>
-                  </BreadcrumbLink>
+                  </Button>
                </BreadcrumbItem>
                <BreadcrumbSeparator />
                <BreadcrumbItem>
                   {path.length > 0 ? (
                      <BreadcrumbLink asChild>
-                        <Link href={folderHref(bucketName, [])}>
+                        <Link
+                           href={folderHref(bucketName, [])}
+                           className="max-w-none truncate"
+                        >
                            {bucketName}
                         </Link>
                      </BreadcrumbLink>
                   ) : (
-                     <BreadcrumbPage className="font-semibold text-viewerblack">
+                     <BreadcrumbPage className="min-w-0 max-w-none truncate font-semibold text-viewerblack">
                         {bucketName}
                      </BreadcrumbPage>
                   )}
@@ -67,7 +77,7 @@ const BucketHeader = () => {
                {collapsed && (
                   <>
                      <BreadcrumbSeparator />
-                     <BreadcrumbItem>
+                     <BreadcrumbItem className="shrink-0">
                         <BreadcrumbEllipsis />
                      </BreadcrumbItem>
                   </>
@@ -80,7 +90,7 @@ const BucketHeader = () => {
                         <BreadcrumbSeparator />
                         <BreadcrumbItem>
                            {isLast ? (
-                              <BreadcrumbPage className="max-w-64 truncate font-semibold text-viewerblack">
+                              <BreadcrumbPage className="min-w-0 truncate font-semibold text-viewerblack">
                                  {segment}
                               </BreadcrumbPage>
                            ) : (
@@ -90,7 +100,7 @@ const BucketHeader = () => {
                                        bucketName,
                                        path.slice(0, depth)
                                     )}
-                                    className="max-w-48 truncate"
+                                    className="min-w-0 truncate"
                                  >
                                     {segment}
                                  </Link>

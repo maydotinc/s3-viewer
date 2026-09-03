@@ -19,7 +19,7 @@ const ReceivedInvites = () => {
    if (error instanceof ApiError && error.code === "EMAIL_UNVERIFIED") {
       return (
          <div className="flex flex-col items-center gap-3 py-8 text-center">
-            <p className="max-w-sm text-sm text-viewerlighttext">
+            <p className="max-w-sm text-sm text-viewertext">
                Verify your email to see invitations. Sign in with the code we
                email you to verify it.
             </p>
@@ -42,7 +42,7 @@ const ReceivedInvites = () => {
       return <InviteEmpty>No invites waiting for you</InviteEmpty>;
 
    return (
-      <ul className="fade-in flex flex-col gap-2">
+      <ul className="flex flex-col gap-2">
          {invites.map((invite) => {
             const accepting =
                accept.isPending && accept.variables?.inviteId === invite.id;
@@ -63,7 +63,7 @@ const ReceivedInvites = () => {
                               accept.mutate({ inviteId: invite.id })
                            }
                         >
-                           {accepting ? "Accepting…" : "Accept"}
+                           Accept
                         </Button>
                         <Button
                            variant="outline"
@@ -74,7 +74,7 @@ const ReceivedInvites = () => {
                               reject.mutate({ inviteId: invite.id })
                            }
                         >
-                           {declining ? "Declining…" : "Decline"}
+                           Decline
                         </Button>
                      </>
                   }

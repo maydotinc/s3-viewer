@@ -1,5 +1,5 @@
 import Image from "next/image";
-import BasicBlock from "../basic-block";
+import BasicBlock, { Eyebrow } from "../basic-block";
 
 const TEAM = [
    { profile: "mike", name: "Michael Papadopoulos" },
@@ -10,70 +10,52 @@ const TEAM = [
 
 const TeamLetter = () => {
    return (
-      <BasicBlock className="px-50 py-28">
-         <div className="flex flex-1 items-center justify-center border-4 border-viewerblue/10 md:p-4 p-1 relative rounded-sm">
-            <div className="absolute bottom-0 left-0 size-2 bg-viewerwhite -translate-x-1/2 translate-y-1/2" />
-            <div className="absolute top-0 right-0 size-2 bg-viewerwhite translate-x-1/2 -translate-y-1/2" />
-            <div className="flex flex-col size-full bg-viewergray border border-viewerborder p-6 gap-4 relative">
-               <div className="absolute bottom-0 right-0 md:translate-x-1/2 md:translate-y-1/2 max-md:size-25 max-xl:size-30 select-none">
-                  <Image
-                     src="/landing/builtbymay.svg"
-                     alt=""
-                     width={150}
-                     height={150}
-                     draggable={false}
-                  />
-               </div>
-               <span className="text-xs text-viewertext">A LETTER</span>
-               <h2 className="text-3xl text-viewerblue font-semibold">
+      <BasicBlock>
+         <div className="flex flex-col gap-6 rounded-xl border border-viewerborder bg-viewerwhite p-6 sm:p-10">
+            <div className="flex flex-col gap-3">
+               <Eyebrow>A letter</Eyebrow>
+               <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                   From the team
                </h2>
-               <p className="text-base text-viewertext md:max-w-1/2">
+            </div>
+
+            <div className="flex max-w-2xl flex-col gap-4 text-viewertext">
+               <p>
                   We built S3 Viewer because we were tired of being locked into
                   provider-specific interfaces. AWS won&apos;t let you view your
                   R2 buckets. Cloudflare won&apos;t show your S3 data. And other
                   providers keep your data siloed in their own dashboards. We
-                  wanted one viewer that works everywhere - a single interface
+                  wanted one viewer that works everywhere — a single interface
                   for all your object storage, regardless of where it lives.
                </p>
-               <div className="h-[1px] w-1/2 bg-viewerborder my-2 max-md:hidden" />
-               <span className="text-base text-viewertext md:max-w-1/2">
+               <p>
                   Our mission is to make object storage as accessible, fast and
                   simple as your local file system, regardless of your technical
                   background.
-               </span>
-               <div className="md:absolute md:top-0 max-md:size-10 md:right-0 md:-translate-x-1/2 md:translate-y-1/2 select-none">
-                  <Image
-                     src="/landing/viewercubegray.svg"
-                     alt=""
-                     width={63}
-                     height={78}
-                     draggable={false}
-                     className="select-none"
-                  />
+               </p>
+            </div>
+
+            <div className="flex items-center gap-3 border-t border-viewerborder pt-6">
+               <div className="flex items-center -space-x-2">
+                  {TEAM.map((member, i) => (
+                     <Image
+                        key={member.profile}
+                        src={`/landing/profiles/${member.profile}.png`}
+                        alt={member.name}
+                        width={36}
+                        height={36}
+                        style={{ zIndex: 10 - i }}
+                        className="size-9 rounded-full border border-viewerwhite select-none"
+                        quality={100}
+                        draggable={false}
+                     />
+                  ))}
                </div>
-               <div className="flex flex-col gap-2 mt-5">
-                  <div className="flex items-center -space-x-2">
-                     {TEAM.map((member, i) => (
-                        <Image
-                           key={member.profile}
-                           src={`/landing/profiles/${member.profile}.png`}
-                           alt={member.name}
-                           width={40}
-                           height={40}
-                           style={{
-                              zIndex: 10 - i,
-                           }}
-                           className="border border-viewerwhite rounded-full select-none"
-                           quality={100}
-                           draggable={false}
-                        />
-                     ))}
-                  </div>
-                  <h3 className="text-base leading-none font-semibold text-viewerblack">
+               <div className="flex min-w-0 flex-col">
+                  <span className="text-sm font-semibold text-viewerblack">
                      S3 Viewer
-                  </h3>
-                  <span className="text-xs leading-none text-viewertext">
+                  </span>
+                  <span className="truncate text-xs text-viewerlighttext">
                      Mike, Vinit, Aleem, Noah
                   </span>
                </div>

@@ -1,4 +1,5 @@
 import { fail } from "@/lib/http";
+import { ErrorCode } from "@s3-viewer/types";
 import type { RequestHandler, Response } from "express";
 import type { ZodIssue, ZodTypeAny } from "zod";
 
@@ -23,7 +24,7 @@ const validate =
       };
       const result = schema.safeParse(raw);
       if (!result.success) {
-         fail(res, 400, describe(result.error.issues[0]), "VALIDATION");
+         fail(res, 400, describe(result.error.issues[0]), ErrorCode.VALIDATION);
          return;
       }
       res.locals.input = result.data;

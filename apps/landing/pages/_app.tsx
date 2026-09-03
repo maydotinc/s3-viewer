@@ -22,7 +22,7 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
    const page: ReactNode = getLayout(<Component {...pageProps} />);
 
    return (
-      <main className={`${inter.className} bg-viewerwhite`}>
+      <div className={`${inter.className} bg-viewerwhite`}>
          <Head>
             <meta charSet="utf-8" />
             <meta
@@ -37,6 +37,6 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
             <meta name="apple-mobile-web-app-capable" content="yes" />
          </Head>
          <ErrorBoundary>{page}</ErrorBoundary>
-      </main>
+      </div>
    );
 }

@@ -20,6 +20,10 @@ type BucketContextValue = {
    path: string[];
    prefix: string;
    isLoading: boolean;
+   /** The bucket list failed, so nothing under this server can load. */
+   bucketsError: Error | null;
+   /** A "Try again" is in flight. */
+   isRefreshing: boolean;
    notFound: boolean;
    filter: string;
    setFilter: (filter: string) => void;
@@ -44,7 +48,13 @@ const BucketProvider = ({
    const userId = useUserId();
    const serverId = useSessionStore((state) => state.serverId);
    const { servers, isLoading: isServersLoading } = useServers();
-   const { currentBucket, isBucketsLoading } = useBuckets(bucketName);
+   const {
+      currentBucket,
+      isBucketsLoading,
+      bucketsError,
+      isFetching: isBucketsFetching,
+      refetch: refetchBuckets,
+   } = useBuckets(bucketName);
    const prefix = prefixFromSegments(path);
    const isSettling =
       (Boolean(session) && !userId) || (servers.length > 0 && !serverId);
@@ -56,7 +66,10 @@ const BucketProvider = ({
       setFilter("");
    }, [bucketName, prefix]);
 
-   const refresh = useCallback(() => refreshHandler.current?.(), []);
+   const refresh = useCallback(() => {
+      void refetchBuckets();
+      refreshHandler.current?.();
+   }, [refetchBuckets]);
    const registerRefresh = useCallback((handler: (() => void) | null) => {
       refreshHandler.current = handler;
    }, []);
@@ -68,7 +81,13 @@ const BucketProvider = ({
          path,
          prefix,
          isLoading,
-         notFound: !isLoading && Boolean(bucketName) && !currentBucket,
+         bucketsError,
+         isRefreshing: isBucketsFetching && !isBucketsLoading,
+         notFound:
+            !isLoading &&
+            !bucketsError &&
+            Boolean(bucketName) &&
+            !currentBucket,
          filter,
          setFilter,
          refresh,
@@ -80,6 +99,9 @@ const BucketProvider = ({
          path,
          prefix,
          isLoading,
+         bucketsError,
+         isBucketsFetching,
+         isBucketsLoading,
          filter,
          refresh,
          registerRefresh,

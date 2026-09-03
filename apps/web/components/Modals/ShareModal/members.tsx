@@ -17,17 +17,12 @@ import {
    ServerUser,
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import {
-   Select,
-   SelectContent,
-   SelectTrigger,
-   SelectValue,
-} from "@s3-viewer/ui/components/select";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
-import { ChevronDown, X } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
 import BucketAccessPicker from "./bucket-access-picker";
-import RoleSelectItems from "./role-options";
+import RoleSelect from "./role-select";
+import Section from "./section";
 
 type GrantableAccess = { bucketName: string; role: GrantableRole }[];
 
@@ -41,8 +36,6 @@ type MembersProps = {
 type MemberRowProps = MembersProps & {
    member: ServerUser;
    isMe: boolean;
-   expanded: boolean;
-   onToggle: () => void;
 };
 
 const MemberRow = ({
@@ -52,19 +45,21 @@ const MemberRow = ({
    isBucketsLoading,
    member,
    isMe,
-   expanded,
-   onToggle,
 }: MemberRowProps) => {
    const [access, setAccess] = useState<BucketAccessEntry[]>(
       member.bucketAccess
    );
    const [dirty, setDirty] = useState(false);
+   const [open, setOpen] = useState(false);
    const updateRole = useUpdateRole();
    const removeMember = useRemoveMember();
    const busy = updateRole.isPending || removeMember.isPending;
 
    const manageable = !isMe && canManageRole(myRole, member.role);
    const panelId = `member-${member.id}-buckets`;
+   // Owners implicitly hold every bucket, so a count would be misleading.
+   const showBuckets = member.role !== Role.OWNER;
+   const bucketCount = pluralize(member.bucketAccess.length, "bucket");
 
    const editAccess = (next: BucketAccessEntry[]) => {
       setAccess(next);
@@ -91,82 +86,74 @@ const MemberRow = ({
       );
 
    return (
-      <li className="flex flex-col rounded-lg border border-viewerborder p-2">
-         <div className="flex items-center gap-2">
-            {manageable ? (
-               <button
-                  type="button"
-                  aria-expanded={expanded}
-                  aria-controls={panelId}
-                  aria-label={`${expanded ? "Hide" : "Show"} bucket access for ${member.name}`}
-                  onClick={onToggle}
-                  className="rounded p-1 text-viewerlighttext hover:bg-viewergray hover:text-viewerblack"
-               >
-                  <ChevronDown
-                     aria-hidden="true"
-                     className={`size-4 transition-transform ${expanded ? "" : "-rotate-90"}`}
-                  />
-               </button>
-            ) : (
-               <span className="size-6 shrink-0" />
-            )}
+      <li className="min-w-0 py-2.5">
+         <div className="flex min-w-0 items-center gap-3">
             <Avatar name={member.name} image={member.image} size={32} />
             <div className="flex min-w-0 flex-1 flex-col">
-               <span className="truncate text-sm text-viewerblack">
+               <span className="min-w-0 truncate text-sm text-viewerblack">
                   {member.name}
                   {isMe && <span className="text-viewerlighttext"> (you)</span>}
                </span>
-               <span className="truncate text-xs text-viewerlighttext">
+               <span className="min-w-0 truncate text-xs text-viewerlighttext">
                   {member.email}
-                  {member.role !== Role.OWNER &&
-                     ` · ${pluralize(member.bucketAccess.length, "bucket")}`}
+                  {showBuckets && !manageable && ` · ${bucketCount}`}
                </span>
             </div>
             {manageable ? (
-               <div className="flex shrink-0 items-center gap-1">
-                  <Select
-                     value={member.role}
-                     disabled={busy}
-                     onValueChange={(v) => changeRole(v as GrantableRole)}
-                  >
-                     <SelectTrigger
-                        size="sm"
-                        className="h-8 w-24 text-xs"
-                        aria-label={`Role for ${member.name}`}
-                     >
-                        <SelectValue />
-                     </SelectTrigger>
-                     <SelectContent align="end" className="max-w-64">
-                        <RoleSelectItems roles={assignableRoles(myRole)} />
-                     </SelectContent>
-                  </Select>
-                  <Button
-                     type="button"
-                     variant="ghost"
-                     size="icon"
-                     className="size-8 text-viewerlighttext hover:text-viewertextred"
-                     aria-label={`Remove ${member.name}`}
-                     loading={removeMember.isPending}
-                     disabled={busy}
-                     onClick={() =>
-                        removeMember.mutate({ serverId, userId: member.id })
-                     }
-                  >
-                     {!removeMember.isPending && (
-                        <X aria-hidden="true" className="size-4" />
-                     )}
-                  </Button>
-               </div>
+               <button
+                  type="button"
+                  aria-expanded={open}
+                  aria-controls={panelId}
+                  onClick={() => setOpen((v) => !v)}
+                  className="flex w-24 shrink-0 cursor-pointer items-center gap-0.5 rounded-md border border-transparent px-1.5 py-1 text-xs text-viewerlighttext outline-none transition-colors hover:bg-viewergray hover:text-viewerblack focus-visible:border-viewerblue"
+               >
+                  {open ? (
+                     <ChevronDown aria-hidden="true" className="size-3.5" />
+                  ) : (
+                     <ChevronRight aria-hidden="true" className="size-3.5" />
+                  )}
+                  <span className="min-w-0 truncate">{bucketCount}</span>
+               </button>
             ) : (
-               <span className="shrink-0 text-xs text-viewertext">
+               <span aria-hidden="true" className="w-24 shrink-0" />
+            )}
+            {manageable ? (
+               <RoleSelect
+                  className="w-32 shrink-0"
+                  label={`Role for ${member.name}`}
+                  value={member.role}
+                  roles={assignableRoles(myRole)}
+                  disabled={busy}
+                  onChange={(next) => changeRole(next as GrantableRole)}
+               />
+            ) : (
+               <span className="w-32 shrink-0 truncate px-3 text-sm text-viewertext">
                   {ROLE_LABELS[member.role]}
                </span>
             )}
+            {manageable ? (
+               <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="shrink-0 text-viewerlighttext not-disabled:hover:text-viewertextred"
+                  aria-label={`Remove ${member.name}`}
+                  loading={removeMember.isPending}
+                  disabled={busy}
+                  onClick={() =>
+                     removeMember.mutate({ serverId, userId: member.id })
+                  }
+               >
+                  <X aria-hidden="true" className="size-4" />
+               </Button>
+            ) : (
+               <span aria-hidden="true" className="size-8 shrink-0" />
+            )}
          </div>
-         {manageable && expanded && (
-            <div id={panelId} className="mt-2 flex flex-col gap-2 pl-8">
+         {manageable && open && (
+            <div id={panelId} className="mt-2 flex min-w-0 flex-col gap-2">
                <BucketAccessPicker
-                  legend={`Bucket access for ${member.name}`}
+                  label={`Bucket access for ${member.name}`}
                   myRole={myRole}
                   buckets={buckets}
                   isLoading={isBucketsLoading}
@@ -183,7 +170,7 @@ const MemberRow = ({
                      onClick={saveAccess}
                      disabled={access.length === 0}
                   >
-                     {updateRole.isPending ? "Saving…" : "Save changes"}
+                     Save changes
                   </Button>
                )}
             </div>
@@ -200,29 +187,22 @@ const Members = ({
 }: MembersProps) => {
    const { members, isLoading, error, dataUpdatedAt } = useMembers(serverId);
    const myUserId = useUserId();
-   const [expandedId, setExpandedId] = useState<string | null>(null);
 
    return (
-      <section
-         className="flex flex-col gap-2"
-         aria-labelledby="members-heading"
-      >
-         <h3
-            id="members-heading"
-            className="text-sm font-medium text-viewerblack"
-         >
-            Members{!isLoading && ` (${members.length})`}
-         </h3>
+      <Section title={isLoading ? "Members" : `Members (${members.length})`}>
          {isLoading ? (
-            <div className="flex h-[116px] items-center justify-center">
+            <div className="flex h-24 items-center justify-center">
                <Spinner label="Loading members" />
             </div>
          ) : error ? (
-            <p role="alert" className="text-sm text-viewertextred">
+            <p
+               role="alert"
+               className="flex h-24 items-center justify-center px-3 text-center text-sm text-viewertextred"
+            >
                {error.message}
             </p>
          ) : (
-            <ul className="fade-in flex flex-col gap-1">
+            <ul className="flex min-w-0 flex-col divide-y divide-viewerborder">
                {members.map((member) => (
                   <MemberRow
                      key={`${member.id}:${dataUpdatedAt}`}
@@ -232,17 +212,11 @@ const Members = ({
                      isBucketsLoading={isBucketsLoading}
                      member={member}
                      isMe={member.id === myUserId}
-                     expanded={expandedId === member.id}
-                     onToggle={() =>
-                        setExpandedId((cur) =>
-                           cur === member.id ? null : member.id
-                        )
-                     }
                   />
                ))}
             </ul>
          )}
-      </section>
+      </Section>
    );
 };
 

@@ -11,7 +11,10 @@ the web app, the landing site and the shared packages. Keep it current.
   input only; never from raw `req.body`/`req.query`.
 - Least data: we store only what the product needs (see README "Data we store").
 - Product name is "S3 Viewer". Role names come from `ROLE_LABELS` in
-  `@s3-viewer/permissions`. Copy is sentence case. In-progress buttons end with "…".
+  `@s3-viewer/permissions`. Copy is sentence case. A button in flight keeps its
+  label and its width: pass `loading` to `Button`, which overlays a centred
+  spinner on the still-mounted (but invisible) label. Never swap a label to
+  "Saving…".
 
 ## Shared values (`@s3-viewer/types`)
 
@@ -37,7 +40,8 @@ the web app, the landing site and the shared packages. Keep it current.
   rank than BOTH the target's current role and the role being assigned.
   OWNER is never assignable or removable. Owners cannot leave; they delete.
 - Server-level permissions: LIST_BUCKETS (all), CREATE_BUCKET (editor+),
-  DELETE_BUCKET / RENAME_SERVER / MANAGE_MEMBERS (admin+), DELETE_SERVER (owner).
+  DELETE_BUCKET / RENAME_SERVER / MANAGE_MEMBERS (admin+),
+  DELETE_SERVER / UPDATE_CREDENTIALS (owner).
 - Object permissions are checked against the effective bucket role.
 
 ## API (`apps/api`)
@@ -48,7 +52,12 @@ the web app, the landing site and the shared packages. Keep it current.
   status (400 validation, 401 unauthenticated, 403 forbidden, 404 not found,
   409 conflict, 413 too large, 429 rate limited, 502 upstream S3 failure,
   500 unexpected). Never return raw error messages from AWS/Prisma/Zod.
-  Validation returns `code: "VALIDATION"` and a short human message.
+  Validation returns `code: "VALIDATION"` and a short human message. Codes
+  the web branches on live in `ErrorCode` (`@s3-viewer/types`): stored
+  credentials that fail to decrypt or parse → 409 `CREDENTIALS_UNREADABLE`;
+  S3 rejecting the key pair (`InvalidAccessKeyId`, `SignatureDoesNotMatch`,
+  expired tokens, or a 403 on `ListBuckets`) → 502 `CREDENTIALS_REJECTED`.
+  Both carry a message the UI shows verbatim next to "Update credentials".
 - `validate(schema)` middleware parses `{ ...req.query, ...req.body, ...req.params }`
   (params win) with a zod schema from `@s3-viewer/types` and stores the result
   on `res.locals.input` (typed helper `input<T>(res)`). Handlers read ONLY from it.
@@ -64,8 +73,8 @@ the web app, the landing site and the shared packages. Keep it current.
   non-GET `/auth/*` 20/min per IP (Better Auth's own limiter is a no-op with
   `disableIpTracking`, so it is disabled); sign-in emails (`/auth-flow/start`,
   `/auth/email-otp/send-verification-otp`, `/auth/sign-in/magic-link`) share
-  5/min per IP, plus 5/10min per email on `/auth-flow/start`; `establish` and
-  `validate-buckets` 30/min per user. `TRUST_PROXY` env (default `loopback`)
+  5/min per IP, plus 5/10min per email on `/auth-flow/start`; `establish`,
+  `validate-buckets` and `PATCH …/credentials` 30/min per user. `TRUST_PROXY` env (default `loopback`)
   feeds `app.set("trust proxy", …)`.
 - Parsers: `express.json({ limit: "1mb" })` only, skipped for `PUT …/objects`
   so the upload body reaches the handler as a raw stream. No urlencoded parser.
@@ -77,15 +86,27 @@ the web app, the landing site and the shared packages. Keep it current.
   (cors default), which covers the upload's `Content-Type`.
 - S3 clients are cached per server (`lib/s3/client-cache.ts`, TTL 10 min, at
   most 500 entries, keep-alive agent, connect/request timeouts 5s/30s,
-  `maxAttempts: 2`), invalidated on server delete. Credentials are decrypted
-  once per cache fill. No route changes stored credentials.
-- Endpoints are checked on `establish`, `validate-buckets` and `POST /servers`
-  after decryption: https only in production, no localhost/private/link-local
+  `maxAttempts: 2`), invalidated on server delete and credential update.
+  Credentials are decrypted once per cache fill. The only route that changes
+  stored credentials is `PATCH /servers/:serverId/credentials` (owner): it
+  decrypts the new blob, checks the endpoint, proves the keys work
+  (`lib/s3/probe.ts`: HeadBucket on the first allowed bucket when the server
+  has that list, ListBuckets otherwise; S3 failures keep their classified
+  status/code), then stores the blob as sent, refreshes `provider` from the
+  endpoint and drops the cached client. The cache keeps a per-server
+  generation so a fill that raced the update never re-caches old keys.
+- Endpoints are checked on `establish`, `validate-buckets`, `POST /servers`
+  and `PATCH …/credentials` after decryption: https only in production, no localhost/private/link-local
   literals, and every DNS answer must be public. The name is resolved once at
   check time; DNS rebinding afterwards is a documented limitation.
 - S3 errors map through `lib/s3/errors.ts` (`NoSuchKey`/`NotFound` → 404,
   `AccessDenied` → 403, `NoSuchBucket`/`InvalidBucketName` → 400/404,
-  `EntityTooLarge`/`InvalidRequest` copy-size → 413, everything else → 502).
+  `EntityTooLarge`/`InvalidRequest` copy-size → 413, rejected key pairs →
+  502 `CREDENTIALS_REJECTED`, everything else → 502). `ListBuckets` alone
+  uses `throwListBucketsError`, which also turns a 403 into
+  `CREDENTIALS_REJECTED`: a server with no allowed-bucket list depends on
+  that call. A 403 on `ListObjectsV2` stays 403 — prefix-scoped IAM is
+  legitimate.
 - Presigned URLs (downloads and previews only) expire in 15 minutes. They are
   used as navigations and `<img>`/`<video>`/`<audio>`/`<iframe>` sources, never
   fetched, so buckets need no CORS configuration. Object keys are encoded with
@@ -109,6 +130,7 @@ POST   /servers/establish                establishSchema      → { listBucketsA
 POST   /servers/validate-buckets         validateBucketsSchema→ { results: [{ bucketName, accessible }] }
 POST   /servers                          createServerSchema   → { server: ServerInfo }
 PATCH  /servers/:serverId                renameServerSchema   → { server: ServerInfo }
+PATCH  /servers/:serverId/credentials    updateCredentialsSchema (UPDATE_CREDENTIALS) → { server: ServerInfo }
 DELETE /servers/:serverId                (OWNER)              → 204
 POST   /servers/:serverId/leave          (non-owner)          → 204
 GET    /servers/:serverId/members        (MANAGE_MEMBERS)     → { members: ServerUser[] }

@@ -5,37 +5,33 @@ import Link from "next/link";
 import ProfileDropdown from "./profile-dropdown";
 
 type ViewerBannerProps = {
-   children: React.ReactNode;
    showSidebarToggle: boolean;
 };
 
-const ViewerBanner = ({ children, showSidebarToggle }: ViewerBannerProps) => (
-   <div className="flex size-full flex-col">
-      <header className="sticky top-0 z-50 flex h-[var(--header-height)] w-full items-center justify-between gap-4 border-b border-viewerborder bg-viewergray px-4 sm:px-6 lg:px-10">
-         <div className="flex min-w-0 items-center gap-2">
-            {showSidebarToggle && <SidebarTrigger className="md:hidden" />}
-            <Link
-               href={SITE_PATHS.dashboard}
-               className="flex items-center"
+// Fixed 56px tall: the account slot renders a same-size placeholder while the
+// session loads, so nothing below the banner moves.
+const ViewerBanner = ({ showSidebarToggle }: ViewerBannerProps) => (
+   <header className="flex h-14 w-full shrink-0 items-center justify-between border-b border-viewerborder bg-viewerwhite px-4">
+      <div className="flex min-w-0 items-center gap-2">
+         {showSidebarToggle && <SidebarTrigger className="md:hidden" />}
+         <Link
+            href={SITE_PATHS.dashboard}
+            className="flex shrink-0 items-center"
+            draggable={false}
+         >
+            <Image
+               src="/icons/viewer.svg"
+               alt={PRODUCT_NAME}
+               width={150}
+               height={32}
+               priority
                draggable={false}
-            >
-               <Image
-                  src="/icons/viewer.svg"
-                  alt={PRODUCT_NAME}
-                  width={150}
-                  height={32}
-                  priority
-                  draggable={false}
-                  className="h-6 w-[112px] select-none sm:h-8 sm:w-[150px]"
-               />
-            </Link>
-         </div>
-         <ProfileDropdown />
-      </header>
-      <div className="h-[calc(100svh-var(--header-height))] w-full">
-         {children}
+               className="h-7 w-[131px] select-none"
+            />
+         </Link>
       </div>
-   </div>
+      <ProfileDropdown />
+   </header>
 );
 
 export default ViewerBanner;

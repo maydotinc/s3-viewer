@@ -119,7 +119,7 @@ const UploadRow = ({
          >
             <div
                className={cn(
-                  "h-1.5 rounded-full transition-[width] duration-300",
+                  "h-1.5 rounded-full transition-[width] duration-150",
                   entry.status === "failed"
                      ? "bg-viewertextred"
                      : "bg-viewerblue"
@@ -148,10 +148,7 @@ const UploadList = ({
    });
 
    return (
-      <div
-         ref={containerRef}
-         className="max-h-[var(--content-height)] overflow-y-auto p-2"
-      >
+      <div ref={containerRef} className="max-h-[350px] overflow-y-auto p-2">
          <div
             className="relative"
             style={{ height: `${virtualizer.getTotalSize()}px` }}
@@ -206,23 +203,17 @@ const UploadProgressSheet = () => {
 
    return (
       <div
-         className="fixed bottom-0 right-8 z-50 [--content-height:350px] [--header-height:56px]"
+         className="fixed bottom-0 right-8 z-50"
          onKeyDown={(event) => {
             if (event.key === "Escape" && expanded) setExpanded(false);
          }}
       >
-         <div
-            className={cn(
-               "w-[400px] overflow-hidden rounded-t-2xl border border-viewerborder bg-viewerwhite shadow-lg transition-[max-height] duration-300 ease-in-out",
-               expanded
-                  ? "max-h-[calc(var(--content-height)+var(--header-height))]"
-                  : "max-h-[var(--header-height)]"
-            )}
-         >
-            <div className="flex h-[var(--header-height)] items-center justify-between gap-2 border-b border-viewerborder bg-viewergray px-3">
-               <button
-                  type="button"
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-transparent px-1 py-2 text-left text-sm font-medium text-viewerblack outline-none focus-visible:border-viewerblue"
+         <div className="w-[400px] overflow-hidden rounded-t-2xl border border-viewerborder bg-viewerwhite shadow-lg">
+            <div className="flex h-14 items-center justify-between gap-2 border-b border-viewerborder bg-viewergray px-3">
+               <Button
+                  variant="ghost"
+                  size="sm"
+                  className="min-w-0 flex-1 justify-start px-1 text-viewerblack"
                   aria-expanded={expanded}
                   aria-controls={panelId}
                   onClick={() => setExpanded((open) => !open)}
@@ -235,17 +226,17 @@ const UploadProgressSheet = () => {
                         aria-hidden="true"
                      />
                   )}
-                  <span className="truncate" role="status">
+                  <span className="min-w-0 truncate" role="status">
                      {heading}
                   </span>
                   <ChevronUp
                      className={cn(
-                        "ml-auto size-4 shrink-0 transition-transform",
+                        "ml-auto size-4 shrink-0",
                         expanded && "rotate-180"
                      )}
                      aria-hidden="true"
                   />
-               </button>
+               </Button>
                {isUploading && (
                   <Button variant="ghost" size="sm" onClick={cancelAll}>
                      Cancel all

@@ -35,13 +35,11 @@
       "immer": "^10.1.1",
       "lodash": "^4.17.21",
       "lucide-react": "^0.475.0",
-      "motion": "^12.14.0",
       "radix-ui": "^1.4.2",
       "react": "catalog:",
       "react-dom": "catalog:",
       "sonner": "^1.7.4",
       "tailwind-merge": "^3.3.0",
-      "tw-animate-css": "^1.3.0",
       "zod": "catalog:"
    },
    "devDependencies": {

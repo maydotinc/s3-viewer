@@ -9,13 +9,7 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import type { ICellRendererParams } from "ag-grid-community";
-import {
-   Download,
-   EllipsisVertical,
-   FilePen,
-   Link2,
-   Trash2,
-} from "lucide-react";
+import { Download, Ellipsis, FilePen, Link2, Trash2 } from "lucide-react";
 import type { ObjectGridContext } from "./columns";
 
 const RowActions = (
@@ -42,7 +36,7 @@ const RowActions = (
                   className="size-8"
                   aria-label={`Actions for ${name}`}
                >
-                  <EllipsisVertical aria-hidden="true" />
+                  <Ellipsis aria-hidden="true" />
                </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">

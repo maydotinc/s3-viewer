@@ -26,12 +26,11 @@ const DeleteAccountModal = ({ onClose }: DeleteAccountModalProps) => {
       <ConfirmDialog
          closable={!deleting}
          onClose={onClose}
-         title="Delete your account?"
-         description="This removes your account, your sessions and every server connection you own, including your members' access. Buckets and files in your storage are not touched. This can't be undone."
+         title="Delete account"
+         description="This permanently removes your account, your sessions and every server connection you own, including your members' access; buckets and files in your storage are not touched."
          error={error}
          confirmVariant="destructive"
          confirmLabel="Delete account"
-         pendingLabel="Deleting…"
          isPending={deleting}
          onConfirm={() => void confirm()}
       />

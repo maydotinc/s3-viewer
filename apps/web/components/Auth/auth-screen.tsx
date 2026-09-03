@@ -120,7 +120,7 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
                </div>
             ) : (
                <div className="mx-auto w-full max-w-sm">
-                  <div key={step} className={`motion-fade-in ${STEP_HEIGHT}`}>
+                  <div key={step} className={STEP_HEIGHT}>
                      {step === "email" ? (
                         <>
                            <h1 className="text-title">{copy.title}</h1>
@@ -179,11 +179,11 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
                   <p className="text-meta mt-10">
                      By continuing you agree to the{" "}
                      <a href={TERMS_URL} className={LEGAL_LINK}>
-                        Terms of Service
+                        terms of service
                      </a>{" "}
                      and{" "}
                      <a href={PRIVACY_URL} className={LEGAL_LINK}>
-                        Privacy Policy
+                        privacy policy
                      </a>
                      .
                   </p>

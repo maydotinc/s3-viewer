@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { classifyS3Error, deleteFailureMessage } from "./classify";
+import { ErrorCode } from "@s3-viewer/types";
+import {
+   classifyListBucketsError,
+   classifyS3Error,
+   deleteFailureMessage,
+} from "./classify";
 
 const s3Error = (name: string, httpStatusCode?: number, message = "") => ({
    name,
@@ -33,6 +38,24 @@ describe("classifyS3Error", () => {
       expect(classifyS3Error(s3Error("Whatever", 403))).toMatchObject({
          status: 403,
       });
+   });
+
+   it("flags rejected credentials as an upstream failure with a code", () => {
+      for (const name of [
+         "InvalidAccessKeyId",
+         "SignatureDoesNotMatch",
+         "InvalidClientTokenId",
+         "ExpiredToken",
+      ]) {
+         expect(classifyS3Error(s3Error(name, 403)), name).toMatchObject({
+            status: 502,
+            message: "The server rejected these credentials",
+            code: ErrorCode.CREDENTIALS_REJECTED,
+         });
+      }
+      expect(classifyS3Error(s3Error("AccessDenied", 403)).code).toBe(
+         undefined
+      );
    });
 
    it("maps size limits to 413 before the generic 400", () => {
@@ -108,5 +131,30 @@ describe("deleteFailureMessage", () => {
          "Storage request failed"
       );
       expect(deleteFailureMessage(undefined)).toBe("Storage request failed");
+   });
+});
+
+describe("classifyListBucketsError", () => {
+   it("treats a denied bucket listing as rejected credentials", () => {
+      expect(
+         classifyListBucketsError(s3Error("AccessDenied", 403))
+      ).toMatchObject({
+         status: 502,
+         code: ErrorCode.CREDENTIALS_REJECTED,
+         name: "AccessDenied",
+      });
+   });
+
+   it("leaves other failures alone", () => {
+      expect(
+         classifyListBucketsError(s3Error("NoSuchBucket", 404))
+      ).toMatchObject({
+         status: 404,
+         message: "Bucket not found",
+      });
+      expect(classifyListBucketsError(s3Error("ECONNREFUSED"))).toMatchObject({
+         status: 502,
+         message: "Couldn't reach the storage endpoint",
+      });
    });
 });

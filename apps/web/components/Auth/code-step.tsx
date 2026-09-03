@@ -96,7 +96,7 @@ const CodeStep = ({ email, onVerified }: CodeStepProps) => {
             loading={verifying}
             disabled={resending}
          >
-            {verifying ? "Verifying…" : "Verify"}
+            Verify
          </Button>
 
          <p className="text-center text-sm text-viewertext">
@@ -107,11 +107,9 @@ const CodeStep = ({ email, onVerified }: CodeStepProps) => {
                disabled={!canResend}
                className="rounded-sm border border-transparent font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:border-viewerblue disabled:cursor-default disabled:text-viewerlighttext disabled:no-underline"
             >
-               {resending
-                  ? "Sending…"
-                  : secondsLeft > 0
-                    ? `Resend code in ${secondsLeft}s`
-                    : "Resend code"}
+               {secondsLeft > 0
+                  ? `Resend code in ${secondsLeft}s`
+                  : "Resend code"}
             </button>
          </p>
       </form>

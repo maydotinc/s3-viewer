@@ -23,7 +23,7 @@ const ObjectView = () => {
    if (notFound) return <BucketUnavailable bucketName={bucketName} />;
 
    return (
-      <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden p-8 pt-6">
+      <section className="flex min-h-0 w-full flex-1 flex-col gap-4 overflow-hidden p-6">
          <ObjectHeader
             bucketName={bucketName}
             objectKey={objectKey}

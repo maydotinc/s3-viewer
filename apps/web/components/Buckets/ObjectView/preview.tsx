@@ -4,7 +4,7 @@ import { MAX_PREVIEW_BYTES, previewKind } from "@/lib/utils/fileUtils";
 import { formatBytes } from "@/lib/utils/format";
 import type { S3ObjectPreview } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Eye, FileWarning } from "lucide-react";
+import { Download, Eye, FileWarning } from "lucide-react";
 import Image from "next/image";
 import { useState } from "react";
 import { PREVIEW_ASPECT, PREVIEW_BOX, PreviewLoading } from "./preview-frame";
@@ -33,13 +33,9 @@ const DownloadAction = ({ objectKey }: { objectKey: string }) => {
    };
 
    return (
-      <Button
-         variant="outline"
-         size="sm"
-         loading={busy}
-         onClick={() => void run()}
-      >
-         {busy ? "Preparing…" : "Download"}
+      <Button variant="outline" loading={busy} onClick={() => void run()}>
+         <Download aria-hidden="true" />
+         Download
       </Button>
    );
 };
@@ -54,8 +50,10 @@ const Message = ({
    objectKey: string;
 }) => (
    <div className="flex flex-col items-center gap-3 text-center text-viewertext">
-      <Icon className="size-10 text-viewerlighttext" aria-hidden="true" />
-      <p className="text-sm">{text}</p>
+      <span className="flex size-10 items-center justify-center rounded-lg bg-viewerwhite">
+         <Icon className="size-5 text-viewerlighttext" aria-hidden="true" />
+      </span>
+      <p className="max-w-sm text-sm">{text}</p>
       <DownloadAction objectKey={objectKey} />
    </div>
 );
@@ -107,7 +105,7 @@ const ObjectPreview = ({
    }
 
    return (
-      <div className={`${PREVIEW_BOX} fade-in`}>
+      <div className={PREVIEW_BOX}>
          {kind === "image" && (
             <div className={`${PREVIEW_ASPECT} relative`}>
                <Image

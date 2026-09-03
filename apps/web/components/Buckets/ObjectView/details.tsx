@@ -36,7 +36,7 @@ const ObjectDetails = ({ metadata, isLoading, error }: ObjectDetailsProps) => (
             <Spinner label="Loading details" />
          </div>
       ) : (
-         <dl className={`${DETAILS_HEIGHT} fade-in space-y-4`}>
+         <dl className={`${DETAILS_HEIGHT} space-y-4`}>
             {ROWS.map(({ label, value }) => (
                <div key={label} className="flex flex-col gap-1">
                   <dt className="text-xs leading-4 text-viewerlighttext">

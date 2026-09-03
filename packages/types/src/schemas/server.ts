@@ -28,3 +28,6 @@ export const renameServerSchema = serverScope.extend({
    serverName: serverNameSchema,
 });
 export type RenameServerInput = z.infer<typeof renameServerSchema>;
+
+export const updateCredentialsSchema = serverScope.merge(establishSchema);
+export type UpdateCredentialsInput = z.infer<typeof updateCredentialsSchema>;

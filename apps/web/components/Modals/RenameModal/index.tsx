@@ -4,6 +4,7 @@ import { ServerInfo, serverNameSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    Dialog,
+   DialogBody,
    DialogContent,
    DialogDescription,
    DialogFooter,
@@ -34,61 +35,62 @@ const parseServerName = (
 
 const RenameModal = ({ server, onClose }: RenameModalProps) => {
    const [value, setValue] = useState(server.name);
-   const [error, setError] = useState<string | null>(null);
+   const [touched, setTouched] = useState(false);
+   const [requestError, setRequestError] = useState<string | null>(null);
    const rename = useRenameServer();
 
    const parsed = parseServerName(value);
    const unchanged = parsed.ok && parsed.name === server.name;
+   // The submit button is disabled while invalid, so the validation message has
+   // to appear on its own once the field has been touched.
+   const error = requestError ?? (touched && !parsed.ok ? parsed.error : null);
 
    const submit = (e: FormEvent) => {
       e.preventDefault();
-      if (!parsed.ok) {
-         setError(parsed.error);
-         return;
-      }
-      if (unchanged) return;
+      if (rename.isPending || !parsed.ok || unchanged) return;
+      setRequestError(null);
       rename.mutate(
          { serverId: server.id, serverName: parsed.name },
-         { onSuccess: onClose, onError: (err) => setError(err.message) }
+         { onSuccess: onClose, onError: (err) => setRequestError(err.message) }
       );
    };
 
    return (
-      <Dialog open onOpenChange={(open) => !open && onClose()}>
-         <DialogContent className="sm:max-w-md">
-            <form onSubmit={submit} className="flex flex-col gap-4">
-               <DialogHeader className="text-left">
-                  <DialogTitle>Rename server</DialogTitle>
-                  <DialogDescription>
-                     Only the name shown in S3 Viewer changes.
-                  </DialogDescription>
-               </DialogHeader>
-               <div className="flex flex-col gap-1.5">
+      <Dialog open onOpenChange={rename.isPending ? undefined : onClose}>
+         <DialogContent>
+            <DialogHeader>
+               <DialogTitle>Rename server</DialogTitle>
+               <DialogDescription>
+                  Only the name shown in S3 Viewer changes.
+               </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={submit} className="flex min-h-0 flex-col">
+               <DialogBody className="flex flex-col gap-1.5">
                   <Label htmlFor="server-name">Server name</Label>
                   <Input
                      id="server-name"
                      value={value}
                      maxLength={64}
                      autoFocus
+                     autoComplete="off"
                      aria-invalid={error ? true : undefined}
                      aria-describedby="server-name-error"
                      onChange={(e) => {
                         setValue(e.target.value);
-                        setError(null);
+                        setTouched(true);
+                        setRequestError(null);
                      }}
+                     onBlur={() => setTouched(true)}
                   />
                   <FormError id="server-name-error">{error}</FormError>
-               </div>
-               <DialogFooter className="sm:justify-end">
-                  <Button type="button" variant="outline" onClick={onClose}>
-                     Cancel
-                  </Button>
+               </DialogBody>
+               <DialogFooter>
                   <Button
                      type="submit"
                      loading={rename.isPending}
                      disabled={unchanged || !parsed.ok}
                   >
-                     {rename.isPending ? "Renaming…" : "Rename"}
+                     Rename
                   </Button>
                </DialogFooter>
             </form>

@@ -134,7 +134,7 @@ const Row = ({ row }: { row: MockRow }) => (
 );
 
 const BrowserMock = () => (
-   <div className="relative w-[520px] rounded-xl border border-white/15 bg-viewerwhite shadow-[0_32px_80px_-32px_rgba(0,0,0,0.7)] motion-fade-up">
+   <div className="relative w-[520px] rounded-xl border border-white/15 bg-viewerwhite shadow-[0_32px_80px_-32px_rgba(0,0,0,0.7)]">
       <div className="flex h-14 items-center gap-3 border-b border-viewerborder px-4">
          <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-viewerblack">
             <Folder className="size-4 shrink-0 text-viewerblue" />

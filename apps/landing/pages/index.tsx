@@ -39,7 +39,7 @@ const Home = () => {
    ];
 
    return (
-      <div className="size-full">
+      <main className="w-full">
          <Seo
             title="Fast, open-source S3 object storage browser"
             description="Browse, upload, share and manage files in any S3-compatible bucket from a fast web UI. Open source, self-hostable."
@@ -54,7 +54,7 @@ const Home = () => {
          <ToolsBlock />
          <TeamLetter />
          <ExploreBlock />
-      </div>
+      </main>
    );
 };
 

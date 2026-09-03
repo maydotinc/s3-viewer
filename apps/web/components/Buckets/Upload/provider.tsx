@@ -8,7 +8,6 @@ import { headObject } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
 import { mapLimit } from "@s3-viewer/types";
 import { useQueryClient } from "@tanstack/react-query";
-import { FileWarning } from "lucide-react";
 import {
    createContext,
    useCallback,
@@ -121,7 +120,6 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
          <ConfirmDialog
             open={pending !== null}
             onClose={() => setPending(null)}
-            icon={FileWarning}
             title={
                pending?.existing.length === 1
                   ? "Replace existing file?"

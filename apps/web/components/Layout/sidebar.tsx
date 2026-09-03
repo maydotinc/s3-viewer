@@ -25,11 +25,11 @@ const ViewerSidebar = ({ mobileStrategy }: ViewerSidebarProps) => {
 
    return (
       <Sidebar
-         className="top-[var(--header-height)] h-[calc(100svh-var(--header-height))] select-none"
+         className="top-14 h-[calc(100svh-3.5rem)] select-none"
          mobileStrategy={mobileStrategy}
       >
-         <SidebarContent className="p-2">
-            <SidebarGroup className="h-full">
+         <SidebarContent className="gap-0 p-3">
+            <SidebarGroup className="h-full p-0">
                <SidebarGroupContent className="h-full">
                   <ServerManagement />
                </SidebarGroupContent>

@@ -2,7 +2,7 @@ import { Spinner } from "@s3-viewer/ui/components/spinner";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import BasicBlock from "../basic-block";
+import BasicBlock, { SectionHeading } from "../basic-block";
 
 const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
 
@@ -19,7 +19,7 @@ const LottieBox = ({
             animationData={animationData}
             loop
             autoplay
-            className="motion-fade-in-fast object-contain size-full"
+            className="size-full object-contain"
          />
       ) : (
          <div className="grid size-full place-items-center">
@@ -51,83 +51,71 @@ const useLottieData = (src: string) => {
 };
 
 const DemoBlock = () => {
-   const objectUpload = useLottieData("/landing/objectupload.json");
    const serverConnect = useLottieData("/landing/serverconnect.json");
 
    return (
-      <>
-         <BasicBlock className="max-md:border-b max-md:border-viewerborder">
-            <div className="bg-viewergray flex-1 border border-viewerborder px-8 flex max-md:flex-col max-md:px-4 overflow-hidden relative">
-               <div className="md:flex-1 max-md:w-full flex items-end justify-center relative md:pt-[5%]">
-                  <Image
-                     src="/landing/objectview.png"
-                     alt="Browsing objects inside a bucket in S3 Viewer"
-                     width={3064}
-                     height={1561}
-                     sizes="(max-width: 767px) 100vw, 45vw"
-                     className="select-none object-contain translate-y-[8%] border rounded-xl h-auto w-full"
-                     draggable={false}
-                  />
-               </div>
-               <div className="select-none max-md:order-first md:flex-1 flex items-center justify-center relative max-md:items-start max-md:-my-[10%]">
-                  <LottieBox
-                     animationData={objectUpload}
-                     className="w-full aspect-square md:absolute max-md:scale-[1.1]"
-                  />
-               </div>
-            </div>
-            <div className="flex flex-col items-start w-full gap-2">
-               <h2 className="md:text-4xl text-3xl text-viewerblack font-semibold">
-                  S3 Viewer that works like a file browser
-               </h2>
-               <p className="md:text-xl text-base text-viewertext">
-                  Navigate your S3 buckets with the familiar file explorer
-                  interface you already know and love
-               </p>
-            </div>
-         </BasicBlock>
-         <BasicBlock className="md:flex-row max-md:border-b max-md:border-viewerborder">
-            <div className="flex-1 flex flex-col gap-6">
-               <div className="w-full bg-viewergray flex-1 border border-viewerborder px-8 flex items-center justify-center">
+      <BasicBlock sectionClassName="border-y border-viewerborder bg-viewergray">
+         <SectionHeading
+            eyebrow="Product"
+            title="An S3 client that works like a file browser"
+            description="Navigate your buckets with the familiar file explorer interface you already know — folders, search, drag and drop."
+         />
+
+         <div className="mt-10 overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite shadow-sm">
+            <Image
+               src="/landing/objectview.png"
+               alt="Browsing objects inside a bucket in S3 Viewer"
+               width={3064}
+               height={1561}
+               sizes="(max-width: 1152px) 100vw, 1104px"
+               draggable={false}
+               className="h-auto w-full select-none"
+            />
+         </div>
+
+         <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="flex flex-col gap-5 rounded-xl border border-viewerborder bg-viewerwhite p-6">
+               <div className="grid aspect-[4/3] w-full place-items-center overflow-hidden rounded-lg bg-viewergray">
                   <LottieBox
                      animationData={serverConnect}
-                     className="w-full aspect-[4/3]"
+                     className="size-full"
                   />
                </div>
-               <div className="flex flex-col gap-2">
-                  <h2 className="md:text-3xl text-2xl text-viewerblack font-semibold">
+               <div className="flex flex-col gap-1.5">
+                  <h3 className="text-lg font-semibold tracking-tight text-viewerblack">
                      Connect a server in one step
-                  </h2>
-                  <p className="md:text-xl text-sm text-viewertext">
+                  </h3>
+                  <p className="text-sm text-viewertext">
                      Add any S3-compatible provider from the sidebar — enter the
-                     region and endpoint once and your buckets appear
+                     region and endpoint once and your buckets appear.
                   </p>
                </div>
             </div>
-            <div className="flex-1 flex flex-col gap-6">
-               <div className="w-full bg-viewergray flex-1 border border-viewerborder p-8 flex items-center justify-center">
+
+            <div className="flex flex-col gap-5 rounded-xl border border-viewerborder bg-viewerwhite p-6">
+               <div className="grid aspect-[4/3] w-full place-items-center overflow-hidden rounded-lg bg-viewergray p-6">
                   <Image
                      src="/landing/serverselect.png"
-                     alt="Server switcher"
+                     alt="The server switcher in the S3 Viewer sidebar"
                      width={756}
                      height={815}
-                     sizes="(max-width: 767px) 90vw, 340px"
-                     className="select-none max-h-[270px] w-auto object-contain"
+                     sizes="(max-width: 767px) 80vw, 320px"
                      draggable={false}
+                     className="h-full w-auto max-w-full object-contain select-none"
                   />
                </div>
-               <div className="flex flex-col gap-2">
-                  <h2 className="md:text-3xl text-2xl text-viewerblack font-semibold">
+               <div className="flex flex-col gap-1.5">
+                  <h3 className="text-lg font-semibold tracking-tight text-viewerblack">
                      Switch between servers
-                  </h2>
-                  <p className="md:text-xl text-sm text-viewertext">
-                     Manage multiple S3 providers seamlessly - AWS S3,
-                     Cloudflare R2, MinIO, and more from one sidebar
+                  </h3>
+                  <p className="text-sm text-viewertext">
+                     Manage AWS S3, Cloudflare R2, MinIO and more from one
+                     sidebar, without changing tabs.
                   </p>
                </div>
             </div>
-         </BasicBlock>
-      </>
+         </div>
+      </BasicBlock>
    );
 };
 

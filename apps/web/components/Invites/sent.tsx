@@ -21,7 +21,7 @@ const SentInvites = ({ serverId }: { serverId: string }) => {
       return <InviteEmpty>No pending invites</InviteEmpty>;
 
    return (
-      <ul className="fade-in flex flex-col gap-2">
+      <ul className="flex flex-col gap-2">
          {invites.map((invite) => {
             const revoking =
                revoke.isPending && revoke.variables?.inviteId === invite.id;
@@ -39,7 +39,7 @@ const SentInvites = ({ serverId }: { serverId: string }) => {
                            revoke.mutate({ serverId, inviteId: invite.id })
                         }
                      >
-                        {revoking ? "Revoking…" : "Revoke"}
+                        Revoke
                      </Button>
                   }
                />

@@ -237,10 +237,10 @@ const BrandKit = () => {
    return (
       <main className="w-full overflow-x-clip">
          <section className="border-b border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-14">
+            <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -259,12 +259,12 @@ const BrandKit = () => {
                </nav>
 
                <div className="flex flex-col gap-5 max-w-[760px]">
-                  <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
+                  <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                      The S3 Viewer brand,
                      <br />
                      in one place.
                   </h1>
-                  <p className="text-[16px] sm:text-[17px] text-viewertext leading-relaxed max-w-[600px]">
+                  <p className="text-viewertext max-w-[600px]">
                      Logos, colors, type, and voice. Use these assets when
                      writing about S3 Viewer, integrating with us, or building
                      on top of the open-source code.
@@ -274,11 +274,11 @@ const BrandKit = () => {
          </section>
 
          <section>
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-12 md:py-16 lg:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid lg:grid-cols-[220px_1fr] gap-10 lg:gap-16">
                   <aside className="hidden lg:block">
                      <div className="sticky top-28 flex flex-col gap-3">
-                        <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                        <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                            On this page
                         </span>
                         <nav className="relative flex flex-col">
@@ -293,7 +293,7 @@ const BrandKit = () => {
                                     key={s.id}
                                     href={`#${s.id}`}
                                     className={cn(
-                                       "relative pl-4 pr-2 py-2 text-[13px] leading-snug transition-colors",
+                                       "relative pl-4 pr-2 py-2 text-sm leading-snug transition-colors",
                                        isActive
                                           ? "text-viewerblue font-semibold"
                                           : "text-viewertext hover:text-viewerblack"
@@ -319,13 +319,13 @@ const BrandKit = () => {
                         className="scroll-mt-28 flex flex-col gap-6"
                      >
                         <div className="flex flex-col gap-2">
-                           <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                           <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                               Section 01
                            </span>
-                           <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-tight text-viewerblack">
+                           <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                               Logos
                            </h2>
-                           <p className="text-[14.5px] text-viewertext max-w-[600px]">
+                           <p className="text-sm text-viewertext max-w-[600px]">
                               Always preserve clear space equal to the height of
                               the &ldquo;S&rdquo; in the wordmark. Never
                               recolor, rotate, or reproportion the marks.
@@ -338,21 +338,21 @@ const BrandKit = () => {
                               return (
                                  <div
                                     key={logo.id}
-                                    className="flex flex-col gap-3 rounded-2xl border border-viewerborder bg-viewerwhite p-3 transition-colors hover:border-viewerblue/40"
+                                    className="flex flex-col gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-3 transition-colors hover:border-viewerblue/40"
                                  >
                                     <div className="aspect-[2/1] w-full overflow-hidden rounded-xl border border-viewerborder">
                                        {logo.preview}
                                     </div>
                                     <div className="flex flex-col gap-1 px-1">
                                        <div className="flex items-center justify-between gap-2">
-                                          <span className="text-[14px] font-semibold text-viewerblack">
+                                          <span className="text-sm font-semibold text-viewerblack">
                                              {logo.name}
                                           </span>
-                                          <span className="text-[11px] text-viewerlighttext font-mono">
+                                          <span className="text-xs text-viewerlighttext font-mono">
                                              {logo.filename}
                                           </span>
                                        </div>
-                                       <p className="text-[12.5px] text-viewertext leading-relaxed">
+                                       <p className="text-xs text-viewertext leading-relaxed">
                                           {logo.description}
                                        </p>
                                     </div>
@@ -362,7 +362,7 @@ const BrandKit = () => {
                                           onClick={() =>
                                              copyValue(logo.id, logo.url)
                                           }
-                                          className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-viewergray px-2.5 py-2 text-[12px] font-medium text-viewertext transition-colors hover:bg-viewerborder/70 cursor-pointer"
+                                          className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-viewergray px-2.5 py-2 text-xs font-medium text-viewertext transition-colors hover:bg-viewerborder/70 cursor-pointer"
                                        >
                                           {isCopied ? (
                                              <Check className="size-3.5" />
@@ -374,7 +374,7 @@ const BrandKit = () => {
                                        <a
                                           href={logo.path}
                                           download={logo.filename}
-                                          className="flex items-center justify-center gap-1.5 rounded-md bg-viewerblack px-2.5 py-2 text-[12px] font-medium text-viewerwhite transition-colors hover:bg-viewerblack/85"
+                                          className="flex items-center justify-center gap-1.5 rounded-md bg-viewerblack px-2.5 py-2 text-xs font-medium text-viewerwhite transition-colors hover:bg-viewerblack/85"
                                        >
                                           <Download className="size-3.5" />
                                           SVG
@@ -391,13 +391,13 @@ const BrandKit = () => {
                         className="scroll-mt-28 flex flex-col gap-6"
                      >
                         <div className="flex flex-col gap-2">
-                           <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                           <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                               Section 02
                            </span>
-                           <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-tight text-viewerblack">
+                           <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                               Colors
                            </h2>
-                           <p className="text-[14.5px] text-viewertext max-w-[600px]">
+                           <p className="text-sm text-viewertext max-w-[600px]">
                               Viewer Blue is the only brand-defining color.
                               Everything else is grayscale. We do not use
                               gradients.
@@ -414,7 +414,7 @@ const BrandKit = () => {
                                     onClick={() =>
                                        copyValue(color.id, color.hex)
                                     }
-                                    className="group flex items-stretch gap-0 rounded-2xl border border-viewerborder bg-viewerwhite overflow-hidden text-left transition-colors hover:border-viewerblue/40 cursor-pointer"
+                                    className="group flex items-stretch gap-0 rounded-xl border border-viewerborder bg-viewerwhite overflow-hidden text-left transition-colors hover:border-viewerblue/40 cursor-pointer"
                                  >
                                     <div
                                        className="w-24 flex-none border-r border-viewerborder"
@@ -422,19 +422,19 @@ const BrandKit = () => {
                                     />
                                     <div className="flex flex-1 flex-col gap-1 p-4 min-w-0">
                                        <div className="flex items-center justify-between gap-2">
-                                          <span className="text-[13.5px] font-semibold text-viewerblack truncate">
+                                          <span className="text-sm font-semibold text-viewerblack truncate">
                                              {color.name}
                                           </span>
-                                          <span className="flex items-center gap-1 text-[11px] text-viewerlighttext font-mono">
+                                          <span className="flex items-center gap-1 text-xs text-viewerlighttext font-mono">
                                              {isCopied ? (
                                                 <Check className="size-3" />
                                              ) : (
-                                                <Copy className="size-3 opacity-0 transition-opacity group-hover:opacity-100" />
+                                                <Copy className="size-3 text-viewerlighttext" />
                                              )}
                                              {color.hex}
                                           </span>
                                        </div>
-                                       <p className="text-[12px] text-viewertext leading-relaxed line-clamp-2">
+                                       <p className="text-xs text-viewertext leading-relaxed line-clamp-2">
                                           {color.role}
                                        </p>
                                     </div>
@@ -449,13 +449,13 @@ const BrandKit = () => {
                         className="scroll-mt-28 flex flex-col gap-6"
                      >
                         <div className="flex flex-col gap-2">
-                           <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                           <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                               Section 03
                            </span>
-                           <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-tight text-viewerblack">
+                           <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                               Typography
                            </h2>
-                           <p className="text-[14.5px] text-viewertext max-w-[600px]">
+                           <p className="text-sm text-viewertext max-w-[600px]">
                               We use{" "}
                               <strong className="text-viewerblack">
                                  Inter
@@ -465,7 +465,7 @@ const BrandKit = () => {
                            </p>
                         </div>
 
-                        <div className="rounded-2xl border border-viewerborder bg-viewerwhite divide-y divide-viewerborder">
+                        <div className="rounded-xl border border-viewerborder bg-viewerwhite divide-y divide-viewerborder">
                            {[
                               {
                                  label: "Display",
@@ -486,14 +486,14 @@ const BrandKit = () => {
                                  sample:
                                     "S3 Viewer is a fast, open-source viewer for any S3-compatible API.",
                                  className:
-                                    "text-[16px] leading-[1.7] text-viewertext",
+                                    "text-base leading-relaxed text-viewertext",
                                  meta: "Inter Regular · 16 / 28",
                               },
                               {
                                  label: "Caption",
                                  sample: "Last updated September 2, 2026",
                                  className:
-                                    "text-[12px] tracking-[0.02em] text-viewerlighttext",
+                                    "text-xs tracking-[0.02em] text-viewerlighttext",
                                  meta: "Inter Medium · 12 / 18",
                               },
                            ].map((row) => (
@@ -501,13 +501,13 @@ const BrandKit = () => {
                                  key={row.label}
                                  className="flex flex-col gap-2 p-5 sm:p-6"
                               >
-                                 <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                                 <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                                     {row.label}
                                  </span>
                                  <span className={cn(row.className)}>
                                     {row.sample}
                                  </span>
-                                 <span className="text-[11.5px] text-viewerlighttext font-mono">
+                                 <span className="text-xs text-viewerlighttext font-mono">
                                     {row.meta}
                                  </span>
                               </div>
@@ -520,13 +520,13 @@ const BrandKit = () => {
                         className="scroll-mt-28 flex flex-col gap-6"
                      >
                         <div className="flex flex-col gap-2">
-                           <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                           <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                               Section 04
                            </span>
-                           <h2 className="text-[26px] sm:text-[30px] font-semibold tracking-tight text-viewerblack">
+                           <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                               Voice
                            </h2>
-                           <p className="text-[14.5px] text-viewertext max-w-[600px]">
+                           <p className="text-sm text-viewertext max-w-[600px]">
                               Plain. Direct. Confident without hype.
                            </p>
                         </div>
@@ -557,7 +557,7 @@ const BrandKit = () => {
                               <div
                                  key={i}
                                  className={cn(
-                                    "flex flex-col gap-2 rounded-2xl border p-5",
+                                    "flex flex-col gap-2 rounded-xl border p-5",
                                     row.ok
                                        ? "border-viewerblue/30 bg-viewerblue/[0.04]"
                                        : "border-viewerborder bg-viewergray"
@@ -565,7 +565,7 @@ const BrandKit = () => {
                               >
                                  <span
                                     className={cn(
-                                       "text-[10.5px] font-semibold tracking-[0.14em] uppercase",
+                                       "text-xs font-medium tracking-wide uppercase",
                                        row.ok
                                           ? "text-viewerblue"
                                           : "text-viewerlighttext"
@@ -573,7 +573,7 @@ const BrandKit = () => {
                                  >
                                     {row.label}
                                  </span>
-                                 <p className="text-[14.5px] leading-relaxed text-viewerblack">
+                                 <p className="text-sm leading-relaxed text-viewerblack">
                                     {row.line}
                                  </p>
                               </div>

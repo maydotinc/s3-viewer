@@ -5,18 +5,23 @@ import * as React from "react";
 import { cn } from "@s3-viewer/ui/lib/utils";
 
 const badgeVariants = cva(
-   "inline-flex select-none items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg:not([class*='size-'])]:size-3 gap-1 [&>svg]:pointer-events-none outline-none focus-visible:border-viewerblue aria-invalid:border-viewertextred transition-[color,border-color] overflow-hidden",
+   [
+      "inline-flex w-fit shrink-0 items-center justify-center gap-1 overflow-hidden select-none",
+      "rounded-md border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+      "transition-colors outline-none aria-invalid:border-viewertextred",
+      "[&>svg]:pointer-events-none [&>svg:not([class*='size-'])]:size-3",
+   ],
    {
       variants: {
          variant: {
             default:
-               "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+               "bg-viewerblue text-viewerwhite [a&]:hover:bg-viewerdarkblue",
             secondary:
-               "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+               "bg-viewergray text-viewerblack [a&]:hover:bg-viewerborder/70",
             destructive:
-               "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90",
+               "bg-viewerbgred text-viewertextred [a&]:hover:bg-viewerbgred/70",
             outline:
-               "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+               "border-viewerborder bg-viewerwhite text-viewertext [a&]:hover:bg-viewergray [a&]:hover:text-viewerblack",
          },
       },
       defaultVariants: {

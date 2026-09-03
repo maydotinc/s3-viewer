@@ -1,4 +1,6 @@
-type HttpFailure = { status: number; message: string };
+import { ErrorCode } from "@s3-viewer/types";
+
+type HttpFailure = { status: number; message: string; code?: ErrorCode };
 
 type FailureShape = {
    name: string;
@@ -10,6 +12,14 @@ const NOT_FOUND_NAMES: ReadonlySet<string> = new Set([
    "NoSuchKey",
    "NotFound",
    "NoSuchUpload",
+]);
+const REJECTED_CREDENTIAL_NAMES: ReadonlySet<string> = new Set([
+   "InvalidAccessKeyId",
+   "InvalidClientTokenId",
+   "SignatureDoesNotMatch",
+   "AuthorizationHeaderMalformed",
+   "ExpiredToken",
+   "UnrecognizedClientException",
 ]);
 const FORBIDDEN_NAMES: ReadonlySet<string> = new Set([
    "AccessDenied",
@@ -41,6 +51,11 @@ const OBJECT_NOT_FOUND: HttpFailure = {
 const BUCKET_NOT_FOUND: HttpFailure = {
    status: 404,
    message: "Bucket not found",
+};
+const CREDENTIALS_REJECTED: HttpFailure = {
+   status: 502,
+   message: "The server rejected these credentials",
+   code: ErrorCode.CREDENTIALS_REJECTED,
 };
 const FORBIDDEN: HttpFailure = {
    status: 403,
@@ -87,6 +102,7 @@ const classifyFailure = (failure: FailureShape): HttpFailure => {
    const { name, httpStatus } = failure;
    if (name === "NoSuchBucket") return BUCKET_NOT_FOUND;
    if (NOT_FOUND_NAMES.has(name) || httpStatus === 404) return OBJECT_NOT_FOUND;
+   if (REJECTED_CREDENTIAL_NAMES.has(name)) return CREDENTIALS_REJECTED;
    if (FORBIDDEN_NAMES.has(name) || httpStatus === 403) return FORBIDDEN;
    if (name === "EntityTooLarge" || isCopySourceTooLarge(failure))
       return TOO_LARGE;
@@ -100,7 +116,21 @@ const classifyS3Error = (err: unknown): HttpFailure & { name: string } => {
    return { ...classifyFailure(failure), name: failure.name };
 };
 
+/**
+ * ListBuckets is the one call a server without an allowed-bucket list relies
+ * on, so a 403 there means the credentials are the problem, not one bucket.
+ * ListObjectsV2 is deliberately excluded: prefix-scoped IAM is legitimate.
+ */
+const classifyListBucketsError = (
+   err: unknown
+): HttpFailure & { name: string } => {
+   const classified = classifyS3Error(err);
+   return classified.status === 403
+      ? { ...CREDENTIALS_REJECTED, name: classified.name }
+      : classified;
+};
+
 const deleteFailureMessage = (code: string | undefined): string =>
    classifyFailure({ name: code ?? "Unknown", detail: "" }).message;
 
-export { classifyS3Error, deleteFailureMessage };
+export { classifyListBucketsError, classifyS3Error, deleteFailureMessage };

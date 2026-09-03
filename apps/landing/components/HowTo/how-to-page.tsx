@@ -1,3 +1,5 @@
+import { GITHUB_URL } from "@/lib/site-config";
+import { Button } from "@s3-viewer/ui/components/button";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ArrowUpRight, ChevronRight, Lightbulb } from "lucide-react";
 import Link from "next/link";
@@ -43,10 +45,10 @@ const HowToPage = ({
    return (
       <main className="w-full overflow-x-clip">
          <section className="border-b border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-16">
+            <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -70,25 +72,25 @@ const HowToPage = ({
                      strokeWidth={2.5}
                      aria-hidden
                   />
-                  <span className="font-medium text-viewerblack truncate max-w-[55vw] sm:max-w-none">
+                  <span className="font-medium text-viewerblack min-w-0 truncate">
                      {eyebrow}
                   </span>
                </nav>
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
                   <div className="lg:col-span-7 flex flex-col gap-5">
-                     <h1 className="text-[28px] sm:text-[36px] lg:text-[44px] font-semibold tracking-[-0.02em] leading-[1.08] text-viewerblack">
+                     <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                         {title}
                      </h1>
-                     <div className="flex items-start gap-3 rounded-2xl border border-viewerborder bg-viewerwhite p-5">
+                     <div className="flex items-start gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-5">
                         <span className="grid place-items-center size-8 rounded-md bg-viewerblue/10 text-viewerblue flex-none">
                            <Lightbulb className="size-4" strokeWidth={2} />
                         </span>
                         <div className="flex flex-col gap-1">
-                           <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                           <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                               TL;DR
                            </span>
-                           <p className="text-[14.5px] sm:text-[15px] text-viewerblack leading-[1.6]">
+                           <p className="text-sm sm:text-base text-viewerblack leading-relaxed">
                               {tldr}
                            </p>
                         </div>
@@ -100,13 +102,13 @@ const HowToPage = ({
          </section>
 
          <section>
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                   <div className="lg:col-span-4 flex flex-col gap-3">
-                     <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                     <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                         Steps
                      </span>
-                     <h2 className="text-[28px] sm:text-[34px] font-semibold tracking-[-0.01em] leading-[1.1] text-viewerblack">
+                     <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                         Step-by-step.
                      </h2>
                   </div>
@@ -116,25 +118,24 @@ const HowToPage = ({
                            key={step.title}
                            id={`step-${i + 1}`}
                            className={cn(
-                              "motion-fade-up flex flex-col gap-3 rounded-2xl border border-viewerborder bg-viewerwhite p-5 sm:p-6 scroll-mt-24"
+                              "flex flex-col gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-5 sm:p-6 scroll-mt-24"
                            )}
-                           style={{ animationDelay: `${i * 70}ms` }}
                         >
                            <div className="flex items-start gap-5">
-                              <span className="flex-none grid place-items-center size-9 rounded-full border border-viewerborder bg-viewergray text-[13px] font-semibold text-viewerblue">
+                              <span className="flex-none grid place-items-center size-9 rounded-full border border-viewerborder bg-viewergray text-sm font-semibold text-viewerblue">
                                  {String(i + 1).padStart(2, "0")}
                               </span>
                               <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-                                 <h3 className="text-[16px] sm:text-[17px] font-semibold text-viewerblack tracking-tight">
+                                 <h3 className="text-base font-semibold text-viewerblack tracking-tight">
                                     {step.title}
                                  </h3>
-                                 <div className="text-[14px] text-viewertext leading-[1.7]">
+                                 <div className="text-sm text-viewertext leading-relaxed">
                                     {step.body}
                                  </div>
                               </div>
                            </div>
                            {step.code && (
-                              <pre className="sm:ml-14 overflow-x-auto rounded-md border border-viewerborder bg-viewergray px-4 py-3 text-[12px] sm:text-[12.5px] leading-[1.6] font-mono text-viewerblack">
+                              <pre className="sm:ml-14 overflow-x-auto rounded-md border border-viewerborder bg-viewergray px-4 py-3 text-xs sm:text-xs leading-relaxed font-mono text-viewerblack">
                                  <code>{step.code}</code>
                               </pre>
                            )}
@@ -147,18 +148,18 @@ const HowToPage = ({
 
          {underTheHood && (
             <section className="border-t border-viewerborder bg-viewergray">
-               <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+               <div className="mx-auto w-full max-w-6xl px-6 py-20">
                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                      <div className="lg:col-span-4 flex flex-col gap-3">
-                        <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                        <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                            Under the hood
                         </span>
-                        <h2 className="text-[28px] sm:text-[34px] font-semibold tracking-[-0.01em] leading-[1.1] text-viewerblack">
+                        <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                            What&apos;s actually happening.
                         </h2>
                      </div>
                      <div className="lg:col-span-8">
-                        <div className="rounded-2xl border border-viewerborder bg-viewerwhite p-6 sm:p-8 text-[14.5px] text-viewertext leading-[1.75] [&_strong]:text-viewerblack [&_strong]:font-semibold [&_code]:bg-viewergray [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[13px] [&_code]:font-mono [&_code]:text-viewerblack">
+                        <div className="rounded-xl border border-viewerborder bg-viewerwhite p-6 sm:p-8 text-sm text-viewertext leading-relaxed [&_strong]:text-viewerblack [&_strong]:font-semibold [&_code]:bg-viewergray [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono [&_code]:text-viewerblack">
                            {underTheHood}
                         </div>
                      </div>
@@ -168,32 +169,32 @@ const HowToPage = ({
          )}
 
          <section className="border-t border-viewerborder">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                   <div className="lg:col-span-4 flex flex-col gap-3">
-                     <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                     <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                         FAQ
                      </span>
-                     <h2 className="text-[28px] sm:text-[34px] font-semibold tracking-[-0.01em] leading-[1.1] text-viewerblack">
+                     <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                         Common questions.
                      </h2>
                   </div>
-                  <div className="lg:col-span-8 divide-y divide-viewerborder rounded-2xl border border-viewerborder bg-viewerwhite">
+                  <div className="lg:col-span-8 divide-y divide-viewerborder rounded-xl border border-viewerborder bg-viewerwhite">
                      {faqs.map((faq, i) => (
                         <details
                            key={i}
                            className="group p-5 sm:p-6 [&_svg]:open:rotate-90"
                         >
                            <summary className="flex cursor-pointer items-center justify-between gap-4 list-none">
-                              <h3 className="text-[15.5px] sm:text-[16px] font-semibold text-viewerblack tracking-tight pr-2">
+                              <h3 className="text-base font-semibold text-viewerblack tracking-tight pr-2">
                                  {faq.question}
                               </h3>
                               <ChevronRight
-                                 className="size-4 flex-none text-viewertext transition-transform"
+                                 className="size-4 flex-none text-viewertext"
                                  aria-hidden
                               />
                            </summary>
-                           <div className="mt-3 text-[14px] text-viewertext leading-[1.7] pr-4">
+                           <div className="mt-3 text-sm text-viewertext leading-relaxed pr-4">
                               {faq.answer}
                            </div>
                         </details>
@@ -204,40 +205,46 @@ const HowToPage = ({
          </section>
 
          <section className="border-t border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-10 items-center">
                   <div className="flex flex-col gap-4">
-                     <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                     <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                         Use S3 Viewer for this
                      </span>
-                     <h2 className="text-[28px] sm:text-[36px] lg:text-[42px] font-semibold tracking-[-0.01em] leading-[1.08] text-viewerblack">
+                     <h2 className="text-3xl font-semibold tracking-tight text-viewerblack">
                         Skip the CLI. Try it in the browser.
                      </h2>
-                     <p className="text-[15px] text-viewertext leading-[1.6] max-w-[540px]">
+                     <p className="text-viewertext max-w-[540px]">
                         S3 Viewer turns the steps above into a single click.
                         Open source, self-hostable, free.
                      </p>
                   </div>
-                  <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
-                     <Link
-                        href="/dashboard"
-                        className="group flex items-center justify-between gap-3 rounded-xl border border-viewerblack bg-viewerblack px-5 py-4 text-[14.5px] font-semibold text-viewerwhite transition-colors hover:bg-viewerblack/85"
+                  <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                     <Button
+                        asChild
+                        size="lg"
+                        className="h-11 px-6 text-[15px]"
                      >
-                        Open Viewer
-                        <ChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-                     </Link>
-                     <Link
-                        href="https://github.com/maydotinc/s3-viewer"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="group flex items-center justify-between gap-3 rounded-xl border border-viewerborder bg-viewerwhite px-5 py-4 text-[14.5px] font-semibold text-viewerblack transition-colors hover:border-viewerblue/40"
+                        <Link href="/dashboard">
+                           Open app
+                           <ChevronRight />
+                        </Link>
+                     </Button>
+                     <Button
+                        asChild
+                        variant="outline"
+                        size="lg"
+                        className="h-11 px-6 text-[15px]"
                      >
-                        <span className="inline-flex items-center gap-2">
-                           <FaGithub className="size-4" />
+                        <Link
+                           href={GITHUB_URL}
+                           target="_blank"
+                           rel="noreferrer"
+                        >
+                           <FaGithub />
                            Star on GitHub
-                        </span>
-                        <ArrowUpRight className="size-4 text-viewertext" />
-                     </Link>
+                        </Link>
+                     </Button>
                   </div>
                </div>
             </div>
@@ -246,15 +253,15 @@ const HowToPage = ({
          {((useCases && useCases.length > 0) ||
             (related && related.length > 0)) && (
             <section>
-               <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-16 md:py-20 grid grid-cols-1 lg:grid-cols-2 gap-12">
+               <div className="mx-auto w-full max-w-6xl px-6 py-20 grid grid-cols-1 lg:grid-cols-2 gap-12">
                   {useCases && useCases.length > 0 && (
                      <div>
                         <div className="flex items-end justify-between gap-6 mb-6">
                            <div className="flex flex-col gap-1">
-                              <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                              <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                                  Use case
                               </span>
-                              <h2 className="text-[20px] sm:text-[24px] font-semibold tracking-tight text-viewerblack">
+                              <h2 className="text-xl font-semibold tracking-tight text-viewerblack">
                                  Why teams pick this
                               </h2>
                            </div>
@@ -264,13 +271,13 @@ const HowToPage = ({
                               <Link
                                  key={r.href}
                                  href={r.href}
-                                 className="group flex items-start justify-between gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-5 transition-colors hover:border-viewerblue/30"
+                                 className="group flex items-start justify-between gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-5 transition-colors hover:border-viewerblue/30"
                               >
                                  <div className="flex flex-col gap-1.5 min-w-0">
-                                    <h3 className="text-[15px] font-semibold text-viewerblack tracking-tight">
+                                    <h3 className="text-sm font-semibold text-viewerblack tracking-tight">
                                        {r.title}
                                     </h3>
-                                    <p className="text-[13px] text-viewertext leading-relaxed">
+                                    <p className="text-sm text-viewertext">
                                        {r.description}
                                     </p>
                                  </div>
@@ -285,16 +292,16 @@ const HowToPage = ({
                      <div>
                         <div className="flex items-end justify-between gap-6 mb-6">
                            <div className="flex flex-col gap-1">
-                              <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                              <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                                  Related guides
                               </span>
-                              <h2 className="text-[20px] sm:text-[24px] font-semibold tracking-tight text-viewerblack">
+                              <h2 className="text-xl font-semibold tracking-tight text-viewerblack">
                                  More how-tos
                               </h2>
                            </div>
                            <Link
                               href="/how-to"
-                              className="hidden sm:inline-flex items-center gap-1 text-[13px] font-medium text-viewerblue hover:underline"
+                              className="hidden sm:inline-flex items-center gap-1 text-sm font-medium text-viewerblue hover:underline"
                            >
                               All
                               <ArrowUpRight className="size-3.5" />
@@ -305,13 +312,13 @@ const HowToPage = ({
                               <Link
                                  key={r.href}
                                  href={r.href}
-                                 className="group flex items-start justify-between gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-5 transition-colors hover:border-viewerblue/30"
+                                 className="group flex items-start justify-between gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-5 transition-colors hover:border-viewerblue/30"
                               >
                                  <div className="flex flex-col gap-1.5 min-w-0">
-                                    <h3 className="text-[15px] font-semibold text-viewerblack tracking-tight">
+                                    <h3 className="text-sm font-semibold text-viewerblack tracking-tight">
                                        {r.title}
                                     </h3>
-                                    <p className="text-[13px] text-viewertext leading-relaxed">
+                                    <p className="text-sm text-viewertext">
                                        {r.description}
                                     </p>
                                  </div>

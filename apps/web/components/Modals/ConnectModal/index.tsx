@@ -15,6 +15,7 @@ import {
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    Dialog,
+   DialogBody,
    DialogContent,
    DialogDescription,
    DialogFooter,
@@ -23,49 +24,26 @@ import {
 } from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
-import {
-   Select,
-   SelectContent,
-   SelectItem,
-   SelectTrigger,
-   SelectValue,
-} from "@s3-viewer/ui/components/select";
 import { Check, X } from "lucide-react";
 import { FormEvent, useState } from "react";
-import { REGIONS, Region } from "./regions";
+import {
+   CredentialsFields,
+   EMPTY_CREDENTIALS,
+   toServerCredentials,
+   validateCredentialFields,
+   type CredentialFields,
+} from "./credentials-fields";
 
 type ConnectModalProps = { onClose: () => void };
 
-type Fields = {
-   name: string;
-   endpoint: string;
-   region: Region;
-   accessKey: string;
-   secretKey: string;
-};
+type Fields = CredentialFields & { name: string };
 
-const EMPTY: Fields = {
-   name: "",
-   endpoint: "",
-   region: "us-east-1",
-   accessKey: "",
-   secretKey: "",
-};
+const EMPTY: Fields = { ...EMPTY_CREDENTIALS, name: "" };
 
 const validateFields = (f: Fields): string | null => {
    const name = parseServerName(f.name);
    if (!name.ok) return name.error;
-   if (!f.endpoint.trim()) return "Enter an endpoint URL";
-   let url: URL;
-   try {
-      url = new URL(f.endpoint.trim());
-   } catch {
-      return "Endpoint must be a full URL, like https://s3.amazonaws.com";
-   }
-   if (url.protocol !== "https:") return "Endpoint must start with https://";
-   if (!f.accessKey.trim()) return "Enter an access key";
-   if (!f.secretKey) return "Enter a secret key";
-   return null;
+   return validateCredentialFields(f);
 };
 
 const parseBucketNames = (raw: string): string[] => splitList(raw, /[\s,]+/);
@@ -86,7 +64,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       validateBuckets.isPending ||
       createServer.isPending;
 
-   const set = <K extends keyof Fields>(key: K, value: Fields[K]) => {
+   const set = (key: keyof Fields, value: string) => {
       setFields((prev) => ({ ...prev, [key]: value }));
       setError(null);
    };
@@ -100,12 +78,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       }
       let payload: string;
       try {
-         payload = await encryptCredentials({
-            endpoint: fields.endpoint.trim(),
-            region: fields.region,
-            accessKey: fields.accessKey.trim(),
-            secretKey: fields.secretKey,
-         });
+         payload = await encryptCredentials(toServerCredentials(fields));
       } catch {
          setError("Couldn't encrypt the credentials in this browser");
          return;
@@ -192,7 +165,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       <Dialog open onOpenChange={(open) => !open && onClose()}>
          <DialogContent className="sm:max-w-md">
             {detected ? (
-               <form onSubmit={connect} className="flex flex-col gap-4">
+               <>
                   <DialogHeader className="text-left">
                      <DialogTitle>Server found</DialogTitle>
                      <DialogDescription>
@@ -201,98 +174,96 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                            ` · ${pluralize(detected.bucketCount, "bucket")}`}
                      </DialogDescription>
                   </DialogHeader>
-                  <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-                     <dt className="text-viewerlighttext">Name</dt>
-                     <dd className="truncate text-viewerblack">
-                        {fields.name.trim()}
-                     </dd>
-                     <dt className="text-viewerlighttext">Endpoint</dt>
-                     <dd className="truncate text-viewerblack">
-                        {fields.endpoint.trim()}
-                     </dd>
-                  </dl>
-                  {!detected.listBucketsAllowed && (
-                     <div className="flex flex-col gap-1.5">
-                        <Label htmlFor="bucket-names">Bucket names</Label>
-                        <p className="text-sm text-viewertext">
-                           This token can&apos;t list buckets. Enter the bucket
-                           names it can access, separated by commas.
-                        </p>
-                        <Input
-                           id="bucket-names"
-                           placeholder="my-bucket, another-bucket"
-                           value={bucketInput}
-                           autoFocus
-                           onChange={(e) => {
-                              setBucketInput(e.target.value);
-                              setChecks(null);
-                              setError(null);
-                           }}
-                        />
-                        {checks && (
-                           <ul className="mt-1 flex flex-col gap-1 text-sm">
-                              {checks.map((c) => (
-                                 <li
-                                    key={c.bucketName}
-                                    className="flex items-center gap-2"
-                                 >
-                                    {c.accessible ? (
-                                       <Check
-                                          className="size-4 text-viewerblue"
-                                          aria-label="Accessible"
-                                       />
-                                    ) : (
-                                       <X
-                                          className="size-4 text-viewertextred"
-                                          aria-label="Not accessible"
-                                       />
-                                    )}
-                                    <span className="truncate text-viewerblack">
-                                       {c.bucketName}
-                                    </span>
-                                 </li>
-                              ))}
-                           </ul>
+                  <form onSubmit={connect} className="flex min-h-0 flex-col">
+                     <DialogBody className="flex flex-col gap-4">
+                        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                           <dt className="text-viewerlighttext">Name</dt>
+                           <dd className="min-w-0 truncate text-viewerblack">
+                              {fields.name.trim()}
+                           </dd>
+                           <dt className="text-viewerlighttext">Endpoint</dt>
+                           <dd className="min-w-0 truncate text-viewerblack">
+                              {fields.endpoint.trim()}
+                           </dd>
+                        </dl>
+                        {!detected.listBucketsAllowed && (
+                           <div className="flex flex-col gap-1.5">
+                              <Label htmlFor="bucket-names">Bucket names</Label>
+                              <Input
+                                 id="bucket-names"
+                                 placeholder="my-bucket, another-bucket"
+                                 value={bucketInput}
+                                 autoFocus
+                                 onChange={(e) => {
+                                    setBucketInput(e.target.value);
+                                    setChecks(null);
+                                    setError(null);
+                                 }}
+                              />
+                              <p className="text-xs text-viewerlighttext">
+                                 This token can&apos;t list buckets, so name the
+                                 ones it can access.
+                              </p>
+                              {checks && (
+                                 <ul className="flex flex-col gap-1 text-sm">
+                                    {checks.map((c) => (
+                                       <li
+                                          key={c.bucketName}
+                                          className="flex items-center gap-2"
+                                       >
+                                          {c.accessible ? (
+                                             <Check
+                                                className="size-4 shrink-0 text-viewerblue"
+                                                aria-label="Accessible"
+                                             />
+                                          ) : (
+                                             <X
+                                                className="size-4 shrink-0 text-viewertextred"
+                                                aria-label="Not accessible"
+                                             />
+                                          )}
+                                          <span className="min-w-0 truncate text-viewerblack">
+                                             {c.bucketName}
+                                          </span>
+                                       </li>
+                                    ))}
+                                 </ul>
+                              )}
+                              <Button
+                                 type="button"
+                                 variant="link"
+                                 size="sm"
+                                 className="w-fit px-0"
+                                 onClick={checkBuckets}
+                                 loading={validateBuckets.isPending}
+                              >
+                                 Check access
+                              </Button>
+                           </div>
                         )}
+                        <FormError>{error}</FormError>
+                     </DialogBody>
+                     <DialogFooter className="justify-between">
                         <Button
                            type="button"
-                           variant="link"
-                           size="sm"
-                           className="w-fit px-0"
-                           onClick={checkBuckets}
-                           loading={validateBuckets.isPending}
+                           variant="ghost"
+                           onClick={back}
+                           disabled={busy}
                         >
-                           {validateBuckets.isPending
-                              ? "Checking…"
-                              : "Check access"}
+                           Back
                         </Button>
-                     </div>
-                  )}
-                  <FormError>{error}</FormError>
-                  <DialogFooter className="sm:justify-between">
-                     <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={back}
-                        disabled={busy}
-                     >
-                        Edit credentials
-                     </Button>
-                     <Button
-                        type="submit"
-                        loading={createServer.isPending}
-                        disabled={busy}
-                     >
-                        {createServer.isPending ? "Connecting…" : "Connect"}
-                     </Button>
-                  </DialogFooter>
-               </form>
+                        <Button
+                           type="submit"
+                           loading={createServer.isPending}
+                           disabled={busy}
+                        >
+                           Connect
+                        </Button>
+                     </DialogFooter>
+                  </form>
+               </>
             ) : (
-               <form
-                  onSubmit={detect}
-                  className="flex flex-col gap-4"
-                  autoComplete="off"
-               >
+               <>
                   <DialogHeader className="text-left">
                      <DialogTitle>Connect a server</DialogTitle>
                      <DialogDescription>
@@ -301,77 +272,37 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                         leave your browser.
                      </DialogDescription>
                   </DialogHeader>
-                  <div className="flex flex-col gap-1.5">
-                     <Label htmlFor="connect-name">Name</Label>
-                     <Input
-                        id="connect-name"
-                        placeholder="Production"
-                        maxLength={64}
-                        value={fields.name}
-                        autoFocus
-                        onChange={(e) => set("name", e.target.value)}
-                     />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                     <Label htmlFor="connect-endpoint">Endpoint</Label>
-                     <Input
-                        id="connect-endpoint"
-                        type="url"
-                        inputMode="url"
-                        placeholder="https://<account>.r2.cloudflarestorage.com"
-                        value={fields.endpoint}
-                        onChange={(e) => set("endpoint", e.target.value)}
-                     />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                     <Label htmlFor="connect-region">Region</Label>
-                     <Select
-                        value={fields.region}
-                        onValueChange={(v) => set("region", v as Region)}
-                     >
-                        <SelectTrigger id="connect-region" className="w-full">
-                           <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-60">
-                           {REGIONS.map((r) => (
-                              <SelectItem key={r} value={r}>
-                                 {r === "auto" ? "auto (Cloudflare R2)" : r}
-                              </SelectItem>
-                           ))}
-                        </SelectContent>
-                     </Select>
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                     <Label htmlFor="connect-access-key">Access key</Label>
-                     <Input
-                        id="connect-access-key"
-                        autoComplete="off"
-                        spellCheck={false}
-                        value={fields.accessKey}
-                        onChange={(e) => set("accessKey", e.target.value)}
-                     />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                     <Label htmlFor="connect-secret-key">Secret key</Label>
-                     <Input
-                        id="connect-secret-key"
-                        type="password"
-                        autoComplete="off"
-                        spellCheck={false}
-                        value={fields.secretKey}
-                        onChange={(e) => set("secretKey", e.target.value)}
-                     />
-                  </div>
-                  <FormError>{error}</FormError>
-                  <DialogFooter className="sm:justify-end">
-                     <Button type="button" variant="outline" onClick={onClose}>
-                        Cancel
-                     </Button>
-                     <Button type="submit" loading={establish.isPending}>
-                        {establish.isPending ? "Detecting…" : "Detect"}
-                     </Button>
-                  </DialogFooter>
-               </form>
+                  <form
+                     onSubmit={detect}
+                     className="flex min-h-0 flex-col"
+                     autoComplete="off"
+                  >
+                     <DialogBody className="flex flex-col gap-4">
+                        <div className="flex flex-col gap-1.5">
+                           <Label htmlFor="connect-name">Name</Label>
+                           <Input
+                              id="connect-name"
+                              placeholder="Production"
+                              maxLength={64}
+                              value={fields.name}
+                              autoFocus
+                              onChange={(e) => set("name", e.target.value)}
+                           />
+                        </div>
+                        <CredentialsFields
+                           fields={fields}
+                           onChange={set}
+                           idPrefix="connect"
+                        />
+                        <FormError>{error}</FormError>
+                     </DialogBody>
+                     <DialogFooter>
+                        <Button type="submit" loading={establish.isPending}>
+                           Continue
+                        </Button>
+                     </DialogFooter>
+                  </form>
+               </>
             )}
          </DialogContent>
       </Dialog>

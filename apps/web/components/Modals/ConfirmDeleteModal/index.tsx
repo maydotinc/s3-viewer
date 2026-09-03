@@ -1,14 +1,8 @@
-import {
-   CenteredDialogHeader,
-   ConfirmFooter,
-} from "@/components/Modals/confirm-dialog";
+import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import { errorMessage } from "@/lib/api";
 import useDeleteObjects from "@/lib/hooks/mutations/object/useDeleteObjects";
 import useDeletePrefix from "@/lib/hooks/mutations/object/useDeletePrefix";
 import { baseName, isFolderKey, type S3DeleteResult } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
-import { Dialog, DialogContent } from "@s3-viewer/ui/components/dialog";
-import { Trash2 } from "lucide-react";
 import { useState } from "react";
 
 type ConfirmDeleteModalProps = {
@@ -56,65 +50,49 @@ const ConfirmDeleteModal = ({
             setFailed(result.failed);
             if (result.failed.length === 0) onClose();
          },
-         onError: (err: unknown) => setError(errorMessage(err)),
+         onError: (err: unknown) => {
+            setFailed([]);
+            setError(errorMessage(err));
+         },
       };
       const keys = failed.length > 0 ? failed.map((f) => f.key) : objectKeys;
       if (folder) deletePrefix.mutate({ bucketName, prefix: folder }, options);
       else deleteObjects.mutate({ bucketName, objectKeys: keys }, options);
    };
 
+   const failureSummary =
+      failed.length === 0
+         ? null
+         : failed.length === 1
+           ? "This object couldn't be deleted:"
+           : `${failed.length} objects couldn't be deleted:`;
+
    return (
-      <Dialog open onOpenChange={isPending ? undefined : onClose}>
-         <DialogContent className="max-w-[95%] sm:max-w-md">
-            <CenteredDialogHeader
-               icon={Trash2}
-               tone="destructive"
-               title={title}
-               descriptionClassName="break-all"
-            >
-               {description}
-            </CenteredDialogHeader>
-            <div
-               className="min-h-5 text-center text-sm text-viewertextred"
-               role="alert"
-            >
-               {error ??
-                  (failed.length > 0 && (
-                     <>
-                        <p>
-                           {failed.length === 1
-                              ? "This object couldn't be deleted:"
-                              : `${failed.length} objects couldn't be deleted:`}
-                        </p>
-                        <ul className="mt-1 max-h-32 overflow-y-auto break-all text-left text-viewertext">
-                           {failed.map((f) => (
-                              <li key={f.key}>
-                                 <span className="font-medium text-viewerblack">
-                                    {f.key}
-                                 </span>{" "}
-                                 — {f.message}
-                              </li>
-                           ))}
-                        </ul>
-                     </>
-                  ))}
-            </div>
-            <ConfirmFooter cancelDisabled={isPending}>
-               <Button
-                  variant="destructive"
-                  className="flex-1"
-                  onClick={confirm}
-                  loading={isPending}
-               >
-                  {isPending
-                     ? "Deleting…"
-                     : failed.length > 0
-                       ? "Retry"
-                       : "Delete"}
-               </Button>
-            </ConfirmFooter>
-         </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+         closable={!isPending}
+         onClose={onClose}
+         title={title}
+         description={description}
+         descriptionClassName="break-all"
+         error={error ?? failureSummary}
+         confirmVariant="destructive"
+         confirmLabel={failed.length > 0 ? "Retry" : "Delete"}
+         isPending={isPending}
+         onConfirm={confirm}
+      >
+         {failed.length > 0 && (
+            <ul className="max-h-40 overflow-y-auto rounded-md border border-viewerborder bg-viewergray p-2 text-xs break-all text-viewertext">
+               {failed.map((f) => (
+                  <li key={f.key}>
+                     <span className="font-medium text-viewerblack">
+                        {f.key}
+                     </span>{" "}
+                     — {f.message}
+                  </li>
+               ))}
+            </ul>
+         )}
+      </ConfirmDialog>
    );
 };
 

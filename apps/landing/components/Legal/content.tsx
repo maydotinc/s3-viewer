@@ -60,11 +60,11 @@ const LegalContent = ({ content }: { content: LegalContentItemProps[] }) => {
    }, [slugs]);
 
    return (
-      <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-12 md:py-16 lg:py-20">
+      <div className="mx-auto w-full max-w-6xl px-6 py-20">
          <div className="grid lg:grid-cols-[240px_1fr] gap-10 lg:gap-16">
             <aside className="hidden lg:block">
                <div className="sticky top-28 flex flex-col gap-3">
-                  <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                  <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                      On this page
                   </span>
                   <nav className="relative flex flex-col">
@@ -80,7 +80,7 @@ const LegalContent = ({ content }: { content: LegalContentItemProps[] }) => {
                               key={slug}
                               href={`#${slug}`}
                               className={cn(
-                                 "relative pl-4 pr-2 py-2 text-[13px] leading-snug transition-colors",
+                                 "relative pl-4 pr-2 py-2 text-sm leading-snug transition-colors",
                                  isActive
                                     ? "text-viewerblue font-semibold"
                                     : "text-viewertext hover:text-viewerblack"
@@ -89,7 +89,7 @@ const LegalContent = ({ content }: { content: LegalContentItemProps[] }) => {
                               {isActive && (
                                  <span
                                     aria-hidden
-                                    className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full bg-viewerblue transition-all"
+                                    className="absolute left-0 top-1 bottom-1 w-[2px] rounded-full bg-viewerblue"
                                  />
                               )}
                               {section.title}
@@ -109,15 +109,15 @@ const LegalContent = ({ content }: { content: LegalContentItemProps[] }) => {
                         id={slug}
                         className="scroll-mt-28 py-8 first:pt-0 last:pb-0 border-b border-viewerborder last:border-b-0"
                      >
-                        <span className="text-[10.5px] font-semibold tracking-[0.14em] uppercase text-viewerlighttext">
+                        <span className="text-xs font-medium tracking-wide uppercase text-viewerlighttext">
                            Section {String(i + 1).padStart(2, "0")}
                         </span>
-                        <h2 className="mt-2 text-[22px] sm:text-[26px] lg:text-[30px] font-semibold tracking-tight leading-[1.2] text-viewerblack">
+                        <h2 className="mt-2 text-2xl font-semibold tracking-tight text-viewerblack">
                            {section.title}
                         </h2>
                         <div
                            className={cn(
-                              "mt-5 text-[15px] sm:text-[16px] leading-[1.7] text-viewertext",
+                              "mt-5 text-base sm:text-base leading-relaxed text-viewertext",
                               "[&_p]:m-0 [&_p+p]:mt-4",
                               "[&_strong]:font-semibold [&_strong]:text-viewerblack",
                               "[&_a]:text-viewerblue [&_a]:font-medium [&_a]:underline [&_a]:decoration-viewerblue/30 [&_a]:underline-offset-[3px] hover:[&_a]:decoration-viewerblue",

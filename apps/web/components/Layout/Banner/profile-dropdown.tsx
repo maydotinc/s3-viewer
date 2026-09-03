@@ -1,18 +1,18 @@
 import Avatar from "@/components/Avatar";
 import DeleteAccountModal from "@/components/Modals/DeleteAccountModal";
 import { authClient, signOut } from "@/lib/auth";
+import { errorMessage } from "@/lib/api";
 import { TERMS_URL } from "@/lib/site-config";
 import { SITE_PATHS } from "@s3-viewer/types";
 import {
    DropdownMenu,
    DropdownMenuContent,
    DropdownMenuItem,
-   DropdownMenuLabel,
    DropdownMenuSeparator,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
-import { ChevronDown, FileText, LogOut, Mail, Trash2 } from "lucide-react";
+import { toast } from "@s3-viewer/ui/components/toast";
+import { FileText, LogOut, Mail, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -21,11 +21,13 @@ const ProfileDropdown = () => {
    const [confirmingDelete, setConfirmingDelete] = useState(false);
    const user = session?.user;
 
+   // Same footprint as the trigger so the banner never shifts.
    if (!user) {
       return (
-         <div className="flex h-11 w-11 items-center justify-center rounded-full border border-viewerborder bg-viewerwhite sm:w-36">
-            <Spinner size="sm" label="Loading account" />
-         </div>
+         <div
+            aria-hidden="true"
+            className="size-8 rounded-full bg-viewergray"
+         />
       );
    }
 
@@ -34,26 +36,19 @@ const ProfileDropdown = () => {
          <DropdownMenu>
             <DropdownMenuTrigger
                aria-label="Account menu"
-               className="fade-in flex h-11 items-center gap-2 rounded-full border border-viewerborder bg-viewerwhite py-1 pl-1 pr-1 text-sm sm:pr-3 text-viewerblack outline-none hover:bg-viewergray focus-visible:border-viewerblue data-[state=open]:[&_svg]:rotate-180"
+               className="flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full outline-none"
             >
-               <Avatar name={user.name} image={user.image} size={36} />
-               <span className="hidden max-w-32 truncate sm:inline">
-                  {user.name}
-               </span>
-               <ChevronDown
-                  aria-hidden="true"
-                  className="size-4 text-viewertext transition-transform"
-               />
+               <Avatar name={user.name} image={user.image} size={32} />
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-60">
-               <DropdownMenuLabel className="flex flex-col font-normal">
-                  <span className="text-xs text-viewerlighttext">
-                     Signed in as
+            <DropdownMenuContent align="end" className="min-w-[14rem]">
+               <div className="flex flex-col px-2.5 py-2">
+                  <span className="truncate text-sm font-medium text-viewerblack">
+                     {user.name}
                   </span>
-                  <span className="truncate text-viewerblack">
+                  <span className="truncate text-xs text-viewertext">
                      {user.email}
                   </span>
-               </DropdownMenuLabel>
+               </div>
                <DropdownMenuSeparator />
                <DropdownMenuItem asChild>
                   <Link href={SITE_PATHS.invites}>
@@ -70,7 +65,13 @@ const ProfileDropdown = () => {
                <DropdownMenuSeparator />
                <DropdownMenuItem
                   variant="destructive"
-                  onSelect={() => signOut()}
+                  onSelect={() =>
+                     // signOut always clears local state and navigates to
+                     // /login, even when the request fails; just report it.
+                     void signOut().catch((error: unknown) =>
+                        toast.error(errorMessage(error))
+                     )
+                  }
                >
                   <LogOut aria-hidden="true" />
                   Sign out

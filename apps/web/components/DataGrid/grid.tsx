@@ -21,15 +21,24 @@ const viewerGridTheme = themeQuartz.withParams({
    borderRadius: 8,
    columnBorder: false,
    fontFamily: "inherit",
+   fontSize: 14,
    foregroundColor: "var(--color-viewertext)",
-   headerBackgroundColor: "var(--color-viewergray)",
+   headerBackgroundColor: "var(--color-viewerwhite)",
    headerFontSize: 14,
-   headerRowBorder: false,
-   headerVerticalPaddingScale: 0.5,
-   rowBorder: true,
-   spacing: 12,
-   wrapperBorder: false,
+   headerFontWeight: 500,
+   headerHeight: 40,
+   headerRowBorder: true,
+   headerTextColor: "var(--color-viewertext)",
    rangeSelectionBorderColor: "transparent",
+   rowBorder: true,
+   rowHeight: 40,
+   rowHoverColor: "var(--color-viewergray)",
+   selectedRowBackgroundColor:
+      "color-mix(in srgb, var(--color-viewerblue) 6%, transparent)",
+   spacing: 8,
+   // The card around the grid (GRID_CARD) draws the outer border, so the grid
+   // must not draw a second one inside it.
+   wrapperBorder: false,
 });
 
 const defaultColDef: ColDef = {

@@ -116,7 +116,7 @@ const EmailStep = ({
                className="w-full"
                loading={sending}
             >
-               {sending ? "Sending…" : "Continue"}
+               Continue
             </Button>
          </form>
       </div>

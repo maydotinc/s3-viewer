@@ -3,7 +3,7 @@ import AuthGuard from "@/components/Session/auth-guard";
 import ErrorBoundary from "@/components/Session/error-boundary";
 import SessionManager from "@/components/Session/session-manager";
 import { ModalProvider } from "@/lib/contexts/ModalContext";
-import { makeQueryClient } from "@/lib/queryClient";
+import { getQueryClient } from "@/lib/queryClient";
 import { PRODUCT_NAME } from "@s3-viewer/types";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
@@ -22,7 +22,7 @@ type NextPageWithLayout<P = Record<string, never>, IP = P> = NextPage<P, IP> & {
 type AppPropsWithLayout = AppProps & { Component: NextPageWithLayout };
 
 const App = ({ Component, pageProps }: AppPropsWithLayout) => {
-   const [queryClient] = useState(makeQueryClient);
+   const [queryClient] = useState(getQueryClient);
    const getLayout = Component.getLayout ?? ((page) => page);
 
    return (

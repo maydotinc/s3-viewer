@@ -1,4 +1,5 @@
 import { describeError, logger } from "@/lib/logger";
+import type { ErrorCode } from "@s3-viewer/types";
 import type {
    ErrorRequestHandler,
    NextFunction,
@@ -11,7 +12,7 @@ class ApiHttpError extends Error {
    constructor(
       public readonly status: number,
       message: string,
-      public readonly code?: string
+      public readonly code?: ErrorCode
    ) {
       super(message);
       this.name = "ApiHttpError";
@@ -26,7 +27,7 @@ const fail = (
    res: Response,
    status: number,
    message: string,
-   code?: string
+   code?: ErrorCode
 ): void => {
    res.status(status).json(code ? { message, code } : { message });
 };

@@ -1,3 +1,4 @@
+import { GITHUB_URL } from "@/lib/site-config";
 import {
    ArrowUpRight,
    ChevronRight,
@@ -39,10 +40,10 @@ const LegalHub = () => {
    return (
       <main className="bg-viewerwhite w-full overflow-x-hidden">
          <section className="border-b border-viewerborder bg-viewergray">
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-14">
+            <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16">
                <nav
                   aria-label="Breadcrumb"
-                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
+                  className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-viewerlighttext mb-6"
                >
                   <Link
                      href="/"
@@ -58,10 +59,10 @@ const LegalHub = () => {
                   <span className="font-medium text-viewerblack">Legal</span>
                </nav>
                <div className="flex flex-col gap-4 max-w-[760px]">
-                  <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
+                  <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                      Legal documents
                   </h1>
-                  <p className="text-[16px] sm:text-[17px] text-viewertext leading-relaxed max-w-[600px]">
+                  <p className="text-viewertext max-w-[600px]">
                      The plain-English ground rules for using S3 Viewer. We try
                      to keep these short and honest.
                   </p>
@@ -70,42 +71,37 @@ const LegalHub = () => {
          </section>
 
          <section>
-            <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 py-12 md:py-16 lg:py-20">
+            <div className="mx-auto w-full max-w-6xl px-6 py-20">
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
-                  {DOCS.map((doc, i) => (
+                  {DOCS.map((doc) => (
                      <Link
                         key={doc.href}
                         href={doc.href}
                         aria-label={`Read the ${doc.title}`}
-                        className="motion-fade-up group relative flex h-full flex-col gap-4 rounded-2xl border border-viewerborder bg-viewerwhite p-6 sm:p-7 transition-colors duration-300 hover:border-viewerblue/40 outline-none focus-visible:outline-none focus-visible:border-viewerblue"
-                        style={{ animationDelay: `${i * 80}ms` }}
+                        className="group relative flex h-full flex-col gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-6 sm:p-7 transition-colors hover:border-viewerblue/40 outline-none focus-visible:outline-none focus-visible:border-viewerblue"
                      >
-                        <div className="flex items-start justify-between gap-3">
-                           <span className="grid place-items-center size-10 rounded-[10px] border border-viewerborder bg-viewergray text-viewerblue">
+                        <div className="flex items-center justify-between gap-3">
+                           <span className="grid size-10 place-items-center rounded-lg bg-viewergray text-viewerblue">
                               <doc.icon
                                  className="size-4.5"
                                  strokeWidth={1.8}
                               />
                            </span>
-                           <span
+                           <ArrowUpRight
                               aria-hidden
-                              className="flex-none size-8 rounded-full border border-viewerborder bg-viewerwhite grid place-items-center text-viewertext transition-colors duration-200 group-hover:bg-viewerblack group-hover:border-viewerblack group-hover:text-viewerwhite"
-                           >
-                              <ArrowUpRight
-                                 className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-                                 strokeWidth={2.25}
-                              />
-                           </span>
+                              className="size-4 flex-none text-viewerlighttext transition-colors group-hover:text-viewerblack"
+                              strokeWidth={2}
+                           />
                         </div>
 
                         <div className="flex flex-col gap-2 mt-auto">
-                           <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-tight text-viewerblack leading-snug">
+                           <h2 className="text-xl font-semibold tracking-tight text-viewerblack leading-snug">
                               {doc.title}
                            </h2>
-                           <p className="text-[13.5px] sm:text-[14px] text-viewertext leading-relaxed">
+                           <p className="text-sm text-viewertext">
                               {doc.description}
                            </p>
-                           <span className="mt-2 text-[11.5px] font-medium text-viewerlighttext">
+                           <span className="mt-2 text-xs font-medium text-viewerlighttext">
                               Updated {doc.lastUpdated}
                            </span>
                         </div>
@@ -113,10 +109,12 @@ const LegalHub = () => {
                   ))}
                </div>
 
-               <p className="mt-10 text-[13px] text-viewerlighttext max-w-[640px]">
+               <p className="mt-10 text-xs text-viewerlighttext max-w-[640px]">
                   Questions about any of these policies? Open an issue on our{" "}
                   <Link
-                     href="https://github.com/maydotinc/s3-viewer"
+                     href={GITHUB_URL}
+                     target="_blank"
+                     rel="noreferrer"
                      className="text-viewerblack font-medium underline decoration-viewerborder underline-offset-[3px] hover:decoration-viewerblack"
                   >
                      GitHub repository

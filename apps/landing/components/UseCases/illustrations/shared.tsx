@@ -10,7 +10,7 @@ export const IllustrationFrame = ({
 }) => (
    <div
       className={cn(
-         "relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-viewerborder bg-viewergray",
+         "relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-viewerborder bg-viewergray",
          className
       )}
    >

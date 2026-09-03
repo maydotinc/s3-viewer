@@ -1,9 +1,8 @@
 import { useGridContext } from "@/components/DataGrid/context";
-import PageSize from "@/components/DataGrid/page-size";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { useBucketContext } from "./Context";
 import PrefixSearch from "./Grid/prefix-search";
@@ -18,33 +17,33 @@ const ObjectsToolbar = () => {
    const count = selectedIds.length;
 
    return (
-      <div className="flex flex-wrap items-center gap-2 pb-4">
-         <PrefixSearch className="min-w-56 flex-1" />
-         <PageSize />
-         <Button variant="outline" onClick={refresh}>
-            <RefreshCw aria-hidden="true" />
-            Refresh
-         </Button>
-         <div className="flex h-9 min-w-[232px] items-center justify-end gap-2">
-            {isLoading ? (
-               <Spinner size="sm" label="Loading actions" />
-            ) : (
-               <div className="fade-in flex items-center gap-2">
-                  {canUpload && <UploadMenu className="min-w-28" />}
-                  {commands.can.delete && (
-                     <Button
-                        variant="destructive"
-                        className="min-w-28"
-                        disabled={count === 0}
-                        onClick={() =>
-                           commands.remove(selectedIds, clearSelection)
-                        }
-                     >
-                        <Trash2 aria-hidden="true" />
-                        Delete{count > 0 ? ` (${count})` : ""}
-                     </Button>
-                  )}
-               </div>
+      <div className="flex h-9 items-center gap-2">
+         <PrefixSearch className="min-w-0 max-w-sm flex-1" />
+         <div
+            className="ml-auto flex shrink-0 items-center gap-2"
+            aria-busy={isLoading || undefined}
+         >
+            <Button variant="outline" onClick={refresh}>
+               <RefreshCw aria-hidden="true" />
+               Refresh
+            </Button>
+            {isLoading && (
+               <>
+                  <Skeleton className="h-9 w-32 rounded-lg" />
+                  <Skeleton className="h-9 w-24 rounded-lg" />
+               </>
+            )}
+            {!isLoading && canUpload && <UploadMenu />}
+            {!isLoading && commands.can.delete && (
+               <Button
+                  variant="destructive"
+                  disabled={count === 0}
+                  onClick={() => commands.remove(selectedIds, clearSelection)}
+               >
+                  <Trash2 aria-hidden="true" />
+                  Delete
+                  {count > 0 && <span className="tabular-nums">({count})</span>}
+               </Button>
             )}
          </div>
       </div>

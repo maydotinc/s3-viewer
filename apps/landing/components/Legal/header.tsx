@@ -18,10 +18,10 @@ const LegalHeader = ({
 }: LegalHeaderProps) => {
    return (
       <section className="w-full border-b border-viewerborder bg-viewergray">
-         <div className="w-full max-w-screen-xl mx-auto px-5 sm:px-6 md:px-12 lg:px-20 pt-14 md:pt-18 lg:pt-20 pb-12 md:pb-16 lg:pb-20">
+         <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16">
             <nav
                aria-label="Breadcrumb"
-               className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[12px] text-viewerlighttext mb-6"
+               className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-viewerlighttext mb-6"
             >
                <Link
                   href="/"
@@ -41,13 +41,13 @@ const LegalHeader = ({
             </nav>
 
             <div className="flex flex-col items-start gap-5 max-w-[820px]">
-               <h1 className="text-[30px] sm:text-[44px] lg:text-[56px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
+               <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                   {title}
                </h1>
-               <p className="text-[16px] sm:text-[17px] text-viewertext max-w-[620px] leading-relaxed">
+               <p className="text-viewertext max-w-[620px] leading-relaxed">
                   {description}
                </p>
-               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px] text-viewerlighttext">
+               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-viewerlighttext">
                   {effectiveDate && (
                      <span className="inline-flex items-center gap-1.5">
                         <Calendar

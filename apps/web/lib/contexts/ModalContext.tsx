@@ -27,6 +27,7 @@ type ModalPropsMap = {
    };
    disconnect: { server: ServerInfo };
    share: { server?: ServerInfo };
+   updateCredentials: { server: ServerInfo; onUpdated?: () => void };
 };
 
 type ModalType = keyof ModalPropsMap;
@@ -43,6 +44,9 @@ type ModalContextValue = {
    openRenameObjectModal: (props: ModalPropsMap["renameObject"]) => void;
    openDisconnectModal: (props: ModalPropsMap["disconnect"]) => void;
    openShareModal: (props: ModalPropsMap["share"]) => void;
+   openUpdateCredentialsModal: (
+      props: ModalPropsMap["updateCredentials"]
+   ) => void;
 };
 
 const ModalContext = createContext<ModalContextValue | null>(null);
@@ -87,6 +91,7 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
          openRenameObjectModal: (p) => open("renameObject", p),
          openDisconnectModal: (p) => open("disconnect", p),
          openShareModal: (p) => open("share", p),
+         openUpdateCredentialsModal: (p) => open("updateCredentials", p),
       }),
       [modals, closeModal, open]
    );

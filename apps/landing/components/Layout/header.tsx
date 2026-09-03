@@ -1,31 +1,14 @@
-import { cn } from "@s3-viewer/ui/lib/utils";
+import { GITHUB_URL } from "@/lib/site-config";
 import { Button } from "@s3-viewer/ui/components/button";
-import { ChevronRight, Star } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { FaGithub } from "react-icons/fa";
 
 const Header = () => {
-   const [scrolled, setScrolled] = useState(false);
-
-   useEffect(() => {
-      const onScroll = () => setScrolled(window.scrollY > 4);
-      onScroll();
-      window.addEventListener("scroll", onScroll, { passive: true });
-      return () => window.removeEventListener("scroll", onScroll);
-   }, []);
-
    return (
-      <header
-         className={cn(
-            "sticky top-0 z-50 flex h-20 w-full flex-none items-center justify-center border-b transition-[border-color,background-color] duration-200",
-            scrolled
-               ? "border-viewerborder bg-viewerwhite/85 backdrop-blur-md"
-               : "border-transparent bg-viewerwhite"
-         )}
-      >
-         <div className="flex h-full w-full max-w-screen-2xl items-center justify-between gap-4 px-30 max-xl:px-15 max-md:px-4">
+      <header className="sticky top-0 z-50 h-16 w-full flex-none border-b border-viewerborder bg-viewerwhite">
+         <div className="mx-auto flex h-full w-full max-w-6xl items-center justify-between gap-4 px-6">
             <Link
                href="/"
                draggable={false}
@@ -35,9 +18,9 @@ const Header = () => {
                <Image
                   src="/icons/viewer.svg"
                   alt="S3 Viewer"
-                  width={160}
-                  height={38}
-                  className="h-8 sm:h-9 w-auto"
+                  width={150}
+                  height={32}
+                  className="h-7 w-auto shrink-0 select-none"
                   priority
                   quality={100}
                   draggable={false}
@@ -45,45 +28,19 @@ const Header = () => {
             </Link>
 
             <div className="flex items-center gap-2">
-               <Link
-                  href="https://github.com/maydotinc/s3-viewer"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Star S3 Viewer on GitHub"
-                  className="hidden sm:flex h-10 items-center rounded-md border border-viewerborder bg-viewerwhite hover:bg-viewergray transition-colors overflow-hidden"
-               >
-                  <span className="flex items-center gap-2 px-3 h-full text-[13px] font-medium text-viewerblack">
-                     <FaGithub className="size-4" />
-                     Star on GitHub
-                  </span>
-                  <span className="flex items-center gap-1 px-3 h-full border-l border-viewerborder bg-viewergray text-[12.5px] font-semibold text-viewertext">
-                     <Star
-                        className="size-3.5 text-viewerlighttext"
-                        strokeWidth={2}
-                        aria-hidden
-                     />
-                  </span>
-               </Link>
+               {/* Below `sm` there is no room for both at 320px, and the
+                   hero and footer both carry a GitHub link. */}
+               <Button variant="ghost" asChild className="max-sm:hidden">
+                  <Link href={GITHUB_URL} target="_blank" rel="noreferrer">
+                     <FaGithub />
+                     GitHub
+                  </Link>
+               </Button>
 
-               <Link
-                  href="https://github.com/maydotinc/s3-viewer"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Star S3 Viewer on GitHub"
-                  className="sm:hidden grid place-items-center size-10 rounded-md border border-viewerborder bg-viewerwhite text-viewerblack"
-               >
-                  <FaGithub className="size-4" />
-               </Link>
-
-               <Button
-                  size="lg"
-                  variant="default"
-                  className="h-10 text-[13.5px]"
-                  asChild
-               >
+               <Button asChild>
                   <Link href="/dashboard">
-                     Open Viewer
-                     <ChevronRight className="size-4" />
+                     Open app
+                     <ChevronRight />
                   </Link>
                </Button>
             </div>

@@ -1,52 +1,66 @@
+import { GITHUB_URL } from "@/lib/site-config";
 import { Button } from "@s3-viewer/ui/components/button";
 import Image from "next/image";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
-import BasicBlock from "../basic-block";
 
 const IntroBlock = () => {
    return (
-      <BasicBlock className="md:flex-row gap-0 max-md:py-5 max-md:border-b max-md:border-viewerborder">
-         <div className="bg-viewergray flex-1 border border-viewerborder">
-            <div className="flex flex-col justify-center h-full p-6 gap-6">
-               <Link
-                  target="_blank"
-                  href="https://github.com/maydotinc/s3-viewer"
-                  className="flex cursor-pointer items-center gap-1.5 rounded-lg w-fit px-3 py-1 border border-viewerborder bg-viewerwhite"
-               >
-                  <FaGithub className="size-4" />
-                  <span className="text-md">OPEN SOURCE</span>
-               </Link>
-               <h1 className="md:text-[42px] text-4xl font-semibold text-viewerblack">
-                  Explore S3-compatible Object Storage Online
+      <section className="w-full">
+         <div className="mx-auto w-full max-w-6xl px-6 pt-24 pb-16">
+            <div className="flex flex-col items-center text-center">
+               <span className="inline-flex h-7 items-center rounded-full border border-viewerborder bg-viewergray px-3 text-xs font-medium text-viewertext">
+                  Open source · self-hostable
+               </span>
+
+               <h1 className="mt-6 max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance text-viewerblack sm:text-5xl md:text-6xl">
+                  Browse every{" "}
+                  <span className="whitespace-nowrap">S3-compatible</span>{" "}
+                  bucket in one place
                </h1>
-               <p className="md:text-xl text-lg text-viewertext">
-                  Manage all your buckets in one place, with a Google Drive-like
-                  interface that just works.
+
+               <p className="mt-5 max-w-xl text-lg text-viewertext">
+                  One fast interface for AWS S3, Cloudflare R2, MinIO and the
+                  rest — with the file browser you already know.
                </p>
-               <Button
-                  variant="default"
-                  size="lg"
-                  className="h-12 text-md w-fit"
-                  asChild
-               >
-                  <Link href="/dashboard">Connect your server</Link>
-               </Button>
+
+               <div className="mt-8 flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row">
+                  <Button
+                     asChild
+                     size="lg"
+                     className="h-11 w-full px-6 text-[15px] sm:w-auto"
+                  >
+                     <Link href="/dashboard">Connect your server</Link>
+                  </Button>
+                  <Button
+                     asChild
+                     variant="outline"
+                     size="lg"
+                     className="h-11 w-full px-6 text-[15px] sm:w-auto"
+                  >
+                     <Link href={GITHUB_URL} target="_blank" rel="noreferrer">
+                        <FaGithub />
+                        Star on GitHub
+                     </Link>
+                  </Button>
+               </div>
+            </div>
+
+            <div className="mx-auto mt-16 w-full max-w-5xl overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite shadow-sm">
+               <Image
+                  src="/landing/bucketview.png"
+                  alt="S3 Viewer dashboard showing buckets and the object browser"
+                  width={2160}
+                  height={1350}
+                  sizes="(max-width: 1024px) 100vw, 1024px"
+                  priority
+                  quality={100}
+                  draggable={false}
+                  className="h-auto w-full select-none"
+               />
             </div>
          </div>
-         <div className="flex-1 bg-viewerblue bg-[url('/landing/grain-filter.svg')] bg-blend-multiply p-8 flex justify-center items-center">
-            <Image
-               src="/landing/bucketview.png"
-               alt="S3 Viewer dashboard showing buckets and object browser"
-               width={2160}
-               height={1350}
-               sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 700px"
-               priority
-               draggable={false}
-               className="select-none h-auto w-full"
-            />
-         </div>
-      </BasicBlock>
+      </section>
    );
 };
 

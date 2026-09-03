@@ -1,7 +1,4 @@
-import {
-   CenteredDialogHeader,
-   ConfirmFooter,
-} from "@/components/Modals/confirm-dialog";
+import FormError from "@/components/Modals/form-error";
 import { ApiError, errorMessage } from "@/lib/api";
 import useRenameObject from "@/lib/hooks/mutations/object/useRenameObject";
 import usePathSuggestion, {
@@ -10,11 +7,19 @@ import usePathSuggestion, {
 import { formatBytes } from "@/lib/utils/format";
 import { MAX_RENAME_BYTES, isFolderKey } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Dialog, DialogContent } from "@s3-viewer/ui/components/dialog";
+import {
+   Dialog,
+   DialogBody,
+   DialogContent,
+   DialogDescription,
+   DialogFooter,
+   DialogHeader,
+   DialogTitle,
+} from "@s3-viewer/ui/components/dialog";
+import { Input } from "@s3-viewer/ui/components/input";
+import { Label } from "@s3-viewer/ui/components/label";
 import { toast } from "@s3-viewer/ui/components/toast";
-import { cn } from "@s3-viewer/ui/lib/utils";
-import { FilePen } from "lucide-react";
-import { useId, useState } from "react";
+import { FormEvent, useId, useState } from "react";
 
 type RenameObjectModalProps = {
    onClose: () => void;
@@ -40,12 +45,10 @@ const validate = (value: string, original: string): string | null => {
    return null;
 };
 
-type RequestError = { title: string; detail?: string };
-
-const requestFailure = (error: unknown): RequestError =>
+const requestFailure = (error: unknown): string =>
    error instanceof ApiError && error.status === 409
-      ? { title: "An object with that name already exists." }
-      : { title: "Couldn't rename the object.", detail: errorMessage(error) };
+      ? "An object with that name already exists."
+      : errorMessage(error);
 
 const RenameObjectModal = ({
    onClose,
@@ -55,17 +58,17 @@ const RenameObjectModal = ({
 }: RenameObjectModalProps) => {
    const rename = useRenameObject();
    const inputId = useId();
-   const hintId = useId();
+   const errorId = useId();
    const [value, setValue] = useState(objectKey);
    const [touched, setTouched] = useState(false);
-   const [requestError, setRequestError] = useState<RequestError | null>(null);
+   const [requestError, setRequestError] = useState<string | null>(null);
 
    const newKey = value.trim();
    const validation = validate(newKey, objectKey);
    const suggestion = usePathSuggestion(bucketName, newKey);
-   const validationMessage = touched ? validation : null;
-   const invalid = Boolean(requestError ?? validationMessage);
-   const helper = validation && !invalid ? "Enter a new name" : null;
+   // The submit button is disabled while invalid, so the validation message has
+   // to appear on its own once the field has been touched.
+   const error = requestError ?? (touched ? validation : null);
 
    const acceptSuggestion = () => {
       if (!suggestion) return;
@@ -75,9 +78,9 @@ const RenameObjectModal = ({
       );
    };
 
-   const submit = () => {
-      setTouched(true);
-      if (validation || rename.isPending) return;
+   const submit = (event: FormEvent) => {
+      event.preventDefault();
+      if (rename.isPending || validation) return;
       setRequestError(null);
       rename.mutate(
          { bucketName, objectKey, newObjectKey: newKey },
@@ -87,104 +90,78 @@ const RenameObjectModal = ({
                onRenameSuccess?.(newKey);
                onClose();
             },
-            onError: (error) => setRequestError(requestFailure(error)),
+            onError: (failure) => setRequestError(requestFailure(failure)),
          }
       );
    };
 
    return (
       <Dialog open onOpenChange={rename.isPending ? undefined : onClose}>
-         <DialogContent className="max-w-[95%] sm:max-w-md">
-            <CenteredDialogHeader icon={FilePen} title="Rename object">
-               Edit the full key to rename or move this object. Existing objects
-               are never overwritten; objects over{" "}
-               {formatBytes(MAX_RENAME_BYTES)} can&apos;t be renamed.
-            </CenteredDialogHeader>
-            <div className="flex flex-col gap-2">
-               <div className="flex items-center justify-between">
-                  <label
-                     htmlFor={inputId}
-                     className="text-sm font-medium text-viewerblack"
-                  >
-                     Object key
-                  </label>
-                  <span
-                     className="text-xs text-viewerlighttext"
-                     aria-hidden={!suggestion}
-                  >
-                     {suggestion ? "→ to autocomplete" : ""}
-                  </span>
-               </div>
-               <div className="relative">
-                  <input
-                     id={inputId}
-                     type="text"
-                     value={value}
-                     autoFocus
-                     autoComplete="off"
-                     spellCheck={false}
-                     aria-invalid={invalid || undefined}
-                     aria-describedby={hintId}
-                     onChange={(event) => {
-                        setValue(event.target.value);
-                        setTouched(true);
-                        setRequestError(null);
-                     }}
-                     onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                           event.preventDefault();
-                           submit();
-                        } else if (suggestion && isAcceptSuggestionKey(event)) {
-                           event.preventDefault();
-                           acceptSuggestion();
-                        }
-                     }}
-                     className="h-9 w-full rounded-lg border border-viewerborder bg-viewerwhite px-3 py-1 text-sm text-viewerblack outline-none focus-visible:border-viewerblue aria-invalid:border-viewertextred"
-                  />
-                  {suggestion && (
-                     <div
+         <DialogContent>
+            <DialogHeader>
+               <DialogTitle>Rename object</DialogTitle>
+               <DialogDescription>
+                  Edit the full key to move or rename this object; objects over{" "}
+                  {formatBytes(MAX_RENAME_BYTES)} can&apos;t be renamed.
+               </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={submit} className="flex min-h-0 flex-col">
+               <DialogBody className="flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                     <Label htmlFor={inputId}>Object key</Label>
+                     <span
+                        className="text-xs text-viewerlighttext"
                         aria-hidden="true"
-                        className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 text-sm"
                      >
-                        <span className="invisible">{value}</span>
-                        <span className="text-viewerlighttext">
-                           {suggestion}
-                        </span>
-                     </div>
-                  )}
-               </div>
-               <p
-                  id={hintId}
-                  aria-live="polite"
-                  className={cn(
-                     "min-h-5 text-sm",
-                     invalid ? "text-viewertextred" : "text-viewerlighttext"
-                  )}
-               >
-                  {requestError ? (
-                     <>
-                        {requestError.title}
-                        {requestError.detail && (
-                           <span className="block text-viewertext">
-                              {requestError.detail}
+                        {suggestion ? "→ to autocomplete" : ""}
+                     </span>
+                  </div>
+                  <div className="relative">
+                     <Input
+                        id={inputId}
+                        value={value}
+                        autoFocus
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-invalid={error ? true : undefined}
+                        aria-describedby={errorId}
+                        onChange={(event) => {
+                           setValue(event.target.value);
+                           setTouched(true);
+                           setRequestError(null);
+                        }}
+                        onBlur={() => setTouched(true)}
+                        onKeyDown={(event) => {
+                           if (suggestion && isAcceptSuggestionKey(event)) {
+                              event.preventDefault();
+                              acceptSuggestion();
+                           }
+                        }}
+                     />
+                     {suggestion && (
+                        <div
+                           aria-hidden="true"
+                           className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 text-sm"
+                        >
+                           <span className="invisible">{value}</span>
+                           <span className="text-viewerlighttext">
+                              {suggestion}
                            </span>
-                        )}
-                     </>
-                  ) : (
-                     (validationMessage ?? helper)
-                  )}
-               </p>
-            </div>
-            <ConfirmFooter cancelDisabled={rename.isPending}>
-               <Button
-                  className="flex-1"
-                  onClick={submit}
-                  loading={rename.isPending}
-                  disabled={validation !== null}
-               >
-                  {rename.isPending ? "Renaming…" : "Rename"}
-               </Button>
-            </ConfirmFooter>
+                        </div>
+                     )}
+                  </div>
+                  <FormError id={errorId}>{error}</FormError>
+               </DialogBody>
+               <DialogFooter>
+                  <Button
+                     type="submit"
+                     loading={rename.isPending}
+                     disabled={validation !== null}
+                  >
+                     Rename
+                  </Button>
+               </DialogFooter>
+            </form>
          </DialogContent>
       </Dialog>
    );

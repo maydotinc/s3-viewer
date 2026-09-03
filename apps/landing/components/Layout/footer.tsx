@@ -1,14 +1,15 @@
+import { GITHUB_URL } from "@/lib/site-config";
 import Image from "next/image";
 import Link from "next/link";
 
 const CONTACT_HREF = "mailto:info@may.inc?subject=S3%20Viewer";
 
-type LinkItem = { label: string; href: string };
+type LinkItem = { label: string; href: string; external?: boolean };
 type LinkGroup = { title: string; links: LinkItem[] };
 
 const groups: LinkGroup[] = [
    {
-      title: "Use Cases",
+      title: "Use cases",
       links: [
          { label: "Multi-cloud", href: "/use-cases/multi-cloud" },
          {
@@ -22,7 +23,7 @@ const groups: LinkGroup[] = [
       ],
    },
    {
-      title: "How To",
+      title: "How to",
       links: [
          { label: "Rename an S3 file", href: "/how-to/rename-s3-file" },
          {
@@ -48,10 +49,11 @@ const groups: LinkGroup[] = [
       title: "Company",
       links: [
          { label: "About", href: "/about" },
-         { label: "Brand Kit", href: "/brand-kit" },
-         { label: "Privacy Policy", href: "/legal/privacy-policy" },
-         { label: "Terms of Service", href: "/legal/terms-of-service" },
-         { label: "Contact", href: CONTACT_HREF },
+         { label: "Brand kit", href: "/brand-kit" },
+         { label: "GitHub", href: GITHUB_URL, external: true },
+         { label: "Privacy policy", href: "/legal/privacy-policy" },
+         { label: "Terms of service", href: "/legal/terms-of-service" },
+         { label: "Contact", href: CONTACT_HREF, external: true },
       ],
    },
 ];
@@ -59,19 +61,30 @@ const groups: LinkGroup[] = [
 const YEAR = new Date().getFullYear();
 
 const Column = ({ title, links }: LinkGroup) => (
-   <div className="flex flex-col gap-3">
-      <h3 className="text-[11px] font-semibold tracking-[0.14em] uppercase text-viewerwhite/70">
+   <div className="flex min-w-0 flex-col gap-3">
+      <h3 className="text-xs font-medium tracking-wide text-viewerlighttext uppercase">
          {title}
       </h3>
       <ul className="flex flex-col gap-2.5">
          {links.map((link) => (
             <li key={link.href}>
-               <Link
-                  href={link.href}
-                  className="text-sm text-viewerwhite/80 transition-colors hover:text-viewerwhite"
-               >
-                  {link.label}
-               </Link>
+               {link.external ? (
+                  <a
+                     href={link.href}
+                     target="_blank"
+                     rel="noreferrer"
+                     className="text-sm text-viewertext transition-colors hover:text-viewerblack"
+                  >
+                     {link.label}
+                  </a>
+               ) : (
+                  <Link
+                     href={link.href}
+                     className="text-sm text-viewertext transition-colors hover:text-viewerblack"
+                  >
+                     {link.label}
+                  </Link>
+               )}
             </li>
          ))}
       </ul>
@@ -81,34 +94,33 @@ const Column = ({ title, links }: LinkGroup) => (
 const Footer = () => {
    return (
       <footer
-         className="flex w-full flex-col items-center bg-viewerblue text-viewerwhite"
+         className="w-full border-t border-viewerborder bg-viewerwhite"
          aria-labelledby="footer-heading"
       >
          <h2 id="footer-heading" className="sr-only">
             Footer
          </h2>
 
-         <div className="w-full max-w-screen-2xl px-30 max-xl:px-15 max-md:px-4 pt-10 md:pt-12 pb-6 md:pb-7">
-            <div className="grid grid-cols-2 md:grid-cols-12 gap-8">
-               <div className="col-span-2 md:col-span-6 flex flex-col gap-4">
+         <div className="mx-auto w-full max-w-6xl px-6 pt-14 pb-8">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+               <div className="col-span-2 flex flex-col gap-4 sm:col-span-3 lg:col-span-1">
                   <Link
                      href="/"
                      draggable={false}
-                     className="flex items-center w-fit"
+                     className="flex w-fit items-center"
                      aria-label="S3 Viewer home"
                   >
                      <Image
-                        src="/icons/whiteviewer.svg"
+                        src="/icons/viewer.svg"
                         alt="S3 Viewer"
-                        width={208}
-                        height={47}
-                        priority
+                        width={150}
+                        height={32}
                         quality={100}
                         draggable={false}
-                        className="select-none h-8 w-auto"
+                        className="h-7 w-auto select-none"
                      />
                   </Link>
-                  <p className="text-sm text-viewerwhite/80 leading-relaxed max-w-[320px]">
+                  <p className="max-w-[260px] text-sm text-viewertext">
                      A fast, open-source viewer for any S3-compatible object
                      storage.
                   </p>
@@ -116,15 +128,15 @@ const Footer = () => {
                      href="https://may.inc"
                      target="_blank"
                      rel="noopener noreferrer"
-                     className="inline-flex items-center gap-2 text-[12.5px] font-medium text-viewerwhite/70 transition-colors hover:text-viewerwhite w-fit"
+                     className="inline-flex w-fit items-center gap-2 text-sm text-viewerlighttext transition-colors hover:text-viewerblack"
                   >
                      <span>Built by</span>
                      <Image
                         src="https://cdn-may.com/assets/may-rounded-512x512.png"
-                        alt="May Inc."
+                        alt=""
                         width={20}
                         height={20}
-                        className="rounded-[5px]"
+                        className="size-5 rounded-[5px]"
                         unoptimized
                      />
                      <span>May Inc.</span>
@@ -132,14 +144,16 @@ const Footer = () => {
                </div>
 
                {groups.map((group) => (
-                  <div key={group.title} className="md:col-span-2">
-                     <Column title={group.title} links={group.links} />
-                  </div>
+                  <Column
+                     key={group.title}
+                     title={group.title}
+                     links={group.links}
+                  />
                ))}
             </div>
 
-            <div className="mt-8">
-               <span className="text-xs text-viewerwhite/70">
+            <div className="mt-12 border-t border-viewerborder pt-6">
+               <span className="text-xs text-viewerlighttext">
                   © {YEAR} S3 Viewer. Open source under MIT.
                </span>
             </div>

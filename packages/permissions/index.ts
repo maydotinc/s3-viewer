@@ -2,6 +2,7 @@ import { Role } from "@s3-viewer/types";
 
 enum Permission {
    DELETE_SERVER = "DELETE_SERVER",
+   UPDATE_CREDENTIALS = "UPDATE_CREDENTIALS",
    RENAME_SERVER = "RENAME_SERVER",
    MANAGE_MEMBERS = "MANAGE_MEMBERS",
    LIST_BUCKETS = "LIST_BUCKETS",
@@ -36,7 +37,7 @@ const ROLE_GRANTS: Readonly<Record<Role, readonly Permission[]>> = {
       Permission.RENAME_SERVER,
       Permission.MANAGE_MEMBERS,
    ],
-   [Role.OWNER]: [Permission.DELETE_SERVER],
+   [Role.OWNER]: [Permission.DELETE_SERVER, Permission.UPDATE_CREDENTIALS],
 };
 
 const ROLES_ASCENDING: readonly Role[] = [
@@ -64,7 +65,7 @@ const ROLE_LABELS: Readonly<Record<Role, string>> = {
 };
 
 const ROLE_DESCRIPTIONS: Readonly<Record<Role, string>> = {
-   [Role.OWNER]: "Full control, including deleting the server.",
+   [Role.OWNER]: "Full control, including credentials and deleting the server.",
    [Role.ADMIN]: "Manage members, rename the server, remove buckets.",
    [Role.EDITOR]: "Upload, delete and create buckets.",
    [Role.VIEWER]: "Browse and download only.",

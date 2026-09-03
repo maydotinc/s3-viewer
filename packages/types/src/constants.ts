@@ -20,6 +20,20 @@ export const SITE_PATHS = {
 
 export const GENERIC_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
+export const ErrorCode = {
+   VALIDATION: "VALIDATION",
+   RATE_LIMITED: "RATE_LIMITED",
+   EMAIL_UNVERIFIED: "EMAIL_UNVERIFIED",
+   ORIGIN: "ORIGIN",
+   CREDENTIALS_UNREADABLE: "CREDENTIALS_UNREADABLE",
+   CREDENTIALS_REJECTED: "CREDENTIALS_REJECTED",
+} as const;
+export type ErrorCode = (typeof ErrorCode)[keyof typeof ErrorCode];
+
+export const isCredentialsErrorCode = (code: string | undefined): boolean =>
+   code === ErrorCode.CREDENTIALS_UNREADABLE ||
+   code === ErrorCode.CREDENTIALS_REJECTED;
+
 export const DEFAULT_CONTENT_TYPE = "application/octet-stream";
 
 export const PRESIGN_EXPIRY_SECONDS = 15 * 60;

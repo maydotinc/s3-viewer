@@ -28,7 +28,8 @@ The shadcn semantic tokens map onto the above, so `bg-primary`,
 `text-muted-foreground`, `bg-destructive` and friends are already on-brand:
 `primary` = viewerblue on white, `secondary` = viewergray on viewerblack,
 `muted-foreground` = viewerlighttext, `destructive` = viewertextred,
-`foreground` = viewertext, `ring` = viewerblue, `radius` = `0.5rem`.
+`foreground` = viewertext, `radius` = `0.5rem`. There is no `ring` token —
+nothing in the product draws a focus ring (see "Focus").
 
 ## Single light theme
 
@@ -54,9 +55,11 @@ Utilities in `globals.css` (`@layer components`):
 They set a color too; override it with a normal Tailwind `text-*` utility when
 needed. `h1`–`h6` default to viewerblack.
 
-## Button variants
+## Buttons
 
-`src/components/button.tsx`:
+`src/components/button.tsx`.
+
+Variants:
 
 - `default` — viewerblue fill, white text, hover viewerdarkblue. The one CTA.
 - `secondary` — viewergray fill, viewerblack text.
@@ -65,17 +68,77 @@ needed. `h1`–`h6` default to viewerblack.
 - `destructive` — viewertextred fill, white text.
 - `link` — viewerblue, underline on hover.
 
-Disabled is 50% opacity. Every variant accepts `loading` — it shows a
-`Loader2` spinner, disables the button and keeps the button's idle width, so
-app code should not re-implement that.
+Sizes — horizontal padding is symmetric, always. There is no `has-[>svg]`
+padding shrink: a button with an icon and a label has the same padding as one
+without.
+
+| Size      | Box      | Padding | Gap   | Text      |
+| --------- | -------- | ------- | ----- | --------- |
+| `sm`      | `h-8`    | `px-3`  | `1.5` | `13px`    |
+| `default` | `h-9`    | `px-4`  | `2`   | `14px`    |
+| `lg`      | `h-10`   | `px-5`  | `2`   | `14px`    |
+| `icon`    | `size-9` | `p-0`   | —     | icon only |
+| `icon-sm` | `size-8` | `p-0`   | —     | icon only |
+
+Icons are `size-4 shrink-0` from `[&_svg]` rules; pass an explicit `size-*` on
+the icon to override. Never add manual `mr-2`/`ml-1` spacing — that is what
+`gap` is for.
+
+Disabled is 50% opacity plus `cursor-not-allowed`; the button keeps its pointer
+events (so the cursor shows) and every hover utility is gated behind
+`not-disabled:`, so a disabled button never changes on hover.
+
+## Loading buttons keep their width
+
+Every variant accepts `loading`. The label stays mounted inside a
+`<span className="contents invisible">` and the spinner is absolutely centred
+on top of it, so the button's width never changes and nothing on the row moves.
+`loading` also sets `disabled` and `aria-busy`.
+
+Never swap the label for an in-progress version ("Save" → "Saving…"). App code
+should not re-implement any of this.
 
 ## Focus
 
-No focus rings; focus is a border colour change. Every focusable control
-carries a 1px border (transparent where the design has none, so nothing shifts)
-and turns it `viewerblue` on `focus-visible`; `aria-invalid` turns it
-`viewertextred`. Never use `ring-*`, `focus:ring-*`, `focus-visible:ring-*`,
-`ring-offset-*` or `outline-ring`. Set `outline-none` and style the border.
+No focus rings, anywhere. Never use `ring-*`, `focus:ring-*`,
+`focus-visible:ring-*`, `ring-offset-*` or `outline-ring`; every control sets
+`outline-none`.
+
+Only the input-like controls show focus at all: **text inputs, select triggers
+and checkboxes** swap their border to `viewerblue` on `focus-visible` (and to
+`viewertextred` on `aria-invalid`). They carry a 1px border at rest, so the
+swap is a colour change and nothing shifts.
+
+Buttons, dialog close buttons, badges and menu items get **no focus styling**
+— no ring, and no focus-only border change either. Their hover state is the
+whole visual vocabulary.
+
+The one exception is `TabsTrigger` in `tabs-slider.tsx`, which keeps its
+`focus-visible` border swap because the tab strip has no other keyboard focus
+indicator.
+
+## Motion
+
+Modal-layer surfaces never animate. Dialogs, their overlays, dropdown menus and
+selects appear and disappear instantly — no `animate-in`/`animate-out`, no
+fade, zoom or slide, no `motion`/`AnimatePresence`. `tw-animate-css` is not a
+dependency and there are no `.fade-in`/`.motion-*` utilities in `globals.css`.
+
+The only motion in the product is `transition-colors` on hover (≤150 ms), the
+spinner, and the toast's own enter/exit.
+
+## Dialogs
+
+`Dialog` → `DialogContent` → `DialogHeader` / `DialogBody` / `DialogFooter`.
+Content is `max-w-md`, `rounded-xl`, one soft `shadow-lg`, no padding of its
+own — the three sections carry it (`px-6 pt-5 pb-4`, `px-6 py-4`,
+`px-6 pt-2 pb-5`).
+
+A dialog has exactly one top-right X (`showCloseButton`, on by default) and one
+primary action, right-aligned in the footer. **Do not put a "Cancel" button
+next to the X** — the X, Escape and the overlay click are the cancel. The one
+exception is a destructive confirm, which keeps "Cancel" + the destructive
+button and hides the X with `showCloseButton={false}`.
 
 ## Loading
 
@@ -83,8 +146,15 @@ and turns it `viewerblue` on `focus-visible`; `aria-invalid` turns it
 `lg`, viewerblue, `role="status"` with an `aria-label`. Centre it inside a
 container that already has the final dimensions so nothing moves when data
 arrives. Skeletons are reserved for large areas whose loaded shape is known
-(a table body). Wrap content that replaces a spinner in `.fade-in` (150 ms
-opacity, off under reduced motion).
+(a table body). Content that replaces a spinner just appears — there is no
+fade-in utility.
+
+## Truncation
+
+Text truncates only when its container is genuinely out of room:
+`min-w-0 flex-1 truncate` on the text, `shrink-0` on icons beside it. Never
+clip with an arbitrary `max-w-[Npx]`. Breadcrumb links and pages carry no
+truncation of their own — the caller decides which segment gives way.
 
 ## Writing rules
 
@@ -92,8 +162,9 @@ opacity, off under reduced motion).
   in user-facing copy (the npm scope and repo name are separate things).
 - Sentence case for buttons, labels, headings and menu items: "Create bucket",
   not "Create Bucket".
-- In-progress button labels end in an ellipsis character: "Saving…", "Deleting…"
-  — one `…`, not three periods.
+- Button labels do not change while the action runs. A button in flight keeps
+  its label and shows the centred spinner (see "Loading buttons keep their
+  width"); there is no "Saving…" state.
 - Role names in the UI always come from `ROLE_LABELS` in
   `@s3-viewer/permissions`. Do not spell them inline.
 - Plain and specific. Say what a thing does; skip "military-grade",

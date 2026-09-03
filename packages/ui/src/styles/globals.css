@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
 @source "../";
 
@@ -37,7 +36,6 @@
    --destructive: var(--color-viewertextred);
    --border: var(--color-viewerborder);
    --input: var(--color-viewerborder);
-   --ring: var(--color-viewerblue);
    --sidebar: var(--color-viewerwhite);
    --sidebar-foreground: var(--color-viewertext);
    --sidebar-primary: var(--color-viewerblue);
@@ -45,7 +43,6 @@
    --sidebar-accent: var(--color-viewergray);
    --sidebar-accent-foreground: var(--color-viewerblue);
    --sidebar-border: var(--color-viewerborder);
-   --sidebar-ring: var(--color-viewerblue);
 }
 
 @theme inline {
@@ -53,7 +50,6 @@
    --color-foreground: var(--foreground);
    --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
    --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
-   --color-sidebar-ring: var(--sidebar-ring);
    --color-sidebar-border: var(--sidebar-border);
    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
    --color-sidebar-accent: var(--sidebar-accent);
@@ -61,7 +57,6 @@
    --color-sidebar-primary: var(--sidebar-primary);
    --color-sidebar-foreground: var(--sidebar-foreground);
    --color-sidebar: var(--sidebar);
-   --color-ring: var(--ring);
    --color-input: var(--input);
    --color-border: var(--border);
    --color-destructive: var(--destructive);
@@ -125,55 +120,5 @@ body {
 
    .text-meta {
       @apply text-[12px] leading-[18px] font-medium text-viewerlighttext;
-   }
-}
-
-@keyframes motion-fade-up {
-   from {
-      opacity: 0;
-      transform: translateY(12px);
-   }
-   to {
-      opacity: 1;
-      transform: translateY(0);
-   }
-}
-
-@keyframes motion-fade-in {
-   from {
-      opacity: 0;
-   }
-   to {
-      opacity: 1;
-   }
-}
-
-.motion-fade-up {
-   animation: motion-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-.motion-fade-in {
-   animation: motion-fade-in 0.6s ease-out both;
-}
-
-.fade-in {
-   animation: motion-fade-in 150ms ease-out both;
-}
-
-.motion-delay-75 {
-   animation-delay: 75ms;
-}
-.motion-delay-150 {
-   animation-delay: 150ms;
-}
-.motion-delay-300 {
-   animation-delay: 300ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-   .motion-fade-up,
-   .motion-fade-in,
-   .fade-in {
-      animation: none !important;
    }
 }

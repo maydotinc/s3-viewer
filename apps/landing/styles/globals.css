@@ -3,13 +3,3 @@
 @source "../pages";
 @source "../components";
 @source "../../../packages/ui/src";
-
-.motion-fade-in-fast {
-   animation: motion-fade-in 150ms ease-out both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-   .motion-fade-in-fast {
-      animation: none !important;
-   }
-}

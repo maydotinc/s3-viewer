@@ -20,17 +20,10 @@ const Invites = () => {
 
    return (
       <div className="flex size-full flex-col bg-viewerwhite">
-         <header className="flex min-h-[var(--header-height)] items-center justify-between gap-4 border-b border-viewerborder px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col">
-               <h1 className="text-heading">Invites</h1>
-               <p className="text-sm text-viewertext">
-                  Invites you&apos;ve received
-                  {canManage &&
-                     currentServer &&
-                     `, and ones sent for ${currentServer.name}`}
-                  .
-               </p>
-            </div>
+         <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b border-viewerborder px-6">
+            <h1 className="text-base font-semibold text-viewerblack">
+               Invites
+            </h1>
             {canManage && currentServer && (
                <Button
                   onClick={() => openShareModal({ server: currentServer })}
@@ -40,7 +33,7 @@ const Invites = () => {
                </Button>
             )}
          </header>
-         <section className="flex w-full flex-1 flex-col overflow-y-auto p-4 sm:p-6 lg:p-8">
+         <section className="flex w-full flex-1 flex-col gap-4 overflow-y-auto p-6">
             {canManage && currentServer ? (
                <Tabs defaultValue="received" className="flex flex-col gap-4">
                   <TabsList className="w-full">

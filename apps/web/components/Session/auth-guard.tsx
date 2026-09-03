@@ -1,4 +1,5 @@
 import FullPageSpinner from "@/components/Session/full-page-spinner";
+import { isSigningOut } from "@/lib/auth";
 import { loginPathFor } from "@/lib/auth-redirect";
 import { useSessionState } from "@/lib/hooks/useSessionState";
 import { SITE_PATHS } from "@s3-viewer/types";
@@ -26,6 +27,8 @@ const AuthGuard = ({ children }: { children: ReactNode }) => {
          return;
       }
       if (redirected.current) return;
+      // A deliberate sign-out owns its destination (plain /login, no `next`).
+      if (isSigningOut()) return;
       redirected.current = true;
       void router.replace(loginPathFor(router.asPath));
    }, [isPublic, signedOut, router]);

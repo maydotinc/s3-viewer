@@ -7,6 +7,7 @@ import { SERVER_NOT_FOUND } from "../constants";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
 import { decryptCredentials } from "../utils/encryption";
+import { credentialsUnreadableError } from "./errors";
 
 const CACHE_TTL_MS = 10 * MINUTE_MS;
 const CACHE_MAX_ENTRIES = 500;
@@ -16,6 +17,11 @@ const MAX_ATTEMPTS = 2;
 
 type CacheEntry = { client: S3Client; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
+/** Bumped on invalidate so a fill that started before it never re-caches stale credentials. */
+const generations = new Map<string, number>();
+
+const generationOf = (serverId: string): number =>
+   generations.get(serverId) ?? 0;
 
 const httpAgent = new HttpAgent({ keepAlive: true });
 const httpsAgent = new HttpsAgent({ keepAlive: true });
@@ -52,12 +58,9 @@ const readStoredCredentials = (
 ): ServerCredentials => {
    try {
       return decryptCredentials(blob);
-   } catch (err) {
-      logger.error("Could not decrypt server credentials", {
-         serverId,
-         error: err instanceof Error ? err.name : "unknown",
-      });
-      throw new ApiHttpError(500, "Could not read server credentials");
+   } catch {
+      logger.warn("Could not decrypt server credentials", { serverId });
+      throw credentialsUnreadableError();
    }
 };
 
@@ -77,6 +80,7 @@ const getS3Client = async (serverId: string): Promise<S3Client> => {
    const hit = cache.get(serverId);
    if (hit && hit.expiresAt > Date.now()) return hit.client;
 
+   const generation = generationOf(serverId);
    const server = await prisma.server.findUnique({
       where: { id: serverId },
       select: { credentials: true, provider: true },
@@ -87,13 +91,16 @@ const getS3Client = async (serverId: string): Promise<S3Client> => {
       readStoredCredentials(serverId, server.credentials),
       Provider[server.provider]
    );
-   makeRoom();
-   cache.set(serverId, { client, expiresAt: Date.now() + CACHE_TTL_MS });
+   if (generationOf(serverId) === generation) {
+      makeRoom();
+      cache.set(serverId, { client, expiresAt: Date.now() + CACHE_TTL_MS });
+   }
    return client;
 };
 
 const invalidateS3Client = (serverId: string): void => {
    cache.delete(serverId);
+   generations.set(serverId, generationOf(serverId) + 1);
 };
 
 export { getS3Client, getS3ClientFromCredentials, invalidateS3Client };

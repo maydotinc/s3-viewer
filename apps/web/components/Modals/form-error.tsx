@@ -8,7 +8,7 @@ const FormError = ({
    <p
       id={id}
       role="alert"
-      className="min-h-5 text-sm leading-5 text-viewertextred"
+      className="min-h-5 text-xs leading-5 text-viewertextred"
    >
       {children}
    </p>

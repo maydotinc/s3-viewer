@@ -12,6 +12,10 @@ type ViewerLayoutProps = {
    dashboardOnServerChange?: boolean;
 };
 
+/**
+ * App shell: banner on top, then a sidebar + main row that fills the rest of
+ * the viewport. Pages scroll inside `main`; the body never scrolls.
+ */
 const ViewerLayout = ({
    children,
    mobileStrategy = "hidden",
@@ -29,13 +33,16 @@ const ViewerLayout = ({
    }, [dashboardOnServerChange, push, serverId]);
 
    return (
-      <ViewerBanner showSidebarToggle={mobileStrategy === "hidden"}>
-         <div className="flex size-full">
+      <div className="flex h-dvh w-full flex-col overflow-hidden overscroll-y-none bg-viewerwhite">
+         <ViewerBanner showSidebarToggle={mobileStrategy === "hidden"} />
+         <div className="flex min-h-0 flex-1">
             <ViewerSidebar mobileStrategy={mobileStrategy} />
-            {children}
-            <UploadProgressSheet />
+            <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+               {children}
+            </main>
          </div>
-      </ViewerBanner>
+         <UploadProgressSheet />
+      </div>
    );
 };
 

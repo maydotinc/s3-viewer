@@ -2,7 +2,6 @@ import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import useRemoveBucket from "@/lib/hooks/mutations/bucket/useRemoveBucket";
 import { toastError } from "@/lib/utils/toast";
 import { toast } from "@s3-viewer/ui/components/toast";
-import { FolderMinus } from "lucide-react";
 
 type RemoveBucketDialogProps = {
    bucketName: string;
@@ -34,8 +33,6 @@ const RemoveBucketDialog = ({
          open={open}
          closable={!removeBucket.isPending}
          onClose={() => onOpenChange(false)}
-         icon={FolderMinus}
-         tone="destructive"
          title="Remove bucket"
          description={
             <>
@@ -48,7 +45,6 @@ const RemoveBucketDialog = ({
          }
          confirmVariant="destructive"
          confirmLabel="Remove bucket"
-         pendingLabel="Removing…"
          isPending={removeBucket.isPending}
          onConfirm={confirm}
       />

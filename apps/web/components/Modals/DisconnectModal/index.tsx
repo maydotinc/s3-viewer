@@ -19,17 +19,17 @@ const DisconnectModal = ({ server, onClose }: DisconnectModalProps) => {
 
    return (
       <ConfirmDialog
+         closable={!mutation.isPending}
          onClose={onClose}
          title={isOwner ? "Delete server" : "Leave server"}
          description={
             isOwner
-               ? `This deletes the connection to ${server.name}, all member access and pending invites. Your bucket and its files are not touched.`
+               ? `This deletes the connection to ${server.name}, all member access and pending invites; your buckets and files are not touched.`
                : `You'll lose access to ${server.name} until someone invites you again.`
          }
          error={mutation.error?.message ?? null}
          confirmVariant="destructive"
          confirmLabel={isOwner ? "Delete server" : "Leave server"}
-         pendingLabel={isOwner ? "Deleting…" : "Leaving…"}
          isPending={mutation.isPending}
          onConfirm={confirm}
       />

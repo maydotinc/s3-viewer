@@ -17,6 +17,10 @@ const PAGE_SIZES = [25, 50, 100] as const;
 
 const HIDDEN_HEADER_TEXT = "[&_.ag-header-cell-text]:sr-only";
 
+/** The grid and its pagination bar live inside one bordered card. */
+const GRID_CARD =
+   "flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border border-viewerborder bg-viewerwhite";
+
 type GridContextValue = {
    gridRef: React.RefObject<AgGridReact | null>;
    gridReady: boolean;
@@ -24,6 +28,7 @@ type GridContextValue = {
    setPageSize: (size: number) => void;
    page: number;
    totalPages: number | null;
+   rowCount: number;
    selectedIds: string[];
    goToPage: (page: number) => void;
    clearSelection: () => void;
@@ -43,6 +48,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
    const [pageSize, setPageSize] = useState<number>(PAGE_SIZES[2]);
    const [page, setPage] = useState(0);
    const [totalPages, setTotalPages] = useState<number | null>(null);
+   const [rowCount, setRowCount] = useState(0);
    const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
    const onGridReady = useCallback(() => setGridReady(true), []);
@@ -51,6 +57,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
       setGridReady(false);
       setPage(0);
       setTotalPages(null);
+      setRowCount(0);
       setSelectedIds([]);
    }, []);
 
@@ -60,6 +67,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
       setTotalPages(
          api.paginationIsLastPageFound() ? api.paginationGetTotalPages() : null
       );
+      setRowCount(api.paginationGetRowCount());
    }, []);
 
    const onSelectionChanged = useCallback((event: SelectionChangedEvent) => {
@@ -87,6 +95,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
          setPageSize,
          page,
          totalPages,
+         rowCount,
          selectedIds,
          goToPage,
          clearSelection,
@@ -102,6 +111,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
          pageSize,
          page,
          totalPages,
+         rowCount,
          selectedIds,
          goToPage,
          clearSelection,
@@ -122,4 +132,10 @@ const useGridContext = () => {
    return context;
 };
 
-export { GridProvider, HIDDEN_HEADER_TEXT, PAGE_SIZES, useGridContext };
+export {
+   GRID_CARD,
+   GridProvider,
+   HIDDEN_HEADER_TEXT,
+   PAGE_SIZES,
+   useGridContext,
+};

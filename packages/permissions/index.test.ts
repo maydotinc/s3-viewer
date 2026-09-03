@@ -32,6 +32,12 @@ describe("role hierarchy", () => {
       expect(hasPermission(Role.ADMIN, Permission.MANAGE_MEMBERS)).toBe(true);
       expect(hasPermission(Role.ADMIN, Permission.DELETE_SERVER)).toBe(false);
       expect(hasPermission(Role.OWNER, Permission.DELETE_SERVER)).toBe(true);
+      expect(hasPermission(Role.ADMIN, Permission.UPDATE_CREDENTIALS)).toBe(
+         false
+      );
+      expect(hasPermission(Role.OWNER, Permission.UPDATE_CREDENTIALS)).toBe(
+         true
+      );
       expect(hasPermission(null, Permission.LIST_BUCKETS)).toBe(false);
    });
 

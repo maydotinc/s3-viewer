@@ -3,7 +3,7 @@ import { getAuth, type AuthContext } from "@/lib/middleware/authorize";
 import { serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
-import { throwHttpError } from "@/lib/s3/errors";
+import { throwHttpError, throwListBucketsError } from "@/lib/s3/errors";
 import { bucketGrantSelect } from "@/lib/services/members";
 import { isBucketAllowed, loadServerSettings } from "@/lib/services/servers";
 import {
@@ -55,7 +55,7 @@ const listAllBuckets = async (client: S3Client): Promise<S3Bucket[]> => {
    for (let page = 0; page < MAX_BUCKET_PAGES; page++) {
       const out = await client
          .send(new ListBucketsCommand({ ContinuationToken: token }))
-         .catch(throwHttpError);
+         .catch(throwListBucketsError);
       for (const bucket of out.Buckets ?? []) {
          if (!bucket.Name) continue;
          buckets.push(

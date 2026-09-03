@@ -39,12 +39,12 @@ const PrefixSearch = ({ className }: { className?: string }) => {
    };
 
    return (
-      <div className={cn("relative flex items-center", className)}>
+      <div className={cn("relative flex h-9 items-center", className)}>
          <label htmlFor={inputId} className="sr-only">
             Filter by prefix
          </label>
          <Search
-            className="pointer-events-none absolute left-3 z-10 size-4 text-viewerlighttext"
+            className="pointer-events-none absolute left-3 z-10 size-4 shrink-0 text-viewerlighttext"
             aria-hidden="true"
          />
          <input

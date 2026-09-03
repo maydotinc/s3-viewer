@@ -1,11 +1,11 @@
 import { input } from "@/lib/middleware/validate";
-import { MINUTE_MS } from "@s3-viewer/types";
+import { ErrorCode, MINUTE_MS } from "@s3-viewer/types";
 import type { Request, RequestHandler, Response } from "express";
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 
 const RATE_LIMITED = {
    message: "Too many requests. Please try again later.",
-   code: "RATE_LIMITED",
+   code: ErrorCode.RATE_LIMITED,
 };
 
 type KeyGenerator = (req: Request, res: Response) => string;

@@ -3,7 +3,7 @@ import useServers from "@/lib/hooks/queries/server/useServers";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { Plus, UserRoundPlus } from "lucide-react";
 
 const BucketActions = () => {
@@ -13,20 +13,27 @@ const BucketActions = () => {
    const canShare = usePermission(Permission.MANAGE_MEMBERS);
    const canCreate = usePermission(Permission.CREATE_BUCKET);
 
-   if (isSessionPending || isServerListLoading) {
+   const pending = isSessionPending || isServerListLoading;
+
+   // Placeholders the size of the real buttons: the flex-1 search input must
+   // not resize when the actions arrive.
+   if (pending) {
       return (
-         <div className="flex h-9 min-w-[232px] items-center justify-end">
-            <Spinner size="sm" label="Loading actions" />
+         <div
+            className="ml-auto flex h-9 shrink-0 items-center gap-2"
+            aria-busy="true"
+         >
+            <Skeleton className="h-9 w-24 rounded-lg" />
+            <Skeleton className="h-9 w-36 rounded-lg" />
          </div>
       );
    }
 
    return (
-      <div className="fade-in flex h-9 min-w-[232px] items-center justify-end gap-2">
+      <div className="ml-auto flex h-9 shrink-0 items-center gap-2">
          {canShare && (
             <Button
                variant="outline"
-               className="w-24"
                onClick={() =>
                   openShareModal({ server: currentServer ?? undefined })
                }
@@ -36,7 +43,7 @@ const BucketActions = () => {
             </Button>
          )}
          {canCreate && (
-            <Button className="w-32" onClick={() => openCreateBucketModal({})}>
+            <Button onClick={() => openCreateBucketModal({})}>
                <Plus aria-hidden="true" />
                Create bucket
             </Button>
