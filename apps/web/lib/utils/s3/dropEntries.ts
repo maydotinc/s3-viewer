@@ -1,3 +1,7 @@
+import { mapLimit } from "@s3-viewer/types";
+
+const WALK_CONCURRENCY = 8;
+
 type UploadFile = { file: File; relativePath: string };
 
 const fromFileList = (files: ArrayLike<File>): UploadFile[] =>
@@ -14,19 +18,19 @@ const readEntries = (reader: FileSystemDirectoryReader) =>
 const fileFromEntry = (entry: FileSystemFileEntry) =>
    new Promise<File>((resolve, reject) => entry.file(resolve, reject));
 
-const walkEntry = async (entry: FileSystemEntry, out: UploadFile[]) => {
+const walkEntry = async (entry: FileSystemEntry): Promise<UploadFile[]> => {
    if (entry.isFile) {
       const file = await fileFromEntry(entry as FileSystemFileEntry);
-      out.push({ file, relativePath: entry.fullPath.replace(/^\//, "") });
-      return;
+      return [{ file, relativePath: entry.fullPath.replace(/^\//, "") }];
    }
-   if (entry.isDirectory) {
-      const reader = (entry as FileSystemDirectoryEntry).createReader();
-      for (;;) {
-         const batch = await readEntries(reader);
-         if (batch.length === 0) break;
-         for (const child of batch) await walkEntry(child, out);
-      }
+   if (!entry.isDirectory) return [];
+   const reader = (entry as FileSystemDirectoryEntry).createReader();
+   const out: UploadFile[] = [];
+   for (;;) {
+      const batch = await readEntries(reader);
+      if (batch.length === 0) return out;
+      for (const files of await mapLimit(batch, WALK_CONCURRENCY, walkEntry))
+         out.push(...files);
    }
 };
 
@@ -44,11 +48,12 @@ const filesFromDrop = async (
    if (entries.length === 0 || entries.some((entry) => entry === null)) {
       return fromFileList(dataTransfer.files);
    }
-   const out: UploadFile[] = [];
-   for (const entry of entries) {
-      if (entry) await walkEntry(entry, out);
-   }
-   return out;
+   const walked = await mapLimit(
+      entries.flatMap((entry) => (entry ? [entry] : [])),
+      WALK_CONCURRENCY,
+      walkEntry
+   );
+   return walked.flat();
 };
 
 export { filesFromDrop, fromFileList };

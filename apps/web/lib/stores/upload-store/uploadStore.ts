@@ -8,6 +8,8 @@ import { uploadObject } from "@/lib/utils/s3/uploadObject";
 import type { UploadBatch, UploadEntry } from "./types";
 
 const FILE_CONCURRENCY = 3;
+const MIN_PROGRESS_STEP = 64 * 1024;
+const PROGRESS_STEPS = 100;
 
 type Job = {
    file: File;
@@ -20,6 +22,18 @@ type Job = {
 
 const jobs = new Map<string, Job>();
 const batchCallbacks = new Set<() => void>();
+
+const isOpen = (status: UploadEntry["status"]) =>
+   status === "pending" || status === "active";
+
+const count = (
+   batch: UploadBatch,
+   status: UploadEntry["status"],
+   by: 1 | -1
+) => {
+   if (status === "completed") batch.completed += by;
+   else if (status === "failed") batch.failed += by;
+};
 
 type UploadState = {
    entries: Record<string, UploadEntry>;
@@ -52,30 +66,26 @@ const useUploadStore = create<UploadStore>()(
       const setEntry = (id: string, patch: Partial<UploadEntry>) =>
          set((state) => {
             const entry = state.entries[id];
-            if (entry) Object.assign(entry, patch);
+            if (!entry) return;
+            if (patch.status && state.batch) {
+               count(state.batch, entry.status, -1);
+               count(state.batch, patch.status, 1);
+            }
+            Object.assign(entry, patch);
          });
 
       const settleBatchIfDone = () => {
-         const { batch, entries, queue } = get();
-         if (!batch || batch.settled) return;
-         const members = batch.ids
-            .map((id) => entries[id])
-            .filter(Boolean) as UploadEntry[];
-         const unfinished = members.some(
-            (entry) => entry.status === "pending" || entry.status === "active"
-         );
-         if (unfinished || queue.length > 0) return;
+         const { batch, queue } = get();
+         if (!batch || batch.settled || jobs.size > 0 || queue.length > 0)
+            return;
 
          set((state) => {
             if (state.batch) state.batch.settled = true;
             state.isUploading = false;
          });
 
-         const completed = members.filter(
-            (e) => e.status === "completed"
-         ).length;
-         const failed = members.filter((e) => e.status === "failed").length;
-         const total = members.length;
+         const { completed, failed } = batch;
+         const total = batch.ids.length;
          if (failed > 0) {
             toast.error(
                `${completed} of ${total} ${total === 1 ? "file" : "files"} uploaded. ${failed} failed.`
@@ -96,9 +106,19 @@ const useUploadStore = create<UploadStore>()(
          const job = jobs.get(id);
          if (!job) return;
          const owns = () => jobs.get(id) === job;
+         const step = Math.min(
+            job.file.size,
+            Math.max(
+               MIN_PROGRESS_STEP,
+               Math.ceil(job.file.size / PROGRESS_STEPS)
+            )
+         );
+         let reported = 0;
          const onProgress = (loaded: number) => {
-            if (owns())
-               setEntry(id, { uploadedBytes: Math.min(loaded, job.file.size) });
+            if (!owns() || (loaded >= reported && loaded - reported < step))
+               return;
+            reported = loaded;
+            setEntry(id, { uploadedBytes: Math.min(loaded, job.file.size) });
          };
 
          try {
@@ -131,11 +151,8 @@ const useUploadStore = create<UploadStore>()(
       };
 
       const pump = () => {
-         const { queue, entries } = get();
-         const active = Object.values(entries).filter(
-            (e) => e.status === "active"
-         ).length;
-         const slots = FILE_CONCURRENCY - active;
+         const { queue } = get();
+         const slots = FILE_CONCURRENCY - (jobs.size - queue.length);
          const next = slots > 0 ? queue.slice(0, slots) : [];
          if (next.length > 0) {
             set((state) => {
@@ -150,6 +167,29 @@ const useUploadStore = create<UploadStore>()(
          settleBatchIfDone();
       };
 
+      const cancelMany = (ids: readonly string[]) => {
+         const aborts: Job[] = [];
+         set((state) => {
+            let dequeued = false;
+            for (const id of ids) {
+               const entry = state.entries[id];
+               if (!entry || !isOpen(entry.status)) continue;
+               const job = jobs.get(id);
+               if (entry.status === "pending") {
+                  jobs.delete(id);
+                  dequeued = true;
+               } else if (job) aborts.push(job);
+               entry.status = "cancelled";
+            }
+            if (dequeued)
+               state.queue = state.queue.filter(
+                  (id) => state.entries[id]?.status === "pending"
+               );
+         });
+         for (const job of aborts) job.abort?.();
+         pump();
+      };
+
       return {
          entries: {},
          order: [],
@@ -161,14 +201,19 @@ const useUploadStore = create<UploadStore>()(
             if (files.length === 0) return;
             if (onComplete) batchCallbacks.add(onComplete);
             set((state) => {
-               const startNewBatch = !state.batch || state.batch.settled;
-               if (startNewBatch) state.batch = { ids: [], settled: false };
+               const batch =
+                  !state.batch || state.batch.settled
+                     ? { ids: [], settled: false, completed: 0, failed: 0 }
+                     : state.batch;
+               const inBatch = new Set(batch.ids);
+               state.batch = batch;
                state.isUploading = true;
                for (const { file, relativePath } of files) {
                   const objectKey = `${prefix}${relativePath}`;
                   const id = entryId(bucketName, objectKey);
-                  const existing = jobs.get(id);
-                  if (existing) existing.abort?.();
+                  const prev = state.entries[id];
+                  if (prev && inBatch.has(id)) count(batch, prev.status, -1);
+                  jobs.get(id)?.abort?.();
                   jobs.set(id, {
                      file,
                      serverId,
@@ -186,36 +231,20 @@ const useUploadStore = create<UploadStore>()(
                      status: "pending",
                      error: null,
                   };
-                  if (!state.order.includes(id)) state.order.push(id);
-                  if (!state.queue.includes(id)) state.queue.push(id);
-                  if (state.batch && !state.batch.ids.includes(id))
-                     state.batch.ids.push(id);
+                  if (!prev) state.order.push(id);
+                  if (prev?.status !== "pending") state.queue.push(id);
+                  if (!inBatch.has(id)) {
+                     inBatch.add(id);
+                     batch.ids.push(id);
+                  }
                }
             });
             pump();
          },
 
-         cancel: (id) => {
-            const entry = get().entries[id];
-            if (
-               !entry ||
-               entry.status === "completed" ||
-               entry.status === "cancelled"
-            )
-               return;
-            if (entry.status === "pending") jobs.delete(id);
-            else jobs.get(id)?.abort?.();
-            set((state) => {
-               state.queue = state.queue.filter((queued) => queued !== id);
-               const target = state.entries[id];
-               if (target) target.status = "cancelled";
-            });
-            pump();
-         },
+         cancel: (id) => cancelMany([id]),
 
-         cancelAll: () => {
-            for (const id of get().order) get().cancel(id);
-         },
+         cancelAll: () => cancelMany(get().order),
 
          dismiss: () => {
             get().cancelAll();

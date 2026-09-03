@@ -4,8 +4,10 @@ import { logger } from "@/lib/logger";
 import { authGuard } from "@/lib/middleware/auth";
 import { originCheck } from "@/lib/middleware/origin";
 import {
+   BUCKET_MOUNT,
    authFlowIpLimit,
    authRouteLimit,
+   bucketIpLimit,
    globalIpLimit,
    userLimit,
 } from "@/lib/middleware/rate-limit";
@@ -59,11 +61,12 @@ app.use((req, res, next) =>
 
 app.use("/auth-flow", authFlowRouter);
 
+app.use(BUCKET_MOUNT, bucketIpLimit);
 app.use(authGuard);
 app.use(userLimit);
 app.use("/servers", serversRouter);
 app.use("/invites", invitesRouter);
-app.use("/servers/:serverId/buckets", s3Router);
+app.use(BUCKET_MOUNT, s3Router);
 
 app.use((_req, res) => fail(res, 404, "Not found"));
 app.use(errorHandler);

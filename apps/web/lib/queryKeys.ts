@@ -53,4 +53,9 @@ const queryKeys = {
       ] as const,
 };
 
-export { queryKeys };
+const objectKeyOf = (queryKey: readonly unknown[]): string | undefined =>
+   queryKey[6] === "object" && typeof queryKey[7] === "string"
+      ? queryKey[7]
+      : undefined;
+
+export { objectKeyOf, queryKeys };

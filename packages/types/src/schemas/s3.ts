@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_DELETE_KEYS, MAX_LIST_BLOCK_SIZE } from "../constants";
+import { MAX_BATCH_KEYS, MAX_LIST_BLOCK_SIZE } from "../constants";
 import { isFolderKey } from "../utils";
 import {
    bucketNameSchema,
@@ -19,9 +19,15 @@ export type ServerScope = z.infer<typeof serverScope>;
 export type BucketScope = z.infer<typeof bucketScope>;
 export type ObjectScope = z.infer<typeof objectScope>;
 
+const continuationTokenSchema = z
+   .string()
+   .min(1)
+   .max(MAX_TOKEN_LENGTH)
+   .optional();
+
 export const listObjectsQuerySchema = bucketScope.extend({
    prefix: z.string().max(MAX_PREFIX_LENGTH).default(""),
-   continuationToken: z.string().min(1).max(MAX_TOKEN_LENGTH).optional(),
+   continuationToken: continuationTokenSchema,
    blockSize: z.coerce.number().int().min(1).max(MAX_LIST_BLOCK_SIZE),
 });
 export type ListObjectsQuery = z.infer<typeof listObjectsQuerySchema>;
@@ -31,15 +37,16 @@ export const putObjectQuerySchema = objectScope.extend({
 });
 export type PutObjectQuery = z.infer<typeof putObjectQuerySchema>;
 
-export const deleteObjectsBodySchema = bucketScope.extend({
-   objectKeys: z.array(objectKeySchema).min(1).max(MAX_DELETE_KEYS),
+export const objectKeysBodySchema = bucketScope.extend({
+   objectKeys: z.array(objectKeySchema).min(1).max(MAX_BATCH_KEYS),
 });
-export type DeleteObjectsInput = z.infer<typeof deleteObjectsBodySchema>;
+export type ObjectKeysInput = z.infer<typeof objectKeysBodySchema>;
 
-export const deletePrefixBodySchema = bucketScope.extend({
+export const keysQuerySchema = bucketScope.extend({
    prefix: objectKeySchema.refine(isFolderKey, "Prefix must end with /"),
+   continuationToken: continuationTokenSchema,
 });
-export type DeletePrefixInput = z.infer<typeof deletePrefixBodySchema>;
+export type KeysQuery = z.infer<typeof keysQuerySchema>;
 
 export const renameObjectBodySchema = objectScope
    .extend({ newObjectKey: objectKeySchema })

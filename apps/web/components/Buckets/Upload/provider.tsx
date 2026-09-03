@@ -1,12 +1,17 @@
 import { useBucketContext } from "@/components/Buckets/Context";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
-import { forgetObjects } from "@/lib/hooks/mutations/object/invalidate";
+import { api, objectsPath } from "@/lib/api";
+import { forgetKeys } from "@/lib/hooks/mutations/object/invalidate";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import useUploadStore from "@/lib/stores/upload-store/uploadStore";
 import type { UploadFile } from "@/lib/utils/s3/dropEntries";
-import { headObject } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
-import { mapLimit } from "@s3-viewer/types";
+import {
+   MAX_BATCH_KEYS,
+   MAX_BATCH_KEY_CHARS,
+   chunkKeys,
+   type S3ObjectsExist,
+} from "@s3-viewer/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
    createContext,
@@ -15,8 +20,6 @@ import {
    useMemo,
    useState,
 } from "react";
-
-const HEAD_CONCURRENCY = 6;
 
 type PendingReplace = {
    files: UploadFile[];
@@ -51,7 +54,7 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
             serverId,
             ...target,
             onComplete: () => {
-               forgetObjects(
+               forgetKeys(
                   queryClient,
                   userId,
                   serverId,
@@ -71,21 +74,22 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
          const target = { bucketName, prefix };
          setIsChecking(true);
          try {
-            const checks = await mapLimit(
-               files,
-               HEAD_CONCURRENCY,
-               async (entry) =>
-                  (await headObject(
-                     serverId,
-                     bucketName,
-                     `${prefix}${entry.relativePath}`
-                  ))
-                     ? entry.relativePath
-                     : null
-            );
-            const existing = checks.filter(
-               (path): path is string => path !== null
-            );
+            const keys = files.map((file) => `${prefix}${file.relativePath}`);
+            const found = new Set<string>();
+            for (const batch of chunkKeys(
+               keys,
+               MAX_BATCH_KEYS,
+               MAX_BATCH_KEY_CHARS
+            )) {
+               const page = await api.post<S3ObjectsExist>(
+                  `${objectsPath(serverId, bucketName)}/exists`,
+                  { objectKeys: batch }
+               );
+               for (const key of page.existing) found.add(key);
+            }
+            const existing = files
+               .filter((file) => found.has(`${prefix}${file.relativePath}`))
+               .map((file) => file.relativePath);
             if (existing.length > 0) setPending({ files, existing, ...target });
             else start(files, target);
          } catch (error) {

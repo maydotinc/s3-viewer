@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { baseName, chunk, isFolderKey, mapLimit } from "./utils";
+import { baseName, chunk, chunkKeys, isFolderKey, mapLimit } from "./utils";
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 1));
 
@@ -21,6 +21,24 @@ describe("chunk", () => {
    it("splits into fixed-size batches", () => {
       expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
       expect(chunk([], 3)).toEqual([]);
+   });
+});
+
+describe("chunkKeys", () => {
+   it("splits by key count and by total characters, never leaving a batch empty", () => {
+      expect(chunkKeys(["aaaa", "bbbb", "cccc"], 2, 100)).toEqual([
+         ["aaaa", "bbbb"],
+         ["cccc"],
+      ]);
+      expect(chunkKeys(["aaaa", "bbbb", "cccc"], 10, 8)).toEqual([
+         ["aaaa", "bbbb"],
+         ["cccc"],
+      ]);
+      expect(chunkKeys(["a".repeat(20), "b"], 10, 8)).toEqual([
+         ["a".repeat(20)],
+         ["b"],
+      ]);
+      expect(chunkKeys([], 10, 8)).toEqual([]);
    });
 });
 

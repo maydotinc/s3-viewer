@@ -42,7 +42,8 @@ export const PRESIGN_EXPIRY_SECONDS = 15 * 60;
 
 export const S3_MAX_KEYS_PER_REQUEST = 1000;
 export const MAX_LIST_BLOCK_SIZE = S3_MAX_KEYS_PER_REQUEST;
-export const MAX_DELETE_KEYS = S3_MAX_KEYS_PER_REQUEST;
+export const MAX_BATCH_KEYS = S3_MAX_KEYS_PER_REQUEST;
+export const MAX_BATCH_KEY_CHARS = 256 * 1024;
 export const MAX_RENAME_BYTES = 5 * 1024 ** 3;
 
 export const MAX_INVITE_EMAILS = 5;

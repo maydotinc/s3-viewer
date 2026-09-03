@@ -12,6 +12,30 @@ export const chunk = <T>(items: readonly T[], size: number): T[][] => {
    return out;
 };
 
+export const chunkKeys = (
+   keys: readonly string[],
+   maxKeys: number,
+   maxChars: number
+): string[][] => {
+   const out: string[][] = [];
+   let batch: string[] = [];
+   let chars = 0;
+   for (const key of keys) {
+      if (
+         batch.length >= maxKeys ||
+         (batch.length > 0 && chars + key.length > maxChars)
+      ) {
+         out.push(batch);
+         batch = [];
+         chars = 0;
+      }
+      batch.push(key);
+      chars += key.length;
+   }
+   if (batch.length > 0) out.push(batch);
+   return out;
+};
+
 export const mapLimit = async <T, R>(
    items: readonly T[],
    limit: number,

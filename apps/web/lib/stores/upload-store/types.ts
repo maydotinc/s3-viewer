@@ -13,6 +13,8 @@ type UploadEntry = {
 type UploadBatch = {
    ids: string[];
    settled: boolean;
+   completed: number;
+   failed: number;
 };
 
 export type { UploadBatch, UploadEntry };

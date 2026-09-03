@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-   deletePrefixBodySchema,
+   keysQuerySchema,
    listObjectsQuerySchema,
    putObjectQuerySchema,
    renameObjectBodySchema,
@@ -77,9 +77,9 @@ describe("putObjectQuerySchema", () => {
    });
 });
 
-describe("deletePrefixBodySchema", () => {
+describe("keysQuerySchema", () => {
    const parse = (prefix: string) =>
-      deletePrefixBodySchema.safeParse({ ...scope, prefix }).success;
+      keysQuerySchema.safeParse({ ...scope, prefix }).success;
 
    it("requires a trailing slash", () => {
       expect(parse("docs")).toBe(false);

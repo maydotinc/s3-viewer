@@ -1,9 +1,11 @@
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
-import { errorMessage } from "@/lib/api";
-import useDeleteObjects from "@/lib/hooks/mutations/object/useDeleteObjects";
+import { errorMessage, isAborted } from "@/lib/api";
+import useDeleteObjects, {
+   type DeleteSummary,
+} from "@/lib/hooks/mutations/object/useDeleteObjects";
 import useDeletePrefix from "@/lib/hooks/mutations/object/useDeletePrefix";
-import { baseName, isFolderKey, type S3DeleteResult } from "@s3-viewer/types";
-import { useState } from "react";
+import { baseName, isFolderKey } from "@s3-viewer/types";
+import { useEffect, useRef, useState } from "react";
 
 type ConfirmDeleteModalProps = {
    onClose: () => void;
@@ -22,7 +24,12 @@ const ConfirmDeleteModal = ({
    const deleteObjects = useDeleteObjects();
    const deletePrefix = useDeletePrefix();
    const [error, setError] = useState<string | null>(null);
-   const [failed, setFailed] = useState<S3DeleteResult["failed"]>([]);
+   const [failed, setFailed] = useState<DeleteSummary["failed"]>([]);
+   const [failedTotal, setFailedTotal] = useState(0);
+   const [progress, setProgress] = useState(0);
+   const abort = useRef<AbortController | null>(null);
+
+   useEffect(() => () => abort.current?.abort(), []);
 
    const folder =
       objectKeys.length === 1 && objectKeys[0] && isFolderKey(objectKeys[0])
@@ -37,7 +44,9 @@ const ConfirmDeleteModal = ({
         ? "Delete object"
         : `Delete ${count} objects`;
    const description = folder
-      ? `This deletes every object under ${folder}. This can't be undone.`
+      ? isPending && progress > 0
+         ? `Deleting every object under ${folder}… ${progress} deleted so far.`
+         : `This deletes every object under ${folder}. This can't be undone.`
       : count === 1
         ? `This deletes ${baseName(objectKeys[0] ?? "")}. This can't be undone.`
         : `This deletes ${count} objects. This can't be undone.`;
@@ -45,27 +54,43 @@ const ConfirmDeleteModal = ({
    const confirm = () => {
       setError(null);
       const options = {
-         onSuccess: (result: S3DeleteResult) => {
-            if (result.deleted.length > 0) onDeleteSuccess?.();
+         onSuccess: (result: DeleteSummary) => {
+            if (result.deleted > 0) onDeleteSuccess?.();
             setFailed(result.failed);
-            if (result.failed.length === 0) onClose();
+            setFailedTotal(result.failedTotal);
+            if (result.failedTotal === 0) onClose();
          },
          onError: (err: unknown) => {
+            if (isAborted(err)) return;
             setFailed([]);
+            setFailedTotal(0);
             setError(errorMessage(err));
          },
       };
+      if (folder) {
+         abort.current = new AbortController();
+         setProgress(0);
+         deletePrefix.mutate(
+            {
+               bucketName,
+               prefix: folder,
+               signal: abort.current.signal,
+               onProgress: setProgress,
+            },
+            options
+         );
+         return;
+      }
       const keys = failed.length > 0 ? failed.map((f) => f.key) : objectKeys;
-      if (folder) deletePrefix.mutate({ bucketName, prefix: folder }, options);
-      else deleteObjects.mutate({ bucketName, objectKeys: keys }, options);
+      deleteObjects.mutate({ bucketName, objectKeys: keys }, options);
    };
 
    const failureSummary =
-      failed.length === 0
+      failedTotal === 0
          ? null
-         : failed.length === 1
+         : failedTotal === 1
            ? "This object couldn't be deleted:"
-           : `${failed.length} objects couldn't be deleted:`;
+           : `${failedTotal} objects couldn't be deleted:`;
 
    return (
       <ConfirmDialog
@@ -76,7 +101,7 @@ const ConfirmDeleteModal = ({
          descriptionClassName="break-all"
          error={error ?? failureSummary}
          confirmVariant="destructive"
-         confirmLabel={failed.length > 0 ? "Retry" : "Delete"}
+         confirmLabel={failedTotal > 0 ? "Retry" : "Delete"}
          isPending={isPending}
          onConfirm={confirm}
       >
@@ -90,6 +115,9 @@ const ConfirmDeleteModal = ({
                      — {f.message}
                   </li>
                ))}
+               {failedTotal > failed.length && (
+                  <li>and {failedTotal - failed.length} more</li>
+               )}
             </ul>
          )}
       </ConfirmDialog>

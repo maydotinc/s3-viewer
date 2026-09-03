@@ -79,15 +79,25 @@ const grantBucketRoles = async (
       select: bucketGrantSelect,
    });
    const current = new Map(existing.map((b) => [b.bucketName, Role[b.role]]));
+   const creates: BucketGrantRow[] = [];
+   const updates = new Map<Role, string[]>();
    for (const { bucketName, role: invited } of grants) {
-      const role =
-         highestRole(current.get(bucketName), Role[invited]) ?? Role[invited];
-      await tx.bucketAccess.upsert({
-         where: {
-            userId_serverId_bucketName: { userId, serverId, bucketName },
-         },
-         update: { role },
-         create: { userId, serverId, bucketName, role },
+      const held = current.get(bucketName);
+      const role = highestRole(held, Role[invited]) ?? Role[invited];
+      if (held === undefined) creates.push({ bucketName, role });
+      else if (held !== role)
+         updates.set(role, [...(updates.get(role) ?? []), bucketName]);
+   }
+   for (const [role, bucketNames] of updates) {
+      await tx.bucketAccess.updateMany({
+         where: { userId, serverId, bucketName: { in: bucketNames } },
+         data: { role },
+      });
+   }
+   if (creates.length > 0) {
+      await tx.bucketAccess.createMany({
+         data: creates.map((grant) => ({ userId, serverId, ...grant })),
+         skipDuplicates: true,
       });
    }
 };

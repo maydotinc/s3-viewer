@@ -69,7 +69,10 @@ the web app, the landing site and the shared packages. Keep it current.
   must additionally be in `server.allowedBuckets` when that list is non-empty.
 - Membership actions use `authorizeMemberAction()` which loads the target's
   current role and applies `canManageRole` for both current and new roles.
-- Rate limits: global 300/min per IP before auth, then 600/min per user id;
+- Rate limits: global 1200/min per IP before auth on everything except
+  `/servers/:serverId/buckets/**`, which instead gets its own 6000/min per IP
+  (also before auth; bulk listing, upload and delete loops live there); then
+  1800/min per user id;
   non-GET `/auth/*` 20/min per IP (Better Auth's own limiter is a no-op with
   `disableIpTracking`, so it is disabled); sign-in emails (`/auth-flow/start`,
   `/auth/email-otp/send-verification-otp`, `/auth/sign-in/magic-link`) share
@@ -156,11 +159,12 @@ POST   /servers/:serverId/buckets        { bucketName }       → { bucket: S3Bu
 DELETE /servers/:serverId/buckets/:bucketName (DELETE_BUCKET; removes from server, DB only) → 204
 GET    /servers/:serverId/buckets/:bucketName/objects?prefix&continuationToken&blockSize → S3ObjectListPage
 GET    …/objects/metadata?objectKey                           → S3ObjectMetadata
+POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing }` (≤ 1000 keys, 16 HEADs in flight)
 GET    …/objects/download-url?objectKey                       → S3PresignedUrl
 GET    …/objects/preview-url?objectKey                        → S3ObjectPreview (content type from HeadObject)
 PUT    …/objects?objectKey&contentType   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (413 over MAX_UPLOAD_BYTES)
 DELETE …/objects                         { objectKeys[] }     → S3DeleteResult (207 if any failed)
-DELETE …/objects/prefix                  { prefix }           → S3DeleteResult (recursive, paginated; prefix is a folder key ending in "/", never "/" or the root)
+GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ keys, nextToken }` (recursive, one S3 page of ≤ 1000 keys; prefix is a folder key ending in "/", never "/" or the root)
 POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 if target exists, 413 if > 5 GB)
 ```
 
@@ -173,14 +177,21 @@ bucket CORS is required).
 
 - A listing page makes at most 20 `ListObjectsV2` calls; each follow-up call
   asks only for the rows still missing.
-- Recursive prefix delete refuses folders above 100,000 keys (413) before
-  deleting anything; use the CLI for larger trees.
+- Recursive folder delete is a client pipeline: `GET …/objects/keys` pages
+  sequentially (S3 tokens are ordered) while up to 4 `DELETE …/objects` calls
+  run concurrently. No request outlives a proxy timeout; closing the dialog
+  aborts the loop and the first failure aborts the rest. There is no size cap;
+  the failure list shown is capped at 100 with a total count.
 
 ### Listing semantics
 
 `GET …/objects` returns folders (common prefixes, `isFolder: true`, key ends
-with `/`) first, then objects, and keeps fetching from S3 until at least
-`blockSize` rows are collected or the listing ends. `nextToken` is null at the end.
+with `/`) and objects merged in S3 key order (UTF-8 bytes), so ordering is
+consistent across pages, and keeps fetching from S3 until at least `blockSize`
+rows are collected or the listing ends. `nextToken` is null at the end. The web
+app's "Folders first" preference (persisted per browser in
+`lib/stores/preferencesStore.ts`) regroups each 1000-row block client-side,
+which is exact for listings up to 1000 entries and per-block above that.
 
 ## Auth (`packages/auth`, `apps/api`, `apps/web`)
 
@@ -232,7 +243,12 @@ with `/`) first, then objects, and keeps fetching from S3 until at least
   bucket — no bucket configuration needed; `contentType` defaults to
   `application/octet-stream`; 3 files at a time; 2 retries on network errors
   only (never on a 4xx/5xx); cancel aborts the request; duplicate-key check
-  (HEAD) before upload; entries keyed by `bucket/prefix/name`. Downloads and
+  (`POST …/objects/exists`, 1000 keys per call) before upload; entries keyed
+  by `bucket/prefix/name`. Batched key requests (`exists`, `DELETE …/objects`)
+  are split by `chunkKeys` (≤ 1000 keys and ≤ 256K characters per call) so a
+  body never nears the 1 MB JSON limit. The grid datasource keeps one
+  continuation token per 1000-row block plus an LRU of 10 blocks of rows, so
+  paging deep costs one short string per block, not the rows. Downloads and
   previews use 15-minute presigned URLs, which need no CORS.
 - Login/signup page: one `AuthScreen` component; mobile = form only, desktop =
   split (form left, brand panel right on Viewer Dark Blue). See

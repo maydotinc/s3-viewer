@@ -3,10 +3,10 @@ import { ApiHttpError, noContent } from "@/lib/http";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
-import { deleteKeys, deletePrefix } from "@/lib/s3/delete";
+import { deleteKeys } from "@/lib/s3/delete";
 import { isNotFound, throwHttpError, toHttpError } from "@/lib/s3/errors";
 import { contentDispositionFilename, encodeCopySource } from "@/lib/s3/keys";
-import { listPage } from "@/lib/s3/listing";
+import { listKeysPage, listPage } from "@/lib/s3/listing";
 import { presignedUrl } from "@/lib/s3/presign";
 import { declaredLength, exceedsLimit, streamUpload } from "@/lib/s3/upload";
 import {
@@ -21,15 +21,16 @@ import { Permission } from "@s3-viewer/permissions";
 import {
    DEFAULT_CONTENT_TYPE,
    MAX_RENAME_BYTES,
-   deleteObjectsBodySchema,
-   deletePrefixBodySchema,
+   keysQuerySchema,
    listObjectsQuerySchema,
+   mapLimit,
+   objectKeysBodySchema,
    objectScope,
    putObjectQuerySchema,
    renameObjectBodySchema,
-   type DeleteObjectsInput,
-   type DeletePrefixInput,
+   type KeysQuery,
    type ListObjectsQuery,
+   type ObjectKeysInput,
    type ObjectScope,
    type PutObjectQuery,
    type RenameObjectInput,
@@ -37,8 +38,11 @@ import {
    type S3ObjectMetadata,
    type S3ObjectPreview,
    type S3ObjectUploaded,
+   type S3ObjectsExist,
 } from "@s3-viewer/types";
 import { Router, type Response } from "express";
+
+const HEAD_CONCURRENCY = 16;
 
 const objectsRouter = Router({ mergeParams: true });
 
@@ -106,6 +110,26 @@ objectsRouter.get(
       const client = await getS3Client(serverId);
       res.json(toMetadata(await headObject(client, bucketName, objectKey)));
    })
+);
+
+objectsRouter.post(
+   "/exists",
+   ...bucketRoute(
+      Permission.LIST_OBJECTS,
+      objectKeysBodySchema,
+      async (req, res) => {
+         const { serverId, bucketName, objectKeys } =
+            input<ObjectKeysInput>(res);
+         const client = await getS3Client(serverId);
+         const found = await mapLimit(objectKeys, HEAD_CONCURRENCY, (key) =>
+            objectExists(client, bucketName, key)
+         );
+         const result: S3ObjectsExist = {
+            existing: objectKeys.filter((_, i) => found[i]),
+         };
+         res.json(result);
+      }
+   )
 );
 
 objectsRouter.get(
@@ -186,10 +210,10 @@ objectsRouter.delete(
    "/",
    ...bucketRoute(
       Permission.DELETE_OBJECT,
-      deleteObjectsBodySchema,
+      objectKeysBodySchema,
       async (req, res) => {
          const { serverId, bucketName, objectKeys } =
-            input<DeleteObjectsInput>(res);
+            input<ObjectKeysInput>(res);
          const client = await getS3Client(serverId);
          sendDeleteResult(
             res,
@@ -199,15 +223,18 @@ objectsRouter.delete(
    )
 );
 
-objectsRouter.delete(
-   "/prefix",
+objectsRouter.get(
+   "/keys",
    ...bucketRoute(
-      Permission.DELETE_OBJECT,
-      deletePrefixBodySchema,
+      Permission.LIST_OBJECTS,
+      keysQuerySchema,
       async (req, res) => {
-         const { serverId, bucketName, prefix } = input<DeletePrefixInput>(res);
+         const { serverId, bucketName, prefix, continuationToken } =
+            input<KeysQuery>(res);
          const client = await getS3Client(serverId);
-         sendDeleteResult(res, await deletePrefix(client, bucketName, prefix));
+         res.json(
+            await listKeysPage(client, bucketName, prefix, continuationToken)
+         );
       }
    )
 );

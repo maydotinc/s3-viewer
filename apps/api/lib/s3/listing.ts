@@ -2,6 +2,7 @@ import { ListObjectsV2Command, type S3Client } from "@aws-sdk/client-s3";
 import {
    S3_MAX_KEYS_PER_REQUEST,
    isFolderKey,
+   type S3KeysPage,
    type S3Object,
    type S3ObjectListPage,
 } from "@s3-viewer/types";
@@ -15,6 +16,26 @@ type ListPageArgs = {
    prefix: string;
    continuationToken?: string;
    blockSize: number;
+};
+
+const utf8Before = (a: string, b: string): boolean =>
+   Buffer.compare(Buffer.from(a), Buffer.from(b)) < 0;
+
+/** Both inputs arrive in S3's UTF-8 byte order, so one merge keeps the page in global key order. */
+const mergeByKey = (a: S3Object[], b: S3Object[]): S3Object[] => {
+   const out: S3Object[] = [];
+   let i = 0;
+   let j = 0;
+   for (let x = a[i], y = b[j]; x && y; x = a[i], y = b[j]) {
+      if (utf8Before(x.key, y.key)) {
+         out.push(x);
+         i++;
+      } else {
+         out.push(y);
+         j++;
+      }
+   }
+   return out.concat(a.slice(i), b.slice(j));
 };
 
 const listPage = async ({
@@ -80,7 +101,30 @@ const listPage = async ({
       if (folders.length + objects.length >= blockSize) break;
    }
 
-   return { objects: [...folders, ...objects], nextToken: token ?? null };
+   return { objects: mergeByKey(folders, objects), nextToken: token ?? null };
 };
 
-export { listPage };
+const listKeysPage = async (
+   client: S3Client,
+   bucket: string,
+   prefix: string,
+   continuationToken: string | undefined
+): Promise<S3KeysPage> => {
+   const page = await client
+      .send(
+         new ListObjectsV2Command({
+            Bucket: bucket,
+            Prefix: prefix,
+            MaxKeys: S3_MAX_KEYS_PER_REQUEST,
+            ContinuationToken: continuationToken,
+         })
+      )
+      .catch(throwHttpError);
+   const nextToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+   return {
+      keys: (page.Contents ?? []).flatMap((o) => (o.Key ? [o.Key] : [])),
+      nextToken: nextToken === continuationToken ? null : (nextToken ?? null),
+   };
+};
+
+export { listKeysPage, listPage };

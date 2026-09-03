@@ -1,7 +1,7 @@
 import { api, objectsPath } from "@/lib/api";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { forgetObjects } from "./invalidate";
+import { forgetKeys } from "./invalidate";
 
 const useRenameObject = () => {
    const queryClient = useQueryClient();
@@ -23,7 +23,7 @@ const useRenameObject = () => {
             newObjectKey,
          }),
       onSuccess: (_, { bucketName, objectKey }) => {
-         forgetObjects(queryClient, userId, serverId, bucketName, [objectKey]);
+         forgetKeys(queryClient, userId, serverId, bucketName, [objectKey]);
       },
    });
 };

@@ -41,6 +41,8 @@ type S3DeleteResult = {
    deleted: string[];
    failed: { key: string; message: string }[];
 };
+type S3KeysPage = { keys: string[]; nextToken: string | null };
+type S3ObjectsExist = { existing: string[] };
 
 export type {
    S3Bucket,
@@ -49,6 +51,8 @@ export type {
    S3ObjectListPage,
    S3ObjectMetadata,
    S3ObjectPreview,
+   S3KeysPage,
    S3ObjectUploaded,
+   S3ObjectsExist,
    S3PresignedUrl,
 };

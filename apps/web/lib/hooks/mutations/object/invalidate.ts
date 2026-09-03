@@ -1,4 +1,4 @@
-import { queryKeys } from "@/lib/queryKeys";
+import { objectKeyOf, queryKeys } from "@/lib/queryKeys";
 import type { QueryClient } from "@tanstack/react-query";
 
 const forgetObjects = (
@@ -6,29 +6,31 @@ const forgetObjects = (
    userId: string,
    serverId: string,
    bucketName: string,
-   objectKeys: readonly string[]
+   matches: (objectKey: string) => boolean
 ) => {
-   for (const objectKey of objectKeys) {
-      queryClient.removeQueries({
-         queryKey: queryKeys.objectMetadata(
-            userId,
-            serverId,
-            bucketName,
-            objectKey
-         ),
-      });
-      queryClient.removeQueries({
-         queryKey: queryKeys.objectPreview(
-            userId,
-            serverId,
-            bucketName,
-            objectKey
-         ),
-      });
-   }
+   queryClient.removeQueries({
+      queryKey: queryKeys.bucket(userId, serverId, bucketName),
+      predicate: ({ queryKey }) => {
+         const objectKey = objectKeyOf(queryKey);
+         return objectKey !== undefined && matches(objectKey);
+      },
+   });
    void queryClient.invalidateQueries({
       queryKey: queryKeys.bucketObjects(userId, serverId, bucketName),
    });
 };
 
-export { forgetObjects };
+const forgetKeys = (
+   queryClient: QueryClient,
+   userId: string,
+   serverId: string,
+   bucketName: string,
+   objectKeys: readonly string[]
+) => {
+   const keys = new Set(objectKeys);
+   forgetObjects(queryClient, userId, serverId, bucketName, (key) =>
+      keys.has(key)
+   );
+};
+
+export { forgetKeys, forgetObjects };

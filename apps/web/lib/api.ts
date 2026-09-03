@@ -22,42 +22,59 @@ const apiUrl = (path: string) => `${publicEnv.apiOrigin}${path}`;
 
 const networkError = () => new ApiError(0, NETWORK_MESSAGE, "NETWORK");
 
+const ABORTED = "ABORTED";
+
+const transportError = (error: unknown) =>
+   error instanceof DOMException && error.name === "AbortError"
+      ? new ApiError(0, "Request cancelled", ABORTED)
+      : networkError();
+
+const isAborted = (error: unknown) =>
+   error instanceof ApiError && error.code === ABORTED;
+
 const responseError = (status: number, data: ApiErrorBody | null) =>
    new ApiError(status, data?.message ?? GENERIC_ERROR_MESSAGE, data?.code);
 
 const request = async <T>(
    method: "GET" | "POST" | "PATCH" | "DELETE",
    path: string,
-   body?: unknown
+   body?: unknown,
+   signal?: AbortSignal
 ): Promise<T> => {
    let res: Response;
    try {
       res = await fetch(apiUrl(path), {
          method,
          credentials: "include",
+         signal,
          headers:
             body === undefined
                ? undefined
                : { "Content-Type": "application/json" },
          body: body === undefined ? undefined : JSON.stringify(body),
       });
-   } catch {
-      throw networkError();
+   } catch (error) {
+      throw transportError(error);
    }
    if (!res.ok) {
       const data = (await res.json().catch(() => null)) as ApiErrorBody | null;
       throw responseError(res.status, data);
    }
    if (res.status === 204) return undefined as T;
-   return (await res.json()) as T;
+   try {
+      return (await res.json()) as T;
+   } catch (error) {
+      throw transportError(error);
+   }
 };
 
 const api = {
-   get: <T>(path: string) => request<T>("GET", path),
+   get: <T>(path: string, signal?: AbortSignal) =>
+      request<T>("GET", path, undefined, signal),
    post: <T>(path: string, body?: unknown) => request<T>("POST", path, body),
    patch: <T>(path: string, body?: unknown) => request<T>("PATCH", path, body),
-   delete: <T>(path: string, body?: unknown) =>
-      request<T>("DELETE", path, body),
+   delete: <T>(path: string, body?: unknown, signal?: AbortSignal) =>
+      request<T>("DELETE", path, body, signal),
 };
 
 const errorMessage = (error: unknown): string =>
@@ -99,6 +116,7 @@ export {
    bucketPath,
    errorMessage,
    invitePath,
+   isAborted,
    memberPath,
    networkError,
    objectsPath,

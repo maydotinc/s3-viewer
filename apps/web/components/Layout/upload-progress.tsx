@@ -177,7 +177,6 @@ const UploadList = ({
 
 const UploadProgressSheet = () => {
    const order = useUploadStore((state) => state.order);
-   const entries = useUploadStore((state) => state.entries);
    const batch = useUploadStore((state) => state.batch);
    const isUploading = useUploadStore((state) => state.isUploading);
    const cancel = useUploadStore((state) => state.cancel);
@@ -188,17 +187,13 @@ const UploadProgressSheet = () => {
 
    if (order.length === 0) return null;
 
-   const batchIds = batch?.ids ?? [];
-   const done = batchIds.filter(
-      (id) => entries[id]?.status === "completed"
-   ).length;
-   const failed = batchIds.filter(
-      (id) => entries[id]?.status === "failed"
-   ).length;
+   const total = batch?.ids.length ?? 0;
+   const done = batch?.completed ?? 0;
+   const failed = batch?.failed ?? 0;
    const heading = isUploading
-      ? `Uploading… (${done}/${batchIds.length})`
+      ? `Uploading… (${done}/${total})`
       : failed > 0
-        ? `${failed} of ${batchIds.length} ${batchIds.length === 1 ? "upload" : "uploads"} failed`
+        ? `${failed} of ${total} ${total === 1 ? "upload" : "uploads"} failed`
         : "Uploads complete";
 
    return (

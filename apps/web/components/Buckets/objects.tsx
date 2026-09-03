@@ -5,6 +5,7 @@ import GridPagination from "@/components/DataGrid/page-controls";
 import { Page, PageHeader } from "@/components/Layout/page";
 import SignInPrompt from "@/components/Session/sign-in-prompt";
 import { authClient } from "@/lib/auth";
+import usePreferencesStore from "@/lib/stores/preferencesStore";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -45,6 +46,7 @@ const Objects = () => {
    const { data: session, isPending: isSessionPending } =
       authClient.useSession();
    const serverId = useSessionStore((state) => state.serverId);
+   const foldersFirst = usePreferencesStore((state) => state.foldersFirst);
    const {
       bucketName,
       prefix,
@@ -70,6 +72,7 @@ const Objects = () => {
          serverId,
          bucketName,
          prefix: listPrefix,
+         foldersFirst,
          getGridApi: () => gridRef.current?.api,
          onError: (error) =>
             setFailure((prev) =>
@@ -77,7 +80,7 @@ const Objects = () => {
             ),
       });
       return source;
-   }, [serverId, bucketName, listPrefix, gridRef]);
+   }, [serverId, bucketName, listPrefix, foldersFirst, gridRef]);
 
    const error = bucketsError ?? failureOf(failure, datasource);
 
