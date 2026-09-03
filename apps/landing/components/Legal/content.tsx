@@ -14,11 +14,10 @@ const slugify = (s: string) =>
       .replace(/^-+|-+$/g, "");
 
 const LegalContent = ({ content }: { content: LegalContentItemProps[] }) => {
-   const slugs = useMemo(
-      () => content.map((s) => slugify(s.title)),
-      [content]
+   const slugs = useMemo(() => content.map((s) => slugify(s.title)), [content]);
+   const [activeSlug, setActiveSlug] = useState<string | null>(
+      slugs[0] ?? null
    );
-   const [activeSlug, setActiveSlug] = useState<string | null>(slugs[0] ?? null);
 
    useEffect(() => {
       if (slugs.length === 0) return;

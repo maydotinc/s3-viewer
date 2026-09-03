@@ -21,116 +21,63 @@ interface TabsListWithIndicatorProps
    value?: string;
 }
 
+type IndicatorRect = { left: number; width: number };
+
+const useIsomorphicLayoutEffect =
+   typeof window === "undefined" ? React.useEffect : React.useLayoutEffect;
+
 const TabsListWithIndicator = React.forwardRef<
    React.ElementRef<typeof TabsPrimitive.List>,
    TabsListWithIndicatorProps
 >(({ className, value, ...props }, ref) => {
-   const [indicatorStyle, setIndicatorStyle] = React.useState({
-      left: 0,
-      width: 0,
-      opacity: 0,
-   });
-   const [showTransition, setShowTransition] = React.useState(false);
-   const initialRenderComplete = React.useRef(false);
-   const initialTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(
-      null
-   );
+   const [indicator, setIndicator] = React.useState<IndicatorRect | null>(null);
+   const [animate, setAnimate] = React.useState(false);
    const listRef = React.useRef<HTMLDivElement>(null);
 
-   const updateIndicatorPosition = React.useCallback(() => {
-      if (!listRef.current) return null;
-      const activeTrigger = listRef.current.querySelector(
+   const measure = React.useCallback(() => {
+      const activeTrigger = listRef.current?.querySelector<HTMLElement>(
          '[data-state="active"]'
       );
-      if (activeTrigger) {
-         const { offsetLeft, offsetWidth } = activeTrigger as HTMLElement;
-         return { left: offsetLeft, width: offsetWidth };
-      }
-      return null;
+      if (!activeTrigger) return;
+
+      const { offsetLeft, offsetWidth } = activeTrigger;
+      setIndicator((previous) =>
+         previous?.left === offsetLeft && previous?.width === offsetWidth
+            ? previous
+            : { left: offsetLeft, width: offsetWidth }
+      );
    }, []);
 
-   React.useEffect(() => {
-      if (!initialRenderComplete.current) {
-         setIndicatorStyle((s) => ({ ...s, left: 0, width: 0, opacity: 0 }));
-      }
+   useIsomorphicLayoutEffect(() => {
+      measure();
+      const frame = requestAnimationFrame(() => setAnimate(true));
+      return () => cancelAnimationFrame(frame);
+   }, [measure]);
 
-      const calculateInitialPosition = () => {
-         const position = updateIndicatorPosition();
-         if (position) {
-            const newPosition = { ...position, opacity: 0 };
-            setIndicatorStyle(newPosition);
-            requestAnimationFrame(() => {
-               requestAnimationFrame(() => {
-                  setIndicatorStyle({ ...newPosition, opacity: 1 });
-                  initialTimeoutRef.current = setTimeout(() => {
-                     setShowTransition(true);
-                     initialRenderComplete.current = true;
-                  }, 10);
-               });
-            });
-         }
-      };
-
-      if (!initialRenderComplete.current) {
-         const t = setTimeout(calculateInitialPosition, 10);
-         return () => {
-            clearTimeout(t);
-            if (initialTimeoutRef.current) {
-               clearTimeout(initialTimeoutRef.current);
-               initialTimeoutRef.current = null;
-            }
-         };
-      }
-   }, [value, updateIndicatorPosition]);
+   useIsomorphicLayoutEffect(() => {
+      measure();
+   }, [value, measure]);
 
    React.useEffect(() => {
-      if (!initialRenderComplete.current) return;
-      const position = updateIndicatorPosition();
-      if (position) {
-         setIndicatorStyle({ ...position, opacity: 1 });
-      }
-   }, [value, updateIndicatorPosition]);
+      const list = listRef.current;
+      if (!list) return;
 
-   React.useEffect(() => {
-      const updateIndicator = () => {
-         const position = updateIndicatorPosition();
-         if (position && initialRenderComplete.current) {
-            setIndicatorStyle({ ...position, opacity: 1 });
-         }
-      };
-
-      const rafId = requestAnimationFrame(() => {
-         if (initialRenderComplete.current) updateIndicator();
-      });
-
-      const observer = new MutationObserver((mutations) => {
-         mutations.forEach((mutation) => {
-            if (mutation.attributeName === "data-state") {
-               requestAnimationFrame(updateIndicator);
-            }
+      const mutationObserver = new MutationObserver(measure);
+      list.querySelectorAll('[role="tab"]').forEach((trigger) => {
+         mutationObserver.observe(trigger, {
+            attributes: true,
+            attributeFilter: ["data-state"],
          });
       });
 
-      if (listRef.current) {
-         const triggers = listRef.current.querySelectorAll('[role="tab"]');
-         triggers.forEach((trigger) => {
-            observer.observe(trigger, { attributes: true });
-         });
-      }
-
-      const resizeObserver = new ResizeObserver(() => {
-         updateIndicator();
-      });
-      if (listRef.current) {
-         resizeObserver.observe(listRef.current);
-      }
+      const resizeObserver = new ResizeObserver(measure);
+      resizeObserver.observe(list);
 
       return () => {
-         cancelAnimationFrame(rafId);
-         observer.disconnect();
+         mutationObserver.disconnect();
          resizeObserver.disconnect();
       };
-   }, [value, updateIndicatorPosition]);
+   }, [measure]);
 
    return (
       <div className="relative" ref={listRef}>
@@ -138,12 +85,12 @@ const TabsListWithIndicator = React.forwardRef<
          <div
             className={cn(
                "absolute bottom-0 h-[0.180rem] bg-viewerblue ease-in-out",
-               showTransition && "transition-all duration-300"
+               animate && "transition-all duration-300"
             )}
             style={{
-               left: indicatorStyle.left,
-               width: indicatorStyle.width,
-               opacity: indicatorStyle.opacity,
+               left: indicator?.left ?? 0,
+               width: indicator?.width ?? 0,
+               opacity: indicator ? 1 : 0,
                transform: "translateY(0.5px)",
             }}
             aria-hidden="true"

@@ -1,97 +1,109 @@
-import S3ViewerEmailOTP from "@s3-viewer/ui/emails/auth-otp";
-import S3ViewerServerInviteEmail from "@s3-viewer/ui/emails/server-invite";
+import { ROLE_LABELS } from "@s3-viewer/permissions";
+import { PRODUCT_NAME, type Role } from "@s3-viewer/types";
+import {
+   AuthOtpEmail,
+   authOtpEmailText,
+   type AuthOtpEmailProps,
+} from "@s3-viewer/ui/emails/auth-otp";
+import {
+   ServerInviteEmail,
+   serverInviteEmailText,
+   type ServerInviteEmailProps,
+} from "@s3-viewer/ui/emails/server-invite";
+import { Resend } from "resend";
 
-type SendOtpEmailInput = {
+type Message = {
    to: string;
-   otp: string;
+   subject: string;
+   html: ReturnType<typeof AuthOtpEmail>;
+   text: string;
+};
+
+type Transport = (message: Message) => Promise<void>;
+
+const DEFAULT_FROM = `${PRODUCT_NAME} <info@may.inc>`;
+const from = process.env.EMAIL_FROM || DEFAULT_FROM;
+
+const resendTransport = (apiKey: string): Transport => {
+   const resend = new Resend(apiKey);
+   return async ({ to, subject, html, text }) => {
+      const { error } = await resend.emails.send({
+         from,
+         to: [to],
+         subject,
+         react: html,
+         text,
+      });
+      if (error) throw new Error(`Email provider error: ${error.name}`);
+   };
+};
+
+const consoleTransport = (): Transport => {
+   if (process.env.NODE_ENV === "production") {
+      throw new Error("RESEND_KEY is required in production");
+   }
+   return async ({ to, subject, text }) => {
+      console.info(
+         `[email] to=${to} subject="${subject}" (RESEND_KEY unset, not sent)\n${text}`
+      );
+   };
+};
+
+const send: Transport = process.env.RESEND_KEY
+   ? resendTransport(process.env.RESEND_KEY)
+   : consoleTransport();
+
+type SendAuthEmailInput = AuthOtpEmailProps & { to: string };
+
+const sendAuthEmail = async ({
+   to,
+   ...props
+}: SendAuthEmailInput): Promise<void> => {
+   await send({
+      to,
+      subject: `Sign in to ${PRODUCT_NAME}`,
+      html: AuthOtpEmail(props),
+      text: authOtpEmailText(props),
+   });
 };
 
 type SendServerInviteEmailInput = {
    to: string;
+   inviterName: string;
    serverName: string;
-   role: string;
-   invitedByEmail: string;
-   invitedByName?: string;
+   role: Role;
    expiresAt: Date;
    invitesUrl: string;
 };
 
-let resendInstance: import("resend").Resend | null = null;
-
-const getResend = async () => {
-   if (!resendInstance) {
-      const { Resend } = await import("resend");
-      resendInstance = new Resend(process.env.RESEND_KEY);
-   }
-
-   return resendInstance;
-};
-
-const isProductionEmailEnabled = () => {
-   return process.env.NODE_ENV === "production";
-};
-
-const sendOtpEmail = async ({ to, otp }: SendOtpEmailInput) => {
-   if (!isProductionEmailEnabled()) {
-      console.log(`[email] OTP to ${to}: ${otp}`);
-      return;
-   }
-
-   try {
-      const resend = await getResend();
-      const { error } = await resend.emails.send({
-         from: "S3 Viewer <auth@s3-viewer.com>",
-         to: [to],
-         subject: "S3 Viewer Login Code",
-         react: S3ViewerEmailOTP({ loginCode: otp, email: to }),
-      });
-
-      if (error) {
-         throw new Error(`${error.name}: ${error.message}`);
-      }
-   } catch (error) {
-      console.error("[email] Error sending OTP:", error);
-   }
-};
+const expiryFormatter = new Intl.DateTimeFormat("en-US", {
+   month: "long",
+   day: "numeric",
+   year: "numeric",
+   timeZone: "UTC",
+});
 
 const sendServerInviteEmail = async ({
    to,
+   inviterName,
    serverName,
    role,
-   invitedByEmail,
-   invitedByName,
    expiresAt,
    invitesUrl,
-}: SendServerInviteEmailInput) => {
-   if (!isProductionEmailEnabled()) {
-      console.log(
-         `[email] Invite to ${to}: server=${serverName} role=${role} invitedBy=${invitedByEmail} expiresAt=${expiresAt.toISOString()} url=${invitesUrl}`
-      );
-      return;
-   }
-
-   try {
-      const resend = await getResend();
-      const { error } = await resend.emails.send({
-         from: "S3 Viewer <auth@s3-viewer.com>",
-         to: [to],
-         subject: `You're invited to ${serverName} on S3 Viewer`,
-         react: S3ViewerServerInviteEmail({
-            serverName,
-            role,
-            invitedByEmail,
-            invitedByName,
-            expiresAtIso: expiresAt.toISOString(),
-            invitesUrl,
-         }),
-      });
-
-      if (error) {
-         throw new Error(`${error.name}: ${error.message}`);
-      }
-   } catch (error) {
-      console.error("[email] Error sending server invite:", error);
-   }
+}: SendServerInviteEmailInput): Promise<void> => {
+   const props: ServerInviteEmailProps = {
+      inviterName,
+      serverName,
+      roleLabel: ROLE_LABELS[role],
+      invitesUrl,
+      expiresAtLabel: `on ${expiryFormatter.format(expiresAt)}`,
+   };
+   await send({
+      to,
+      subject: `${inviterName} invited you to ${serverName} on ${PRODUCT_NAME}`,
+      html: ServerInviteEmail(props),
+      text: serverInviteEmailText(props),
+   });
 };
 
-export { sendOtpEmail, sendServerInviteEmail };
+export { sendAuthEmail, sendServerInviteEmail };

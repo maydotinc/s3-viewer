@@ -1,35 +1,29 @@
-import useSessionStore from "@/lib/stores/sessionStore";
 import { ServerInfo } from "@s3-viewer/types";
-import { CircleIcon } from "lucide-react";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import { Circle } from "lucide-react";
 import ServerActions from "./server-actions";
 import ServerLogo from "./server-logo";
 
 type ServerItemProps = {
    server: ServerInfo;
+   selected: boolean;
 };
 
-const ServerItem = ({ server }: ServerItemProps) => {
-   const serverId = useSessionStore((state) => state.serverId);
-
-   return (
-      <div className="flex gap-2 items-center w-full pl-2 py-2">
-         {serverId === server.id ? (
-            <CircleIcon className="size-4 text-viewerblue fill-viewerblue" />
-         ) : (
-            <CircleIcon className="size-4 text-viewerborder" />
+const ServerItem = ({ server, selected }: ServerItemProps) => (
+   <span className="flex w-full items-center gap-2 py-1 pl-1">
+      <Circle
+         aria-hidden="true"
+         className={cn(
+            "size-3 shrink-0",
+            selected ? "fill-viewerblue text-viewerblue" : "text-viewerborder"
          )}
-         <div className="flex gap-2 items-center flex-1">
-            <ServerLogo provider={server.provider} variant="small" />
-            <p className="max-w-[100px] truncate">{server.name}</p>
-         </div>
-         <div
-            onClick={(e) => e.preventDefault()}
-            className="ml-auto flex items-center hover:text-viewerblue"
-         >
-            <ServerActions server={server} />
-         </div>
-      </div>
-   );
-};
+      />
+      <ServerLogo provider={server.provider} />
+      <span className="min-w-0 flex-1 truncate text-viewerblack">
+         {server.name}
+      </span>
+      <ServerActions server={server} />
+   </span>
+);
 
 export default ServerItem;

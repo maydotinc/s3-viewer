@@ -1,304 +1,236 @@
-import getPresignedUploadUrl from "@/lib/utils/s3/getPresignedUploadUrl";
-import {
-   MULTIPART_THRESHOLD,
-   uploadFileMultipart,
-} from "@/lib/utils/s3/multipartUpload";
-import uploadToUrl from "@/lib/utils/s3/uploadToUrl";
+import { DEFAULT_CONTENT_TYPE } from "@s3-viewer/types";
+import { toast } from "@s3-viewer/ui/components/toast";
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import {
-   checkForCompletion,
-   CONCURRENCY_LIMIT,
-   QueuedFile,
-   UploadProgress,
-} from "./utils";
+import type { UploadFile } from "@/lib/utils/s3/dropEntries";
+import { isCancelled } from "@/lib/utils/s3/upload-cancelled";
+import { uploadObject } from "@/lib/utils/s3/uploadObject";
+import type { UploadBatch, UploadEntry } from "./types";
 
-type UploadStoreState = {
+const FILE_CONCURRENCY = 3;
+
+type Job = {
+   file: File;
+   serverId: string;
+   bucketName: string;
+   objectKey: string;
+   contentType: string;
+   abort: (() => void) | null;
+};
+
+const jobs = new Map<string, Job>();
+const batchCallbacks = new Set<() => void>();
+
+type UploadState = {
+   entries: Record<string, UploadEntry>;
+   order: string[];
+   queue: string[];
+   batch: UploadBatch | null;
    isUploading: boolean;
-   uploadProgress: UploadProgress;
-   uploadQueue: QueuedFile[];
-   onUploadComplete?: () => void;
-   completionToastShown: boolean;
 };
 
-type UploadStoreActions = {
-   setOnUploadComplete: (callback: () => void) => void;
-   startUpload: (params: {
-      files: File[];
-      bucketName: string;
+type UploadActions = {
+   enqueue: (params: {
+      files: UploadFile[];
       serverId: string;
+      bucketName: string;
       prefix: string;
+      onComplete?: () => void;
    }) => void;
-   processQueue: () => void;
-   uploadOneFile: (queuedFile: QueuedFile) => void;
-   setProgress: (
-      filePath: string,
-      progress: number,
-      fileName: string,
-      fileSize: number
-   ) => void;
-   setCancelFunction: (
-      filePath: string,
-      cancelFn: () => void | Promise<void>,
-      fileSize: number
-   ) => void;
-   cancelUpload: (filePath: string) => void;
-   cancelAllUploads: () => void;
-   reset: () => void;
+   cancel: (id: string) => void;
+   cancelAll: () => void;
+   dismiss: () => void;
 };
 
-type UploadStore = UploadStoreState & UploadStoreActions;
+type UploadStore = UploadState & UploadActions;
+
+const entryId = (bucketName: string, objectKey: string) =>
+   `${bucketName}/${objectKey}`;
 
 const useUploadStore = create<UploadStore>()(
-   immer((set, get) => ({
-      isUploading: false,
-      uploadProgress: {},
-      uploadQueue: [],
-      onUploadComplete: undefined,
-      completionToastShown: false,
-
-      setOnUploadComplete: (callback) => {
+   immer((set, get) => {
+      const setEntry = (id: string, patch: Partial<UploadEntry>) =>
          set((state) => {
-            state.onUploadComplete = callback;
-         });
-      },
-
-      uploadOneFile: async (queuedFile: QueuedFile) => {
-         const { file, filePath, bucketName, serverId, prefix } = queuedFile;
-         let response: { success: boolean; error?: string };
-         try {
-            if (file.size > MULTIPART_THRESHOLD) {
-               const { upload, cancel } = uploadFileMultipart(
-                  file,
-                  bucketName,
-                  `${prefix}${filePath}`,
-                  serverId,
-                  (prog: number) =>
-                     get().setProgress(filePath, prog, file.name, file.size)
-               );
-               get().setCancelFunction(filePath, cancel, file.size);
-
-               response = await upload();
-            } else {
-               const { url } = await getPresignedUploadUrl(
-                  bucketName,
-                  `${prefix}${filePath}`,
-                  file.type,
-                  serverId
-               );
-               const { upload, cancel } = uploadToUrl(
-                  url,
-                  file,
-                  (prog: number) =>
-                     get().setProgress(filePath, prog, file.name, file.size)
-               );
-               get().setCancelFunction(filePath, cancel, file.size);
-
-               response = await upload();
-            }
-
-            set((state) => {
-               const entry = state.uploadProgress[filePath];
-               if (!entry) return;
-
-               if (!response.success) {
-                  if (entry.status !== "cancelled") {
-                     entry.status = "failed";
-                     entry.progress = 0;
-                  }
-                  return;
-               }
-
-               entry.progress = 100;
-               entry.status = "completed";
-            });
-         } catch (err) {
-            console.error("Upload failed", err);
-         } finally {
-            get().processQueue();
-         }
-      },
-
-      startUpload: (params) => {
-         const { files, bucketName, serverId, prefix } = params;
-
-         set((state) => {
-            state.isUploading = true;
-            state.completionToastShown = false;
-
-            files.forEach((file) => {
-               const filePath = file.webkitRelativePath || file.name;
-
-               state.uploadQueue.push({
-                  file,
-                  filePath,
-                  bucketName,
-                  serverId,
-                  prefix,
-               });
-
-               state.uploadProgress[filePath] = {
-                  fileName: file.name,
-                  progress: 0,
-                  fileSize: file.size,
-                  status: "pending",
-               };
-            });
-
-            console.log(`All files added to queue: ${files.length}`);
+            const entry = state.entries[id];
+            if (entry) Object.assign(entry, patch);
          });
 
-         get().processQueue();
-      },
+      const settleBatchIfDone = () => {
+         const { batch, entries, queue } = get();
+         if (!batch || batch.settled) return;
+         const members = batch.ids
+            .map((id) => entries[id])
+            .filter(Boolean) as UploadEntry[];
+         const unfinished = members.some(
+            (entry) => entry.status === "pending" || entry.status === "active"
+         );
+         if (unfinished || queue.length > 0) return;
 
-      processQueue: () => {
-         const { uploadQueue, uploadProgress } = get();
+         set((state) => {
+            if (state.batch) state.batch.settled = true;
+            state.isUploading = false;
+         });
 
-         if (uploadQueue.length === 0) {
-            console.log("Queue is empty, stopping processing");
-            console.log(uploadProgress);
-            set((state) => {
-               checkForCompletion(state);
-            });
-            return;
-         }
-         const activeCount = Object.values(uploadProgress).filter(
-            (f) => f.status === "active"
+         const completed = members.filter(
+            (e) => e.status === "completed"
          ).length;
-         const availableSlots = CONCURRENCY_LIMIT - activeCount;
-         if (availableSlots <= 0) {
-            console.log("No available slots, waiting for uploads to complete");
-            return;
+         const failed = members.filter((e) => e.status === "failed").length;
+         const total = members.length;
+         if (failed > 0) {
+            toast.error(
+               `${completed} of ${total} ${total === 1 ? "file" : "files"} uploaded. ${failed} failed.`
+            );
+         } else if (completed > 0) {
+            toast.success(
+               completed === 1
+                  ? "File uploaded."
+                  : `${completed} files uploaded.`
+            );
          }
+         const callbacks = [...batchCallbacks];
+         batchCallbacks.clear();
+         if (completed > 0) for (const callback of callbacks) callback();
+      };
 
-         const filesToProcess = uploadQueue.slice(0, availableSlots);
-         console.log("Processing queue", filesToProcess);
+      const runJob = async (id: string) => {
+         const job = jobs.get(id);
+         if (!job) return;
+         const owns = () => jobs.get(id) === job;
+         const onProgress = (loaded: number) => {
+            if (owns())
+               setEntry(id, { uploadedBytes: Math.min(loaded, job.file.size) });
+         };
 
-         filesToProcess.forEach((queuedFile) => {
-            const { file, filePath, bucketName, serverId, prefix } = queuedFile;
-
-            set((state) => {
-               state.uploadQueue = state.uploadQueue.filter(
-                  (f) => f.filePath !== filePath
-               );
-               if (state.uploadProgress[filePath]) {
-                  state.uploadProgress[filePath].status = "active";
-               }
-            });
-
-            get().uploadOneFile(queuedFile);
-         });
-
-         set((state) => {
-            checkForCompletion(state);
-         });
-      },
-
-      setProgress: (filePath, progress, fileName, fileSize) => {
-         set((state) => {
-            if (!state.uploadProgress[filePath]) {
-               state.uploadProgress[filePath] = {
-                  fileName,
-                  progress,
-                  fileSize,
-                  status: "active",
-               };
+         try {
+            const handle = uploadObject({ ...job, onProgress });
+            job.abort = handle.abort;
+            await handle.done;
+            if (owns())
+               setEntry(id, {
+                  status: "completed",
+                  uploadedBytes: job.file.size,
+               });
+         } catch (error) {
+            if (!owns()) return;
+            if (
+               isCancelled(error) ||
+               get().entries[id]?.status === "cancelled"
+            ) {
+               setEntry(id, { status: "cancelled" });
             } else {
-               state.uploadProgress[filePath].fileName = fileName;
-               state.uploadProgress[filePath].progress = progress;
-               state.uploadProgress[filePath].fileSize = fileSize;
-               state.uploadProgress[filePath].status = "active";
-            }
-         });
-      },
-
-      setCancelFunction: (filePath, cancelFn, fileSize) => {
-         set((state) => {
-            if (!state.uploadProgress[filePath]) {
-               state.uploadProgress[filePath] = {
-                  fileName: "",
-                  progress: 0,
-                  fileSize,
-                  status: "active",
-                  cancelFn,
-               };
-            } else {
-               state.uploadProgress[filePath].cancelFn = cancelFn;
-            }
-         });
-      },
-
-      cancelUpload: (filePath) => {
-         const { uploadProgress, uploadQueue } = get();
-         const fileUpload = uploadProgress[filePath];
-
-         if (fileUpload?.cancelFn && fileUpload.status !== "completed") {
-            const result = fileUpload.cancelFn();
-
-            if (result instanceof Promise) {
-               result.catch((error) => {
-                  console.error(
-                     `Error cancelling upload for file ${filePath}:`,
-                     error
-                  );
+               setEntry(id, {
+                  status: "failed",
+                  error:
+                     error instanceof Error ? error.message : "Upload failed",
                });
             }
+         } finally {
+            if (owns()) jobs.delete(id);
+            pump();
          }
+      };
 
-         set((state) => {
-            state.uploadQueue = state.uploadQueue.filter(
-               (queuedFile) => queuedFile.filePath !== filePath
-            );
-
-            if (state.uploadProgress[filePath]) {
-               state.uploadProgress[filePath].status = "cancelled";
-               state.uploadProgress[filePath].progress = 0;
-            }
-         });
-
-         get().processQueue();
-      },
-
-      cancelAllUploads: () => {
-         const { uploadProgress } = get();
-
-         Object.entries(uploadProgress).forEach(([filePath, fileUpload]) => {
-            if (fileUpload.cancelFn && fileUpload.status !== "completed") {
-               const result = fileUpload.cancelFn();
-
-               if (result instanceof Promise) {
-                  result.catch((error) => {
-                     console.error(
-                        `Error cancelling upload for file ${filePath}:`,
-                        error
-                     );
-                  });
-               }
-            }
-         });
-
-         set((state) => {
-            state.isUploading = false;
-            state.uploadQueue = [];
-
-            Object.entries(state.uploadProgress).forEach(([filePath, file]) => {
-               if (file.status !== "completed") {
-                  file.progress = 0;
-                  file.status = "cancelled";
+      const pump = () => {
+         const { queue, entries } = get();
+         const active = Object.values(entries).filter(
+            (e) => e.status === "active"
+         ).length;
+         const slots = FILE_CONCURRENCY - active;
+         const next = slots > 0 ? queue.slice(0, slots) : [];
+         if (next.length > 0) {
+            set((state) => {
+               state.queue = state.queue.slice(next.length);
+               for (const id of next) {
+                  const entry = state.entries[id];
+                  if (entry) entry.status = "active";
                }
             });
-         });
-      },
+            for (const id of next) void runJob(id);
+         }
+         settleBatchIfDone();
+      };
 
-      reset: () => {
-         set((state) => {
-            state.isUploading = false;
-            state.uploadProgress = {};
-            state.uploadQueue = [];
-            state.completionToastShown = false;
-         });
-      },
-   }))
+      return {
+         entries: {},
+         order: [],
+         queue: [],
+         batch: null,
+         isUploading: false,
+
+         enqueue: ({ files, serverId, bucketName, prefix, onComplete }) => {
+            if (files.length === 0) return;
+            if (onComplete) batchCallbacks.add(onComplete);
+            set((state) => {
+               const startNewBatch = !state.batch || state.batch.settled;
+               if (startNewBatch) state.batch = { ids: [], settled: false };
+               state.isUploading = true;
+               for (const { file, relativePath } of files) {
+                  const objectKey = `${prefix}${relativePath}`;
+                  const id = entryId(bucketName, objectKey);
+                  const existing = jobs.get(id);
+                  if (existing) existing.abort?.();
+                  jobs.set(id, {
+                     file,
+                     serverId,
+                     bucketName,
+                     objectKey,
+                     contentType: file.type || DEFAULT_CONTENT_TYPE,
+                     abort: null,
+                  });
+                  state.entries[id] = {
+                     id,
+                     fileName: file.name,
+                     relativePath,
+                     size: file.size,
+                     uploadedBytes: 0,
+                     status: "pending",
+                     error: null,
+                  };
+                  if (!state.order.includes(id)) state.order.push(id);
+                  if (!state.queue.includes(id)) state.queue.push(id);
+                  if (state.batch && !state.batch.ids.includes(id))
+                     state.batch.ids.push(id);
+               }
+            });
+            pump();
+         },
+
+         cancel: (id) => {
+            const entry = get().entries[id];
+            if (
+               !entry ||
+               entry.status === "completed" ||
+               entry.status === "cancelled"
+            )
+               return;
+            if (entry.status === "pending") jobs.delete(id);
+            else jobs.get(id)?.abort?.();
+            set((state) => {
+               state.queue = state.queue.filter((queued) => queued !== id);
+               const target = state.entries[id];
+               if (target) target.status = "cancelled";
+            });
+            pump();
+         },
+
+         cancelAll: () => {
+            for (const id of get().order) get().cancel(id);
+         },
+
+         dismiss: () => {
+            get().cancelAll();
+            jobs.clear();
+            batchCallbacks.clear();
+            set((state) => {
+               state.entries = {};
+               state.order = [];
+               state.queue = [];
+               state.batch = null;
+               state.isUploading = false;
+            });
+         },
+      };
+   })
 );
 
 export default useUploadStore;

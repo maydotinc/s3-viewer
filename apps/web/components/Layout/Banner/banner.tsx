@@ -1,54 +1,41 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
-import { authClient } from "@s3-viewer/auth/client";
-import { Button } from "@s3-viewer/ui/components/button";
-import { LogInIcon } from "lucide-react";
+import { PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
+import { SidebarTrigger } from "@s3-viewer/ui/components/sidebar";
 import Image from "next/image";
 import Link from "next/link";
 import ProfileDropdown from "./profile-dropdown";
 
 type ViewerBannerProps = {
    children: React.ReactNode;
+   showSidebarToggle: boolean;
 };
 
-export default function ViewerBanner({ children }: ViewerBannerProps) {
-   const { data: session } = authClient.useSession();
-   const { openAuthModal } = useModalContext();
-   return (
-      <div className="flex flex-col size-full">
-         <header className="flex justify-between sticky top-0 w-full h-[var(--header-height)] z-50 bg-viewergray border-b border-viewerborder">
+const ViewerBanner = ({ children, showSidebarToggle }: ViewerBannerProps) => (
+   <div className="flex size-full flex-col">
+      <header className="sticky top-0 z-50 flex h-[var(--header-height)] w-full items-center justify-between gap-4 border-b border-viewerborder bg-viewergray px-4 sm:px-6 lg:px-10">
+         <div className="flex min-w-0 items-center gap-2">
+            {showSidebarToggle && <SidebarTrigger className="md:hidden" />}
             <Link
-               href="/dashboard"
-               className="flex items-center gap-2 ml-10 my-4"
+               href={SITE_PATHS.dashboard}
+               className="flex items-center"
                draggable={false}
             >
                <Image
                   src="/icons/viewer.svg"
-                  alt="S3 Viewer"
+                  alt={PRODUCT_NAME}
                   width={150}
                   height={32}
-                  style={{ width: "auto", height: "auto" }}
                   priority
-                  className="select-none"
                   draggable={false}
-                  quality={100}
+                  className="h-6 w-[112px] select-none sm:h-8 sm:w-[150px]"
                />
             </Link>
-            {session ? (
-               <div className="flex items-center mr-10">
-                  <ProfileDropdown />
-               </div>
-            ) : (
-               <div className="flex items-center mr-10">
-                  <Button onClick={() => openAuthModal()}>
-                     <LogInIcon className="size-4" />
-                     Login
-                  </Button>
-               </div>
-            )}
-         </header>
-         <div className="h-[calc(100svh-var(--header-height))] w-full">
-            {children}
          </div>
+         <ProfileDropdown />
+      </header>
+      <div className="h-[calc(100svh-var(--header-height))] w-full">
+         {children}
       </div>
-   );
-}
+   </div>
+);
+
+export default ViewerBanner;

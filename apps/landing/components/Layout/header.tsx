@@ -54,14 +54,14 @@ const Header = () => {
                >
                   <span className="flex items-center gap-2 px-3 h-full text-[13px] font-medium text-viewerblack">
                      <FaGithub className="size-4" />
-                     Star
+                     Star on GitHub
                   </span>
                   <span className="flex items-center gap-1 px-3 h-full border-l border-viewerborder bg-viewergray text-[12.5px] font-semibold text-viewertext">
                      <Star
                         className="size-3.5 text-viewerlighttext"
                         strokeWidth={2}
+                        aria-hidden
                      />
-                     <span>GitHub</span>
                   </span>
                </Link>
 

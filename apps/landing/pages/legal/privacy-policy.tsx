@@ -21,10 +21,10 @@ const PrivacyPage = () => {
       <>
          <Seo
             title="Privacy Policy"
-            description="How S3 Viewer collects, uses, and protects your information. Your S3 credentials are encrypted at rest and we never store copies of your objects."
+            description="The S3 Viewer privacy policy — what information we collect, why we collect it, who we share it with, and the rights you have over it."
             canonical="/legal/privacy-policy"
             type="article"
-            modifiedTime={new Date().toISOString()}
+            modifiedTime={new Date(privacyData.lastUpdatedIso).toISOString()}
             jsonLd={jsonLd}
          />
          <LegalLayout

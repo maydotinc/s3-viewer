@@ -1,81 +1,94 @@
 import Link from "next/link";
 import type { LegalContentItemProps } from "../content";
 
-const EFFECTIVE_DATE = "July 25th, 2025";
-const LAST_UPDATED = "April 28th, 2026";
+const EFFECTIVE_DATE = "July 25, 2025";
+const LAST_UPDATED = "September 2, 2026";
+const LAST_UPDATED_ISO = "2026-09-02";
 
 const sections: LegalContentItemProps[] = [
    {
-      title: "Acceptance of Terms",
+      title: "Acceptance of terms",
       content: (
          <p>
-            By accessing and using S3 Viewer (&ldquo;the Service&rdquo;), you
-            agree to be bound by these Terms of Service. S3 Viewer is a fast,
-            open-source S3-compatible object storage viewer operated by{" "}
-            <strong>May Inc.</strong> If you do not agree to these terms,
-            please do not use the Service.
+            By using S3 Viewer (&ldquo;the Service&rdquo;), you agree to these
+            terms. If you do not agree to them, please do not use the Service.
          </p>
       ),
    },
    {
-      title: "Description of Service",
+      title: "The service",
       content: (
          <p>
-            S3 Viewer provides a unified, file-browser-style interface to view
-            and manage objects across S3-compatible storage providers
-            including AWS S3, Cloudflare R2, MinIO, Backblaze B2, and any
-            S3-API compatible service. The Service supports one-click server
-            connect with auto-detection and secure credential management.
-            Server credentials are encrypted. The code is open-source and may
-            be self-hosted under the MIT license.
+            S3 Viewer is open-source software for viewing and managing objects
+            in S3-compatible storage. The software is provided as-is and may be
+            self-hosted. The hosted version, operated by{" "}
+            <strong>May Inc.</strong>, is provided as a convenience and may
+            change or be discontinued.
          </p>
       ),
    },
    {
-      title: "Use of Service",
+      title: "Accounts",
       content: (
          <p>
-            You agree to use S3 Viewer only for lawful purposes and in a
-            manner that does not infringe on the rights of others or restrict
-            their use of the Service. You are responsible for your use of the
-            Service and for ensuring that your use complies with the terms of
-            your storage providers and applicable law.
+            You are responsible for your account, for keeping secure any
+            credentials you choose to connect, and for everything done through
+            your account. Your use of any storage you connect remains subject to
+            your agreement with that storage provider.
          </p>
       ),
    },
    {
-      title: "User Conduct",
+      title: "Fees",
       content: (
          <p>
-            You agree not to use the Service to access, store, or distribute
-            illegal content, to violate any third party&apos;s rights, or to
-            abuse or overload the Service. You must keep your credentials
-            secure and use the Service only for your own authorized storage
-            accounts.
+            The service is currently offered free of charge; we may introduce
+            paid plans with notice.
          </p>
       ),
    },
    {
-      title: "Credentials and Security",
+      title: "Acceptable use",
       content: (
          <p>
-            We encrypt server credentials using strong encryption. You are
-            responsible for safeguarding your own access credentials and for
-            all activity that occurs under your account. We are not liable
-            for unauthorized access resulting from your failure to protect
-            your credentials.
+            Use the Service only for lawful purposes. Do not use it to infringe
+            anyone&apos;s rights, to store or distribute unlawful content, to
+            access storage you are not authorised to access, or to interfere
+            with or overload the Service.
          </p>
       ),
    },
    {
-      title: "Intellectual Property",
+      title: "Intellectual property",
       content: (
          <p>
-            S3 Viewer is open-source. Your use of the Service does not grant
-            you ownership of our software or branding. You may use the
-            open-source code in accordance with its license when self-hosting.
-            The S3 Viewer name and logos remain the intellectual property of
-            May Inc.
+            The software is made available under the MIT license, and you may
+            use it on those terms. The S3 Viewer name, logos and other brand
+            assets remain the property of May Inc. and are not covered by that
+            license.
+         </p>
+      ),
+   },
+   {
+      title: "Disclaimer of warranties",
+      content: (
+         <p>
+            The Service is provided &ldquo;as is&rdquo; and without warranties
+            of any kind, express or implied. We do not warrant that the Service
+            will be uninterrupted, error-free, or suitable for a particular
+            purpose. Actions taken through the Service, such as deleting or
+            renaming, may not be reversible.
+         </p>
+      ),
+   },
+   {
+      title: "Limitation of liability",
+      content: (
+         <p>
+            To the maximum extent permitted by law, May Inc. is not liable for
+            any indirect, incidental, special, consequential or punitive
+            damages, or for any loss of data, revenue or profits, arising from
+            your use of the Service.
          </p>
       ),
    },
@@ -83,72 +96,44 @@ const sections: LegalContentItemProps[] = [
       title: "Termination",
       content: (
          <p>
-            We may suspend or terminate your access to the Service at any
-            time for violation of these terms or for any other reason. You
-            may stop using the Service at any time. Upon termination, your
-            right to use the hosted Service ceases immediately, but your
-            ability to self-host the open-source code under its license is
-            unaffected.
+            You may stop using the Service and delete your account at any time.
+            We may suspend or end access to the hosted version if these terms
+            are breached or where necessary to protect the Service. Your rights
+            to use the open-source software under its license are unaffected.
          </p>
       ),
    },
    {
-      title: "Disclaimer of Warranties",
+      title: "Changes to these terms",
       content: (
          <p>
-            The Service is provided &ldquo;as is&rdquo; and without
-            warranties of any kind, either express or implied. We do not
-            guarantee the accuracy, reliability, or availability of the
-            Service or the security of third-party storage providers. Use of
-            S3 Viewer is at your own risk.
+            We may update these terms from time to time. If we do, we will post
+            the updated version on this page and revise the date above.
+            Continuing to use the Service after that means you accept the
+            updated terms.
          </p>
       ),
    },
    {
-      title: "Limitation of Liability",
+      title: "Governing law",
       content: (
          <p>
-            To the maximum extent permitted by law, S3 Viewer and its team
-            shall not be liable for any indirect, incidental, special,
-            consequential, or punitive damages, or for any loss of data,
-            revenue, or profits arising from your use of the Service or any
-            third-party storage services.
+            These terms are governed by the laws of the jurisdiction in which
+            May Inc. is established, without regard to conflict-of-law rules.
+            Nothing here removes any mandatory consumer protections available to
+            you where you live.
          </p>
       ),
    },
    {
-      title: "Changes to Terms",
+      title: "Contact",
       content: (
          <p>
-            We may update these Terms of Service from time to time. We will
-            notify users of material changes by posting the updated terms on
-            this page and updating the effective date. Your continued use of
-            the Service after changes constitutes acceptance of the revised
-            terms.
-         </p>
-      ),
-   },
-   {
-      title: "Governing Law",
-      content: (
-         <p>
-            These terms shall be governed by and construed in accordance
-            with applicable law, without regard to conflict of law
-            principles. Any disputes arising from these terms or the Service
-            shall be resolved in the appropriate courts.
-         </p>
-      ),
-   },
-   {
-      title: "Contact Information",
-      content: (
-         <p>
-            For questions about these Terms of Service or S3 Viewer, please
-            open an issue or discussion on our{" "}
-            <Link href="https://github.com/maydotinc/s3-viewer">
-               GitHub repository
+            Questions about these terms can be sent to{" "}
+            <Link href="mailto:info@may.inc?subject=S3%20Viewer%20terms">
+               info@may.inc
             </Link>{" "}
-            or contact us through the channels provided there.
+            with &ldquo;S3 Viewer&rdquo; in the subject line.
          </p>
       ),
    },
@@ -158,9 +143,10 @@ const TermsOfService = {
    title: "Terms of Service",
    eyebrow: "Terms of Service",
    description:
-      "The ground rules for using S3 Viewer — license, acceptable use, and how we handle accounts and credentials.",
+      "The ground rules for using S3 Viewer — the license, acceptable use, and how accounts work.",
    effectiveDate: EFFECTIVE_DATE,
    lastUpdated: LAST_UPDATED,
+   lastUpdatedIso: LAST_UPDATED_ISO,
    sections,
 };
 

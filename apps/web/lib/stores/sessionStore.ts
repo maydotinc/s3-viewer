@@ -19,18 +19,14 @@ const useSessionStore = create<SessionStore>()(
       (set, get) => ({
          serverId: "",
          userId: null,
-         setServerId: (serverId: string) => set({ serverId }),
-         setUserId: (userId: string | null) => {
-            const currentUserId = get().userId;
-            if (currentUserId && currentUserId !== userId) {
-               set({ userId, serverId: "" });
-            } else {
-               set({ userId });
-            }
-         },
-         clearSession: () => {
-            set({ serverId: "", userId: null });
-         },
+         setServerId: (serverId) => set({ serverId }),
+         setUserId: (userId) =>
+            set(
+               get().userId && get().userId !== userId
+                  ? { userId, serverId: "" }
+                  : { userId }
+            ),
+         clearSession: () => set({ serverId: "", userId: null }),
       }),
       {
          name: "session-storage",
@@ -39,4 +35,7 @@ const useSessionStore = create<SessionStore>()(
    )
 );
 
+const useUserId = (): string => useSessionStore((state) => state.userId ?? "");
+
 export default useSessionStore;
+export { useUserId };

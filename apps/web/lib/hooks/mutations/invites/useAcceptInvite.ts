@@ -1,40 +1,34 @@
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { inviteIdBodySchema, InviteIdInput } from "@s3-viewer/types";
+import { ApiError, api, invitePath } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUserId } from "@/lib/stores/sessionStore";
+import { toastError } from "@/lib/utils/toast";
+import { InviteIdInput, ServerInfo } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const useAcceptInvite = () => {
    const queryClient = useQueryClient();
+   const userId = useUserId();
 
-   return useMutation({
-      mutationFn: async (
-         input: InviteIdInput
-      ): Promise<{ message: string }> => {
-         const data = inviteIdBodySchema.parse(input);
-         const response = await createApiRequest("/server/invites/accept", {
-            method: "POST",
-            body: JSON.stringify(data),
-         });
-
-         if (!response.ok) {
-            await handleApiError(response);
+   return useMutation<ServerInfo, ApiError, InviteIdInput>({
+      mutationFn: async ({ inviteId }) =>
+         (
+            await api.post<{ server: ServerInfo }>(
+               `${invitePath(inviteId)}/accept`
+            )
+         ).server,
+      onSuccess: (server) => {
+         toast.success(`Joined ${server.name}`);
+         for (const queryKey of [
+            queryKeys.receivedInvites(userId),
+            queryKeys.servers(userId),
+            queryKeys.buckets(userId, server.id),
+            queryKeys.members(userId, server.id),
+         ]) {
+            queryClient.invalidateQueries({ queryKey });
          }
-
-         const res = await response.json();
-         return { message: res.message };
       },
-
-      onSuccess: () => {
-         toast.success("Invitation accepted successfully");
-         queryClient.invalidateQueries({ queryKey: ["received-invites"] });
-         queryClient.invalidateQueries({ queryKey: ["servers"] });
-      },
-
-      onError: (error: Error) => {
-         toast.error("Unable to accept invitation", {
-            description: error.message,
-         });
-      },
+      onError: toastError("Couldn't accept the invite"),
    });
 };
 

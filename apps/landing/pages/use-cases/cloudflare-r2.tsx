@@ -21,8 +21,10 @@ import {
 const SLUG = "cloudflare-r2";
 const TITLE = "A daily-use dashboard for Cloudflare R2.";
 const KEYWORD = "Cloudflare R2 dashboard";
+const META_DESCRIPTION =
+   "A daily-use dashboard for Cloudflare R2: rename, inline previews, streamed uploads with no bucket setup, email invites, and your AWS buckets in the same sidebar.";
 const DESCRIPTION =
-   "Cloudflare R2's S3-compatible API is excellent — it's what lets any S3 client talk to R2 the same way it talks to AWS S3. The Cloudflare dashboard is built around configuration; S3 Viewer is the layer for daily browsing on top: rename, bucket-wide search, multipart upload, email invites, and side-by-side viewing with AWS S3 buckets.";
+   "Cloudflare R2's S3-compatible API is excellent — it's what lets any S3 client talk to R2 the same way it talks to AWS S3. The Cloudflare dashboard is built around configuration; S3 Viewer is the layer for daily browsing on top: rename, inline previews, streamed uploads that need no CORS policy on the bucket, email invites, and R2 in the same sidebar as your AWS buckets.";
 
 const steps: UseCaseStep[] = [
    {
@@ -31,11 +33,11 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Paste it in",
-      body: "S3 Viewer detects R2 from the endpoint automatically and applies the right region settings. No SDK config, no wrangler, no AWS CLI.",
+      body: "Click Add server, paste the key and secret, and enter the endpoint with `auto` as the region. No SDK config, no wrangler, no AWS CLI.",
    },
    {
       title: "Use R2 the way you'd use any bucket",
-      body: "Rename objects (the underlying S3 API has no rename — we wrap copy + delete). Search the entire bucket with Tab autocomplete. Upload multi-GB files via multipart with retries. Invite teammates by email — they don't need a Cloudflare account.",
+      body: "Rename objects (the underlying S3 API has no rename — we wrap copy + delete). Filter a folder by prefix. Upload multi-GB files — they stream through S3 Viewer into R2 as a multipart upload, with no CORS policy to set on the bucket. Invite teammates by email — they don't need a Cloudflare account.",
    },
 ];
 
@@ -43,37 +45,38 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Is there a better dashboard for Cloudflare R2?",
       answer:
-         "S3 Viewer is built for the daily browsing layer on top of R2. The Cloudflare dashboard is the right place to create buckets, manage R2 API tokens, configure custom domains, and handle billing. S3 Viewer adds bucket-wide key search, inline file previews, one-click rename (wrapping the standard S3 copy + delete pattern), multipart uploads with retries, team sharing by email, and side-by-side viewing with AWS S3 — without you leaving the browser.",
+         "S3 Viewer is built for the daily browsing layer on top of R2. The Cloudflare dashboard is the right place to create buckets, manage R2 API tokens, configure custom domains, and handle billing. S3 Viewer adds inline file previews, a prefix filter inside each folder, one-step rename (wrapping the standard S3 copy + delete pattern), uploads that stream through S3 Viewer with no bucket configuration, team sharing by email, and your AWS buckets one click away in the same sidebar.",
    },
    {
       question: "How do I rename a file in Cloudflare R2?",
       answer:
-         "R2 implements the S3 API, and Amazon S3 has no native rename — keys are immutable. The standard pattern is to copy the object to the new key and delete the old one. S3 Viewer wraps this in a single right-click: it copies the object, preserves metadata and tags by default, verifies the destination, then deletes the source. Above 5 GB it switches to multipart copy automatically.",
+         "R2 implements the S3 API, and Amazon S3 has no native rename — keys are immutable. The standard pattern is to copy the object to the new key and delete the old one. S3 Viewer wraps this behind ⋮ → Rename: it copies the object with its metadata, deletes the source only once the copy succeeds, and refuses to overwrite an existing key. Objects over 5 GB need a multipart copy from the CLI.",
    },
    {
       question: "How do I search a Cloudflare R2 bucket?",
       answer:
-         "R2 implements the S3 ListObjectsV2 API, so any S3 client can search by paginating through keys. S3 Viewer does this for you — type into the search bar, Tab to autocomplete the next prefix, and it paginates the whole bucket and filters as results stream in.",
+         "R2 implements the S3 ListObjectsV2 API, the same as AWS. In S3 Viewer, the “Filter by prefix” box filters the folder you're in by prefix. For a recursive sweep, use the AWS CLI against R2 with `--endpoint-url` and pipe it through grep.",
    },
    {
-      question: "Can I share a Cloudflare R2 bucket with someone who doesn't have a Cloudflare account?",
+      question:
+         "Can I share a Cloudflare R2 bucket with someone who doesn't have a Cloudflare account?",
       answer:
-         "Yes. Invite them to your S3 Viewer workspace by email and grant them a role on the R2 bucket — Viewer (read), Editor (read + write), Admin (everything). They sign in to S3 Viewer in a browser and see the bucket, with no Cloudflare account or API token of their own.",
+         "Yes. Click Share, invite them by email and give them a role — Viewer (browse and download), Editor (also upload, rename and delete) or Admin (also manage members). They sign in to S3 Viewer in a browser and see the bucket, with no Cloudflare account or API token of their own.",
    },
    {
       question: "Are large uploads to R2 reliable?",
       answer:
-         "Yes. Files over 50 MB are split into 25 MB parts and uploaded in parallel via R2's S3-compatible multipart upload API. Failed parts retry without restarting the whole upload, so a connection blip on a multi-GB file doesn't cost you the upload.",
+         "Yes. Your browser streams the file to S3 Viewer, which writes it to R2 through the S3-compatible multipart upload API in 25 MB parts, several at a time. A network error between your browser and S3 Viewer re-sends the file up to two more times, and an upload that stops early is aborted in R2 so no orphaned parts are billed. Nothing needs to be configured on the bucket — no CORS policy, no exposed headers.",
    },
    {
       question: "Can I view AWS S3 and Cloudflare R2 in the same window?",
       answer:
-         "Yes. Connect both providers and S3 Viewer keeps a separate signer for each, with every bucket in one sidebar color-coded by provider. Cmd-K jumps between any bucket on any cloud, and you can copy or move objects between S3 and R2 (or any direction) — streamed server-side, no local download.",
+         "Both live in the same sidebar and you switch between them in a click, but you browse one server at a time rather than in two panes. S3 Viewer keeps a separate credential and signer per server. Moving objects between S3 and R2 is a job for rclone or the AWS CLI — see the how-to guide.",
    },
    {
       question: "Why use S3 Viewer alongside the Cloudflare dashboard?",
       answer:
-         "Use the Cloudflare dashboard for what it's built for: buckets, tokens, custom domains, jurisdictional placement, billing. Use S3 Viewer for what it's built for: daily browsing — opening files, finding things across millions of keys, renaming, sharing with teammates, and copying across providers. They're complementary tools.",
+         "Use the Cloudflare dashboard for what it's built for: buckets, tokens, custom domains, jurisdictional placement, billing. Use S3 Viewer for what it's built for: daily browsing — opening and previewing files, renaming, uploading big ones reliably, and sharing with teammates who don't have a Cloudflare account. They're complementary tools.",
    },
 ];
 
@@ -91,8 +94,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="Cloudflare R2 Dashboard — Rename, Search, Share R2 Buckets"
-            description={DESCRIPTION}
+            title="Cloudflare R2 Dashboard — Rename, Preview and Share R2 Buckets"
+            description={META_DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -103,30 +106,30 @@ const Page = () => {
             subtitle={DESCRIPTION}
             description="Built for the people who actually open R2 buckets every day."
             bullets={[
-               "Rename, bucket-wide search, and inline previews for R2 objects",
+               "Rename, prefix filtering, and inline previews for R2 objects",
                "Share R2 buckets by email — no Cloudflare account required for the recipient",
-               "Mix R2 buckets with AWS S3, MinIO, and B2 in one sidebar",
+               "Mix R2 servers with AWS S3, MinIO, and B2 in one sidebar",
             ]}
             features={[
                {
                   icon: PencilLine,
                   title: "Rename in R2",
-                  body: "R2 has no rename API — same as S3, by design. S3 Viewer wraps the standard copy + delete pattern in a single click, preserves metadata and tags, verifies the new key, then deletes the source.",
+                  body: "R2 has no rename API — same as S3, by design. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the source goes only after the copy succeeds, and an existing key is never overwritten.",
                },
                {
                   icon: Search,
-                  title: "Bucket-wide R2 search",
-                  body: "Type into the search bar and Tab autocompletes the next prefix. S3 Viewer paginates ListObjectsV2 across the whole R2 bucket and filters in-memory as results stream in.",
+                  title: "Filter an R2 folder",
+                  body: "The “Filter by prefix” box narrows the current folder's rows by prefix while you type — the same behavior as on an AWS bucket, since R2 answers the same ListObjectsV2 call.",
                },
                {
                   icon: Eye,
                   title: "Inline R2 previews",
-                  body: "Images, video, audio, PDF, Markdown, JSON, and source code render in the browser via short-lived presigned URLs.",
+                  body: "Images, video, audio, PDF, Markdown, JSON and source code render in the browser via 15-minute presigned URLs.",
                },
                {
                   icon: Upload,
-                  title: "Multipart upload",
-                  body: "Files over 50 MB upload in 25 MB parts in parallel via R2's S3-compatible multipart API, with automatic retries on failed parts.",
+                  title: "Uploads with no bucket setup",
+                  body: "Files stream through S3 Viewer into R2 as a multipart upload — 25 MB parts, several at a time — so there is no CORS policy or exposed header to configure on the bucket, and a dropped connection is retried.",
                },
                {
                   icon: UserPlus,
@@ -136,7 +139,7 @@ const Page = () => {
                {
                   icon: Layers,
                   title: "Mix R2 with S3",
-                  body: "Open an R2 bucket and an AWS S3 bucket from the same sidebar. Right-click to copy or move objects between providers — streamed server-side, no local download.",
+                  body: "An R2 server and an AWS server sit side by side in the sidebar, one click apart. For moving objects between them, reach for rclone — S3 Viewer is how you check both ends.",
                },
             ]}
             steps={steps}

@@ -1,37 +1,25 @@
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { inviteIdBodySchema, InviteIdInput } from "@s3-viewer/types";
+import { ApiError, api, invitePath } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUserId } from "@/lib/stores/sessionStore";
+import { toastError } from "@/lib/utils/toast";
+import { InviteIdInput } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const useRejectInvite = () => {
    const queryClient = useQueryClient();
+   const userId = useUserId();
 
-   return useMutation({
-      mutationFn: async (
-         input: InviteIdInput
-      ): Promise<{ message: string }> => {
-         const data = inviteIdBodySchema.parse(input);
-         const response = await createApiRequest("/server/invites/reject", {
-            method: "POST",
-            body: JSON.stringify(data),
-         });
-
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         const res = await response.json();
-         return { message: res.message };
-      },
-
+   return useMutation<void, ApiError, InviteIdInput>({
+      mutationFn: ({ inviteId }) =>
+         api.post<void>(`${invitePath(inviteId)}/reject`),
       onSuccess: () => {
-         toast.success("Invitation rejected successfully");
-         queryClient.invalidateQueries({ queryKey: ["received-invites"] });
+         toast.success("Invite declined");
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.receivedInvites(userId),
+         });
       },
-
-      onError: (error: Error) => {
-         toast.error(error.message);
-      },
+      onError: toastError("Couldn't decline the invite"),
    });
 };
 

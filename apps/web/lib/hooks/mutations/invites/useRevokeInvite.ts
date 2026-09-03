@@ -1,39 +1,25 @@
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { inviteIdBodySchema, InviteIdInput } from "@s3-viewer/types";
+import { ApiError, api, serverInvitePath } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUserId } from "@/lib/stores/sessionStore";
+import { toastError } from "@/lib/utils/toast";
+import type { RevokeInviteInput } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const useRevokeInvite = () => {
    const queryClient = useQueryClient();
+   const userId = useUserId();
 
-   return useMutation({
-      mutationFn: async (
-         input: InviteIdInput
-      ): Promise<{ message: string }> => {
-         const data = inviteIdBodySchema.parse(input);
-         const response = await createApiRequest("/server/invites/revoke", {
-            method: "DELETE",
-            body: JSON.stringify(data),
-         });
-
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         const res = await response.json();
-         return { message: res.message };
-      },
-
-      onSuccess: () => {
-         toast.success("Invitation revoked successfully");
-         queryClient.invalidateQueries({ queryKey: ["sent-invites"] });
-      },
-
-      onError: (error: Error) => {
-         toast.error("Unable to revoke invite", {
-            description: error.message,
+   return useMutation<void, ApiError, RevokeInviteInput>({
+      mutationFn: ({ serverId, inviteId }) =>
+         api.delete<void>(serverInvitePath(serverId, inviteId)),
+      onSuccess: (_data, { serverId }) => {
+         toast.success("Invite revoked");
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.sentInvites(userId, serverId),
          });
       },
+      onError: toastError("Couldn't revoke the invite"),
    });
 };
 

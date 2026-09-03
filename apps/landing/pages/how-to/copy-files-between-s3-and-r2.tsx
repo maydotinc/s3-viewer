@@ -14,78 +14,78 @@ const SLUG = "copy-files-between-s3-and-r2";
 const TITLE = "How to copy files between AWS S3 and Cloudflare R2";
 const KEYWORD = "copy files from S3 to Cloudflare R2";
 const TLDR =
-   "Cloudflare R2 implements the S3 API, so any S3 client can read from one and write to the other. The naive way is to download the object to your machine and re-upload it — slow, fragile, and bandwidth-expensive. The right way is server-side: stream the bytes directly from the source bucket to the destination. S3 Viewer wraps that in a single right-click; if you're scripting it, use the AWS CLI with `--endpoint-url` against R2 and stream through your own server.";
+   "There is no single API call for this: S3's CopyObject requires the source and destination to share an endpoint, so a cross-provider copy is always a read followed by a write. rclone is the tool for it — `rclone sync` handles multipart, parallelism, retries and resume. The AWS CLI works too, one file at a time, with `--endpoint-url` pointed at R2. S3 Viewer isn't the mover here; use it to browse both buckets, confirm what you're about to transfer, and verify the result afterwards.";
 
 const steps: HowToStep[] = [
    {
-      title: "In S3 Viewer: connect both providers",
+      title: "Check what you're moving",
       body: (
          <>
-            Add your AWS S3 credentials and your Cloudflare R2 token. S3
-            Viewer detects each provider from the endpoint and applies
-            the right region settings. Both buckets show up in the same
-            sidebar.
+            Add both providers as servers in S3 Viewer and open the source
+            prefix. Filter the folder, check the sizes and modified dates in the
+            listing (open an object for its content type, storage class and
+            ETag), and confirm the destination bucket is empty (or that you are
+            happy to merge into it) before you start.
          </>
       ),
    },
    {
-      title: "Right-click the object → Copy or Move",
+      title: "Configure rclone remotes",
       body: (
          <>
-            Pick the destination bucket on the other provider and confirm
-            the new key. S3 Viewer streams the bytes server-side from
-            the source to the destination using each provider&apos;s S3
-            API. Metadata and tags are preserved by default.
+            <code>rclone config</code> walks you through it, or write the two
+            remotes by hand. Both use the <code>s3</code> backend; R2 takes{" "}
+            <code>provider = Cloudflare</code>, <code>region = auto</code>, and
+            your account endpoint.
          </>
       ),
+      code: "# ~/.config/rclone/rclone.conf\n[aws]\ntype = s3\nprovider = AWS\nregion = us-east-1\naccess_key_id = ...\nsecret_access_key = ...\n\n[r2]\ntype = s3\nprovider = Cloudflare\nregion = auto\naccess_key_id = ...\nsecret_access_key = ...\nendpoint = https://<account>.r2.cloudflarestorage.com",
    },
    {
-      title: "Why CopyObject doesn't work across providers",
+      title: "Dry-run the sync",
       body: (
          <>
-            S3&apos;s <code>CopyObject</code> is server-side, but it
-            requires source and destination to share an endpoint — by
-            design. Cross-provider copies need separate read and write
-            operations. S3 Viewer does both on the server, so the bytes
-            never touch your local machine.
+            <code>--dry-run</code> prints exactly what would be transferred
+            without writing anything. Worth doing every time, especially before
+            a sync that could delete on the destination.
          </>
       ),
+      code: "rclone sync aws:my-bucket r2:my-bucket --dry-run",
    },
    {
-      title: "AWS CLI: use --endpoint-url for R2",
+      title: "Run the transfer",
       body: (
          <>
-            For scripts, use two AWS profiles — one for AWS, one for R2
-            with <code>--endpoint-url</code>. Stream the object through
-            a pipe so the bytes don&apos;t persist locally.
+            <code>rclone sync</code> parallelizes, uses multipart for large
+            objects, retries failed transfers, and resumes if you stop it. Raise{" "}
+            <code>--transfers</code> if you have the bandwidth;{" "}
+            <code>copy</code> instead of <code>sync</code> if you never want
+            anything deleted on the destination.
+         </>
+      ),
+      code: "rclone sync aws:my-bucket r2:my-bucket \\\n  --transfers 16 --checkers 32 --progress",
+   },
+   {
+      title: "One-off file: the AWS CLI",
+      body: (
+         <>
+            For a single object, two profiles and a pipe are enough — one for
+            AWS, one for R2 with <code>--endpoint-url</code>. The bytes stream
+            through your machine, which is fine for one file and slow for
+            thousands.
          </>
       ),
       code: "aws s3 cp s3://aws-bucket/key.zip - --profile aws |\n  aws s3 cp - s3://r2-bucket/key.zip \\\n    --profile r2 \\\n    --endpoint-url https://<account>.r2.cloudflarestorage.com",
    },
    {
-      title: "AWS SDK: stream-to-stream",
+      title: "Verify in S3 Viewer",
       body: (
          <>
-            Two clients, one stream. <code>GetObject</code> from the
-            source returns a readable body; pipe it into{" "}
-            <code>Upload</code> from <code>@aws-sdk/lib-storage</code>{" "}
-            against the destination client. Multipart kicks in
-            automatically for large files.
+            Switch to the R2 server in the sidebar and open the destination
+            prefix. Object counts and sizes should match the source; open a
+            couple of files to check their content type and preview them.
          </>
       ),
-      code: "import { Upload } from '@aws-sdk/lib-storage';\n\nconst src = await aws.getObject({\n  Bucket: 'aws-bucket', Key: 'key.zip',\n});\nawait new Upload({\n  client: r2,\n  params: {\n    Bucket: 'r2-bucket', Key: 'key.zip', Body: src.Body,\n  },\n}).done();",
-   },
-   {
-      title: "For huge or recurring transfers: rclone",
-      body: (
-         <>
-            For one-time bulk migrations or scheduled syncs across many
-            keys, <code>rclone sync</code> is the workhorse. It handles
-            multipart, retries, parallelism, and resumes from where it
-            left off.
-         </>
-      ),
-      code: "rclone sync aws:my-bucket r2:my-bucket --progress",
    },
 ];
 
@@ -93,32 +93,37 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I copy a file from AWS S3 to Cloudflare R2?",
       answer:
-         "Easiest in a UI: connect both providers in S3 Viewer, right-click the object, and choose Copy. S3 Viewer streams the bytes server-side from S3 to R2 — no local download, metadata and tags preserved by default. From the AWS CLI: pipe `aws s3 cp` from one profile through to another with `--endpoint-url` set to the R2 endpoint. For bulk migrations: use rclone sync.",
+         "Use rclone: configure an `aws` remote and an `r2` remote (both the s3 backend, R2 with provider = Cloudflare, region = auto and your account endpoint), then run `rclone sync aws:bucket r2:bucket`. For a single file, pipe `aws s3 cp` from one profile into another with `--endpoint-url` set to R2. S3 Viewer doesn't do the transfer — use it to browse both buckets and verify the result.",
    },
    {
       question: "Can I do a server-side copy across providers?",
       answer:
-         "Not with a single CopyObject API call — that requires source and destination to share an endpoint. Cross-provider copies have to read from source and write to destination as two operations. S3 Viewer does this on its server so the bytes don't pass through your local machine; rclone does the equivalent on whichever box you run it on.",
+         "No. A single CopyObject call requires the source and destination to share an endpoint, so a cross-provider copy is always a read from one and a write to the other. rclone does that on whichever machine you run it on; a hosted tool that offered it would have to proxy your object bytes.",
    },
    {
-      question: "Does cross-cloud copy in S3 Viewer cost extra?",
+      question: "Does S3 Viewer copy files between S3 and R2?",
       answer:
-         "You pay AWS egress on the read from S3 and Cloudflare R2 ingress on the write — and Cloudflare R2 has zero egress fees, which is part of why this pattern is popular. S3 Viewer doesn't charge anything per byte; the streaming happens on our server, but no object data is retained.",
+         "No, and deliberately. S3 Viewer streams uploads through its server into your bucket without keeping them, and downloads go straight from your bucket to your browser via short-lived links. Cross-cloud transfers belong to rclone or the AWS CLI; S3 Viewer is how you inspect both sides before and after.",
    },
    {
       question: "Will my object's metadata and tags survive the copy?",
       answer:
-         "Yes if your tool sets MetadataDirective and TaggingDirective to COPY (or the equivalent on the destination write). The AWS SDK and CLI defaults to REPLACE on these, which silently drops metadata and tags. S3 Viewer sets both to COPY by default, so cache-control headers, content-type, and object tags carry over.",
+         "Within one provider, CopyObject defaults MetadataDirective and TaggingDirective to COPY, so metadata and tags carry over unless you pass REPLACE. Across providers you are doing a fresh PUT, so it depends on your tool: rclone carries content-type and modification time, and `--metadata` preserves user metadata. R2 does not implement object tagging, so tags will not survive a transfer into R2.",
    },
    {
       question: "What about copying R2 to S3, or S3 to MinIO?",
       answer:
-         "Same pattern, any direction — R2 to S3, B2 to MinIO, MinIO to Wasabi. Every S3-compatible provider supports the same Get + Put primitives, and S3 Viewer keeps a separate signer per provider so credentials never cross over.",
+         "Same pattern, any direction — R2 to S3, B2 to MinIO, MinIO to Wasabi. Every S3-compatible provider supports the Get and Put primitives rclone needs; only the endpoint and provider string in the remote change.",
    },
    {
       question: "How do I migrate millions of objects from S3 to R2?",
       answer:
-         "rclone is the right tool. `rclone sync source:bucket dest:bucket` parallelizes the copy, handles multipart, retries failed parts, and resumes from where it left off. For incremental syncs, run it on a schedule. AWS DataSync is another option for staying inside the AWS ecosystem.",
+         "rclone sync, run from a machine with good bandwidth to both — ideally an EC2 instance in the source region to avoid paying egress twice. It parallelizes, handles multipart, retries failures and resumes where it stopped, so you can run it repeatedly until the diff is empty and then keep it on a schedule for incremental syncs. Cloudflare's Super Slurper is worth a look for one-shot migrations into R2.",
+   },
+   {
+      question: "What does the transfer cost?",
+      answer:
+         "You pay AWS egress on every byte read out of S3, plus request charges on both sides. Cloudflare R2 charges no egress fee, which is a large part of why this migration is common in the first place. Running rclone inside AWS in the same region as the source bucket avoids a second hop.",
    },
 ];
 
@@ -137,7 +142,7 @@ const Page = () => {
       <>
          <Seo
             title="How to Copy Files Between AWS S3 and Cloudflare R2"
-            description="Server-side cross-cloud copy from AWS S3 to Cloudflare R2 (or any S3-compatible provider). One-click in S3 Viewer, AWS CLI with --endpoint-url, or rclone sync for bulk."
+            description="Move objects from AWS S3 to Cloudflare R2 with rclone sync or the AWS CLI, and use S3 Viewer to browse and verify both buckets before and after."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -149,18 +154,21 @@ const Page = () => {
             steps={steps}
             underTheHood={
                <p>
-                  S3&apos;s native <code>CopyObject</code> is server-side
-                  but requires source and destination to share an
-                  endpoint — it doesn&apos;t work across providers.
-                  Cross-cloud copies become a Get-then-Put pair: read
-                  from source, write to destination. The question is
-                  where the bytes live in transit. Local download +
-                  re-upload is fine for one file, slow for many. S3
-                  Viewer streams source → destination through its own
-                  server with metadata and tags preserved by default,
-                  so the bytes never touch your machine. For bulk
-                  migrations, <code>rclone sync</code> is the standard
-                  tool — it parallelizes, retries, and resumes.
+                  S3&apos;s native <code>CopyObject</code> is server-side but
+                  requires the source and destination to share an endpoint, so
+                  it cannot cross providers. Every cross-cloud copy is therefore
+                  a <code>GetObject</code> followed by a <code>PutObject</code>{" "}
+                  (or a multipart upload), and the only real question is which
+                  machine the bytes pass through. <code>rclone</code> is the
+                  standard answer: it runs the read-and-write loop with
+                  configurable parallelism, splits large objects into parts,
+                  retries what fails, and resumes where it stopped. S3 Viewer
+                  stays out of that path on purpose — object bytes never flow
+                  through our servers, so there is nowhere for a cross-provider
+                  copy to happen. What it gives you instead is the same file
+                  browser over both buckets, which is what you actually want
+                  when you are deciding what to move and checking that it
+                  arrived.
                </p>
             }
             faqs={faqs}

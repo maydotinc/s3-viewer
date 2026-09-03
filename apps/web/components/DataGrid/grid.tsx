@@ -1,16 +1,18 @@
 import { cn } from "@s3-viewer/ui/lib/utils";
 import {
    AllCommunityModule,
-   ColDef,
    ModuleRegistry,
-   RowSelectionOptions,
    themeQuartz,
-   ValidationModule,
+   type ColDef,
+   type GetRowIdParams,
+   type IDatasource,
+   type RowSelectionOptions,
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
 import { useGridContext } from "./context";
-import { LoaderCircle } from "lucide-react";
-ModuleRegistry.registerModules([AllCommunityModule, ValidationModule]);
+import { LoadingOverlay } from "./overlays";
+
+ModuleRegistry.registerModules([AllCommunityModule]);
 
 const viewerGridTheme = themeQuartz.withParams({
    accentColor: "var(--color-viewerblue)",
@@ -31,77 +33,71 @@ const viewerGridTheme = themeQuartz.withParams({
 });
 
 const defaultColDef: ColDef = {
-   sortable: true,
+   sortable: false,
    resizable: false,
    filter: false,
+   suppressHeaderMenuButton: true,
+   suppressMovable: true,
 };
 
-type BaseGridProps = {
-   colDefs: ColDef<any>[];
+type BaseGridProps<TData> = {
+   columnDefs: ColDef<TData>[];
+   getRowId: (params: GetRowIdParams<TData>) => string;
+   noRowsOverlayComponent: React.ComponentType;
    className?: string;
-   rowModel: {
-      type: "clientSide" | "infinite";
-      cacheBlockSize?: number;
-      cacheOverflowSize?: number;
-      maxBlocksInCache?: number;
-      blockLoadDebounceMillis?: number;
-   };
-   noRowsOverlayComponent?: React.ComponentType<any>;
-   routeContext?: {
-      bucketName: string;
-      path: string[];
-   };
-   rowSelection?: RowSelectionOptions;
-};
+   context?: Record<string, unknown>;
+   rowSelection?: RowSelectionOptions<TData>;
+} & (
+   | { rowModel: "clientSide"; rowData: TData[]; quickFilterText?: string }
+   | { rowModel: "infinite"; datasource: IDatasource; cacheBlockSize: number }
+);
 
-const BaseGrid = ({
-   colDefs,
-   className,
-   rowModel,
-   noRowsOverlayComponent,
-   routeContext,
-   rowSelection,
-}: BaseGridProps) => {
-   const { gridRef, pageSize, onGridReady, onGridDestroy } = useGridContext();
+const BaseGrid = <TData,>(props: BaseGridProps<TData>) => {
+   const { gridRef, pageSize, handlers } = useGridContext();
+   const {
+      columnDefs,
+      getRowId,
+      noRowsOverlayComponent,
+      className,
+      context,
+      rowSelection,
+   } = props;
 
-   const rowModelProps =
-      rowModel.type === "infinite"
+   const modelProps =
+      props.rowModel === "infinite"
          ? {
               rowModelType: "infinite" as const,
-              cacheBlockSize: rowModel.cacheBlockSize,
-              cacheOverflowSize: rowModel.cacheOverflowSize,
-              maxBlocksInCache: rowModel.maxBlocksInCache,
-              blockLoadDebounceMillis: rowModel.blockLoadDebounceMillis,
+              datasource: props.datasource,
+              cacheBlockSize: props.cacheBlockSize,
+              maxBlocksInCache: 10,
            }
          : {
               rowModelType: "clientSide" as const,
+              rowData: props.rowData,
+              quickFilterText: props.quickFilterText,
            };
 
-   const loadingOverlayComponent = () => {
-      return (
-         <div className="flex flex-col items-center justify-center h-full">
-            <LoaderCircle className="animate-spin" />
-         </div>
-      );
-   };
-
    return (
-      <div className={cn("w-full flex-1 ag-theme-alpine", className)}>
-         <AgGridReact
+      <div className={cn("w-full flex-1 min-h-0", className)}>
+         <AgGridReact<TData>
             ref={gridRef}
             theme={viewerGridTheme}
             defaultColDef={defaultColDef}
-            columnDefs={colDefs}
-            onGridReady={onGridReady}
-            onGridPreDestroyed={onGridDestroy}
-            pagination={true}
-            suppressPaginationPanel={true}
-            paginationPageSize={pageSize}
-            noRowsOverlayComponent={noRowsOverlayComponent}
-            loadingOverlayComponent={loadingOverlayComponent}
-            context={routeContext}
+            columnDefs={columnDefs}
+            getRowId={getRowId}
+            context={context}
             rowSelection={rowSelection}
-            {...rowModelProps}
+            pagination
+            suppressPaginationPanel
+            paginationPageSize={pageSize}
+            suppressCellFocus
+            noRowsOverlayComponent={noRowsOverlayComponent}
+            loadingOverlayComponent={LoadingOverlay}
+            onGridReady={handlers.onGridReady}
+            onGridPreDestroyed={handlers.onGridPreDestroyed}
+            onPaginationChanged={handlers.onPaginationChanged}
+            onSelectionChanged={handlers.onSelectionChanged}
+            {...modelProps}
          />
       </div>
    );

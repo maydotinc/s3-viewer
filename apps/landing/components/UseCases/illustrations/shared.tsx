@@ -39,7 +39,6 @@ export const SVGRoot = ({
          className
       )}
       preserveAspectRatio="xMidYMid meet"
-      role="img"
       aria-hidden
       stroke="currentColor"
       strokeWidth="1.4"

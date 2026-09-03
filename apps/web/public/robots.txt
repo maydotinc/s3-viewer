@@ -1,5 +1,4 @@
-# https://www.robotstxt.org/robotstxt.html
-
+# Forks: replace the Sitemap domain with your own.
 User-agent: *
 Allow: /
 Disallow: /dashboard

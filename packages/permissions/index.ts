@@ -1,113 +1,116 @@
 import { Role } from "@s3-viewer/types";
 
 enum Permission {
-   // Server management
    DELETE_SERVER = "DELETE_SERVER",
    RENAME_SERVER = "RENAME_SERVER",
-
-   // User management permissions by role level
-   MANAGE_VIEWER = "MANAGE_VIEWER",
-   MANAGE_EDITOR = "MANAGE_EDITOR",
-   MANAGE_ADMIN = "MANAGE_ADMIN",
-
-   // Bucket operations
+   MANAGE_MEMBERS = "MANAGE_MEMBERS",
+   LIST_BUCKETS = "LIST_BUCKETS",
    CREATE_BUCKET = "CREATE_BUCKET",
    DELETE_BUCKET = "DELETE_BUCKET",
-   LIST_BUCKETS = "LIST_BUCKETS",
-
-   // Object operations
+   LIST_OBJECTS = "LIST_OBJECTS",
+   DOWNLOAD_OBJECT = "DOWNLOAD_OBJECT",
    UPLOAD_OBJECT = "UPLOAD_OBJECT",
    DELETE_OBJECT = "DELETE_OBJECT",
-   DOWNLOAD_OBJECT = "DOWNLOAD_OBJECT",
-   LIST_OBJECTS = "LIST_OBJECTS",
 }
 
-const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-   [Role.OWNER]: [
-      // Owners can do everything including manage any role except other owners
-      Permission.DELETE_SERVER,
-      Permission.RENAME_SERVER,
-      Permission.MANAGE_VIEWER,
-      Permission.MANAGE_EDITOR,
-      Permission.MANAGE_ADMIN,
-      Permission.CREATE_BUCKET,
-      Permission.DELETE_BUCKET,
-      Permission.LIST_BUCKETS,
-      Permission.UPLOAD_OBJECT,
-      Permission.DELETE_OBJECT,
-      Permission.DOWNLOAD_OBJECT,
-      Permission.LIST_OBJECTS,
-   ],
-   [Role.ADMIN]: [
-      // Admins can manage viewers/editors but not other admins
-      Permission.RENAME_SERVER,
-      Permission.MANAGE_VIEWER,
-      Permission.MANAGE_EDITOR,
-      Permission.CREATE_BUCKET,
-      Permission.LIST_BUCKETS,
-      Permission.UPLOAD_OBJECT,
-      Permission.DELETE_OBJECT,
-      Permission.DOWNLOAD_OBJECT,
-      Permission.LIST_OBJECTS,
-   ],
-   [Role.EDITOR]: [
-      // Editors can modify content but can't manage users
-      Permission.CREATE_BUCKET,
-      Permission.LIST_BUCKETS,
-      Permission.UPLOAD_OBJECT,
-      Permission.DELETE_OBJECT,
-      Permission.DOWNLOAD_OBJECT,
-      Permission.LIST_OBJECTS,
-   ],
-   [Role.VIEWER]: [
-      // Viewers can only read
-      Permission.LIST_BUCKETS,
-      Permission.DOWNLOAD_OBJECT,
-      Permission.LIST_OBJECTS,
-   ],
-};
-
-const ROLE_RANK: Record<Role, number> = {
+const ROLE_RANK: Readonly<Record<Role, number>> = {
    [Role.VIEWER]: 0,
    [Role.EDITOR]: 1,
    [Role.ADMIN]: 2,
    [Role.OWNER]: 3,
 };
 
-const compareRoles = (a: Role, b: Role): number => {
-   return ROLE_RANK[a] - ROLE_RANK[b];
+const ROLE_GRANTS: Readonly<Record<Role, readonly Permission[]>> = {
+   [Role.VIEWER]: [
+      Permission.LIST_BUCKETS,
+      Permission.LIST_OBJECTS,
+      Permission.DOWNLOAD_OBJECT,
+   ],
+   [Role.EDITOR]: [
+      Permission.UPLOAD_OBJECT,
+      Permission.DELETE_OBJECT,
+      Permission.CREATE_BUCKET,
+   ],
+   [Role.ADMIN]: [
+      Permission.DELETE_BUCKET,
+      Permission.RENAME_SERVER,
+      Permission.MANAGE_MEMBERS,
+   ],
+   [Role.OWNER]: [Permission.DELETE_SERVER],
 };
 
-const isRoleHigher = (a: Role, b: Role): boolean => compareRoles(a, b) > 0;
+const ROLES_ASCENDING: readonly Role[] = [
+   Role.VIEWER,
+   Role.EDITOR,
+   Role.ADMIN,
+   Role.OWNER,
+];
 
-const maxRole = (a: Role, b: Role): Role => (isRoleHigher(a, b) ? a : b);
+const cumulative = (upTo: number): ReadonlySet<Permission> =>
+   new Set(ROLES_ASCENDING.slice(0, upTo + 1).flatMap((r) => ROLE_GRANTS[r]));
 
-const hasPermissions = (role: Role, permissions: Permission[]): boolean => {
-   return permissions.every((permission) =>
-      ROLE_PERMISSIONS[role].includes(permission)
+const ROLE_PERMISSIONS: Readonly<Record<Role, ReadonlySet<Permission>>> = {
+   [Role.VIEWER]: cumulative(0),
+   [Role.EDITOR]: cumulative(1),
+   [Role.ADMIN]: cumulative(2),
+   [Role.OWNER]: cumulative(3),
+};
+
+const ROLE_LABELS: Readonly<Record<Role, string>> = {
+   [Role.OWNER]: "Owner",
+   [Role.ADMIN]: "Admin",
+   [Role.EDITOR]: "Editor",
+   [Role.VIEWER]: "Viewer",
+};
+
+const ROLE_DESCRIPTIONS: Readonly<Record<Role, string>> = {
+   [Role.OWNER]: "Full control, including deleting the server.",
+   [Role.ADMIN]: "Manage members, rename the server, remove buckets.",
+   [Role.EDITOR]: "Upload, delete and create buckets.",
+   [Role.VIEWER]: "Browse and download only.",
+};
+
+const rankOf = (role: Role | null | undefined): number =>
+   role ? ROLE_RANK[role] : -1;
+
+const isAtLeast = (role: Role | null | undefined, minimum: Role): boolean =>
+   rankOf(role) >= ROLE_RANK[minimum];
+
+const highestRole = (...roles: (Role | null | undefined)[]): Role | null =>
+   roles.reduce<Role | null>(
+      (best, r) => (r && rankOf(r) > rankOf(best) ? r : best),
+      null
    );
-};
 
-const getManagePermissionForRole = (role: Role): Permission | null => {
-   switch (role) {
-      case Role.VIEWER:
-         return Permission.MANAGE_VIEWER;
-      case Role.EDITOR:
-         return Permission.MANAGE_EDITOR;
-      case Role.ADMIN:
-         return Permission.MANAGE_ADMIN;
-      case Role.OWNER:
-         return null;
-      default:
-         return null;
-   }
-};
+const hasPermission = (
+   role: Role | null | undefined,
+   permission: Permission
+): boolean => (role ? ROLE_PERMISSIONS[role].has(permission) : false);
+
+const canManageRole = (actor: Role | null | undefined, target: Role): boolean =>
+   target !== Role.OWNER &&
+   hasPermission(actor, Permission.MANAGE_MEMBERS) &&
+   rankOf(actor) > rankOf(target);
+
+const assignableRoles = (actor: Role | null | undefined): Role[] =>
+   ROLES_ASCENDING.filter((r) => canManageRole(actor, r));
+
+const effectiveBucketRole = (
+   serverRole: Role | null | undefined,
+   bucketRole: Role | null | undefined
+): Role | null =>
+   serverRole === Role.OWNER ? Role.OWNER : (bucketRole ?? null);
 
 export {
-   compareRoles,
-   getManagePermissionForRole,
-   hasPermissions,
-   isRoleHigher,
-   maxRole,
    Permission,
+   ROLES_ASCENDING,
+   ROLE_DESCRIPTIONS,
+   ROLE_LABELS,
+   assignableRoles,
+   canManageRole,
+   effectiveBucketRole,
+   hasPermission,
+   highestRole,
+   isAtLeast,
+   rankOf,
 };

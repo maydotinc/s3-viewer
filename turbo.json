@@ -1,9 +1,6 @@
 {
    "$schema": "https://turborepo.com/schema.json",
-   "globalDependencies": [
-      "**/.env.*local",
-      "**/.env"
-   ],
+   "globalDependencies": ["**/.env.*local", "**/.env"],
    "ui": "tui",
    "tasks": {
       "db:generate": {
@@ -17,23 +14,56 @@
          ]
       },
       "build": {
-         "dependsOn": [
-            "^db:generate",
-            "^build"
-         ],
-         "outputs": [
-            ".next/**",
-            "!.next/cache/**",
-            "dist/**"
-         ],
-         "inputs": [
-            ".env*",
-            "$TURBO_DEFAULT$"
+         "dependsOn": ["^db:generate", "^build"],
+         "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+         "inputs": [".env*", "$TURBO_DEFAULT$"],
+         "env": [
+            "NEXT_PUBLIC_*",
+            "LANDING_ORIGIN",
+            "DATABASE_URL",
+            "BETTER_AUTH_SECRET",
+            "RESEND_KEY",
+            "GITHUB_CLIENT_ID",
+            "GITHUB_CLIENT_SECRET",
+            "ENCRYPTION_PRIVATE_KEY",
+            "PORT",
+            "NODE_ENV",
+            "TRUST_PROXY",
+            "EMAIL_FROM",
+            "LOG_LEVEL"
          ]
       },
       "dev": {
+         "dependsOn": ["^db:generate"],
          "persistent": true,
-         "cache": false
+         "cache": false,
+         "env": [
+            "NEXT_PUBLIC_*",
+            "LANDING_ORIGIN",
+            "DATABASE_URL",
+            "BETTER_AUTH_SECRET",
+            "RESEND_KEY",
+            "GITHUB_CLIENT_ID",
+            "GITHUB_CLIENT_SECRET",
+            "ENCRYPTION_PRIVATE_KEY",
+            "PORT",
+            "NODE_ENV",
+            "TRUST_PROXY",
+            "EMAIL_FROM",
+            "LOG_LEVEL"
+         ]
+      },
+      "lint": {
+         "dependsOn": ["^db:generate"],
+         "outputs": []
+      },
+      "check-types": {
+         "dependsOn": ["^db:generate", "^build"],
+         "outputs": []
+      },
+      "test": {
+         "dependsOn": ["^db:generate"],
+         "outputs": []
       }
    }
 }

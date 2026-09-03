@@ -1,22 +1,28 @@
 {
    "name": "@s3-viewer/auth",
    "version": "0.0.0",
+   "private": true,
    "type": "module",
-   "dependencies": {
-      "@s3-viewer/db": "workspace:*",
-      "@s3-viewer/email": "workspace:*",
-      "@s3-viewer/ui": "workspace:*",
-      "better-auth": "^1.2.8",
-      "dotenv": "^16.5.0"
-   },
-   "devDependencies": {
-      "@better-auth/cli": "^1.2.8",
-      "@s3-viewer/eslint-config": "workspace:*",
-      "@s3-viewer/ts-config": "workspace:*",
-      "@s3-viewer/ui": "workspace:*"
+   "scripts": {
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
    },
    "exports": {
       ".": "./lib/auth.ts",
       "./client": "./lib/client.ts"
+   },
+   "dependencies": {
+      "@s3-viewer/db": "workspace:*",
+      "@s3-viewer/email": "workspace:*",
+      "@s3-viewer/types": "workspace:*",
+      "@s3-viewer/ui": "workspace:*",
+      "better-auth": "catalog:",
+      "dotenv": "^16.5.0"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "eslint": "catalog:",
+      "typescript": "catalog:"
    }
 }

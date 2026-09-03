@@ -1,23 +1,17 @@
-import SignUp from "@/components/Auth/form/sign-up";
-import AuthLayout from "@/components/Layout/auth";
+import AuthScreen from "@/components/Auth/auth-screen";
 import Seo from "@/components/Seo";
+import { SITE_PATHS } from "@s3-viewer/types";
 
-const SignUpPage = () => {
-   return (
-      <>
-         <Seo
-            title="Sign Up"
-            description="Create your S3 Viewer account to access your buckets."
-            canonical="/signup"
-            noindex={false}
-         />
-         <SignUp />
-      </>
-   );
-};
-
-SignUpPage.getLayout = (page: React.ReactNode) => {
-   return <AuthLayout>{page}</AuthLayout>;
-};
+const SignUpPage = () => (
+   <>
+      <Seo
+         title="Create your account"
+         description="Create an S3 Viewer account with just your email. No password needed."
+         canonical={SITE_PATHS.signup}
+         noindex={false}
+      />
+      <AuthScreen mode="signup" />
+   </>
+);
 
 export default SignUpPage;

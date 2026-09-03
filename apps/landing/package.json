@@ -7,16 +7,17 @@
       "dev": "portless landing next dev",
       "build": "next build",
       "start": "next start",
-      "lint": "next lint"
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
    },
    "dependencies": {
       "@s3-viewer/auth": "workspace:*",
       "@s3-viewer/ui": "workspace:*",
       "lottie-react": "^2.4.1",
       "lucide-react": "^0.475.0",
-      "next": "15.4.8",
-      "react": "19.1.0",
-      "react-dom": "19.1.0",
+      "next": "catalog:",
+      "react": "catalog:",
+      "react-dom": "catalog:",
       "react-icons": "^5.5.0"
    },
    "devDependencies": {
@@ -26,6 +27,8 @@
       "@types/node": "^20",
       "@types/react": "^19",
       "@types/react-dom": "^19",
-      "tailwindcss": "^4"
+      "eslint": "catalog:",
+      "tailwindcss": "^4",
+      "typescript": "catalog:"
    }
 }

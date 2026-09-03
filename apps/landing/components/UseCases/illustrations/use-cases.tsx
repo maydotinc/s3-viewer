@@ -88,14 +88,7 @@ export const ShareNonTechnicalIllustration = () => (
 export const TeamsIllustration = () => (
    <IllustrationFrame>
       <SVGRoot viewBox="0 0 480 320">
-         <rect
-            x="80"
-            y="90"
-            width="320"
-            height="140"
-            rx="14"
-            fill="#ffffff"
-         />
+         <rect x="80" y="90" width="320" height="140" rx="14" fill="#ffffff" />
          <line x1="80" y1="124" x2="400" y2="124" />
          <text
             x="100"
@@ -164,14 +157,7 @@ export const TeamsIllustration = () => (
 export const S3BrowserIllustration = () => (
    <IllustrationFrame>
       <SVGRoot viewBox="0 0 480 320">
-         <rect
-            x="80"
-            y="60"
-            width="320"
-            height="50"
-            rx="10"
-            fill="#ffffff"
-         />
+         <rect x="80" y="60" width="320" height="50" rx="10" fill="#ffffff" />
          <g transform="translate(102 78)">
             <circle
                cx="7"
@@ -282,27 +268,10 @@ export const SecurityIllustration = () => (
                fill="#ffffff"
                strokeWidth="1.6"
             />
-            <circle
-               cx="54"
-               cy="100"
-               r="6"
-               fill="currentColor"
-               stroke="none"
-            />
+            <circle cx="54" cy="100" r="6" fill="currentColor" stroke="none" />
             <line x1="54" y1="106" x2="54" y2="124" strokeWidth="2" />
          </g>
          <line x1="120" y1="248" x2="360" y2="248" opacity="0.5" />
-         <text
-            x="120"
-            y="270"
-            fontFamily="ui-monospace, monospace"
-            fontSize="10.5"
-            stroke="none"
-            fill="currentColor"
-            opacity="0.55"
-         >
-            audit · viewed · 14:02:11 UTC
-         </text>
       </SVGRoot>
    </IllustrationFrame>
 );

@@ -29,22 +29,14 @@ const LegalHeader = ({
                >
                   Home
                </Link>
-               <ChevronRight
-                  className="size-3"
-                  strokeWidth={2.5}
-                  aria-hidden
-               />
+               <ChevronRight className="size-3" strokeWidth={2.5} aria-hidden />
                <Link
                   href="/legal"
                   className="transition-colors hover:text-viewerblack"
                >
                   Legal
                </Link>
-               <ChevronRight
-                  className="size-3"
-                  strokeWidth={2.5}
-                  aria-hidden
-               />
+               <ChevronRight className="size-3" strokeWidth={2.5} aria-hidden />
                <span className="font-medium text-viewerblack">{eyebrow}</span>
             </nav>
 

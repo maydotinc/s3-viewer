@@ -1,17 +1,24 @@
 {
    "name": "@s3-viewer/types",
    "version": "0.0.0",
+   "private": true,
    "type": "module",
-   "devDependencies": {
-      "@s3-viewer/eslint-config": "workspace:*",
-      "@s3-viewer/ts-config": "workspace:*",
-      "eslint": "^9.28.0",
-      "typescript": "^5.8.3"
-   },
    "exports": {
       ".": "./src/index.ts"
    },
+   "scripts": {
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit",
+      "test": "vitest run --passWithNoTests"
+   },
    "dependencies": {
-      "zod": "^3.25.67"
+      "zod": "catalog:"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "eslint": "catalog:",
+      "typescript": "catalog:",
+      "vitest": "^3.2.4"
    }
 }

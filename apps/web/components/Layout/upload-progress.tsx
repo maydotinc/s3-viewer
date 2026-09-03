@@ -1,145 +1,180 @@
 import useUploadStore from "@/lib/stores/upload-store/uploadStore";
-import { formatFileSize } from "@/lib/utils/fileUtils";
+import type { UploadEntry } from "@/lib/stores/upload-store/types";
+import { formatBytes } from "@/lib/utils/format";
+import { Button } from "@s3-viewer/ui/components/button";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-   CheckCircle,
+   Ban,
+   CheckCircle2,
    ChevronUp,
+   CircleAlert,
    File,
-   RefreshCw,
-   RefreshCwOff,
+   LoaderCircle,
    X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
-interface VirtualizedUploadListProps {
-   uploadProgress: Record<string, any>;
-   cancelUpload: (filePath: string) => void;
-}
+const ROW_HEIGHT = 68;
+const ROW_GAP = 8;
 
-const VirtualizedUploadList = ({
-   uploadProgress,
-   cancelUpload,
-}: VirtualizedUploadListProps) => {
-   const containerRef = useRef<HTMLDivElement>(null);
+const percent = (entry: UploadEntry) => {
+   if (entry.status === "completed") return 100;
+   if (entry.size === 0) return 0;
+   return Math.min(100, Math.round((entry.uploadedBytes / entry.size) * 100));
+};
 
-   const uploadEntries = useMemo(
-      () => Object.entries(uploadProgress),
-      [uploadProgress]
-   );
-
-   const virtualizer = useVirtualizer({
-      count: uploadEntries.length,
-      getScrollElement: () => containerRef.current,
-      estimateSize: () => 68, // consistent height for all items
-      gap: 8,
-   });
-
-   const virtualItems = virtualizer.getVirtualItems();
-
-   if (uploadEntries.length === 0) {
-      return (
-         <div className="text-center py-8">
-            <File className="size-8 mx-auto mb-2 opacity-50" />
-            <p className="text-gray-500">No active uploads or downloads</p>
-         </div>
-      );
+const StatusIcon = ({ status }: { status: UploadEntry["status"] }) => {
+   switch (status) {
+      case "completed":
+         return (
+            <CheckCircle2
+               className="size-3.5 text-viewerblue"
+               role="img"
+               aria-label="Uploaded"
+            />
+         );
+      case "failed":
+         return (
+            <CircleAlert
+               className="size-3.5 text-viewertextred"
+               role="img"
+               aria-label="Failed"
+            />
+         );
+      case "cancelled":
+         return (
+            <Ban
+               className="size-3.5 text-viewerlighttext"
+               role="img"
+               aria-label="Cancelled"
+            />
+         );
+      case "active":
+         return (
+            <LoaderCircle
+               className="size-3.5 animate-spin text-viewerblue"
+               role="img"
+               aria-label="Uploading…"
+            />
+         );
+      default:
+         return (
+            <LoaderCircle
+               className="size-3.5 text-viewerlighttext"
+               role="img"
+               aria-label="Waiting…"
+            />
+         );
    }
+};
+
+const UploadRow = ({
+   entry,
+   onCancel,
+}: {
+   entry: UploadEntry;
+   onCancel: () => void;
+}) => {
+   const value = percent(entry);
+   const cancellable = entry.status === "pending" || entry.status === "active";
+   return (
+      <div className="flex h-full flex-col justify-center gap-2 rounded-xl border border-viewerborder p-2">
+         <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+               <File
+                  className="size-7 shrink-0 text-viewerborder"
+                  aria-hidden="true"
+               />
+               <div className="flex min-w-0 flex-col">
+                  <p
+                     className="truncate text-sm font-medium text-viewertext"
+                     title={entry.relativePath}
+                  >
+                     {entry.relativePath}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-viewerlighttext">
+                     <span className="truncate">
+                        {entry.status === "failed" && entry.error
+                           ? entry.error
+                           : `${formatBytes(entry.uploadedBytes)} of ${formatBytes(entry.size)}`}
+                     </span>
+                     <StatusIcon status={entry.status} />
+                  </div>
+               </div>
+            </div>
+            <Button
+               variant="ghost"
+               size="icon"
+               className={cn("size-7 shrink-0", !cancellable && "invisible")}
+               aria-label={`Cancel upload of ${entry.fileName}`}
+               tabIndex={cancellable ? 0 : -1}
+               onClick={onCancel}
+            >
+               <X className="size-3.5" aria-hidden="true" />
+            </Button>
+         </div>
+         <div
+            className="h-1.5 w-full rounded-full bg-viewerborder"
+            role="progressbar"
+            aria-label={`${entry.fileName} upload progress`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={value}
+         >
+            <div
+               className={cn(
+                  "h-1.5 rounded-full transition-[width] duration-300",
+                  entry.status === "failed"
+                     ? "bg-viewertextred"
+                     : "bg-viewerblue"
+               )}
+               style={{ width: `${value}%` }}
+            />
+         </div>
+      </div>
+   );
+};
+
+const UploadList = ({
+   ids,
+   cancel,
+}: {
+   ids: string[];
+   cancel: (id: string) => void;
+}) => {
+   const entries = useUploadStore((state) => state.entries);
+   const containerRef = useRef<HTMLDivElement>(null);
+   const virtualizer = useVirtualizer({
+      count: ids.length,
+      getScrollElement: () => containerRef.current,
+      estimateSize: () => ROW_HEIGHT,
+      gap: ROW_GAP,
+   });
 
    return (
       <div
-         className="overflow-y-auto max-h-[var(--content-height)] p-2"
          ref={containerRef}
+         className="max-h-[var(--content-height)] overflow-y-auto p-2"
       >
          <div
             className="relative"
             style={{ height: `${virtualizer.getTotalSize()}px` }}
          >
-            {virtualItems.map((virtualItem) => {
-               const entry = uploadEntries[virtualItem.index];
-               if (!entry) return null;
-
-               const [filePath, file] = entry;
-               const { value: fileSizeFormatted, unit: suffix } =
-                  formatFileSize(file.fileSize);
-               const uploadedSize = Math.round(
-                  (fileSizeFormatted * file.progress) / 100
-               );
-
-               let stateSymbol = null;
-               switch (file.status) {
-                  case "cancelled":
-                     stateSymbol = (
-                        <RefreshCwOff className="size-3.5 text-red-500" />
-                     );
-                     break;
-                  case "completed":
-                     stateSymbol = (
-                        <CheckCircle className="size-3.5 text-green-500" />
-                     );
-                     break;
-                  case "failed":
-                     stateSymbol = <X className="size-3.5 text-red-500" />;
-                     break;
-                  default:
-                     stateSymbol = (
-                        <RefreshCw className="size-3.5 animate-spin" />
-                     );
-                     break;
-               }
-
+            {virtualizer.getVirtualItems().map((item) => {
+               const id = ids[item.index];
+               const entry = id ? entries[id] : undefined;
+               if (!id || !entry) return null;
                return (
                   <div
-                     className="absolute top-0 left-0 w-full"
+                     key={item.key}
+                     className="absolute left-0 top-0 w-full"
                      style={{
-                        transform: `translateY(${virtualItem.start}px)`,
-                        height: `${virtualItem.size}px`,
+                        transform: `translateY(${item.start}px)`,
+                        height: `${item.size}px`,
                      }}
-                     key={virtualItem.key}
-                     data-index={virtualItem.index}
                   >
-                     <div className="flex flex-col justify-center gap-2 p-2 rounded-xl border border-viewerborder">
-                        <div className="flex justify-between">
-                           <div className="flex items-center gap-2">
-                              <File className="size-8 text-viewerborder" />
-                              <div className="flex flex-col">
-                                 <p className="text-sm font-medium text-viewertext truncate max-w-[200px]">
-                                    {file.fileName}
-                                 </p>
-                                 <div className="flex items-center gap-2">
-                                    <p className="text-xs text-viewerlighttext truncate">
-                                       {`${uploadedSize} ${suffix} of ${fileSizeFormatted} ${suffix}`}
-                                    </p>
-                                    <div className="rounded-full bg-viewerlighttext w-0.5 h-0.5" />
-                                    <div className="flex items-center gap-1">
-                                       {stateSymbol}
-                                    </div>
-                                 </div>
-                              </div>
-                           </div>
-                           <div
-                              className="flex gap-2"
-                              onClick={() => {
-                                 cancelUpload(filePath);
-                              }}
-                              hidden={
-                                 file.status === "completed" ||
-                                 file.status === "cancelled"
-                              }
-                           >
-                              <X className="size-3.5" />
-                           </div>
-                        </div>
-                        <div className="w-full h-1.5 bg-viewerborder rounded-full">
-                           <div
-                              className={`h-1.5 rounded-full transition-all duration-300 ${
-                                 file.status === "completed"
-                                    ? "bg-green-500"
-                                    : "bg-viewerblue"
-                              }`}
-                              style={{ width: `${file.progress}%` }}
-                           />
-                        </div>
-                     </div>
+                     <UploadRow entry={entry} onCancel={() => cancel(id)} />
                   </div>
                );
             })}
@@ -149,113 +184,95 @@ const VirtualizedUploadList = ({
 };
 
 const UploadProgressSheet = () => {
-   const {
-      uploadProgress,
-      cancelUpload,
-      isUploading,
-      reset,
-      cancelAllUploads,
-   } = useUploadStore();
-   const [isExpanded, setIsExpanded] = useState(false);
-   const progressSheetRef = useRef<HTMLDivElement>(null);
-   const uploadProgressData = useUploadStore((state) => state.uploadProgress);
-   const totalUploads = Object.keys(uploadProgressData).length;
-   const totalCompleted = Object.values(uploadProgressData).filter(
-      (f) => f.status === "completed"
+   const order = useUploadStore((state) => state.order);
+   const entries = useUploadStore((state) => state.entries);
+   const batch = useUploadStore((state) => state.batch);
+   const isUploading = useUploadStore((state) => state.isUploading);
+   const cancel = useUploadStore((state) => state.cancel);
+   const cancelAll = useUploadStore((state) => state.cancelAll);
+   const dismiss = useUploadStore((state) => state.dismiss);
+   const [expanded, setExpanded] = useState(false);
+   const panelId = useId();
+
+   if (order.length === 0) return null;
+
+   const batchIds = batch?.ids ?? [];
+   const done = batchIds.filter(
+      (id) => entries[id]?.status === "completed"
    ).length;
-
-   const handleClose = () => {
-      if (isUploading) {
-         cancelAllUploads();
-      }
-      reset();
-   };
-
-   useEffect(() => {
-      const handleOutsideClick = (event: MouseEvent) => {
-         if (
-            progressSheetRef.current &&
-            !progressSheetRef.current.contains(event.target as Node)
-         ) {
-            setIsExpanded((state) => false);
-         }
-      };
-
-      const handleKeyDown = (event: KeyboardEvent) => {
-         if (event.key === "Escape") {
-            event.preventDefault();
-            setIsExpanded((state) => false);
-         }
-      };
-
-      document.addEventListener("mousedown", handleOutsideClick);
-      document.addEventListener("keydown", handleKeyDown);
-      return () => {
-         document.removeEventListener("mousedown", handleOutsideClick);
-         document.removeEventListener("keydown", handleKeyDown);
-      };
-   }, []);
-
-   const shouldShow = isUploading || Object.values(uploadProgress).length > 0;
-   if (!shouldShow) return null;
+   const failed = batchIds.filter(
+      (id) => entries[id]?.status === "failed"
+   ).length;
+   const heading = isUploading
+      ? `Uploading… (${done}/${batchIds.length})`
+      : failed > 0
+        ? `${failed} of ${batchIds.length} ${batchIds.length === 1 ? "upload" : "uploads"} failed`
+        : "Uploads complete";
 
    return (
       <div
-         className="fixed bottom-0 right-8 z-50 transition-transform duration-300 ease-in-out [--header-height:58px] [--content-height:350px]"
-         ref={progressSheetRef}
+         className="fixed bottom-0 right-8 z-50 [--content-height:350px] [--header-height:56px]"
+         onKeyDown={(event) => {
+            if (event.key === "Escape" && expanded) setExpanded(false);
+         }}
       >
          <div
-            className={`bg-white border border-viewerborder box-border rounded-t-2xl  w-[400px] shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${
-               isExpanded
+            className={cn(
+               "w-[400px] overflow-hidden rounded-t-2xl border border-viewerborder bg-viewerwhite shadow-lg transition-[max-height] duration-300 ease-in-out",
+               expanded
                   ? "max-h-[calc(var(--content-height)+var(--header-height))]"
                   : "max-h-[var(--header-height)]"
-            }`}
+            )}
          >
-            <div
-               onClick={() => setIsExpanded((prev) => !prev)}
-               className="flex items-center justify-between p-4 bg-viewergray border-b border-viewerborder rounded-t-2xl h-[var(--header-height)]"
-            >
-               <div className="flex items-center gap-2">
+            <div className="flex h-[var(--header-height)] items-center justify-between gap-2 border-b border-viewerborder bg-viewergray px-3">
+               <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-2 text-left text-sm font-medium text-viewerblack outline-none focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
+                  aria-expanded={expanded}
+                  aria-controls={panelId}
+                  onClick={() => setExpanded((open) => !open)}
+               >
                   {isUploading ? (
-                     <>
-                        <RefreshCw className="size-4 animate-spin text-viewerblue" />
-                        <span className="text-sm font-medium">
-                           Uploads completed ({totalCompleted}/{totalUploads})
-                        </span>
-                     </>
+                     <LoaderCircle
+                        className="size-4 shrink-0 animate-spin text-viewerblue"
+                        aria-hidden="true"
+                     />
                   ) : (
-                     <>
-                        <CheckCircle className="size-4 text-green-500" />
-                        <span className="text-sm font-medium">
-                           Operations complete ({totalCompleted}/{totalUploads})
-                        </span>
-                     </>
+                     <CheckCircle2
+                        className="size-4 shrink-0 text-viewerblue"
+                        aria-hidden="true"
+                     />
                   )}
-               </div>
-
-               <div className="flex items-center gap-4">
+                  <span className="truncate" role="status">
+                     {heading}
+                  </span>
                   <ChevronUp
-                     className={`size-4 ${isExpanded ? "rotate-180" : ""} transition-transform duration-300`}
+                     className={cn(
+                        "ml-auto size-4 shrink-0 transition-transform",
+                        expanded && "rotate-180"
+                     )}
+                     aria-hidden="true"
                   />
-                  <X
-                     className="size-3.5 cursor-pointer hover:text-viewertextred"
-                     onClick={(e) => {
-                        e.stopPropagation();
-                        handleClose();
-                     }}
-                  />
-               </div>
+               </button>
+               {isUploading && (
+                  <Button variant="ghost" size="sm" onClick={cancelAll}>
+                     Cancel all
+                  </Button>
+               )}
+               <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  aria-label={
+                     isUploading ? "Cancel uploads and close" : "Close"
+                  }
+                  onClick={dismiss}
+               >
+                  <X className="size-3.5" aria-hidden="true" />
+               </Button>
             </div>
-
-            <div
-               className={`transition-all duration-300 ease-in-out overflow-hidden ${
-                  isExpanded ? "max-h-[var(--content-height)]" : "max-h-0"
-               }`}
-            >
-               <VirtualizedUploadList
-                  uploadProgress={uploadProgress}
-                  cancelUpload={cancelUpload}
-               />
+            <div id={panelId} hidden={!expanded}>
+               <UploadList ids={order} cancel={cancel} />
             </div>
          </div>
       </div>

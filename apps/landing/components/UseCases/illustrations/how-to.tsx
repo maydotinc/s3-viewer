@@ -81,11 +81,7 @@ export const RenameIllustration = () => (
             strokeWidth="2"
             fill="none"
          />
-         <path
-            d="M348 122 L356 130 L348 138"
-            fill="none"
-            strokeWidth="2"
-         />
+         <path d="M348 122 L356 130 L348 138" fill="none" strokeWidth="2" />
          <text
             x="240"
             y="240"
@@ -139,11 +135,7 @@ export const InviteIllustration = () => (
             <path d="M20 16 a40 40 0 0 1 80 0" />
          </g>
          <g transform="translate(248 102)">
-            <circle
-               r="16"
-               fill="currentColor"
-               stroke="currentColor"
-            />
+            <circle r="16" fill="currentColor" stroke="currentColor" />
             <line
                x1="-8"
                y1="0"
@@ -175,22 +167,8 @@ export const InviteIllustration = () => (
 export const SideBySideIllustration = () => (
    <IllustrationFrame>
       <SVGRoot viewBox="0 0 480 320">
-         <rect
-            x="80"
-            y="80"
-            width="160"
-            height="160"
-            rx="10"
-            fill="#ffffff"
-         />
-         <rect
-            x="240"
-            y="80"
-            width="160"
-            height="160"
-            rx="10"
-            fill="#ffffff"
-         />
+         <rect x="80" y="80" width="160" height="160" rx="10" fill="#ffffff" />
+         <rect x="240" y="80" width="160" height="160" rx="10" fill="#ffffff" />
          <line
             x1="240"
             y1="80"
@@ -360,13 +338,7 @@ export const SearchIllustration = () => (
                stroke="currentColor"
                strokeWidth="6"
             />
-            <circle
-               cx="58"
-               cy="58"
-               r="6"
-               fill="currentColor"
-               stroke="none"
-            />
+            <circle cx="58" cy="58" r="6" fill="currentColor" stroke="none" />
          </g>
       </SVGRoot>
    </IllustrationFrame>
@@ -384,13 +356,7 @@ export const DeleteIllustration = () => (
             stroke="currentColor"
             strokeWidth="3"
          />
-         <circle
-            cx="290"
-            cy="190"
-            r="5"
-            fill="currentColor"
-            stroke="none"
-         />
+         <circle cx="290" cy="190" r="5" fill="currentColor" stroke="none" />
          <text
             x="304"
             y="194"

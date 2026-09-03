@@ -10,12 +10,6 @@ function Dialog({
    return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
-function DialogTrigger({
-   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
-   return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />;
-}
-
 function DialogPortal({
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
@@ -39,7 +33,7 @@ function DialogOverlay({
       <DialogPrimitive.Overlay
          data-slot="dialog-overlay"
          className={cn(
-            "fixed inset-0 z-50 backdrop-blur-[4px]",
+            "fixed inset-0 z-50 bg-viewerblack/20 backdrop-blur-[4px]",
             animate &&
                "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
             className
@@ -76,7 +70,7 @@ function DialogContent({
             {showCloseButton && (
                <DialogPrimitive.Close
                   data-slot="dialog-close"
-                  className="data-[state=open]:bg-accent cursor-pointer data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+                  className="text-viewertext cursor-pointer absolute top-4 right-4 rounded-sm p-0.5 opacity-70 transition-opacity hover:opacity-100 outline-none focus-visible:opacity-100 focus-visible:ring-[3px] focus-visible:ring-viewerblue/30 focus-visible:border-viewerblue disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
                >
                   <XIcon />
                   <span className="sr-only">Close</span>
@@ -114,10 +108,7 @@ function DialogTitle({
    return (
       <DialogPrimitive.Title
          data-slot="dialog-title"
-         className={cn(
-            "text-2xl font leading-none text-viewerblack",
-            className
-         )}
+         className={cn("text-heading", className)}
          {...props}
       />
    );
@@ -143,8 +134,5 @@ export {
    DialogDescription,
    DialogFooter,
    DialogHeader,
-   DialogOverlay,
-   DialogPortal,
    DialogTitle,
-   DialogTrigger,
 };

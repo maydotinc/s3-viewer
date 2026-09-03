@@ -1,4 +1,3 @@
-import eslintConfig from "@s3-viewer/eslint-config/react-internal";
+import { config } from "@s3-viewer/eslint-config/base";
 
-/** @type {import("eslint").Linter.Config} */
-export default eslintConfig;
+export default config;

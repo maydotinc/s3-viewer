@@ -1,32 +1,41 @@
 import js from "@eslint/js";
 import eslintConfigPrettier from "eslint-config-prettier";
-import onlyWarn from "eslint-plugin-only-warn";
-import turboPlugin from "eslint-plugin-turbo";
+import globals from "globals";
 import tseslint from "typescript-eslint";
 
-/**
- * A shared ESLint configuration for the repository.
- *
- * @type {import("eslint").Linter.Config}
- * */
 export const config = [
-  js.configs.recommended,
-  eslintConfigPrettier,
-  ...tseslint.configs.recommended,
-  {
-    plugins: {
-      turbo: turboPlugin,
-    },
-    rules: {
-      "turbo/no-undeclared-env-vars": "warn",
-    },
-  },
-  {
-    plugins: {
-      onlyWarn,
-    },
-  },
-  {
-    ignores: ["dist/**"],
-  },
+   {
+      ignores: [
+         "**/node_modules/**",
+         "**/dist/**",
+         "**/build/**",
+         "**/.next/**",
+         "**/coverage/**",
+         "**/generated/**",
+         "**/*.config.*",
+         "**/next-env.d.ts",
+      ],
+   },
+   js.configs.recommended,
+   ...tseslint.configs.recommended,
+   {
+      languageOptions: {
+         ecmaVersion: "latest",
+         sourceType: "module",
+         globals: {
+            ...globals.node,
+         },
+      },
+      rules: {
+         "no-var": "off",
+         "@typescript-eslint/no-explicit-any": "error",
+         "@typescript-eslint/no-unused-vars": [
+            "error",
+            { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+         ],
+      },
+   },
+   eslintConfigPrettier,
 ];
+
+export default config;

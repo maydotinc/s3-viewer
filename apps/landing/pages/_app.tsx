@@ -5,7 +5,10 @@ import { Inter } from "next/font/google";
 import Head from "next/head";
 import { ReactElement, ReactNode } from "react";
 
-export type NextPageWithLayout<P = {}, IP = P> = NextPage<P, IP> & {
+export type NextPageWithLayout<P = Record<string, never>, IP = P> = NextPage<
+   P,
+   IP
+> & {
    getLayout?: (page: ReactElement) => ReactNode;
 };
 
@@ -23,7 +26,10 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
       <main className={`${inter.className} bg-viewerwhite`}>
          <Head>
             <meta charSet="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <meta
+               name="viewport"
+               content="width=device-width, initial-scale=1"
+            />
             <meta name="theme-color" content="#2563eb" />
             <link rel="icon" href="/logo.svg" />
             <link rel="apple-touch-icon" href="/logo.svg" />

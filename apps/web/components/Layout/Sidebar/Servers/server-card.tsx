@@ -1,41 +1,41 @@
+import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { ServerInfo } from "@s3-viewer/types";
-import { ChevronsLeftRight, UserPen } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import ServerLogo from "./server-logo";
 
-type ServerCardProps = {
-   server: ServerInfo | undefined;
-};
+const ServerCard = ({ server }: { server: ServerInfo }) => (
+   <span className="flex w-full flex-col gap-2 rounded-xl bg-viewergray p-2 text-left">
+      <span className="flex items-center gap-2">
+         <ServerLogo provider={server.provider} />
+         <span className="truncate font-semibold text-viewerblack">
+            {server.name}
+         </span>
+         <span className="ml-auto rounded-full border border-viewerborder bg-viewerwhite p-1.5">
+            <ChevronsUpDown
+               aria-hidden="true"
+               className="size-4 text-viewertext"
+            />
+         </span>
+      </span>
+      <span className="text-sm text-viewertext">
+         {ROLE_LABELS[server.userRole]}
+      </span>
+   </span>
+);
 
-const ServerCard = ({ server }: ServerCardProps) => {
-   if (!server) {
-      return (
-         <div className="rounded-md flex flex-col gap-2 bg-viewergray p-2">
-            <h1 className="text-viewerblack text-md font-semibold">
-               Please sign in to view your servers
-            </h1>
-         </div>
-      );
-   }
-
-   return (
-      <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 cursor-pointer select-none">
-         <div className="flex gap-2 items-center">
-            <ServerLogo provider={server.provider} variant="small" />
-            <p className="text-md font-semibold md:max-w-[100px] truncate">
-               {server.name}
-            </p>
-            <div className="flex gap-2 items-center ml-auto border border-viewerborder rounded-full p-1.5 bg-viewerwhite">
-               <ChevronsLeftRight className="size-4 rotate-90 text-viewertext" />
-            </div>
-         </div>
-         <div className="flex gap-2 items-center text-viewertext">
-            <UserPen className="size-4 text-inherit" />
-            <p className="text-md font-semibold text-inherit">
-               {server.userRole.toLocaleLowerCase()}
-            </p>
-         </div>
-      </div>
-   );
-};
+const ServerCardSkeleton = () => (
+   <span
+      aria-hidden="true"
+      className="flex w-full flex-col gap-2 rounded-xl bg-viewergray p-2"
+   >
+      <span className="flex items-center gap-2">
+         <span className="size-6 shrink-0 animate-pulse rounded-md bg-viewerborder" />
+         <span className="h-5 w-28 animate-pulse rounded bg-viewerborder" />
+         <span className="ml-auto size-7 rounded-full border border-viewerborder bg-viewerwhite" />
+      </span>
+      <span className="h-5 w-14 animate-pulse rounded bg-viewerborder" />
+   </span>
+);
 
 export default ServerCard;
+export { ServerCardSkeleton };

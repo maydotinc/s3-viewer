@@ -1,23 +1,17 @@
-import Login from "@/components/Auth/form/login";
-import AuthLayout from "@/components/Layout/auth";
+import AuthScreen from "@/components/Auth/auth-screen";
 import Seo from "@/components/Seo";
+import { SITE_PATHS } from "@s3-viewer/types";
 
-const LoginPage = () => {
-   return (
-      <>
-         <Seo
-            title="Login"
-            description="Log in to your S3 Viewer account."
-            canonical="/login"
-            noindex={false}
-         />
-         <Login />
-      </>
-   );
-};
-
-LoginPage.getLayout = (page: React.ReactNode) => {
-   return <AuthLayout>{page}</AuthLayout>;
-};
+const LoginPage = () => (
+   <>
+      <Seo
+         title="Sign in"
+         description="Sign in to S3 Viewer with a one-time code or a link sent to your email."
+         canonical={SITE_PATHS.login}
+         noindex={false}
+      />
+      <AuthScreen mode="login" />
+   </>
+);
 
 export default LoginPage;

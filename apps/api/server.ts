@@ -1,84 +1,96 @@
-import dotenv from "dotenv";
-dotenv.config();
-
+import { env, siteOrigin } from "@/lib/env";
+import { errorHandler, fail } from "@/lib/http";
+import { logger } from "@/lib/logger";
+import { authGuard } from "@/lib/middleware/auth";
+import { originCheck } from "@/lib/middleware/origin";
+import {
+   authFlowIpLimit,
+   authRouteLimit,
+   globalIpLimit,
+   userLimit,
+} from "@/lib/middleware/rate-limit";
+import { assertPrivateKey } from "@/lib/utils/encryption";
+import { authFlowRouter } from "@/routes/auth-flow";
+import { invitesRouter } from "@/routes/invites";
+import { s3Router } from "@/routes/s3";
+import { serversRouter } from "@/routes/servers";
 import { auth } from "@s3-viewer/auth";
-import { Role } from "@s3-viewer/types";
-import { User } from "better-auth";
+import { AUTH_BASE_PATH } from "@s3-viewer/types";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
-import express, { urlencoded } from "express";
-import rateLimit from "express-rate-limit";
-import authGuard from "./lib/middleware/auth";
-import s3Router from "./routes/s3-operations/index";
-import serverRouter from "./routes/s3-servers/index";
-import userRouter from "./routes/users/user-manage";
+import express, { type Request } from "express";
+import helmet from "helmet";
+import type { Socket } from "node:net";
 
-declare global {
-   namespace Express {
-      interface Request {
-         userRole?: Role;
-         user?: User;
-      }
-   }
-}
+assertPrivateKey();
+
+const OBJECT_UPLOAD_PATH = /^\/servers\/[^/]+\/buckets\/[^/]+\/objects$/;
+const isObjectUpload = (req: Request): boolean =>
+   req.method === "PUT" && OBJECT_UPLOAD_PATH.test(req.path);
 
 const app = express();
 
-app.set("trust proxy", "loopback");
-
-const globalLimiter = rateLimit({
-   windowMs: 60 * 1000,
-   max: 200,
-   standardHeaders: true,
-   legacyHeaders: false,
-   message: { error: "Too many requests, please try again later" },
-});
-
-app.disable("x-powered-by");
-app.use(globalLimiter);
-app.use(urlencoded({ extended: true }));
+app.use(helmet());
+app.set("trust proxy", env.TRUST_PROXY);
+app.use(globalIpLimit);
 app.use(
    cors({
-      origin: process.env.NEXT_PUBLIC_FRONTEND_URL,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      origin: siteOrigin,
       credentials: true,
+      methods: ["GET", "PUT", "POST", "PATCH", "DELETE", "OPTIONS"],
    })
 );
 
-app.all("/auth/{*any}", toNodeHandler(auth));
-app.use(express.json());
+app.use(originCheck);
 
-app.use("/user", userRouter);
+app.post(
+   ["/auth/email-otp/send-verification-otp", "/auth/sign-in/magic-link"],
+   authFlowIpLimit
+);
+app.use(AUTH_BASE_PATH, (req, res, next) =>
+   req.method === "GET" ? next() : authRouteLimit(req, res, next)
+);
+app.all(`${AUTH_BASE_PATH}/{*any}`, toNodeHandler(auth));
+
+const json = express.json({ limit: "1mb" });
+app.use((req, res, next) =>
+   isObjectUpload(req) ? next() : json(req, res, next)
+);
+
+app.use("/auth-flow", authFlowRouter);
+
 app.use(authGuard);
+app.use(userLimit);
+app.use("/servers", serversRouter);
+app.use("/invites", invitesRouter);
+app.use("/servers/:serverId/buckets", s3Router);
 
-app.use("/s3", s3Router);
-app.use("/server", serverRouter);
+app.use((_req, res) => fail(res, 404, "Not found"));
+app.use(errorHandler);
 
-const server = app.listen(process.env.PORT || 5001, () => {
-   console.log(`API Server is running on port ${process.env.PORT || 5001}`);
+const server = app.listen(env.PORT, () => {
+   logger.info("API listening", { port: env.PORT });
 });
 
-const connections = new Set();
-server.on("connection", (connection: any) => {
-   connections.add(connection);
-   connection.on("close", () => {
-      connections.delete(connection);
-   });
+server.requestTimeout = 0;
+server.headersTimeout = 60_000;
+
+const sockets = new Set<Socket>();
+server.on("connection", (socket) => {
+   sockets.add(socket);
+   socket.on("close", () => sockets.delete(socket));
 });
 
-["SIGINT", "SIGTERM", "SIGUSR2"].forEach((signal) => {
-   process.on(signal, () => {
-      console.log(`${signal} received, shutting down gracefully`);
+const shutdown = (signal: NodeJS.Signals) => {
+   logger.info("Shutting down", { signal });
+   server.close(() => process.exit(0));
+   setTimeout(() => {
+      logger.warn("Forcing shutdown", { openSockets: sockets.size });
+      for (const socket of sockets) socket.destroy();
+      process.exit(1);
+   }, 5000).unref();
+};
 
-      server.close(() => {
-         console.log("HTTP server closed");
-         process.exit(0);
-      });
-
-      setTimeout(() => {
-         console.log("Forcing server close");
-         connections.forEach((conn: any) => conn.destroy());
-         process.exit(1);
-      }, 5000);
-   });
-});
+for (const signal of ["SIGINT", "SIGTERM", "SIGUSR2"] as const) {
+   process.on(signal, () => shutdown(signal));
+}

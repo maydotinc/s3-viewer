@@ -12,7 +12,7 @@ const Page = () => {
          name: "S3 Viewer how-to guides",
          url: `${SITE_URL}/how-to`,
          description:
-            "Developer how-to guides for AWS S3, Cloudflare R2, and S3-compatible object storage. Rename, share, search, upload large files, scope IAM permissions, and delete safely.",
+            "Developer how-to guides for AWS S3, Cloudflare R2, and S3-compatible object storage. Rename, share, filter, upload large files, scope IAM permissions, and delete safely.",
          hasPart: HOW_TOS.map((h) => ({
             "@type": "TechArticle",
             headline: h.title,
@@ -43,8 +43,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How-to Guides for S3 and R2 — S3 Viewer"
-            description="Developer how-to guides for AWS S3 and Cloudflare R2: rename, share, search, upload large files, scope IAM permissions per prefix, and delete safely with versioning."
+            title="How-to guides for S3 and R2"
+            description="Developer how-to guides for AWS S3 and Cloudflare R2: rename, share, filter, upload large files, scope IAM permissions, and delete safely."
             canonical="/how-to"
             jsonLd={jsonLd}
          />

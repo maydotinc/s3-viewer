@@ -1,90 +1,95 @@
-import * as React from "react";
 import {
    Body,
+   Button,
    Container,
    Head,
    Heading,
    Html,
+   Preview,
+   Section,
    Text,
-   Link,
 } from "@react-email/components";
+import { PRODUCT_NAME } from "@s3-viewer/types";
+import * as React from "react";
+import {
+   button,
+   buttonWrapper,
+   codeBlock,
+   codeText,
+   container,
+   footerText,
+   h1,
+   main,
+   mutedText,
+   text,
+} from "./styles";
 
-interface S3ViewerEmailOTPProps {
-   loginCode: string;
-   email: string;
-}
+type AuthOtpEmailProps = {
+   otp: string;
+   magicLinkUrl: string;
+   expiresInMinutes: number;
+};
 
-export const S3ViewerEmailOTP = ({ loginCode, email }: S3ViewerEmailOTPProps) => (
-   <React.Fragment>
-      <Html>
-         <Head />
-         <Body style={main}>
-            <Container style={container}>
-               <Heading style={h1}>Sign in to s3-viewer</Heading>
-               <Text style={{ ...text, marginBottom: "14px" }}>
-                  This code will expire in 10 minutes and can only be used once.
-               </Text>
-               <code style={code}>{loginCode}</code>
-               <Text>
-                  You may also click <Link href={`https://s3-viewer.com/login?email=${email}&code=${loginCode}`}>here</Link> to sign in automatically.
-               </Text>
-               <Text
-                  style={{
-                     ...text,
-                     color: "#ababab",
-                     marginTop: "14px",
-                     marginBottom: "16px",
-                  }}
-               >
-                  If you weren&apos;t trying to login, you can safely ignore this
-                  email.
-               </Text>
-            </Container>
-         </Body>
-      </Html>
-   </React.Fragment>
+const AuthOtpEmail = ({
+   otp,
+   magicLinkUrl,
+   expiresInMinutes,
+}: AuthOtpEmailProps) => (
+   <Html>
+      <Head />
+      <Preview>Your S3 Viewer sign-in link and code</Preview>
+      <Body style={main}>
+         <Container style={container}>
+            <Heading style={h1}>Sign in to {PRODUCT_NAME}</Heading>
+            <Text style={text}>
+               Use the button below to sign in. It works on the device you
+               requested it from.
+            </Text>
+            <Section style={buttonWrapper}>
+               <Button href={magicLinkUrl} style={button}>
+                  Sign in
+               </Button>
+            </Section>
+            <Text style={mutedText}>Or enter this code:</Text>
+            <Section style={codeBlock}>
+               <Text style={codeText}>{otp}</Text>
+            </Section>
+            <Text style={text}>
+               This link and code expire in {expiresInMinutes} minutes.
+            </Text>
+            <Text style={footerText}>
+               If you weren&apos;t trying to sign in, you can safely ignore this
+               email.
+            </Text>
+         </Container>
+      </Body>
+   </Html>
 );
 
-S3ViewerEmailOTP.PreviewProps = {
-   loginCode: "this-is-a-test-code",
-   email: "test@example.com",
-} as S3ViewerEmailOTPProps;
+AuthOtpEmail.PreviewProps = {
+   otp: "482913",
+   magicLinkUrl: "https://example.com/login?token=preview",
+   expiresInMinutes: 10,
+} as AuthOtpEmailProps;
 
-export default S3ViewerEmailOTP;
+const authOtpEmailText = ({
+   otp,
+   magicLinkUrl,
+   expiresInMinutes,
+}: AuthOtpEmailProps): string =>
+   [
+      `Sign in to ${PRODUCT_NAME}`,
+      "",
+      "Use this link to sign in:",
+      magicLinkUrl,
+      "",
+      `Or enter this code: ${otp}`,
+      "",
+      `This link and code expire in ${expiresInMinutes} minutes.`,
+      "",
+      "If you weren't trying to sign in, you can safely ignore this email.",
+   ].join("\n");
 
-const main = {
-   backgroundColor: "#ffffff",
-};
-
-const container = {
-   paddingLeft: "12px",
-   paddingRight: "12px",
-   margin: "0 auto",
-};
-
-const h1 = {
-   color: "#333",
-   fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-   fontSize: "24px",
-   fontWeight: "bold",
-   padding: "0",
-};
-
-const text = {
-   color: "#333",
-   fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-   fontSize: "14px",
-   margin: "24px 0",
-};
-
-const code = {
-   display: "inline-block",
-   padding: "16px 4.5%",
-   width: "90.5%",
-   backgroundColor: "#f4f4f4",
-   borderRadius: "5px",
-   border: "1px solid #eee",
-   color: "#333",
-};
+export { AuthOtpEmail, authOtpEmailText };
+export type { AuthOtpEmailProps };
+export default AuthOtpEmail;

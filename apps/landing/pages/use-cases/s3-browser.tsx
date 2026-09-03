@@ -9,33 +9,28 @@ import UseCasePage, {
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
 import { SITE_URL } from "@/lib/site-config";
-import {
-   Command,
-   Eye,
-   Github,
-   PencilLine,
-   Search,
-   Trash2,
-} from "lucide-react";
+import { Command, Eye, Github, PencilLine, Search, Trash2 } from "lucide-react";
 
 const SLUG = "s3-browser";
 const TITLE = "An S3 browser built for browsing.";
 const KEYWORD = "S3 browser";
+const META_DESCRIPTION =
+   "A browser-based S3 client for daily work: one-step rename, a prefix filter, multi-select delete, inline previews, and every provider in one sidebar.";
 const DESCRIPTION =
-   "S3 Viewer is a browser-based S3 client focused on the daily browsing-and-collaboration workflow: one-click rename, true bucket-wide search with Tab autocomplete, bulk delete, inline previews, and Cmd-K bucket switching across providers. Free, open-source, MIT-licensed.";
+   "S3 Viewer is a browser-based S3 client focused on the daily browsing-and-collaboration workflow: one-step rename, a prefix filter on the folder you're in, multi-select delete, inline previews, and every connected provider in one sidebar. Free, open-source, MIT-licensed.";
 
 const steps: UseCaseStep[] = [
    {
-      title: "Connect a bucket",
-      body: "Paste an access key once. AWS S3 and Cloudflare R2 are auto-detected; for MinIO, B2, Wasabi, or any S3-compatible provider, drop in the endpoint URL.",
+      title: "Add a server",
+      body: "Click Add server, paste an access key and secret, and enter the region and endpoint. AWS S3, Cloudflare R2, MinIO, B2, Wasabi — anything that speaks the S3 API connects the same way.",
    },
    {
-      title: "Browse, search, preview",
-      body: "Type in the search bar — it paginates the entire bucket, not just the visible page. Hit Tab to autocomplete prefix paths. Click any file to preview images, video, audio, PDF, JSON, or source code inline.",
+      title: "Browse, filter, preview",
+      body: "Folders and objects list together, folders first. The “Filter by prefix” box filters the current folder's rows by prefix as you type. Click any file to preview images, video, audio, PDF, JSON, Markdown or source code inline.",
    },
    {
-      title: "Right-click for the daily-use operations",
-      body: "Rename in one click (the underlying S3 API has no rename — we wrap copy + delete with metadata preservation), copy or move across buckets, generate a presigned share link, or multi-select for bulk delete.",
+      title: "Open the ⋮ menu for the daily-use operations",
+      body: "Download, Copy link (a 15-minute presigned URL), Rename (the S3 API has no rename — we wrap copy + delete, and refuse to overwrite an existing key) and Delete. Tick checkboxes to delete several at once, or use Delete folder on a folder row to clear a whole prefix.",
    },
 ];
 
@@ -43,37 +38,39 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "What is the best web-based S3 browser?",
       answer:
-         "S3 Viewer is built for browsing — one-click rename (Amazon S3 has no rename API, so we wrap copy + delete with metadata preservation), true bucket-wide key search via paginated ListObjectsV2, bulk delete on multi-select, inline previews for 25+ file types, and Cmd-K bucket switching across every connected provider — AWS S3, Cloudflare R2, MinIO, Backblaze B2, Wasabi, and more.",
+         "S3 Viewer is built for browsing — one-step rename (Amazon S3 has no rename API, so we wrap copy + delete), a prefix filter on the folder you're in, checkbox multi-select delete, inline previews for images, video, audio, PDF and text formats, and every connected provider in one sidebar: AWS S3, Cloudflare R2, MinIO, Backblaze B2, Wasabi, and more.",
    },
    {
       question: "How does this compare to the AWS S3 console?",
       answer:
-         "The AWS console is the right tool for configuring S3 — creating buckets, managing IAM, setting up replication, configuring lifecycle rules. It's not designed around daily file browsing. S3 Viewer focuses on that browsing layer: rename, paginated bucket-wide search, bulk operations, 25+ inline preview types, and every account's buckets behind one Cmd-K. Use both — the AWS console for setup, S3 Viewer for daily work.",
+         "The AWS console is the right tool for configuring S3 — creating buckets, managing IAM, setting up replication, configuring lifecycle rules. It's not designed around daily file browsing. S3 Viewer focuses on that browsing layer: rename, inline previews, multi-select delete, share links, and every account's buckets in one sidebar. Use both — the AWS console for setup, S3 Viewer for daily work.",
    },
    {
-      question: "How is this different from Cyberduck, S3 Browser, or Mountain Duck?",
+      question:
+         "How is this different from Cyberduck, S3 Browser, or Mountain Duck?",
       answer:
-         "Those are desktop apps — they store credentials on your machine, run on one OS at a time, and don't have a workspace model. S3 Viewer runs in any browser, encrypts credentials server-side with RSA-4096 (or you self-host them inside your VPC), and ships team workspaces — invite by email, assign per-bucket roles, revoke without rotating keys.",
+         "Those are desktop apps — they store credentials on your machine, run on one OS at a time, and have no shared-team model. S3 Viewer runs in any browser, encrypts credentials in your browser before they reach the server (or you self-host the whole thing inside your VPC), and ships team access — invite by email, give each member a role, remove them without rotating keys.",
    },
    {
       question: "Can I rename a file in S3?",
       answer:
-         "Not natively — Amazon S3 has no rename API and keys are immutable once written. The standard pattern is to copy the object to the new key and delete the old one. S3 Viewer wraps that pattern in a single right-click and preserves metadata and tags by default. Above 5 GB it switches to multipart copy automatically.",
+         "Not natively — Amazon S3 has no rename API and keys are immutable once written. The standard pattern is to copy the object to the new key and delete the old one. S3 Viewer wraps that pattern behind ⋮ → Rename: metadata carries over, the source is only deleted once the copy succeeds, and it refuses to overwrite an existing key. Objects above 5 GB need a multipart copy, so use the CLI for those.",
    },
    {
-      question: "Can I search across all keys in a bucket, not just one prefix?",
+      question:
+         "Can I search across all keys in a bucket, not just one prefix?",
       answer:
-         "Yes. Type into the search bar and Tab to autocomplete the next prefix segment. S3 Viewer paginates ListObjectsV2 in the background and filters as results stream in. Finding `data/models/v2/training/checkpoint-42/weights.pt` becomes a few Tab presses, not 50 clicks through a deep folder tree.",
+         "Not yet — search is a prefix filter on the folder you're currently in, and it doesn't recurse or span buckets. For a recursive sweep use `aws s3 ls s3://bucket --recursive | grep <query>`, or S3 Inventory + Athena on very large buckets.",
    },
    {
       question: "What file types can I preview without downloading?",
       answer:
-         "Images (PNG, JPG, WebP, AVIF, SVG, GIF, BMP, TIFF, ICO), video (MP4, WebM, Ogg, MOV), audio (MP3, WAV, OGG, AAC, M4A, FLAC), PDF, plain text, Markdown, JSON, XML, HTML, CSS, JavaScript, Python, Java, and C source files.",
+         "The preview is picked from the content type your bucket reports for the object, so anything image/*, video/*, audio/*, application/pdf or text/* renders inline, plus JSON, XML, YAML and SQL. That covers PNG, JPEG, GIF, WebP and SVG; MP4, WebM and Ogg; MP3, WAV and FLAC; PDF; and Markdown, CSV, HTML, CSS and source code. Objects stored as application/octet-stream have no content type to go on, so they download instead. Previews are capped at 50 MB.",
    },
    {
       question: "Does it work with MinIO, Backblaze B2, and self-hosted S3?",
       answer:
-         "Yes. Point S3 Viewer at any S3-compatible endpoint, including private MinIO clusters inside your VPC. The same browser UI handles every provider that speaks the S3 API.",
+         "Yes. Point a server at any S3-compatible endpoint, including private MinIO clusters inside your VPC. The same browser UI handles every provider that speaks the S3 API.",
    },
    {
       question: "Is S3 Viewer free?",
@@ -96,8 +93,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="S3 Browser — One-Click Rename, Bucket-Wide Search, Open Source"
-            description={DESCRIPTION}
+            title="S3 Browser — Rename, Previews, Multi-Select Delete, Open Source"
+            description={META_DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -108,35 +105,35 @@ const Page = () => {
             subtitle={DESCRIPTION}
             description="A browsing layer on top of every S3-compatible provider."
             bullets={[
-               "One-click rename — wrapping the S3 copy + delete pattern with metadata preserved",
-               "Tab-autocomplete bucket-wide search across the full ListObjectsV2 result",
-               "Cmd-K bucket switcher across every connected provider",
+               "One-step rename — wrapping the S3 copy + delete pattern, metadata preserved",
+               "Inline previews for images, video, audio, PDF and text formats",
+               "Every connected provider in one sidebar, one click apart",
             ]}
             features={[
                {
                   icon: PencilLine,
-                  title: "One-click rename",
-                  body: "Amazon S3 has no rename API — keys are immutable. S3 Viewer wraps the standard copy + delete pattern in a single click, preserves metadata and tags by default, and only deletes the original after the new key writes successfully. Above 5 GB it switches to multipart copy.",
+                  title: "One-step rename",
+                  body: "Amazon S3 has no rename API — keys are immutable. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the original is deleted only after the new key writes, and an existing key is never silently overwritten. Objects over 5 GB need a multipart copy from the CLI.",
                },
                {
                   icon: Search,
-                  title: "Tab-autocomplete search",
-                  body: "Search paginates the entire bucket via ListObjectsV2 — not just the current 1,000-key page. Type the first few characters of a prefix and Tab autocompletes the next folder.",
+                  title: "Prefix filter as you type",
+                  body: "The “Filter by prefix” box narrows the current folder's rows by prefix while you type — folders and objects both. It's scoped to the folder you're in, which keeps it instant and predictable.",
                },
                {
                   icon: Eye,
-                  title: "25+ inline previews",
-                  body: "Images, video, audio, PDF, Markdown, JSON, and source code from JavaScript to Python render in the browser via short-lived presigned URLs.",
+                  title: "Inline previews",
+                  body: "Images, video, audio, PDF, Markdown, JSON and source code from JavaScript to Python render in the browser via 15-minute presigned URLs.",
                },
                {
                   icon: Trash2,
-                  title: "Multi-select bulk delete",
-                  body: "Shift-click a range of keys and bulk-delete in a single DeleteObjects call — up to 1,000 keys per request, the way the S3 API was designed for.",
+                  title: "Multi-select delete",
+                  body: "Tick the checkboxes and hit Delete — the selection goes out as a single DeleteObjects call, up to 1,000 keys per request. Delete folder on a folder row clears the whole prefix recursively.",
                },
                {
                   icon: Command,
-                  title: "Cmd-K bucket switcher",
-                  body: "Fuzzy-jump to any bucket on any connected provider in two keystrokes. No re-authenticating, no logging into a separate console.",
+                  title: "One sidebar, every provider",
+                  body: "Every server you've added, with its buckets underneath. Switching from an AWS bucket to an R2 bucket is a click — no re-authenticating, no separate console.",
                },
                {
                   icon: Github,

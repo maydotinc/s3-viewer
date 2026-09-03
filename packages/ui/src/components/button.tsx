@@ -1,24 +1,24 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@s3-viewer/ui/lib/utils";
 
 const buttonVariants = cva(
-   "inline-flex hover:cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+   "inline-flex hover:cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:ring-viewerblue/40 focus-visible:ring-[3px] focus-visible:ring-offset-1 focus-visible:ring-offset-viewerwhite aria-invalid:ring-viewertextred/20 aria-invalid:border-viewertextred",
    {
       variants: {
          variant: {
-            default:
-               "bg-primary border border-viewerborder text-primary-foreground hover:bg-viewergray",
+            default: "bg-viewerblue text-viewerwhite hover:bg-viewerdarkblue",
             destructive:
-               "bg-destructive text-viewertextred hover:bg-viewertextred/90 hover:text-viewergray focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+               "bg-viewertextred text-viewerwhite hover:bg-viewertextred/90 focus-visible:ring-viewertextred/40",
             outline:
-               "border bg-background hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+               "border border-viewerborder bg-viewerwhite text-viewertext hover:bg-viewergray hover:text-viewerblack",
             secondary:
-               "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-            ghost: "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-            link: "text-viewertext underline-offset-4 underline decoration-viewerblue",
+               "bg-viewergray text-viewerblack hover:bg-viewerborder/70",
+            ghost: "text-viewertext hover:bg-viewergray hover:text-viewerblack",
+            link: "text-viewerblue underline-offset-4 hover:underline",
          },
          size: {
             default: "h-9 px-4 py-2 has-[>svg]:px-3",
@@ -39,20 +39,60 @@ function Button({
    variant,
    size,
    asChild = false,
+   loading = false,
+   disabled,
+   children,
    ...props
 }: React.ComponentProps<"button"> &
    VariantProps<typeof buttonVariants> & {
       asChild?: boolean;
+      loading?: boolean;
    }) {
-   const Comp = asChild ? Slot : "button";
+   if (asChild) {
+      const child = React.isValidElement<{ children?: React.ReactNode }>(
+         children
+      )
+         ? children
+         : null;
+
+      return (
+         <Slot
+            data-slot="button"
+            data-loading={loading || undefined}
+            aria-busy={loading || undefined}
+            className={cn(buttonVariants({ variant, size, className }))}
+            {...(disabled || loading
+               ? { "aria-disabled": true, tabIndex: -1 }
+               : {})}
+            {...props}
+         >
+            {loading && child
+               ? React.cloneElement(
+                    child,
+                    undefined,
+                    <>
+                       <Loader2 className="animate-spin" aria-hidden="true" />
+                       {child.props.children}
+                    </>
+                 )
+               : children}
+         </Slot>
+      );
+   }
 
    return (
-      <Comp
+      <button
          data-slot="button"
+         data-loading={loading || undefined}
+         aria-busy={loading || undefined}
+         disabled={disabled || loading}
          className={cn(buttonVariants({ variant, size, className }))}
          {...props}
-      />
+      >
+         {loading && <Loader2 className="animate-spin" aria-hidden="true" />}
+         {children}
+      </button>
    );
 }
 
-export { Button, buttonVariants };
+export { Button };

@@ -1,132 +1,96 @@
-import * as React from "react";
 import {
    Body,
+   Button,
    Container,
    Head,
    Heading,
    Html,
-   Link,
+   Preview,
+   Section,
    Text,
 } from "@react-email/components";
+import { PRODUCT_NAME } from "@s3-viewer/types";
+import * as React from "react";
+import {
+   button,
+   buttonWrapper,
+   container,
+   footerText,
+   h1,
+   main,
+   text,
+} from "./styles";
 
-type S3ViewerServerInviteEmailProps = {
+type ServerInviteEmailProps = {
+   inviterName: string;
    serverName: string;
-   role: string;
-   invitedByEmail: string;
-   invitedByName?: string;
-   expiresAtIso: string;
+   roleLabel: string;
    invitesUrl: string;
+   expiresAtLabel: string;
 };
 
-const S3ViewerServerInviteEmail = ({
+const ServerInviteEmail = ({
+   inviterName,
    serverName,
-   role,
-   invitedByEmail,
-   invitedByName,
-   expiresAtIso,
+   roleLabel,
    invitesUrl,
-}: S3ViewerServerInviteEmailProps) => {
-   const inviterLabel =
-      invitedByName && invitedByName.trim().length > 0
-         ? `${invitedByName} (${invitedByEmail})`
-         : invitedByEmail;
+   expiresAtLabel,
+}: ServerInviteEmailProps) => (
+   <Html>
+      <Head />
+      <Preview>
+         {inviterName} invited you to {serverName} on S3 Viewer
+      </Preview>
+      <Body style={main}>
+         <Container style={container}>
+            <Heading style={h1}>You&apos;re invited to {serverName}</Heading>
+            <Text style={text}>
+               {inviterName} invited you to join {serverName} on {PRODUCT_NAME}{" "}
+               with {roleLabel} access.
+            </Text>
+            <Section style={buttonWrapper}>
+               <Button href={invitesUrl} style={button}>
+                  View invitation
+               </Button>
+            </Section>
+            <Text style={text}>This invitation expires {expiresAtLabel}.</Text>
+            <Text style={footerText}>
+               If you weren&apos;t expecting this invitation, you can safely
+               ignore this email.
+            </Text>
+         </Container>
+      </Body>
+   </Html>
+);
 
-   return (
-      <React.Fragment>
-         <Html>
-            <Head />
-            <Body style={main}>
-               <Container style={container}>
-                  <Heading style={h1}>You&apos;re invited to {serverName}</Heading>
-                  <Text style={{ ...text, marginBottom: "14px" }}>
-                     {inviterLabel} invited you to join <b>{serverName}</b> with{" "}
-                     <b>{role}</b> access.
-                  </Text>
-                  <Text style={{ ...text, marginTop: "0", marginBottom: "14px" }}>
-                     This invite expires at{" "}
-                     <code style={inlineCode}>{expiresAtIso}</code>.
-                  </Text>
-                  <Text style={{ ...text, marginTop: "0", marginBottom: "16px" }}>
-                     Open your invites page to accept or reject:
-                  </Text>
-                  <Link href={invitesUrl} style={link}>
-                     View invites
-                  </Link>
-                  <Text
-                     style={{
-                        ...text,
-                        color: "#ababab",
-                        marginTop: "18px",
-                        marginBottom: "0",
-                     }}
-                  >
-                     If you weren&apos;t expecting this invite, you can safely
-                     ignore this email.
-                  </Text>
-               </Container>
-            </Body>
-         </Html>
-      </React.Fragment>
-   );
-};
-
-S3ViewerServerInviteEmail.PreviewProps = {
+ServerInviteEmail.PreviewProps = {
+   inviterName: "Ada Lovelace",
    serverName: "Prod Storage",
-   role: "read",
-   invitedByEmail: "admin@example.com",
-   invitedByName: "Admin User",
-   expiresAtIso: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-   invitesUrl: "https://web.localhost/invites",
-} as S3ViewerServerInviteEmailProps;
+   roleLabel: "Editor",
+   invitesUrl: "https://example.com/invites",
+   expiresAtLabel: "on May 8, 2026",
+} as ServerInviteEmailProps;
 
-const main = {
-   backgroundColor: "#ffffff",
-};
+const serverInviteEmailText = ({
+   inviterName,
+   serverName,
+   roleLabel,
+   invitesUrl,
+   expiresAtLabel,
+}: ServerInviteEmailProps): string =>
+   [
+      `You're invited to ${serverName}`,
+      "",
+      `${inviterName} invited you to join ${serverName} on ${PRODUCT_NAME} with ${roleLabel} access.`,
+      "",
+      "View the invitation:",
+      invitesUrl,
+      "",
+      `This invitation expires ${expiresAtLabel}.`,
+      "",
+      "If you weren't expecting this invitation, you can safely ignore this email.",
+   ].join("\n");
 
-const container = {
-   paddingLeft: "12px",
-   paddingRight: "12px",
-   margin: "0 auto",
-};
-
-const h1 = {
-   color: "#333",
-   fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-   fontSize: "24px",
-   fontWeight: "bold",
-   padding: "0",
-};
-
-const text = {
-   color: "#333",
-   fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-   fontSize: "14px",
-   margin: "24px 0",
-};
-
-const inlineCode = {
-   backgroundColor: "#f4f4f4",
-   borderRadius: "4px",
-   border: "1px solid #eee",
-   color: "#333",
-   padding: "2px 6px",
-   fontFamily:
-      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-};
-
-const link = {
-   display: "inline-block",
-   padding: "12px 14px",
-   backgroundColor: "#1d4ed8",
-   borderRadius: "8px",
-   color: "#ffffff",
-   textDecoration: "none",
-   fontFamily:
-      "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif",
-   fontSize: "14px",
-   fontWeight: 600,
-};
-
-export default S3ViewerServerInviteEmail;
+export { ServerInviteEmail, serverInviteEmailText };
+export type { ServerInviteEmailProps };
+export default ServerInviteEmail;

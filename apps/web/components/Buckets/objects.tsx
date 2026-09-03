@@ -1,131 +1,127 @@
+import { useGridContext } from "@/components/DataGrid/context";
+import { LazyGrid } from "@/components/DataGrid/lazy-grid";
+import { EmptyState, LoadError } from "@/components/DataGrid/overlays";
+import PageControls from "@/components/DataGrid/page-controls";
+import SignInPrompt from "@/components/Session/sign-in-prompt";
+import { ApiError, errorMessage } from "@/lib/api";
+import { authClient } from "@/lib/auth";
 import useSessionStore from "@/lib/stores/sessionStore";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import PaginationControls from "../DataGrid/Actions/page-controls";
-import { useGridContext } from "../DataGrid/context";
-import BaseGrid from "../DataGrid/grid";
-import ObjectActions from "./Actions";
+import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useBucketContext } from "./Context";
-import GridActions from "./Grid/actions";
-import columns from "./Grid/cols/columns";
-import { rowSelection } from "./Grid/cols/selection-col";
-import MakeObjectSource from "./Grid/object-source";
-import useRemoveBucket from "@/lib/hooks/mutations/bucket/useRemoveBucket";
-import { authClient } from "@s3-viewer/auth/client";
-import { Button } from "@s3-viewer/ui/components/button";
-import { ShieldX } from "lucide-react";
-import { useRouter } from "next/router";
+import {
+   objectColumns,
+   objectRowId,
+   type ObjectGridContext,
+} from "./Grid/columns";
+import {
+   createObjectDatasource,
+   type ObjectDatasource,
+} from "./Grid/object-source";
+import { objectRowSelection } from "./Grid/selection";
+import ObjectsToolbar from "./toolbar";
+import DropZone from "./Upload/drop-zone";
+import { UploadProvider } from "./Upload/provider";
+import BucketUnavailable from "./unavailable";
+
+const NoObjectsOverlay = () => {
+   const { filter } = useBucketContext();
+   return filter ? (
+      <EmptyState
+         title="No matching objects"
+         description="No objects match this prefix."
+      />
+   ) : (
+      <EmptyState
+         title="This folder is empty"
+         description="Nothing has been uploaded here yet."
+      />
+   );
+};
+
+const isUnavailable = (error: unknown) =>
+   error instanceof ApiError && (error.status === 403 || error.status === 404);
 
 const Objects = () => {
-   const router = useRouter();
-   const { data: session, isPending } = authClient.useSession();
-   const { path, bucket } = useBucketContext();
-   const { gridRef, gridReady } = useGridContext();
+   const { data: session, isPending: isSessionPending } =
+      authClient.useSession();
    const serverId = useSessionStore((state) => state.serverId);
-   const blockSize = 1000;
-   const [error, setError] = useState<string | null>(null);
-   const removeBucket = useRemoveBucket(serverId);
+   const { bucketName, prefix, filter, refresh, registerRefresh, notFound } =
+      useBucketContext();
+   const { gridRef, clearSelection } = useGridContext();
+   const [error, setError] = useState<unknown>(null);
+   const listPrefix = `${prefix}${filter}`;
+   const latest = useRef<ObjectDatasource | null>(null);
 
-   const onFatalError = useCallback((message: string) => {
-      setError(message);
-   }, []);
+   const datasource = useMemo(() => {
+      const source: ObjectDatasource = createObjectDatasource({
+         serverId,
+         bucketName,
+         prefix: listPrefix,
+         getGridApi: () => gridRef.current?.api,
+         onError: (cause) => {
+            if (latest.current === source) setError(cause);
+         },
+      });
+      latest.current = source;
+      return source;
+   }, [serverId, bucketName, listPrefix, gridRef]);
 
    useEffect(() => {
       setError(null);
-   }, [bucket?.Name, path.length, serverId]);
-
-   const objectDatasource = useMemo(
-      () =>
-         MakeObjectSource(
-            gridRef,
-            bucket?.Name ?? "",
-            path,
-            blockSize,
-            serverId,
-            onFatalError
-         ),
-      [bucket?.Name, path.length, blockSize, serverId, gridReady]
-   );
+      clearSelection();
+      gridRef.current?.api?.paginationGoToFirstPage();
+   }, [datasource, clearSelection, gridRef]);
 
    useEffect(() => {
-      if (gridReady && gridRef.current?.api && objectDatasource) {
-         gridRef.current.api.setGridOption("datasource", objectDatasource);
-      }
-   }, [objectDatasource, gridReady]);
+      registerRefresh(() => {
+         setError(null);
+         datasource.reset();
+         const api = gridRef.current?.api;
+         api?.deselectAll();
+         api?.purgeInfiniteCache();
+      });
+      return () => registerRefresh(null);
+   }, [registerRefresh, datasource, gridRef]);
 
-   if (isPending) return null;
-   if (!session)
-      return (
-         <div className="flex flex-col items-center justify-center pt-24">
-            <p className="text-sm text-viewertext">
-               Login to view your objects
-            </p>
-         </div>
-      );
+   const gridContext = useMemo<ObjectGridContext>(
+      () => ({ bucketName, prefix }),
+      [bucketName, prefix]
+   );
 
-   const noRowsOverlayComponent = () => {
-      return (
-         <div className="flex flex-col items-center justify-center h-full">
-            <h1 className="text-2xl font-bold text-viewerblack">
-               No objects found
-            </h1>
-            <p className="text-sm text-viewertext">
-               This bucket is empty or no objects match your search.
-            </p>
-         </div>
-      );
-   };
+   if (!session && !isSessionPending)
+      return <SignInPrompt>Sign in to view your objects.</SignInPrompt>;
+
+   if (notFound || isUnavailable(error))
+      return <BucketUnavailable bucketName={bucketName} />;
 
    return (
-      <section className="flex flex-col p-8 pt-6 w-full h-full @container/actions">
-         <div className="@max-3xl/actions:flex-col flex flex-row pb-6 justify-between gap-2">
-            <GridActions />
-            <ObjectActions />
-         </div>
-         <div className="flex flex-col flex-1 gap-2">
-            {error && (
-               <div className="flex flex-col items-center justify-center flex-1 gap-3">
-                  <ShieldX className="size-10 text-red-500" />
-                  <h1 className="text-lg font-semibold text-viewerblack">
-                     Access Denied
-                  </h1>
-                  <p className="text-sm text-viewertext max-w-md text-center">
-                     You do not have permissions to access this bucket or this bucket does not exist.
-                  </p>
-                  <Button
-                     variant="destructive"
-                     size="sm"
-                     disabled={removeBucket.isPending}
-                     onClick={() => {
-                        if (!bucket?.Name) return;
-                        removeBucket.mutate(bucket.Name, {
-                           onSuccess: () => router.push("/buckets"),
-                        });
-                     }}
-                  >
-                     {removeBucket.isPending ? "Removing..." : "Remove Bucket"}
-                  </Button>
-               </div>
-            )}
-            <div className={error ? "hidden" : "contents"}>
-               <BaseGrid
-                  colDefs={columns}
-                  className="flex-1"
-                  rowModel={{
-                     type: "infinite",
-                     cacheBlockSize: blockSize,
-                     maxBlocksInCache: 10,
-                  }}
-                  noRowsOverlayComponent={noRowsOverlayComponent}
-                  routeContext={{
-                     bucketName: bucket?.Name ?? "",
-                     path,
-                  }}
-                  rowSelection={rowSelection}
+      <UploadProvider>
+         <section className="flex min-h-0 w-full flex-1 flex-col p-8 pt-6">
+            <ObjectsToolbar />
+            {error ? (
+               <LoadError
+                  title="Couldn't load objects"
+                  message={errorMessage(error)}
+                  onRetry={refresh}
                />
-               <PaginationControls />
-            </div>
-         </div>
-      </section>
+            ) : (
+               <DropZone className="flex min-h-0 flex-1 flex-col">
+                  <LazyGrid
+                     rowModel="infinite"
+                     datasource={datasource}
+                     cacheBlockSize={MAX_LIST_BLOCK_SIZE}
+                     columnDefs={objectColumns}
+                     getRowId={objectRowId}
+                     context={gridContext}
+                     rowSelection={objectRowSelection}
+                     noRowsOverlayComponent={NoObjectsOverlay}
+                  />
+               </DropZone>
+            )}
+            <PageControls className="pt-2" />
+         </section>
+      </UploadProvider>
    );
 };
 

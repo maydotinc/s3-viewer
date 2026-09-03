@@ -1,11 +1,18 @@
 {
    "name": "@s3-viewer/email",
    "version": "0.0.0",
+   "private": true,
    "type": "module",
    "exports": {
       ".": "./src/index.ts"
    },
+   "scripts": {
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
    "dependencies": {
+      "@s3-viewer/permissions": "workspace:*",
+      "@s3-viewer/types": "workspace:*",
       "@s3-viewer/ui": "workspace:*",
       "resend": "^6.0.1"
    },
@@ -13,7 +20,7 @@
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
       "@types/node": "^20",
-      "eslint": "^9.28.0",
-      "typescript": "^5.8.3"
+      "eslint": "catalog:",
+      "typescript": "catalog:"
    }
 }

@@ -26,7 +26,7 @@ const LegalIndex = () => {
    return (
       <>
          <Seo
-            title="Legal — S3 Viewer"
+            title="Legal"
             description="Legal documents for S3 Viewer: Terms of Service and Privacy Policy. Plain-English ground rules for using our open-source S3 object storage viewer."
             canonical="/legal"
             jsonLd={jsonLd}

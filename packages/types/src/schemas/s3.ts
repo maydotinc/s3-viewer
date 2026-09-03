@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { MAX_DELETE_KEYS, MAX_LIST_BLOCK_SIZE } from "../constants";
+import { isFolderKey } from "../utils";
 import {
    bucketNameSchema,
    contentTypeSchema,
@@ -6,89 +8,48 @@ import {
    objectKeySchema,
 } from "./primitives";
 
-const sid = z.string().min(1);
+const MAX_PREFIX_LENGTH = 1024;
+const MAX_TOKEN_LENGTH = 2048;
 
-// Bucket schemas
-export const bucketBodySchema = z.object({
-   bucketName: bucketNameSchema,
-   serverId: idSchema,
-});
-export type BucketBodyInput = z.infer<typeof bucketBodySchema>;
+export const serverScope = z.object({ serverId: idSchema });
+export const bucketScope = serverScope.extend({ bucketName: bucketNameSchema });
+export const objectScope = bucketScope.extend({ objectKey: objectKeySchema });
 
-export const listBucketsQuerySchema = z.object({
-   serverId: sid,
-});
-export type ListBucketsQuery = z.infer<typeof listBucketsQuerySchema>;
+export type ServerScope = z.infer<typeof serverScope>;
+export type BucketScope = z.infer<typeof bucketScope>;
+export type ObjectScope = z.infer<typeof objectScope>;
 
-// Object query schemas
-export const s3QueryBase = z.object({
-   serverId: sid,
-   bucketName: bucketNameSchema,
-   objectKey: objectKeySchema,
-});
-export type S3QueryBase = z.infer<typeof s3QueryBase>;
-
-export const presignUploadQuerySchema = s3QueryBase.extend({
-   contentType: contentTypeSchema,
-});
-export type PresignUploadQuery = z.infer<typeof presignUploadQuerySchema>;
-
-export const presignDownloadQuerySchema = s3QueryBase;
-export const metadataQuerySchema = s3QueryBase;
-
-export const previewQuerySchema = s3QueryBase.extend({
-   contentType: contentTypeSchema,
-});
-export type PreviewQuery = z.infer<typeof previewQuerySchema>;
-
-export const listObjectsQuerySchema = z.object({
-   bucket: bucketNameSchema,
-   serverId: sid,
-   continuationToken: z.string().optional(),
-   blockSize: z.string().regex(/^\d+$/),
-   prefix: z.string().optional(),
+export const listObjectsQuerySchema = bucketScope.extend({
+   prefix: z.string().max(MAX_PREFIX_LENGTH).default(""),
+   continuationToken: z.string().min(1).max(MAX_TOKEN_LENGTH).optional(),
+   blockSize: z.coerce.number().int().min(1).max(MAX_LIST_BLOCK_SIZE),
 });
 export type ListObjectsQuery = z.infer<typeof listObjectsQuerySchema>;
 
-export const multipartPartQuerySchema = z.object({
-   serverId: sid,
-   bucketName: bucketNameSchema,
-   objectKey: objectKeySchema,
-});
-
-// Object body schemas
-export const s3BodyBase = z.object({
-   serverId: sid,
-   bucketName: bucketNameSchema,
-   objectKey: objectKeySchema,
-});
-export type S3BodyInput = z.infer<typeof s3BodyBase>;
-
-export const deleteMultipleBodySchema = z.object({
-   serverId: sid,
-   bucketName: bucketNameSchema,
-   objectKeys: z.array(objectKeySchema).min(1).max(1000),
-});
-export type DeleteMultipleInput = z.infer<typeof deleteMultipleBodySchema>;
-
-export const copyMoveBodySchema = z.object({
-   serverId: sid,
-   sourceBucket: bucketNameSchema,
-   sourceKey: objectKeySchema,
-   targetBucket: bucketNameSchema,
-   targetKey: objectKeySchema,
-});
-export type CopyMoveInput = z.infer<typeof copyMoveBodySchema>;
-
-export const renameObjectBodySchema = z.object({
-   serverId: sid,
-   bucketName: bucketNameSchema,
-   objectKey: objectKeySchema,
-   newObjectKey: objectKeySchema,
-});
-export type RenameObjectInput = z.infer<typeof renameObjectBodySchema>;
-
-export const multipartCreateBodySchema = s3BodyBase.extend({
+export const putObjectQuerySchema = objectScope.extend({
    contentType: contentTypeSchema,
 });
-export type MultipartCreateInput = z.infer<typeof multipartCreateBodySchema>;
+export type PutObjectQuery = z.infer<typeof putObjectQuerySchema>;
+
+export const deleteObjectsBodySchema = bucketScope.extend({
+   objectKeys: z.array(objectKeySchema).min(1).max(MAX_DELETE_KEYS),
+});
+export type DeleteObjectsInput = z.infer<typeof deleteObjectsBodySchema>;
+
+export const deletePrefixBodySchema = bucketScope.extend({
+   prefix: objectKeySchema.refine(isFolderKey, "Prefix must end with /"),
+});
+export type DeletePrefixInput = z.infer<typeof deletePrefixBodySchema>;
+
+export const renameObjectBodySchema = objectScope
+   .extend({ newObjectKey: objectKeySchema })
+   .refine(
+      ({ objectKey, newObjectKey }) =>
+         !isFolderKey(objectKey) && !isFolderKey(newObjectKey),
+      { message: "Folders can't be renamed", path: ["objectKey"] }
+   )
+   .refine(({ objectKey, newObjectKey }) => objectKey !== newObjectKey, {
+      message: "New name must be different from the current name",
+      path: ["newObjectKey"],
+   });
+export type RenameObjectInput = z.infer<typeof renameObjectBodySchema>;

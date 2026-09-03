@@ -21,59 +21,62 @@ import {
 const SLUG = "share-with-non-technical-users";
 const TITLE = "Share S3 files without sharing AWS.";
 const KEYWORD = "share S3 files with non-technical user";
+const META_DESCRIPTION =
+   "Share an S3 file with someone who does not use AWS: a 15-minute presigned link for one-off access, or a revocable email invite for ongoing access.";
 const DESCRIPTION =
-   "Two ways to share an S3 file with someone who doesn't use AWS or Cloudflare: a presigned URL for one-off access, or a workspace invite for ongoing access. S3 Viewer makes both one click — and the workspace invite is revocable, scoped per bucket, and tied to a logged-in user instead of a bearer link.";
+   "Two ways to share an S3 file with someone who doesn't use AWS or Cloudflare: a 15-minute presigned link for one-off access, or an email invite for ongoing access. S3 Viewer makes both one click — and the invite is revocable, given a role, and tied to a logged-in user instead of a bearer link.";
 
 const steps: UseCaseStep[] = [
    {
       title: "Connect the bucket once",
-      body: "Add your AWS S3 or Cloudflare R2 credentials to a workspace. The bucket appears in your sidebar; the credentials stay encrypted on the server with RSA-4096.",
+      body: "Click Add server and enter your AWS S3 or Cloudflare R2 credentials, region and endpoint. The buckets appear in your sidebar; the credentials are encrypted in your browser before they reach us.",
    },
    {
       title: "Invite by email",
-      body: "Type the recipient's email, pick the bucket, choose a role: Viewer (read + download), Editor (read + upload + delete), or Admin. They get a sign-in link.",
+      body: "Open the server's bucket list, click Share to open the members dialog, type the recipient's email and choose a role: Viewer (browse and download), Editor (also upload, rename and delete) or Admin (also manage members). They get an emailed invite.",
    },
    {
       title: "They open it in any browser",
-      body: "They sign in to S3 Viewer (email OTP or GitHub) and see exactly the bucket you shared — no AWS account, no IAM user, no Cloudflare account, nothing to install.",
+      body: "They sign in with the code and sign-in link we email them — or with GitHub, if it's enabled — accept the invite, and see exactly the buckets you shared. No AWS account, no IAM user, no Cloudflare account, nothing to install.",
    },
 ];
 
 const faqs: UseCaseFAQ[] = [
    {
-      question: "How do I share an S3 file with someone who doesn't have an AWS account?",
+      question:
+         "How do I share an S3 file with someone who doesn't have an AWS account?",
       answer:
-         "Two ways. Quickest: right-click → Share link in S3 Viewer to generate a presigned URL — works in any browser, expires when you say. Best for ongoing access: invite them to a workspace by email. They sign in to S3 Viewer in a browser, see only the bucket you shared, and never touch AWS, IAM, or the CLI.",
+         "Two ways. Quickest: open the ⋮ menu on the file in S3 Viewer and choose Copy link — a presigned URL good for 15 minutes, which works in any browser. Best for ongoing access: invite them by email from the Share dialog. They sign in to S3 Viewer in a browser, see only the buckets you shared, and never touch AWS, IAM, or the CLI.",
    },
    {
-      question: "Is a workspace invite better than a presigned URL?",
+      question: "Is an email invite better than a presigned URL?",
       answer:
-         "It depends on the use case. A presigned URL is the right tool for a one-off share — short-lived, no signup needed, works in any browser. A workspace invite is the right tool for ongoing access: revocable in one click, tied to a specific signed-in user, and scoped per bucket. Presigned URLs are bearer tokens, so they can't be revoked once shared; workspace invites can.",
+         "It depends on the use case. A presigned URL is the right tool for a one-off share — short-lived, no signup needed, works in any browser. An invite is the right tool for ongoing access: revocable in one click and tied to a specific signed-in user with a role. Presigned URLs are bearer tokens, so they can't be revoked once shared; invites can.",
    },
    {
       question: "Can I let someone view files but not delete or upload?",
       answer:
-         "Yes. The Viewer role can browse and download but cannot upload, rename, or delete. Editors can upload and delete; Admins can manage members. Owners have full control. Each role is assigned per bucket — same person can be a Viewer on one and an Editor on another.",
+         "Yes. The Viewer role can browse and download but cannot upload, rename, or delete. Editors can upload, rename, delete and create buckets; Admins can also manage members, rename the server and remove buckets from it; the Owner can also delete the server. A bucket can override a member's server role, so the same person can be a Viewer on one bucket and an Editor on another.",
    },
    {
-      question: "Can the recipient see other buckets in my workspace?",
+      question: "Can the recipient see other buckets on my server?",
       answer:
-         "No. Members only see the buckets they've been invited to. If you have ten buckets connected and invite someone to one, the other nine are invisible to them.",
+         "Only the ones the server exposes. When you add a server you can name exactly which buckets it may reach, and members never see anything outside that list.",
    },
    {
-      question: "What happens when I revoke access?",
+      question: "What happens when I remove someone?",
       answer:
-         "Their session ends on the next request and the workspace stops signing S3 calls for them. Unlike rotating an IAM key, nothing else breaks — your other teammates and your applications keep working.",
+         "They lose access to that server on their next request and S3 Viewer stops signing calls for them. Unlike rotating an IAM key, nothing else breaks — your other teammates and your applications keep working.",
    },
    {
       question: "How long can a presigned URL last?",
       answer:
-         "AWS allows presigned URLs up to 7 days when signed with IAM user credentials, or up to the session length when signed with temporary credentials (typically 1 hour for STS). Shorter is safer. S3 Viewer issues 15-minute URLs for downloads to keep the blast radius small.",
+         "AWS allows presigned URLs up to 7 days when signed with IAM user credentials, or up to the session length when signed with temporary credentials (typically 1 hour for STS). Shorter is safer. Every URL S3 Viewer issues lasts 15 minutes, which keeps the blast radius small.",
    },
    {
       question: "Can I do this with Cloudflare R2?",
       answer:
-         "Yes. Connect an R2 bucket and invite users to it. They never need a Cloudflare account — the workspace authenticates them. R2 supports the same presigned URL pattern as AWS S3, so one-off shares work identically.",
+         "Yes. Add an R2 server and invite users to it. They never need a Cloudflare account — S3 Viewer authenticates them. R2 supports the same presigned URL pattern as AWS S3, so one-off shares work identically.",
    },
 ];
 
@@ -92,7 +95,7 @@ const Page = () => {
       <>
          <Seo
             title="Share S3 Files With Non-Technical Users — Email Invite, No IAM"
-            description={DESCRIPTION}
+            description={META_DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -104,19 +107,19 @@ const Page = () => {
             description="A clean browser view for clients, designers, and execs."
             bullets={[
                "Email invite — recipients sign in to a clean file viewer in any browser",
-               "Per-bucket roles: Viewer, Editor, Admin",
-               "Revoke any user instantly — no IAM keys to rotate",
+               "Roles: Owner, Admin, Editor, Viewer — with per-bucket overrides",
+               "Remove any member instantly — no IAM keys to rotate",
             ]}
             features={[
                {
                   icon: Mail,
                   title: "Email invites",
-                  body: "Send a link; the recipient signs in (email OTP or GitHub) and sees only the buckets you shared. No AWS account, no IAM user, no Cloudflare login, no setup.",
+                  body: "Send an invite; the recipient signs in with the code and sign-in link we email them (or with GitHub, if enabled) and sees only the buckets you shared. No AWS account, no IAM user, no Cloudflare login, no setup.",
                },
                {
                   icon: ShieldCheck,
                   title: "Server-side request signing",
-                  body: "S3 Viewer signs every S3 call on the recipient's behalf using your encrypted credentials. Your access keys never reach the browser; revoking the user stops their requests immediately.",
+                  body: "S3 Viewer checks the member's role and then signs the S3 call with the server's stored credentials. Your access keys never reach their browser; removing the member stops their requests immediately.",
                },
                {
                   icon: Eye,
@@ -125,18 +128,18 @@ const Page = () => {
                },
                {
                   icon: LinkIcon,
-                  title: "Presigned URLs for one-offs",
-                  body: "Need a single file with no signup? Right-click → Share link generates a time-limited URL signed server-side. Works in any browser; treat as a bearer token.",
+                  title: "Copy link for one-offs",
+                  body: "Need a single file with no signup? Copy link in the row's ⋮ menu gives you a presigned URL, signed server-side and valid for 15 minutes. Works in any browser; treat it as a bearer token.",
                },
                {
                   icon: Lock,
                   title: "Encrypted credentials",
-                  body: "Your AWS keys are encrypted at rest with RSA-4096 (PKCS1_OAEP, SHA-256), decrypted only in memory to sign requests. Recipients never see them.",
+                  body: "Your AWS keys are encrypted in your browser before they reach us and decrypted in memory only to sign a request. Recipients never see them.",
                },
                {
                   icon: UserMinus,
-                  title: "Revoke in one click",
-                  body: "Pull access without rotating IAM keys. Their session ends, your other teammates keep working, your applications keep running.",
+                  title: "Remove in one click",
+                  body: "Pull access without rotating IAM keys. They lose access to that server, your other teammates keep working, your applications keep running.",
                },
             ]}
             steps={steps}

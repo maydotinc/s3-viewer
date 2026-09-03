@@ -1,34 +1,34 @@
-import ServerSelector from "@/components/Layout/Sidebar/Servers/server-select";
 import { useModalContext } from "@/lib/contexts/ModalContext";
-import useServers from "@/lib/hooks/queries/server/useServers";
-import { hasPermissions, Permission } from "@s3-viewer/permissions";
+import { usePermission } from "@/lib/hooks/usePermission";
+import { Permission } from "@s3-viewer/permissions";
+import { Button } from "@s3-viewer/ui/components/button";
 import { Plus } from "lucide-react";
 import BucketList from "./Buckets";
+import ServerSelector from "./Servers/server-select";
 
 const ServerManagement = () => {
    const { openCreateBucketModal } = useModalContext();
-   const { currentServer } = useServers();
-   const canCreateBucket =
-      currentServer?.userRole &&
-      hasPermissions(currentServer.userRole, [Permission.CREATE_BUCKET]);
+   const canCreateBucket = usePermission(Permission.CREATE_BUCKET);
 
    return (
-      <div className="flex flex-col flex-1 rounded-xl max-h-full border border-viewerborder px-2 pt-2 pb-0 gap-3">
-         <div className="flex flex-col gap-3">
-            <span className="text-xs text-viewerlighttext">SERVERS</span>
+      <div className="flex h-full flex-col gap-3 rounded-xl border border-viewerborder p-2">
+         <div className="flex flex-col gap-2">
+            <span className="text-meta">Servers</span>
             <ServerSelector />
          </div>
-         <div className="flex flex-col overflow-auto gap-3">
-            <div className="flex items-center justify-between">
-               <span className="text-xs text-viewerlighttext">BUCKETS</span>
+         <div className="flex min-h-0 flex-1 flex-col gap-2">
+            <div className="flex h-6 items-center justify-between">
+               <span className="text-meta">Buckets</span>
                {canCreateBucket && (
-                  <button
+                  <Button
+                     variant="ghost"
+                     size="icon"
+                     className="size-6"
+                     aria-label="Create bucket"
                      onClick={() => openCreateBucketModal({})}
-                     title="Create bucket"
-                     className="p-0.5 rounded hover:bg-viewergray transition-colors"
                   >
-                     <Plus className="size-3.5 text-viewerlighttext hover:text-viewerblue" />
-                  </button>
+                     <Plus aria-hidden="true" className="size-3.5" />
+                  </Button>
                )}
             </div>
             <BucketList />

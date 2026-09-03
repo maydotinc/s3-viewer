@@ -16,7 +16,7 @@ const values = [
    {
       icon: Zap,
       title: "Speed is a feature.",
-      body: "Object stores are slow because their dashboards are slow. We measure every interaction in milliseconds and ship aggressive caching so the viewer feels local even when your bucket isn't.",
+      body: "Object storage isn't slow — its dashboards are. We keep the interface thin, cache what we can, and cut anything that gets between you and the file you came for.",
    },
    {
       icon: Heart,
@@ -60,7 +60,7 @@ const team: TeamMember[] = [
       role: "Engineering",
       profile: "aleem",
       github: "https://github.com/aleemrehmtulla",
-      twitter: "https://twitter.com/aleemrehmtulla",
+      twitter: "https://x.com/aleemrehmtulla",
       website: "https://aleemrehmtulla.com",
    },
    {
@@ -128,13 +128,13 @@ const About = () => {
                      <p className="text-[17px] sm:text-[18px] text-viewertext leading-[1.6] max-w-[620px]">
                         We built S3 Viewer because the dashboards were. AWS
                         won&apos;t let you see your R2 buckets. Cloudflare
-                        won&apos;t show your S3 data. Every provider keeps
-                        your files locked inside their own UI.
+                        won&apos;t show your S3 data. Every provider keeps your
+                        files locked inside their own UI.
                         <br />
                         <br />
                         S3 Viewer is one fast interface for any S3-compatible
-                        bucket — open source, self-hostable, and built to
-                        feel like your local file system.
+                        bucket — open source, self-hostable, and built to feel
+                        like your local file system.
                      </p>
                      <div className="flex flex-wrap gap-3 pt-2">
                         <Button
@@ -183,7 +183,7 @@ const About = () => {
                            />
                            <div className="flex flex-col gap-1.5">
                               <h2 className="text-[22px] font-semibold text-viewerblack">
-                                 May Inc
+                                 May Inc.
                               </h2>
                               <p className="text-[14px] text-viewertext leading-relaxed">
                                  We build tools we wish existed.
@@ -346,7 +346,7 @@ const About = () => {
                         Get started
                      </span>
                      <h2 className="text-[30px] sm:text-[38px] lg:text-[44px] font-semibold tracking-[-0.01em] leading-[1.08] text-viewerblack">
-                        Connect a bucket in under thirty seconds.
+                        Connect a bucket and start browsing.
                      </h2>
                      <p className="text-[15.5px] text-viewertext leading-[1.6] max-w-[540px]">
                         Works with AWS S3, Cloudflare R2, MinIO, Backblaze B2,

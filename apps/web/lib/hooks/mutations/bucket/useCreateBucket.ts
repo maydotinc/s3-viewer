@@ -1,36 +1,26 @@
-import useSessionStore from "@/lib/stores/sessionStore";
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { bucketBodySchema } from "@s3-viewer/types";
+import { api, serverPath } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
+import type { S3Bucket } from "@s3-viewer/types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-const useCreateBucket = (serverId: string) => {
+const useCreateBucket = () => {
    const queryClient = useQueryClient();
-   const sessionServerId = useSessionStore((state) => state.serverId);
-   const currentServerId = serverId || sessionServerId;
+   const userId = useUserId();
+   const serverId = useSessionStore((state) => state.serverId);
 
    return useMutation({
-      mutationFn: async (bucketName: string): Promise<{ message: string }> => {
-         const data = bucketBodySchema.parse({
-            bucketName,
-            serverId: currentServerId,
-         });
-         const response = await createApiRequest("/s3/bucket/create", {
-            method: "PUT",
-            body: JSON.stringify(data),
-         });
-
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         return await response.json();
+      mutationFn: async (bucketName: string) => {
+         const { bucket } = await api.post<{ bucket: S3Bucket }>(
+            `${serverPath(serverId)}/buckets`,
+            { bucketName }
+         );
+         return bucket;
       },
-
-      onSuccess: () => {
+      onSuccess: () =>
          queryClient.invalidateQueries({
-            queryKey: ["buckets", currentServerId],
-         });
-      },
+            queryKey: queryKeys.buckets(userId, serverId),
+         }),
    });
 };
 

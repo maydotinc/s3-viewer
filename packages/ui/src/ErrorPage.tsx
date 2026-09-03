@@ -1,17 +1,26 @@
+import { SITE_PATHS } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 
-type ErrorPageProps = { statusCode: number; errorTitle: string };
-
-const ErrorPage = ({ statusCode, errorTitle }: ErrorPageProps) => {
-   return (
-      <div className="flex min-h-[100svh] flex-col items-center justify-center px-4">
-         <h1 className="text-8xl font-bold text-black">{statusCode}</h1>
-         <p className="mt-4 text-center text-2xl text-gray-600">{errorTitle}</p>
-         <Button asChild variant="secondary" size="lg" className="mt-4 w-fit">
-            <a href="/dashboard">Go to dashboard</a>
-         </Button>
-      </div>
-   );
+type ErrorPageProps = {
+   title: string;
+   description: string;
+   href?: string;
+   linkLabel?: string;
 };
+
+const ErrorPage = ({
+   title,
+   description,
+   href = SITE_PATHS.dashboard,
+   linkLabel = "Go to dashboard",
+}: ErrorPageProps) => (
+   <main className="flex min-h-svh flex-col items-center justify-center px-6 py-12 text-center">
+      <h1 className="text-title">{title}</h1>
+      <p className="mt-3 max-w-md text-body">{description}</p>
+      <Button asChild size="lg" className="mt-8 w-fit">
+         <a href={href}>{linkLabel}</a>
+      </Button>
+   </main>
+);
 
 export default ErrorPage;

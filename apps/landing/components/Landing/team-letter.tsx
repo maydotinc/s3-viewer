@@ -1,6 +1,13 @@
 import Image from "next/image";
 import BasicBlock from "../basic-block";
 
+const TEAM = [
+   { profile: "mike", name: "Michael Papadopoulos" },
+   { profile: "vinit", name: "Vinit Ghelani" },
+   { profile: "aleem", name: "Aleem Rehmtulla" },
+   { profile: "noah", name: "Noah Gomes" },
+];
+
 const TeamLetter = () => {
    return (
       <BasicBlock className="px-50 py-28">
@@ -10,21 +17,21 @@ const TeamLetter = () => {
             <div className="flex flex-col size-full bg-viewergray border border-viewerborder p-6 gap-4 relative">
                <div className="absolute bottom-0 right-0 md:translate-x-1/2 md:translate-y-1/2 max-md:size-25 max-xl:size-30 select-none">
                   <Image
-                     src="/icons/builtbymay.svg"
-                     alt="viewer-logo"
+                     src="/landing/builtbymay.svg"
+                     alt=""
                      width={150}
                      height={150}
                      draggable={false}
                   />
                </div>
                <span className="text-xs text-viewertext">A LETTER</span>
-               <h1 className="text-3xl text-viewerblue font-semibold">
+               <h2 className="text-3xl text-viewerblue font-semibold">
                   From the team
-               </h1>
+               </h2>
                <p className="text-base text-viewertext md:max-w-1/2">
-                  We built S3-Viewer because we were tired of being locked into
-                  provider-specific interfaces. AWS won't let you view your R2
-                  buckets. Cloudflare won't show your S3 data. And other
+                  We built S3 Viewer because we were tired of being locked into
+                  provider-specific interfaces. AWS won&apos;t let you view your
+                  R2 buckets. Cloudflare won&apos;t show your S3 data. And other
                   providers keep your data siloed in their own dashboards. We
                   wanted one viewer that works everywhere - a single interface
                   for all your object storage, regardless of where it lives.
@@ -37,8 +44,8 @@ const TeamLetter = () => {
                </span>
                <div className="md:absolute md:top-0 max-md:size-10 md:right-0 md:-translate-x-1/2 md:translate-y-1/2 select-none">
                   <Image
-                     src="/icons/viewercubegray.svg"
-                     alt="viewer-cube"
+                     src="/landing/viewercubegray.svg"
+                     alt=""
                      width={63}
                      height={78}
                      draggable={false}
@@ -47,11 +54,11 @@ const TeamLetter = () => {
                </div>
                <div className="flex flex-col gap-2 mt-5">
                   <div className="flex items-center -space-x-2">
-                     {["mike", "vinit", "aleem", "noah"].map((profile, i) => (
+                     {TEAM.map((member, i) => (
                         <Image
-                           key={profile}
-                           src={`/landing/profiles/${profile}.png`}
-                           alt="viewer-cube"
+                           key={member.profile}
+                           src={`/landing/profiles/${member.profile}.png`}
+                           alt={member.name}
                            width={40}
                            height={40}
                            style={{
@@ -64,7 +71,7 @@ const TeamLetter = () => {
                      ))}
                   </div>
                   <h3 className="text-base leading-none font-semibold text-viewerblack">
-                     S3-Viewer
+                     S3 Viewer
                   </h3>
                   <span className="text-xs leading-none text-viewertext">
                      Mike, Vinit, Aleem, Noah

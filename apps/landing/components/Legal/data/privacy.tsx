@@ -1,154 +1,169 @@
 import Link from "next/link";
 import type { LegalContentItemProps } from "../content";
 
-const EFFECTIVE_DATE = "July 25th, 2025";
-const LAST_UPDATED = "April 28th, 2026";
+const EFFECTIVE_DATE = "July 25, 2025";
+const LAST_UPDATED = "September 2, 2026";
+const LAST_UPDATED_ISO = "2026-09-02";
 
 const sections: LegalContentItemProps[] = [
    {
-      title: "Information We Collect",
+      title: "Who we are",
       content: (
          <p>
-            We collect information you provide directly to us, such as when
-            you create an account, configure S3 connections, or contact us
-            for support. This may include your name, email address, and S3
-            credentials for connecting to your storage services.
-         </p>
-      ),
-   },
-   {
-      title: "How We Use Your Information",
-      content: (
-         <p>
-            We use the information we collect to provide, maintain, and
-            improve S3 Viewer services, including connecting to your
-            S3-compatible storage, displaying your buckets and objects, and
-            facilitating file operations.
-         </p>
-      ),
-   },
-   {
-      title: "Data Storage and Security",
-      content: (
-         <p>
-            Your S3 credentials and connection information are{" "}
-            <strong>encrypted at rest</strong> and stored securely. We
-            implement appropriate technical and organizational measures to
-            protect your personal information against unauthorized access,
-            alteration, disclosure, or destruction.
-         </p>
-      ),
-   },
-   {
-      title: "Information Sharing",
-      content: (
-         <p>
-            We do not sell, trade, or otherwise transfer your personal
-            information to third parties without your consent, except as
-            described in this policy. We may share information with trusted
-            service providers who assist us in operating our service.
-         </p>
-      ),
-   },
-   {
-      title: "S3 Data Access",
-      content: (
-         <p>
-            S3 Viewer only accesses your S3 data as necessary to provide the
-            viewing and management functionality. We do not store copies of
-            your S3 objects on our servers. All operations are performed
-            directly between your browser and your configured S3 endpoints.
-         </p>
-      ),
-   },
-   {
-      title: "Cookies and Tracking",
-      content: (
-         <p>
-            We use cookies and similar tracking technologies to enhance your
-            experience, remember your preferences, and analyze usage
-            patterns. You can control cookie settings through your browser
-            preferences.
-         </p>
-      ),
-   },
-   {
-      title: "Third-Party Services",
-      content: (
-         <p>
-            Our service may integrate with third-party S3-compatible storage
-            providers. Your use of such services is governed by their
-            respective privacy policies. We are not responsible for the
-            privacy practices of these third-party services.
-         </p>
-      ),
-   },
-   {
-      title: "Data Retention",
-      content: (
-         <p>
-            We retain your personal information for as long as necessary to
-            provide our services and fulfill the purposes outlined in this
-            policy, unless a longer retention period is required or
-            permitted by law.
-         </p>
-      ),
-   },
-   {
-      title: "Your Rights",
-      content: (
-         <p>
-            You have the right to access, update, or delete your personal
-            information. You may also request that we restrict or stop
-            processing your information. Contact us to exercise these
-            rights.
-         </p>
-      ),
-   },
-   {
-      title: "International Data Transfers",
-      content: (
-         <p>
-            Your information may be transferred to and processed in
-            countries other than your own. We ensure appropriate safeguards
-            are in place to protect your information in accordance with
-            applicable data protection laws.
-         </p>
-      ),
-   },
-   {
-      title: "Children's Privacy",
-      content: (
-         <p>
-            Our services are not directed to children under 13 years of
-            age. We do not knowingly collect personal information from
-            children under 13. If you believe a child has provided us with
-            personal information, please contact us.
-         </p>
-      ),
-   },
-   {
-      title: "Changes to This Policy",
-      content: (
-         <p>
-            We may update this Privacy Policy from time to time. We will
-            notify you of any material changes by posting the new policy on
-            this page and updating the effective date. Your continued use
-            of our services after such changes constitutes acceptance of
-            the new policy.
-         </p>
-      ),
-   },
-   {
-      title: "Contact Us",
-      content: (
-         <p>
-            If you have any questions about this Privacy Policy or our
-            privacy practices, please open an issue on our{" "}
-            <Link href="https://github.com/maydotinc/s3-viewer">
-               GitHub repository
+            S3 Viewer is an open-source viewer for S3-compatible object storage.
+            The hosted service is operated by <strong>May Inc.</strong>, which
+            is responsible for the personal information described in this
+            policy. Questions about this policy can be sent to{" "}
+            <Link href="mailto:info@may.inc?subject=S3%20Viewer%20privacy">
+               info@may.inc
             </Link>{" "}
-            or contact us through the support channels provided there.
+            with &ldquo;S3 Viewer&rdquo; in the subject line.
+         </p>
+      ),
+   },
+   {
+      title: "Information we collect",
+      content: (
+         <>
+            <p>
+               We collect only what is needed to provide the service. In
+               general, that falls into these categories:
+            </p>
+            <ul>
+               <li>
+                  Account information you provide, such as your email address.
+               </li>
+               <li>
+                  Information needed to operate the service, such as the
+                  settings and access you configure for yourself and anyone you
+                  invite.
+               </li>
+               <li>Credentials you choose to connect, which are encrypted.</li>
+               <li>
+                  Technical information necessary to keep the service secure and
+                  available.
+               </li>
+            </ul>
+            <p>
+               We do not store copies of the objects in your storage, and we do
+               not read their contents.
+            </p>
+         </>
+      ),
+   },
+   {
+      title: "How we use information",
+      content: (
+         <p>
+            We use personal information to provide, maintain and secure the
+            service, to sign you in, to carry out the actions you request, and
+            to send you service-related messages. We do not use your information
+            for advertising, and we do not build profiles about you.
+         </p>
+      ),
+   },
+   {
+      title: "Legal basis",
+      content: (
+         <p>
+            Where required by law, we process personal information on the basis
+            of performing our agreement with you, our legitimate interests in
+            operating and securing the service, compliance with legal
+            obligations, or your consent.
+         </p>
+      ),
+   },
+   {
+      title: "How we share information",
+      content: (
+         <p>
+            We share information only with service providers that help us
+            operate the service, when required by law, or with your consent. We
+            do not sell personal information.
+         </p>
+      ),
+   },
+   {
+      title: "Your storage provider",
+      content: (
+         <p>
+            The storage you connect remains yours and stays with your storage
+            provider. What that provider collects, logs and retains is governed
+            by its own terms and privacy policy, not by this one.
+         </p>
+      ),
+   },
+   {
+      title: "Retention",
+      content: (
+         <p>
+            We retain personal information only as long as necessary to provide
+            the service and as required by applicable law.
+         </p>
+      ),
+   },
+   {
+      title: "Cookies",
+      content: (
+         <p>
+            We use strictly necessary cookies to keep you signed in. We do not
+            use advertising or tracking cookies.
+         </p>
+      ),
+   },
+   {
+      title: "Your rights",
+      content: (
+         <p>
+            Depending on where you live, you may have rights under applicable
+            law to access, correct, delete, or port your personal information,
+            to object to or restrict certain processing, and to withdraw
+            consent. To exercise them, contact{" "}
+            <Link href="mailto:info@may.inc?subject=S3%20Viewer%20privacy">
+               info@may.inc
+            </Link>{" "}
+            with &ldquo;S3 Viewer&rdquo; in the subject line. You can delete
+            your account at any time from the app.
+         </p>
+      ),
+   },
+   {
+      title: "Self-hosting",
+      content: (
+         <p>
+            S3 Viewer is open source, and self-hosted instances are operated by
+            whoever runs them, not by May Inc.
+         </p>
+      ),
+   },
+   {
+      title: "Children",
+      content: (
+         <p>
+            The service is not directed to children under 16, and we do not
+            knowingly collect their personal information.
+         </p>
+      ),
+   },
+   {
+      title: "Changes to this policy",
+      content: (
+         <p>
+            We may update this policy from time to time. If we do, we will post
+            the updated version on this page and revise the date above.
+         </p>
+      ),
+   },
+   {
+      title: "Contact",
+      content: (
+         <p>
+            May Inc. is responsible for the personal information described in
+            this policy. You can reach us at{" "}
+            <Link href="mailto:info@may.inc?subject=S3%20Viewer%20privacy">
+               info@may.inc
+            </Link>{" "}
+            with &ldquo;S3 Viewer&rdquo; in the subject line.
          </p>
       ),
    },
@@ -158,9 +173,10 @@ const PrivacyPolicy = {
    title: "Privacy Policy",
    eyebrow: "Privacy Policy",
    description:
-      "What we collect, how we use it, who sees it, and the rights you have over your data.",
+      "What information we collect, why we collect it, who we share it with, and the rights you have over it.",
    effectiveDate: EFFECTIVE_DATE,
    lastUpdated: LAST_UPDATED,
+   lastUpdatedIso: LAST_UPDATED_ISO,
    sections,
 };
 

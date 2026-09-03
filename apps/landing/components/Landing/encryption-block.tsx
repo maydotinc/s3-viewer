@@ -9,23 +9,22 @@ const EncryptionBlock = () => {
       <BasicBlock className="md:flex-row max-md:border-b max-md:border-viewerborder">
          <div className="flex flex-col md:gap-8 gap-4 items-start text-start xl:flex-1 flex-[2]">
             <div className="flex flex-col w-full gap-2">
-               <h1 className="md:text-4xl text-3xl text-viewerblack font-semibold">
-                  Server Credentials are Encrypted
-               </h1>
-               <h2 className="md:text-xl text-base text-viewertext">
-                  Your server credentials are protected with military-grade
-                  encryption. Sleep soundly knowing your data is safe and
-                  secure.
+               <h2 className="md:text-4xl text-3xl text-viewerblack font-semibold">
+                  Server credentials are encrypted
                </h2>
+               <p className="md:text-xl text-base text-viewertext">
+                  Your server credentials are encrypted at rest, and decrypted
+                  only to run the S3 operations you ask for.
+               </p>
             </div>
             <div className="flex flex-col md:gap-16 gap-8">
                <div className="flex flex-col gap-4 text-base md:text-xl text-viewertext">
                   <div className="flex items-center gap-3">
                      <AsteriskIcon className="size-[1.6em] text-viewerblack" />
                      <p>
-                        We encrypt all credentials with{" "}
+                        Credentials are encrypted with{" "}
                         <span className="font-bold text-viewerblack">
-                           4096-bit RSA encryption
+                           RSA-OAEP with your own key pair, plus AES-256-GCM
                         </span>
                      </p>
                   </div>
@@ -42,7 +41,7 @@ const EncryptionBlock = () => {
                   <div className="flex items-center gap-3">
                      <HashIcon className="size-[1.6em] text-viewerblack" />
                      <p>
-                        Don't trust us?{" "}
+                        Don&apos;t trust us?{" "}
                         <span className="font-bold text-viewerblack">
                            Self-host
                         </span>{" "}
@@ -66,7 +65,7 @@ const EncryptionBlock = () => {
                src="/landing/encryption.png"
                width={850}
                height={1222}
-               alt="Encryption Image"
+               alt=""
                draggable={false}
                className="select-none object-contain max-h-[400px] min-h-[300px]"
             />

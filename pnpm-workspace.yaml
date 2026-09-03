@@ -1,14 +1,24 @@
 packages:
-  - apps/*
-  - packages/*
+   - apps/*
+   - packages/*
+
+catalog:
+   "@prisma/client": ^6.1.0
+   better-auth: ^1.2.8
+   eslint: ^9.28.0
+   next: 15.4.8
+   prisma: ^6.1.0
+   react: ^19.1.0
+   react-dom: ^19.1.0
+   typescript: ^5.8.3
+   zod: ^3.25.67
 
 onlyBuiltDependencies:
-  - '@prisma/client'
-  - '@prisma/engines'
-  - '@tailwindcss/oxide'
-  - better-sqlite3
-  - core-js-pure
-  - esbuild
-  - prisma
-  - sharp
-  - unrs-resolver
+   - "@prisma/client"
+   - "@prisma/engines"
+   - "@tailwindcss/oxide"
+   - core-js-pure
+   - esbuild
+   - prisma
+   - sharp
+   - unrs-resolver

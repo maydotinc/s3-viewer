@@ -1,53 +1,37 @@
-import useSessionStore from "@/lib/stores/sessionStore";
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { authClient } from "@s3-viewer/auth/client";
-import { listBucketsQuerySchema, S3Bucket } from "@s3-viewer/types";
-import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
+import { api, serverPath } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
+import type { S3Bucket } from "@s3-viewer/types";
+import { useQuery } from "@tanstack/react-query";
 
-const useBuckets = (serverId?: string, bucketName?: string) => {
-   const { data: session, isPending: isSessionPending } =
-      authClient.useSession();
-   const sessionServerId = useSessionStore((state) => state.serverId);
-   const currentServerId = serverId || sessionServerId;
+const useBuckets = (bucketName?: string) => {
+   const userId = useUserId();
+   const serverId = useSessionStore((state) => state.serverId);
+   const enabled = Boolean(userId && serverId);
 
-   const {
-      data: buckets = [],
-      isPending: isBucketsLoading,
-      error: bucketsError,
-      refetch,
-   } = useQuery<S3Bucket[]>({
-      queryKey: ["buckets", currentServerId],
-      queryFn: async ({
-         queryKey,
-         signal,
-      }: QueryFunctionContext): Promise<S3Bucket[]> => {
-         const [, serverId] = queryKey as [string, string];
-         const validated = listBucketsQuerySchema.parse({ serverId });
-         const response = await createApiRequest(
-            `/s3/bucket/list?serverId=${validated.serverId}`,
-            { signal }
+   const query = useQuery({
+      queryKey: queryKeys.buckets(userId, serverId),
+      queryFn: async () => {
+         const { buckets } = await api.get<{ buckets: S3Bucket[] }>(
+            `${serverPath(serverId)}/buckets`
          );
-
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         const { buckets } = (await response.json()) as {
-            buckets: S3Bucket[];
-         };
          return buckets;
       },
-      enabled: !isSessionPending && !!session?.user && !!currentServerId,
+      enabled,
    });
 
-   const currentBucket = buckets.find((bucket) => bucket.Name === bucketName);
+   const buckets = query.data ?? [];
+   const currentBucket = bucketName
+      ? buckets.find((bucket) => bucket.name === bucketName)
+      : undefined;
 
    return {
       buckets,
       currentBucket,
-      isBucketsLoading,
-      bucketsError,
-      refetch,
+      isBucketsLoading: enabled && query.isPending,
+      bucketsError: query.error,
+      isFetching: query.isFetching,
+      refetch: query.refetch,
    };
 };
 

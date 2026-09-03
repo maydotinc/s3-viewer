@@ -1,15 +1,7 @@
 import { SITE_URL } from "@/lib/site-config";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import {
-   Check,
-   ChevronRight,
-   Copy,
-   Download,
-   Type,
-   Palette,
-   ImageIcon,
-   AlignLeft,
-} from "lucide-react";
+import { Check, ChevronRight, Copy, Download } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -81,6 +73,7 @@ type LogoAsset = {
    name: string;
    description: string;
    filename: string;
+   path: string;
    url: string;
    preview: React.ReactNode;
 };
@@ -91,14 +84,18 @@ const logos: LogoAsset[] = [
       name: "Wordmark",
       description: "Primary lockup. Use on light backgrounds.",
       filename: "viewer.svg",
+      path: "/icons/viewer.svg",
       url: `${SITE_URL}/icons/viewer.svg`,
       preview: (
          <div className="flex h-full w-full items-center justify-center rounded-md bg-viewerwhite p-6">
-            <img
+            <Image
                src="/icons/viewer.svg"
                alt="S3 Viewer wordmark"
                className="h-9 w-auto object-contain"
                draggable={false}
+               width={160}
+               height={36}
+               unoptimized
             />
          </div>
       ),
@@ -108,14 +105,18 @@ const logos: LogoAsset[] = [
       name: "Wordmark on Brand",
       description: "Reverse lockup. Use on Viewer Blue or photography.",
       filename: "whiteviewer.svg",
+      path: "/icons/whiteviewer.svg",
       url: `${SITE_URL}/icons/whiteviewer.svg`,
       preview: (
          <div className="flex h-full w-full items-center justify-center rounded-md bg-viewerblue p-6">
-            <img
+            <Image
                src="/icons/whiteviewer.svg"
                alt="S3 Viewer wordmark on brand"
                className="h-9 w-auto object-contain"
                draggable={false}
+               width={160}
+               height={36}
+               unoptimized
             />
          </div>
       ),
@@ -125,14 +126,18 @@ const logos: LogoAsset[] = [
       name: "App Icon",
       description: "Filled mark. App icons, favicons, square avatars.",
       filename: "viewerblue.svg",
+      path: "/icons/viewerblue.svg",
       url: `${SITE_URL}/icons/viewerblue.svg`,
       preview: (
          <div className="flex h-full w-full items-center justify-center rounded-md bg-viewergray p-6">
-            <img
+            <Image
                src="/icons/viewerblue.svg"
                alt="S3 Viewer app icon"
                className="h-14 w-14 object-contain"
                draggable={false}
+               width={160}
+               height={36}
+               unoptimized
             />
          </div>
       ),
@@ -142,14 +147,18 @@ const logos: LogoAsset[] = [
       name: "Mark",
       description: "Outline mark. Use when wordmark is unnecessary.",
       filename: "logo.svg",
+      path: "/logo.svg",
       url: `${SITE_URL}/logo.svg`,
       preview: (
          <div className="flex h-full w-full items-center justify-center rounded-md bg-viewergray p-6">
-            <img
+            <Image
                src="/logo.svg"
                alt="S3 Viewer mark"
                className="h-14 w-14 object-contain"
                draggable={false}
+               width={160}
+               height={36}
+               unoptimized
             />
          </div>
       ),
@@ -158,36 +167,14 @@ const logos: LogoAsset[] = [
 
 type Section = {
    id: string;
-   eyebrow: string;
    title: string;
-   icon: typeof Palette;
 };
 
 const sections: Section[] = [
-   {
-      id: "logos",
-      eyebrow: "Section 01",
-      title: "Logos",
-      icon: ImageIcon,
-   },
-   {
-      id: "colors",
-      eyebrow: "Section 02",
-      title: "Colors",
-      icon: Palette,
-   },
-   {
-      id: "typography",
-      eyebrow: "Section 03",
-      title: "Typography",
-      icon: Type,
-   },
-   {
-      id: "voice",
-      eyebrow: "Section 04",
-      title: "Voice",
-      icon: AlignLeft,
-   },
+   { id: "logos", title: "Logos" },
+   { id: "colors", title: "Colors" },
+   { id: "typography", title: "Typography" },
+   { id: "voice", title: "Voice" },
 ];
 
 const BrandKit = () => {
@@ -339,8 +326,8 @@ const BrandKit = () => {
                               Logos
                            </h2>
                            <p className="text-[14.5px] text-viewertext max-w-[600px]">
-                              Always preserve clear space equal to the height
-                              of the &ldquo;S&rdquo; in the wordmark. Never
+                              Always preserve clear space equal to the height of
+                              the &ldquo;S&rdquo; in the wordmark. Never
                               recolor, rotate, or reproportion the marks.
                            </p>
                         </div>
@@ -385,8 +372,8 @@ const BrandKit = () => {
                                           {isCopied ? "Copied" : "Copy URL"}
                                        </button>
                                        <a
-                                          href={logo.url}
-                                          download
+                                          href={logo.path}
+                                          download={logo.filename}
                                           className="flex items-center justify-center gap-1.5 rounded-md bg-viewerblack px-2.5 py-2 text-[12px] font-medium text-viewerwhite transition-colors hover:bg-viewerblack/85"
                                        >
                                           <Download className="size-3.5" />
@@ -504,7 +491,7 @@ const BrandKit = () => {
                               },
                               {
                                  label: "Caption",
-                                 sample: "Last updated April 28, 2026",
+                                 sample: "Last updated September 2, 2026",
                                  className:
                                     "text-[12px] tracking-[0.02em] text-viewerlighttext",
                                  meta: "Inter Medium · 12 / 18",

@@ -1,51 +1,44 @@
+import { PROVIDER_NAMES } from "@/lib/constants";
 import { Provider } from "@s3-viewer/types";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ServerIcon } from "lucide-react";
+import Image from "next/image";
 
 type ServerLogoProps = {
-   provider: Provider | undefined;
-   variant?: "small" | "large";
+   provider: Provider;
+   size?: "sm" | "md";
 };
 
-const ServerLogo = ({ provider, variant = "large" }: ServerLogoProps) => {
-   let icon;
+const LOGOS: Partial<Record<Provider, string>> = {
+   [Provider.S3]: "/icons/s3.svg",
+   [Provider.R2]: "/icons/r2.svg",
+};
 
-   if (provider === Provider.S3) {
-      icon = (
-         <img
-            src="/icons/s3.svg"
-            alt="S3"
-            className={cn("w-5 h-5", variant === "small" && "w-4 h-4")}
-         />
-      );
-   } else if (provider === Provider.R2) {
-      icon = (
-         <img
-            src="/icons/r2.svg"
-            alt="R2"
-            className={cn("w-5 h-5", variant === "small" && "w-4 h-4")}
-         />
-      );
-   } else {
-      icon = (
-         <ServerIcon
-            className={cn(
-               "text-viewerblack w-5 h-5",
-               variant === "small" && "w-4 h-4"
-            )}
-         />
-      );
-   }
-
+const ServerLogo = ({ provider, size = "sm" }: ServerLogoProps) => {
+   const px = size === "sm" ? 16 : 20;
+   const logo = LOGOS[provider];
    return (
-      <div
+      <span
          className={cn(
-            "bg-viewerwhite border border-xs rounded-lg p-2 flex-none",
-            variant === "small" && "p-1 rounded-sm"
+            "flex shrink-0 items-center justify-center rounded-md border border-viewerborder bg-viewerwhite",
+            size === "sm" ? "size-6" : "size-9"
          )}
       >
-         {icon}
-      </div>
+         {logo ? (
+            <Image
+               src={logo}
+               alt={PROVIDER_NAMES[provider]}
+               width={px}
+               height={px}
+            />
+         ) : (
+            <ServerIcon
+               aria-label="S3-compatible server"
+               className="text-viewerblack"
+               style={{ width: px, height: px }}
+            />
+         )}
+      </span>
    );
 };
 

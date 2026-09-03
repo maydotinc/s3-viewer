@@ -1,60 +1,58 @@
-import {
-   BucketProvider,
-   useBucketContext,
-} from "@/components/Buckets/Context";
+import { BucketProvider } from "@/components/Buckets/Context";
 import BucketHeader from "@/components/Buckets/header";
-import Objects from "@/components/Buckets/objects";
 import ObjectView from "@/components/Buckets/ObjectView";
+import Objects from "@/components/Buckets/objects";
 import { GridProvider } from "@/components/DataGrid/context";
 import ViewerLayout from "@/components/Layout";
 import Seo from "@/components/Seo";
+import { SITE_PATHS } from "@s3-viewer/types";
 import { useRouter } from "next/router";
-
-const BucketContent = ({ view }: { view: string | undefined }) => {
-   const { notFound } = useBucketContext();
-
-   if (notFound) return (
-      <div className="flex flex-col items-center justify-center size-full">
-         <h1 className="text-2xl font-bold">404</h1>
-         <p className="text-sm text-viewertext">Bucket not found</p>
-      </div>
-   )
-
-   return (
-      <div className="flex flex-col size-full">
-         <BucketHeader />
-         {view === "object" ? <ObjectView /> : <Objects />}
-      </div>
-   );
-};
+import { useEffect, useMemo } from "react";
 
 const BucketPage = () => {
    const router = useRouter();
    const { slug, view } = router.query;
-   const slugArray = Array.isArray(slug) ? slug : [];
-   const bucketName = slugArray[0];
-   const path = slugArray.slice(1);
-   const pageTitle = bucketName || "Buckets";
+   const segments = useMemo(
+      () =>
+         Array.isArray(slug) ? slug : typeof slug === "string" ? [slug] : [],
+      [slug]
+   );
+   const bucketName = segments[0] ?? "";
+   const path = useMemo(() => segments.slice(1), [segments]);
+
+   useEffect(() => {
+      if (router.isReady && !bucketName)
+         void router.replace(SITE_PATHS.dashboard);
+   }, [router, bucketName]);
 
    return (
       <>
          <Seo
-            title={pageTitle}
+            title={bucketName || "Buckets"}
             description="Browse objects and manage files in your S3 bucket."
-            canonical="/buckets"
-            noindex={true}
+            canonical={SITE_PATHS.buckets}
+            noindex
          />
-         <BucketProvider bucketName={bucketName as string} path={path}>
-            <GridProvider>
-               <BucketContent view={view as string | undefined} />
-            </GridProvider>
-         </BucketProvider>
+         {bucketName && (
+            <BucketProvider bucketName={bucketName} path={path}>
+               <GridProvider>
+                  <div className="flex size-full min-h-0 flex-col">
+                     <BucketHeader />
+                     {view === "object" && path.length > 0 ? (
+                        <ObjectView />
+                     ) : (
+                        <Objects />
+                     )}
+                  </div>
+               </GridProvider>
+            </BucketProvider>
+         )}
       </>
    );
 };
 
-BucketPage.getLayout = (page: React.ReactNode) => {
-   return <ViewerLayout mobileStrategy="hidden">{page}</ViewerLayout>;
-};
+BucketPage.getLayout = (page: React.ReactNode) => (
+   <ViewerLayout mobileStrategy="hidden">{page}</ViewerLayout>
+);
 
 export default BucketPage;

@@ -1,10 +1,35 @@
-import objectUploadAnimation from "@/public/landing/objectupload.json";
-import serverConnectAnimation from "@/public/landing/serverconnect.json";
-import Lottie from "lottie-react";
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import BasicBlock from "../basic-block";
 
+const Lottie = dynamic(() => import("lottie-react"), { ssr: false });
+
+const useLottieData = (src: string) => {
+   const [data, setData] = useState<object | null>(null);
+
+   useEffect(() => {
+      let cancelled = false;
+      fetch(src)
+         .then((res) => (res.ok ? res.json() : null))
+         .then((json: object | null) => {
+            if (!cancelled) setData(json);
+         })
+         .catch(() => {
+            if (!cancelled) setData(null);
+         });
+      return () => {
+         cancelled = true;
+      };
+   }, [src]);
+
+   return data;
+};
+
 const DemoBlock = () => {
+   const objectUpload = useLottieData("/landing/objectupload.json");
+   const serverConnect = useLottieData("/landing/serverconnect.json");
+
    return (
       <>
          <BasicBlock className="max-md:border-b max-md:border-viewerborder">
@@ -12,72 +37,81 @@ const DemoBlock = () => {
                <div className="md:flex-1 max-md:w-full flex items-end justify-center relative md:pt-[5%]">
                   <Image
                      src="/landing/objectview.png"
-                     alt="Object View"
+                     alt="Browsing objects inside a bucket in S3 Viewer"
                      width={3064}
                      height={1561}
-                     className="select-none object-contain translate-y-[8%] border rounded-xl"
+                     sizes="(max-width: 767px) 100vw, 45vw"
+                     className="select-none object-contain translate-y-[8%] border rounded-xl h-auto w-full"
                      draggable={false}
                   />
                </div>
                <div className="select-none max-md:order-first md:flex-1 flex items-center justify-center relative max-md:items-start max-md:-my-[10%]">
-                  <Lottie
-                     animationData={objectUploadAnimation}
-                     loop
-                     autoplay
-                     alt="Object Upload Animation"
-                     className="object-contain md:absolute max-md:scale-[1.1]"
-                  />
+                  <div className="w-full aspect-square md:absolute max-md:scale-[1.1]">
+                     {objectUpload && (
+                        <Lottie
+                           animationData={objectUpload}
+                           loop
+                           autoplay
+                           className="object-contain size-full"
+                        />
+                     )}
+                  </div>
                </div>
             </div>
             <div className="flex flex-col items-start w-full gap-2">
-               <h1 className="md:text-4xl text-3xl text-viewerblack font-semibold">
+               <h2 className="md:text-4xl text-3xl text-viewerblack font-semibold">
                   S3 Viewer that works like a file browser
-               </h1>
-               <h2 className="md:text-xl text-base text-viewertext">
+               </h2>
+               <p className="md:text-xl text-base text-viewertext">
                   Navigate your S3 buckets with the familiar file explorer
                   interface you already know and love
-               </h2>
+               </p>
             </div>
          </BasicBlock>
          <BasicBlock className="md:flex-row max-md:border-b max-md:border-viewerborder">
             <div className="flex-1 flex flex-col gap-6">
                <div className="w-full bg-viewergray flex-1 border border-viewerborder px-8 flex items-center justify-center">
-                  <Lottie
-                     animationData={serverConnectAnimation}
-                     loop
-                     autoplay
-                     className="object-contain size-full"
-                  />
+                  <div className="w-full aspect-[4/3]">
+                     {serverConnect && (
+                        <Lottie
+                           animationData={serverConnect}
+                           loop
+                           autoplay
+                           className="object-contain size-full"
+                        />
+                     )}
+                  </div>
                </div>
                <div className="flex flex-col gap-2">
-                  <h1 className="md:text-3xl text-2xl text-viewerblack font-semibold">
-                     One - Click Server Connect
-                  </h1>
-                  <h2 className="md:text-xl text-sm text-viewertext">
-                     Connect to any S3-compatible storage provider instantly
-                     with auto-detection and secure credential management
+                  <h2 className="md:text-3xl text-2xl text-viewerblack font-semibold">
+                     Connect a server in one step
                   </h2>
+                  <p className="md:text-xl text-sm text-viewertext">
+                     Add any S3-compatible provider from the sidebar — enter the
+                     region and endpoint once and your buckets appear
+                  </p>
                </div>
             </div>
             <div className="flex-1 flex flex-col gap-6">
                <div className="w-full bg-viewergray flex-1 border border-viewerborder p-8 flex items-center justify-center">
                   <Image
                      src="/landing/serverselect.png"
-                     alt="Object View"
+                     alt="Server switcher"
                      width={756}
                      height={815}
-                     className="select-none max-h-[270px] object-contain"
+                     sizes="(max-width: 767px) 90vw, 340px"
+                     className="select-none max-h-[270px] w-auto object-contain"
                      draggable={false}
                   />
                </div>
                <div className="flex flex-col gap-2">
-                  <h1 className="md:text-3xl text-2xl text-viewerblack font-semibold">
+                  <h2 className="md:text-3xl text-2xl text-viewerblack font-semibold">
                      Switch between servers
-                  </h1>
-                  <h2 className="md:text-xl text-sm text-viewertext">
-                     Manage multiple S3 providers seamlessly - AWS S3,
-                     Cloudflare R2, MinIO, and more from one dashboard
                   </h2>
+                  <p className="md:text-xl text-sm text-viewertext">
+                     Manage multiple S3 providers seamlessly - AWS S3,
+                     Cloudflare R2, MinIO, and more from one sidebar
+                  </p>
                </div>
             </div>
          </BasicBlock>

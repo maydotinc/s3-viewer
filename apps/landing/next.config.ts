@@ -1,33 +1,31 @@
 import type { NextConfig } from "next";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+if (!siteUrl) throw new Error("NEXT_PUBLIC_SITE_URL is not set");
+
+const assetPrefix = process.env.NEXT_PUBLIC_ASSET_PREFIX;
+if (!assetPrefix && process.env.NODE_ENV === "production") {
+   throw new Error("NEXT_PUBLIC_ASSET_PREFIX is not set");
+}
+
 const nextConfig: NextConfig = {
    reactStrictMode: true,
    transpilePackages: ["@s3-viewer/ui"],
-   assetPrefix:
-      process.env.NODE_ENV === "production"
-         ? "https://s3-viewer-lp.vercel.app"
-         : "https://landing.localhost",
-   async headers() {
-      const isProd = process.env.NODE_ENV === "production";
-      const allowedOrigin = isProd
-         ? "https://s3-viewer.com"
-         : "https://web.localhost";
-      return [
-         // Fonts are fetched with CORS when served cross-origin (e.g. page on
-         // web.localhost / s3-viewer.com but assets from landing.localhost / s3-viewer-lp.vercel.app).
+   ...(assetPrefix && {
+      assetPrefix,
+      images: { path: `${assetPrefix}/_next/image` },
+      headers: async () => [
          {
             source: "/_next/static/:path*",
             headers: [
-               { key: "Access-Control-Allow-Origin", value: allowedOrigin },
-               { key: "Cross-Origin-Resource-Policy", value: "cross-origin" },
+               {
+                  key: "Access-Control-Allow-Origin",
+                  value: new URL(siteUrl).origin,
+               },
             ],
          },
-      ];
-   },
-   images: {
-      loader: "custom",
-      loaderFile: "./image-loader.js",
-   },
+      ],
+   }),
 };
 
 export default nextConfig;

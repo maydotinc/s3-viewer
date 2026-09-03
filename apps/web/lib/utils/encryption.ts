@@ -1,58 +1,58 @@
-import { ServerCredentials } from "@s3-viewer/types";
+import type { ServerCredentials } from "@s3-viewer/types";
 
-async function importPublicKey(pemKey: string): Promise<CryptoKey> {
-   const pemContents = pemKey
-      .replace("-----BEGIN PUBLIC KEY-----", "")
-      .replace("-----END PUBLIC KEY-----", "")
-      .replace(/\s/g, "");
+const AES_KEY_BITS = 256;
+const GCM_IV_BYTES = 12;
 
-   const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
+const toBase64 = (bytes: ArrayBuffer | Uint8Array): string =>
+   btoa(String.fromCharCode(...new Uint8Array(bytes)));
 
-   return await crypto.subtle.importKey(
+const pemToDer = (pem: string): Uint8Array =>
+   Uint8Array.from(
+      atob(pem.replace(/-----[A-Z ]+-----/g, "").replace(/\s/g, "")),
+      (c) => c.charCodeAt(0)
+   );
+
+const importPublicKey = (pem: string): Promise<CryptoKey> =>
+   crypto.subtle.importKey(
       "spki",
-      binaryDer,
-      {
-         name: "RSA-OAEP",
-         hash: "SHA-256",
-      },
+      pemToDer(pem),
+      { name: "RSA-OAEP", hash: "SHA-256" },
       false,
       ["encrypt"]
    );
-}
 
-export async function encryptCredentials(
+const encryptCredentials = async (
    credentials: ServerCredentials
-): Promise<string> {
-   const publicKeyPem = process.env.NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY;
+): Promise<string> => {
+   const pem = process.env.NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY;
+   if (!pem) throw new Error("NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY is not set");
 
-   if (!publicKeyPem) {
-      throw new Error(
-         "Public encryption key not found in environment variables"
-      );
-   }
+   const publicKey = await importPublicKey(pem);
+   const aesKey = await crypto.subtle.generateKey(
+      { name: "AES-GCM", length: AES_KEY_BITS },
+      true,
+      ["encrypt"]
+   );
+   const iv = crypto.getRandomValues(new Uint8Array(GCM_IV_BYTES));
+   const ct = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      aesKey,
+      new TextEncoder().encode(JSON.stringify(credentials))
+   );
+   const k = await crypto.subtle.encrypt(
+      { name: "RSA-OAEP" },
+      publicKey,
+      await crypto.subtle.exportKey("raw", aesKey)
+   );
 
-   try {
-      const publicKey = await importPublicKey(publicKeyPem);
+   return btoa(
+      JSON.stringify({
+         v: 1,
+         k: toBase64(k),
+         iv: toBase64(iv),
+         ct: toBase64(ct),
+      })
+   );
+};
 
-      const credentialsJson = JSON.stringify(credentials);
-      const encoder = new TextEncoder();
-      const data = encoder.encode(credentialsJson);
-
-      const encryptedData = await crypto.subtle.encrypt(
-         {
-            name: "RSA-OAEP",
-         },
-         publicKey,
-         data
-      );
-
-      const encryptedArray = new Uint8Array(encryptedData);
-      return btoa(String.fromCharCode(...encryptedArray));
-   } catch (error) {
-      console.error(
-         "Encryption failed, if your keys are set correctly, it is likely that the payload is too large for the key. Try using a larger key.",
-         error
-      );
-      throw new Error("Failed to encrypt credentials");
-   }
-}
+export { encryptCredentials };

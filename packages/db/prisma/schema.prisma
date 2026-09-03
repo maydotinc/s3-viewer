@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//==== BetterAuth Models ====//
 model User {
   id            String   @id @default(cuid())
   email         String
@@ -17,7 +16,6 @@ model User {
   name          String
   image         String?
 
-  // Relations
   ownedServers    Server[]            @relation("ServerOwner")
   serverAccess    ServerAccess[]
   bucketAccess    BucketAccess[]
@@ -40,6 +38,7 @@ model Session {
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId])
   @@map("session")
 }
 
@@ -59,6 +58,8 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  @@index([userId])
+  @@index([providerId, accountId])
   @@map("account")
 }
 
@@ -70,20 +71,20 @@ model Verification {
   createdAt  DateTime?
   updatedAt  DateTime?
 
+  @@index([identifier])
+  @@index([expiresAt])
   @@map("verification")
 }
 
-//==== Server Management Models ====//
 model Server {
   id             String   @id @default(cuid())
   name           String
   provider       Provider @default(Other)
-  credentials    String // Encrypted credentials
-  allowedBuckets String[] @default([]) // Empty = use ListBuckets API, non-empty = token cannot ListBuckets, use these names instead
+  credentials    String
+  allowedBuckets String[] @default([])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  // Relations
   ownerId            String
   owner              User                @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   serverAccess       ServerAccess[]
@@ -101,7 +102,6 @@ model ServerAccess {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   serverId String
@@ -121,21 +121,20 @@ model PendingInvitation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Relations
   serverId    String
   server      Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
   invitedById String
-  invitedBy   User   @relation("InvitationSender", fields: [invitedById], references: [id])
+  invitedBy   User   @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
 
   bucketAccess InvitationBucketAccess[]
 
   @@unique([email, serverId])
   @@index([invitedById])
   @@index([email])
+  @@index([serverId])
   @@map("pending_invitation")
 }
 
-//==== Bucket-Level Access Models ====//
 model BucketAccess {
   id         String   @id @default(cuid())
   bucketName String
@@ -143,7 +142,6 @@ model BucketAccess {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  // Relations
   userId   String
   user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   serverId String
@@ -156,11 +154,12 @@ model BucketAccess {
 }
 
 model InvitationBucketAccess {
-  id         String @id @default(cuid())
+  id         String   @id @default(cuid())
   bucketName String
-  role       Role   @default(VIEWER)
+  role       Role     @default(VIEWER)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  // Relations
   invitationId String
   invitation   PendingInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
 

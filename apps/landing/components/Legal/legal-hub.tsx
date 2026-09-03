@@ -1,4 +1,9 @@
-import { ArrowUpRight, ChevronRight, FileText, ShieldCheck } from "lucide-react";
+import {
+   ArrowUpRight,
+   ChevronRight,
+   FileText,
+   ShieldCheck,
+} from "lucide-react";
 import Link from "next/link";
 import privacyPolicyData from "./data/privacy";
 import termsOfServiceData from "./data/terms";
@@ -16,7 +21,7 @@ const DOCS: Doc[] = [
       href: "/legal/terms-of-service",
       title: "Terms of Service",
       description:
-         "The ground rules for using S3 Viewer — license, acceptable use, and how we handle accounts and credentials.",
+         "The ground rules for using S3 Viewer — the license, acceptable use, and how accounts work.",
       icon: FileText,
       lastUpdated: termsOfServiceData.lastUpdated,
    },
@@ -24,7 +29,7 @@ const DOCS: Doc[] = [
       href: "/legal/privacy-policy",
       title: "Privacy Policy",
       description:
-         "What we collect, how we use it, who sees it, and the rights you have over your data.",
+         "What information we collect, why we collect it, who we share it with, and the rights you have over it.",
       icon: ShieldCheck,
       lastUpdated: privacyPolicyData.lastUpdated,
    },
@@ -57,8 +62,8 @@ const LegalHub = () => {
                      Legal documents
                   </h1>
                   <p className="text-[16px] sm:text-[17px] text-viewertext leading-relaxed max-w-[600px]">
-                     The plain-English ground rules for using S3 Viewer. We
-                     try to keep these short and honest.
+                     The plain-English ground rules for using S3 Viewer. We try
+                     to keep these short and honest.
                   </p>
                </div>
             </div>
@@ -77,7 +82,10 @@ const LegalHub = () => {
                      >
                         <div className="flex items-start justify-between gap-3">
                            <span className="grid place-items-center size-10 rounded-[10px] border border-viewerborder bg-viewergray text-viewerblue">
-                              <doc.icon className="size-4.5" strokeWidth={1.8} />
+                              <doc.icon
+                                 className="size-4.5"
+                                 strokeWidth={1.8}
+                              />
                            </span>
                            <span
                               aria-hidden

@@ -1,10 +1,19 @@
 {
-    "name": "@s3-viewer/ts-config",
-    "version": "0.0.0",
-    "private": true,
-    "exports": {
-        "./react-library": "./react-library.json",
-        "./nextjs": "./nextjs.json",
-        "./base": "./base.json"
-    }
+   "name": "@s3-viewer/ts-config",
+   "version": "0.0.0",
+   "private": true,
+   "type": "module",
+   "exports": {
+      "./base": "./base.json",
+      "./nextjs": "./nextjs.json",
+      "./node-library": "./node-library.json",
+      "./react-library": "./react-library.json"
+   },
+   "scripts": {
+      "lint": "eslint . --max-warnings 0 --no-error-on-unmatched-pattern"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "eslint": "catalog:"
+   }
 }

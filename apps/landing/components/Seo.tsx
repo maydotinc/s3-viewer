@@ -7,11 +7,9 @@ export type SeoProps = {
    title: string;
    description: string;
    canonical?: string;
-   noindex?: boolean;
    image?: string;
    imageAlt?: string;
    type?: "website" | "article";
-   publishedTime?: string;
    modifiedTime?: string;
    jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 };
@@ -20,11 +18,9 @@ export default function Seo({
    title,
    description,
    canonical,
-   noindex = false,
    image = DEFAULT_IMAGE,
    imageAlt = "S3 Viewer - Fast, open-source S3 object storage browser",
    type = "website",
-   publishedTime,
    modifiedTime,
    jsonLd,
 }: SeoProps) {
@@ -35,16 +31,12 @@ export default function Seo({
 
    return (
       <Head>
-         {/* Primary Meta Tags */}
          <title>{fullTitle}</title>
          <meta name="title" content={fullTitle} />
          <meta name="description" content={description} />
-         {noindex && <meta name="robots" content="noindex, nofollow" />}
 
-         {/* Canonical URL */}
          <link rel="canonical" href={url} />
 
-         {/* Open Graph / Facebook */}
          <meta property="og:type" content={type} />
          <meta property="og:url" content={url} />
          <meta property="og:title" content={fullTitle} />
@@ -54,14 +46,10 @@ export default function Seo({
          <meta property="og:image:alt" content={imageAlt} />
          <meta property="og:site_name" content="S3 Viewer" />
          <meta property="og:locale" content="en_US" />
-         {publishedTime && (
-            <meta property="article:published_time" content={publishedTime} />
-         )}
          {modifiedTime && (
             <meta property="article:modified_time" content={modifiedTime} />
          )}
 
-         {/* Twitter (link preview when shared; no @handle - we use GitHub) */}
          <meta name="twitter:card" content="summary_large_image" />
          <meta name="twitter:url" content={url} />
          <meta name="twitter:title" content={fullTitle} />
@@ -69,7 +57,6 @@ export default function Seo({
          <meta name="twitter:image" content={image} />
          <meta name="twitter:image:alt" content={imageAlt} />
 
-         {/* JSON-LD Structured Data */}
          {jsonLd && (
             <script
                type="application/ld+json"

@@ -1,58 +1,84 @@
 enum Role {
-  OWNER = "OWNER",
-  ADMIN = "ADMIN",
-  EDITOR = "EDITOR",
-  VIEWER = "VIEWER",
+   OWNER = "OWNER",
+   ADMIN = "ADMIN",
+   EDITOR = "EDITOR",
+   VIEWER = "VIEWER",
 }
 
 enum Provider {
-  S3 = "S3",
-  R2 = "R2",
-  Other = "Other",
+   S3 = "S3",
+   R2 = "R2",
+   Other = "Other",
 }
 
+type GrantableRole = Exclude<Role, Role.OWNER>;
+
 type ServerCredentials = {
-  endpoint: string;
-  region: string;
-  accessKey: string;
-  secretKey: string;
+   endpoint: string;
+   region: string;
+   accessKey: string;
+   secretKey: string;
 };
 
 type ServerInfo = {
-  id: string;
-  name: string;
-  userRole: Role;
-  provider: Provider;
+   id: string;
+   name: string;
+   userRole: Role;
+   provider: Provider;
 };
 
 type BucketAccessEntry = {
-  bucketName: string;
-  role: Role;
+   bucketName: string;
+   role: Role;
 };
 
 type ServerUser = {
-  id: string;
-  name: string;
-  email: string;
-  image: string;
-  role: Role;
-  bucketAccess: BucketAccessEntry[];
+   id: string;
+   name: string;
+   email: string;
+   image: string | null;
+   role: Role;
+   bucketAccess: BucketAccessEntry[];
 };
 
 type ServerInvite = {
-  id: string;
-  role: Role;
-  expiresAt: string;
-  email: string;
-  server: {
-    name: string;
-  };
-  invitedBy: {
-    name: string;
-    email: string;
-  };
-  bucketAccess: BucketAccessEntry[];
+   id: string;
+   role: Role;
+   expiresAt: string;
+   email: string;
+   server: { name: string };
+   invitedBy: { name: string; email: string };
+   bucketAccess: BucketAccessEntry[];
 };
 
-export { Role, Provider };
-export type { ServerCredentials, ServerInfo, BucketAccessEntry, ServerUser, ServerInvite };
+type ApiError = {
+   message: string;
+   code?: string;
+};
+
+type EstablishResult = {
+   listBucketsAllowed: boolean;
+   bucketCount: number;
+   provider: Provider;
+};
+
+type BucketCheck = { bucketName: string; accessible: boolean };
+
+type SendInviteResult = {
+   invites: ServerInvite[];
+   alreadyMembers: string[];
+};
+
+export { Provider, Role };
+export type {
+   ApiError,
+   BucketAccessEntry,
+   BucketCheck,
+   EstablishResult,
+   GrantableRole,
+   SendInviteResult,
+   ServerCredentials,
+   ServerInfo,
+   ServerInvite,
+   ServerUser,
+};

@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+const CONTACT_HREF = "mailto:info@may.inc?subject=S3%20Viewer";
+
 type LinkItem = { label: string; href: string };
 type LinkGroup = { title: string; links: LinkItem[] };
 
@@ -16,7 +18,7 @@ const groups: LinkGroup[] = [
          { label: "Team workspaces", href: "/use-cases/teams" },
          { label: "Better S3 browser", href: "/use-cases/s3-browser" },
          { label: "Cloudflare R2", href: "/use-cases/cloudflare-r2" },
-         { label: "Security & audit", href: "/use-cases/security-and-audit" },
+         { label: "Security", href: "/use-cases/security-and-audit" },
       ],
    },
    {
@@ -47,10 +49,14 @@ const groups: LinkGroup[] = [
       links: [
          { label: "About", href: "/about" },
          { label: "Brand Kit", href: "/brand-kit" },
-         { label: "Legal", href: "/legal" },
+         { label: "Privacy", href: "/legal/privacy-policy" },
+         { label: "Terms", href: "/legal/terms-of-service" },
+         { label: "Contact", href: CONTACT_HREF },
       ],
    },
 ];
+
+const YEAR = new Date().getFullYear();
 
 const Footer = () => {
    return (
@@ -82,33 +88,38 @@ const Footer = () => {
                         className="select-none h-10 w-auto"
                      />
                   </Link>
-                  <p className="text-sm text-white/70 leading-relaxed max-w-sm">
+                  <p className="text-sm text-white/80 leading-relaxed max-w-sm">
                      A fast, open-source viewer for S3-compatible object
                      storage. One interface for AWS S3, Cloudflare R2, MinIO,
                      Backblaze B2, and any S3 API.
                   </p>
-                  <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-white/85 w-fit">
-                     <span className="text-white/60">Built by</span>
+                  <a
+                     href={CONTACT_HREF}
+                     className="text-sm text-white/80 underline underline-offset-[3px] decoration-white/40 transition-colors hover:text-white hover:decoration-white w-fit"
+                  >
+                     info@may.inc
+                  </a>
+                  <span className="inline-flex items-center gap-2 text-[12.5px] font-medium text-white/90 w-fit">
+                     <span className="text-white/80">Built by</span>
                      <Image
                         src="https://cdn-may.com/assets/may-rounded-512x512.png"
-                        alt="May Inc"
+                        alt=""
                         width={20}
                         height={20}
                         className="rounded-[5px]"
                         unoptimized
                      />
-                     <span>May Inc</span>
+                     <span>May Inc.</span>
                   </span>
-                  <span className="text-[11.5px] text-white/55 mt-1">
-                     © {new Date().getFullYear()} S3 Viewer. Open source under
-                     MIT.
+                  <span className="text-[11.5px] text-white/80 mt-1">
+                     © {YEAR} S3 Viewer. Open source under MIT.
                   </span>
                </div>
 
                <div className="md:col-span-7 grid grid-cols-2 md:grid-cols-3 gap-8 max-md:gap-6">
                   {groups.map((group) => (
                      <div key={group.title} className="flex flex-col gap-3">
-                        <h3 className="text-[11px] font-semibold tracking-[0.14em] uppercase text-white/60">
+                        <h3 className="text-[11px] font-semibold tracking-[0.14em] uppercase text-white/80">
                            {group.title}
                         </h3>
                         <ul className="flex flex-col gap-2.5">

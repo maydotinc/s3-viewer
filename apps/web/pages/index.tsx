@@ -1,26 +1,11 @@
-import ViewerBanner from "@/components/Layout/Banner/banner";
-import Seo from "@/components/Seo";
+import { SITE_PATHS } from "@s3-viewer/types";
+import type { GetServerSideProps } from "next";
 
-const HomePage = () => {
-   return (
-      <div className="flex flex-col size-full">
-         <Seo
-            title="S3 Viewer"
-            description="Connect your S3-compatible storage and manage your buckets and objects."
-            canonical="/"
-            noindex={true}
-         />
-         Landing Page
-      </div>
-   );
-};
+const getServerSideProps: GetServerSideProps = async () => ({
+   redirect: { destination: SITE_PATHS.dashboard, permanent: false },
+});
 
-HomePage.getLayout = (page: React.ReactNode) => {
-   return (
-      <ViewerBanner>
-         {page}
-      </ViewerBanner>
-   );
-}
+const IndexPage = () => null;
 
-export default HomePage;
+export default IndexPage;
+export { getServerSideProps };

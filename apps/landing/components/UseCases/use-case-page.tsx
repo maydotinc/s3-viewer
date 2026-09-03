@@ -88,11 +88,13 @@ const UseCasePage = ({
                      strokeWidth={2.5}
                      aria-hidden
                   />
-                  <span className="font-medium text-viewerblack">{eyebrow}</span>
+                  <span className="font-medium text-viewerblack">
+                     {eyebrow}
+                  </span>
                </nav>
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-                  <div className="lg:col-span-7 flex flex-col gap-6 motion-fade-up">
+                  <div className="lg:col-span-7 flex flex-col gap-6">
                      <h1 className="text-[30px] sm:text-[40px] lg:text-[48px] font-semibold tracking-[-0.02em] leading-[1.06] text-viewerblack">
                         {title}
                      </h1>
@@ -106,10 +108,7 @@ const UseCasePage = ({
                               className="flex items-start gap-2.5 text-[14.5px] text-viewerblack"
                            >
                               <span className="mt-0.5 grid place-items-center size-4 rounded-full bg-viewerblue/10 text-viewerblue">
-                                 <Check
-                                    className="size-2.5"
-                                    strokeWidth={3}
-                                 />
+                                 <Check className="size-2.5" strokeWidth={3} />
                               </span>
                               {b}
                            </li>
@@ -144,9 +143,7 @@ const UseCasePage = ({
                         </Link>
                      </div>
                   </div>
-                  <div className="lg:col-span-5 motion-fade-up motion-delay-150 w-full">
-                     {visual}
-                  </div>
+                  <div className="lg:col-span-5 w-full">{visual}</div>
                </div>
             </div>
          </section>
@@ -194,15 +191,16 @@ const UseCasePage = ({
                         Three steps to your bucket.
                      </h2>
                      <p className="text-[14.5px] text-viewertext leading-relaxed max-w-[380px]">
-                        No agents to install, no infrastructure to manage.
-                        Paste credentials and you&apos;re browsing.
+                        No agents to install, no infrastructure to manage. Paste
+                        credentials and you&apos;re browsing.
                      </p>
                   </div>
                   <ol className="lg:col-span-8 flex flex-col gap-3">
                      {steps.map((step, i) => (
                         <li
                            key={step.title}
-                           className="motion-fade-up flex gap-5 rounded-2xl border border-viewerborder bg-viewerwhite p-5 sm:p-6"
+                           id={`step-${i + 1}`}
+                           className="motion-fade-up flex gap-5 rounded-2xl border border-viewerborder bg-viewerwhite p-5 sm:p-6 scroll-mt-24"
                            style={{ animationDelay: `${i * 80}ms` }}
                         >
                            <span className="flex-none grid place-items-center size-9 rounded-full border border-viewerborder bg-viewergray text-[13px] font-semibold text-viewerblue">
@@ -239,24 +237,14 @@ const UseCasePage = ({
                            viewer.
                         </p>
                      </div>
-                     <div
-                        className="lg:col-span-8 divide-y divide-viewerborder rounded-2xl border border-viewerborder bg-viewerwhite"
-                        itemScope
-                        itemType="https://schema.org/FAQPage"
-                     >
+                     <div className="lg:col-span-8 divide-y divide-viewerborder rounded-2xl border border-viewerborder bg-viewerwhite">
                         {faqs.map((faq, i) => (
                            <details
                               key={i}
                               className="group p-5 sm:p-6 [&_svg]:open:rotate-90"
-                              itemScope
-                              itemProp="mainEntity"
-                              itemType="https://schema.org/Question"
                            >
                               <summary className="flex cursor-pointer items-center justify-between gap-4 list-none">
-                                 <h3
-                                    className="text-[15.5px] sm:text-[16px] font-semibold text-viewerblack tracking-tight pr-2"
-                                    itemProp="name"
-                                 >
+                                 <h3 className="text-[15.5px] sm:text-[16px] font-semibold text-viewerblack tracking-tight pr-2">
                                     {faq.question}
                                  </h3>
                                  <ChevronRight
@@ -264,13 +252,8 @@ const UseCasePage = ({
                                     aria-hidden
                                  />
                               </summary>
-                              <div
-                                 className="mt-3 text-[14px] text-viewertext leading-[1.7] pr-4"
-                                 itemScope
-                                 itemProp="acceptedAnswer"
-                                 itemType="https://schema.org/Answer"
-                              >
-                                 <span itemProp="text">{faq.answer}</span>
+                              <div className="mt-3 text-[14px] text-viewertext leading-[1.7] pr-4">
+                                 {faq.answer}
                               </div>
                            </details>
                         ))}

@@ -1,8 +1,11 @@
 {
-    "extends": "@s3-viewer/ts-config/base",
-    "compilerOptions": {
-        "paths": {
-            "@s3-viewer/types/*": ["./*"]
-        }
-    }
+   "extends": "@s3-viewer/ts-config/base",
+   "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+         "@s3-viewer/types/*": ["./*"]
+      }
+   },
+   "include": ["**/*.ts"],
+   "exclude": ["node_modules", "dist"]
 }

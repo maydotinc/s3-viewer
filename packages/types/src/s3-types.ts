@@ -1,27 +1,54 @@
 import { Role } from "./server-types";
 
 type S3Bucket = {
-  Name: string;
-  CreationDate: string;
-  userRole?: Role;
+   name: string;
+   creationDate: string | null;
+   userRole: Role;
 };
 
 type S3Object = {
-  Key: string;
-  LastModified: string | null;
-  Size: number | null;
+   key: string;
+   isFolder: boolean;
+   lastModified: string | null;
+   size: number | null;
+};
+
+type S3ObjectListPage = {
+   objects: S3Object[];
+   nextToken: string | null;
 };
 
 type S3ObjectMetadata = {
-  contentType?: string;
-  contentLength?: number;
-  lastModified?: Date;
-  storageClass?: string;
+   contentType: string;
+   contentLength: number;
+   lastModified: string | null;
+   storageClass: string | null;
+   eTag: string | null;
 };
 
-type S3ObjectPreviewResponse = {
-  url: string;
-  contentType: string;
+type S3PresignedUrl = {
+   url: string;
+   expiresAt: string;
 };
 
-export type { S3Bucket, S3Object, S3ObjectMetadata, S3ObjectPreviewResponse };
+type S3ObjectPreview = S3PresignedUrl & {
+   contentType: string;
+   contentLength: number;
+};
+
+type S3ObjectUploaded = { key: string; size: number; eTag: string | null };
+type S3DeleteResult = {
+   deleted: string[];
+   failed: { key: string; message: string }[];
+};
+
+export type {
+   S3Bucket,
+   S3DeleteResult,
+   S3Object,
+   S3ObjectListPage,
+   S3ObjectMetadata,
+   S3ObjectPreview,
+   S3ObjectUploaded,
+   S3PresignedUrl,
+};

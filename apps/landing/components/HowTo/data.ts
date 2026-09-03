@@ -24,7 +24,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to share an S3 file with a non-technical user",
       shortTitle: "Share an S3 file",
       tagline:
-         "Presigned URL or workspace invite — when each is the right call, and why presigned links can't be revoked.",
+         "Copy link for a 15-minute presigned URL, or an email invite for ongoing access — when each is the right call.",
       keyword: "share S3 file with non-technical user",
       category: "Sharing",
    },
@@ -42,7 +42,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to view AWS S3 and Cloudflare R2 in one dashboard",
       shortTitle: "View S3 + R2 together",
       tagline:
-         "One credential per provider, one sidebar, Cmd-K to jump, and right-click to copy across clouds.",
+         "One credential per provider, one sidebar, and one click to switch between them.",
       keyword: "view S3 and R2 together",
       category: "Multi-cloud",
    },
@@ -51,7 +51,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to copy files between AWS S3 and Cloudflare R2",
       shortTitle: "Copy S3 ↔ R2",
       tagline:
-         "Server-side cross-cloud copy without downloading locally — one click in S3 Viewer, AWS CLI, or rclone for bulk.",
+         "rclone or the AWS CLI move the bytes; S3 Viewer is how you check both buckets before and after.",
       keyword: "copy files from S3 to Cloudflare R2",
       category: "Multi-cloud",
    },
@@ -60,7 +60,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to switch between S3 buckets quickly",
       shortTitle: "Switch buckets fast",
       tagline:
-         "Cmd-K fuzzy switcher across every connected provider, plus AWS CLI named profiles for scripts.",
+         "Switch servers and buckets from the sidebar, plus AWS CLI named profiles for scripts.",
       keyword: "switch between S3 buckets",
       category: "Multi-cloud",
    },
@@ -69,16 +69,16 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to upload large files to S3",
       shortTitle: "Upload large files",
       tagline:
-         "Multipart upload — part sizes, parallelism, retries, and the 5 GB single-PUT cap that pushes you to multipart.",
+         "How large uploads work in S3 Viewer and from the CLI — streaming, retries, and the 5 GB single-PUT cap.",
       keyword: "upload large files to S3",
       category: "Files",
    },
    {
       slug: "secure-s3-upload-presigned-urls",
-      title: "How to upload to S3 securely with presigned URLs",
+      title: "How to upload to S3 securely without exposing keys",
       shortTitle: "Secure S3 upload",
       tagline:
-         "Never ship AWS keys to the browser. Server-signed presigned URLs let the browser PUT directly without the credential.",
+         "Never ship AWS keys to the browser. How S3 Viewer uploads through its server with nothing to configure on the bucket, and how presigned URLs fit in.",
       keyword: "S3 upload without exposing keys",
       category: "Files",
    },
@@ -87,7 +87,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to download a file from S3",
       shortTitle: "Download a file",
       tagline:
-         "Browser, AWS CLI, or presigned URL — three ways, with auto-inferred filenames and zero key exposure.",
+         "Browser, AWS CLI, or presigned URL — three ways, with the object's own filename and zero key exposure.",
       keyword: "download file from S3",
       category: "Files",
    },
@@ -105,7 +105,7 @@ export const HOW_TOS: HowToEntry[] = [
       title: "How to search across S3 buckets",
       shortTitle: "Search across buckets",
       tagline:
-         "How to actually search S3 with Tab autocomplete, and when S3 Inventory + Athena is the right pattern.",
+         "S3 has no search API. Filter by prefix in the current folder, or reach for S3 Inventory + Athena.",
       keyword: "search S3 buckets",
       category: "Files",
    },
@@ -128,9 +128,6 @@ export const HOW_TOS: HowToEntry[] = [
       category: "Files",
    },
 ];
-
-export const getHowToByslug = (slug: string) =>
-   HOW_TOS.find((h) => h.slug === slug);
 
 export const getRelatedHowTos = (
    slugs: string[]

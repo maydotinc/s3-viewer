@@ -1,12 +1,12 @@
 {
-    "extends": "@s3-viewer/ts-config/react-library",
-    "compilerOptions": {
-        "baseUrl": ".",
-        "paths": {
-            "@s3-viewer/ui/*": ["src/*"]
-        },
-        "rootDir": "src"
-    },
-    "include": ["src"],
-    "exclude": ["node_modules", "dist", "build"]
+   "extends": "@s3-viewer/ts-config/react-library",
+   "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+         "@s3-viewer/ui/*": ["src/*"]
+      },
+      "rootDir": "src"
+   },
+   "include": ["src"],
+   "exclude": ["node_modules", "dist", "build"]
 }

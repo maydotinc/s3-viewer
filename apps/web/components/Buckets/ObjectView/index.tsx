@@ -1,89 +1,46 @@
+import BucketUnavailable from "@/components/Buckets/unavailable";
+import SignInPrompt from "@/components/Session/sign-in-prompt";
 import useObjectMetadata from "@/lib/hooks/queries/s3/useObjectMetadata";
 import useObjectPreview from "@/lib/hooks/queries/s3/useObjectPreview";
-import { getPreviewType } from "@/lib/utils/s3/previewHelpers";
-import { useMemo } from "react";
-import ObjectActionsHeader from "./ActionsHeader";
-import ObjectMetadata from "./Metadata";
-import ObjectPreview from "./Preview";
-import useObjectActions from "./useObjectActions";
-import { authClient } from "@s3-viewer/auth/client";
+import { authClient } from "@/lib/auth";
+import { baseName } from "@s3-viewer/types";
+import { useBucketContext } from "../Context";
+import ObjectDetails from "./details";
+import ObjectHeader from "./header";
+import { LazyPreview } from "./lazy-preview";
 
 const ObjectView = () => {
    const { data: session, isPending } = authClient.useSession();
-   const {
-      objectKey,
-      objectName,
-      serverId,
-      bucket,
-      isLoading,
-      handleBack,
-      handleDownload,
-      handleDelete,
-      handleRename,
-   } = useObjectActions();
+   const { bucketName, path, notFound } = useBucketContext();
+   const objectKey = path.join("/");
 
-   const { data: metadata, isLoading: metadataLoading } = useObjectMetadata(
-      serverId,
-      bucket?.Name || "",
-      objectKey
-   );
-
-   const {
-      data: preview,
-      isError: previewError,
-      isLoading: previewLoading,
-   } = useObjectPreview(
-      serverId,
-      bucket?.Name || "",
-      objectKey,
-      metadata?.contentType
-   );
-
-   const previewType = useMemo(
-      () => getPreviewType(metadata?.contentType),
-      [metadata?.contentType]
-   );
-
-   if (!session && isPending) return null;
+   const metadata = useObjectMetadata(bucketName, objectKey);
+   const preview = useObjectPreview(bucketName, objectKey);
 
    if (!session && !isPending)
-      return (
-         <div className="flex flex-col items-center justify-center pt-24">
-            <p className="text-sm text-viewertext">Login to view this object</p>
-         </div>
-      );
+      return <SignInPrompt>Sign in to view this object.</SignInPrompt>;
+
+   if (notFound) return <BucketUnavailable bucketName={bucketName} />;
 
    return (
-      <section className="flex flex-col p-8 pt-6 w-full h-full overflow-hidden">
-         <ObjectActionsHeader
+      <section className="flex min-h-0 w-full flex-1 flex-col overflow-hidden p-8 pt-6">
+         <ObjectHeader
+            bucketName={bucketName}
             objectKey={objectKey}
-            isLoading={isLoading}
-            onBack={handleBack}
-            onRename={handleRename}
-            onDownload={handleDownload}
-            onDelete={handleDelete}
+            path={path}
          />
-
-         <div className="flex flex-1 overflow-hidden max-lg:flex-col gap-4">
-            <ObjectMetadata
-               metadata={metadata}
-               isLoading={
-                  metadataLoading ||
-                  (!metadata && (!serverId || !bucket?.Name || !objectKey))
-               }
+         <div className="flex min-h-0 flex-1 gap-6 max-lg:flex-col max-lg:overflow-y-auto">
+            <ObjectDetails
+               metadata={metadata.data}
+               isLoading={metadata.isPending}
+               error={metadata.error}
             />
-
-            <ObjectPreview
-               objectName={objectName}
-               previewType={previewType}
-               preview={preview}
-               previewLoading={
-                  metadataLoading ||
-                  previewLoading ||
-                  (!metadata && (!serverId || !bucket?.Name || !objectKey))
-               }
-               previewError={previewError}
-               contentLength={metadata?.contentLength}
+            <LazyPreview
+               preview={preview.data}
+               isLoading={preview.isPending}
+               isError={preview.isError}
+               objectKey={objectKey}
+               fileName={baseName(objectKey)}
             />
          </div>
       </section>

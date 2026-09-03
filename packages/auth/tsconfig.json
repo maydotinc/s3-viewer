@@ -1,14 +1,10 @@
 {
-  "extends": "@s3-viewer/ts-config/react-library",
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@s3-viewer/auth/*": [
-        "./*"
-      ]
-    }
-  },
-  "include": [
-    "."
-  ]
+   "extends": "@s3-viewer/ts-config/react-library",
+   "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+         "@s3-viewer/auth/*": ["./*"]
+      }
+   },
+   "include": ["."]
 }

@@ -21,10 +21,10 @@ const TermsPage = () => {
       <>
          <Seo
             title="Terms of Service"
-            description="Terms of Service for S3 Viewer — license, acceptable use, and how we handle accounts. Read before using our open-source S3 object storage viewer."
+            description="Terms of Service for S3 Viewer — the license, acceptable use, and how accounts work. Read before using our open-source S3 object storage viewer."
             canonical="/legal/terms-of-service"
             type="article"
-            modifiedTime={new Date().toISOString()}
+            modifiedTime={new Date(termsData.lastUpdatedIso).toISOString()}
             jsonLd={jsonLd}
          />
          <LegalLayout

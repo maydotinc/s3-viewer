@@ -1,59 +1,35 @@
-import useSessionStore from "@/lib/stores/sessionStore";
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { authClient } from "@s3-viewer/auth/client";
+import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { authClient } from "@/lib/auth";
+import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import { ServerInfo } from "@s3-viewer/types";
-import { QueryFunctionContext, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
-const useServers = (serverId?: string) => {
-   const { data: session, isPending: isSessionPending } =
-      authClient.useSession();
-   const sessionServerId = useSessionStore((state) => state.serverId);
-   const currentServerId = serverId || sessionServerId;
-   const userId = session?.user?.id;
+const useServers = () => {
+   const { isPending: isSessionPending } = authClient.useSession();
+   const userId = useUserId();
+   const serverId = useSessionStore((state) => state.serverId);
 
    const {
       data: servers = [],
       isLoading: isServerListLoading,
-      isFetching: isServerListFetching,
       error: serverError,
-      refetch,
-   } = useQuery<ServerInfo[]>({
-      queryKey: ["servers", userId],
-      queryFn: async ({
-         signal,
-      }: QueryFunctionContext): Promise<ServerInfo[]> => {
-         const response = await createApiRequest(
-            "/server/retrieve/get-servers",
-            { signal }
-         );
-
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         const { serversList } = (await response.json()) as {
-            serversList: ServerInfo[];
-         };
-         return serversList;
-      },
-      enabled: !isSessionPending && Boolean(userId),
+   } = useQuery({
+      queryKey: queryKeys.servers(userId),
+      queryFn: async () =>
+         (await api.get<{ servers: ServerInfo[] }>("/servers")).servers,
+      enabled: Boolean(userId),
    });
 
-   const currentServer =
-      servers.find((server) => server.id === currentServerId) || null;
-
-   const isLoading =
-      isSessionPending || isServerListLoading || isServerListFetching;
+   const currentServer = servers.find((s) => s.id === serverId) ?? null;
 
    return {
       servers,
       currentServer,
       isSessionPending,
       isServerListLoading,
-      isServerListFetching,
-      isLoading,
+      isLoading: isSessionPending || isServerListLoading,
       serverError,
-      refreshServers: refetch,
    };
 };
 

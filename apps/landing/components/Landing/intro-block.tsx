@@ -20,10 +20,10 @@ const IntroBlock = () => {
                <h1 className="motion-fade-up motion-delay-75 md:text-[42px] text-4xl font-semibold text-viewerblack">
                   Explore S3-compatible Object Storage Online
                </h1>
-               <h2 className="motion-fade-up motion-delay-150 md:text-xl text-lg text-viewertext">
-                  Manage all your buckets in one place, with a Google Drive like
+               <p className="motion-fade-up motion-delay-150 md:text-xl text-lg text-viewertext">
+                  Manage all your buckets in one place, with a Google Drive-like
                   interface that just works.
-               </h2>
+               </p>
                <Button
                   variant="secondary"
                   size="lg"
@@ -38,12 +38,12 @@ const IntroBlock = () => {
             <Image
                src="/landing/bucketview.png"
                alt="S3 Viewer dashboard showing buckets and object browser"
-               width={4320}
-               height={2700}
-               quality={100}
+               width={2160}
+               height={1350}
+               sizes="(max-width: 767px) 100vw, (max-width: 1279px) 50vw, 700px"
                priority
                draggable={false}
-               className="select-none"
+               className="select-none h-auto w-full"
             />
          </div>
       </BasicBlock>

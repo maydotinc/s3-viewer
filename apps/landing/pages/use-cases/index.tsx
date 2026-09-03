@@ -23,7 +23,7 @@ const UseCasesIndex = () => {
    return (
       <>
          <Seo
-            title="Use Cases — S3 Viewer"
+            title="Use cases"
             description="What developers use S3 Viewer for: a multi-cloud S3 dashboard, a real Cloudflare R2 console, team access without IAM, and a faster S3 browser."
             canonical="/use-cases"
             jsonLd={jsonLd}

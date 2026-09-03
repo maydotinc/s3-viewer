@@ -1,41 +1,35 @@
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { isPreviewable } from "@/lib/utils/s3/previewHelpers";
-import { previewQuerySchema, S3ObjectPreviewResponse } from "@s3-viewer/types";
+import { api, objectsPath, qs } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
+import {
+   PRESIGN_EXPIRY_SECONDS,
+   SECOND_MS,
+   type S3ObjectPreview,
+} from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
-const useObjectPreview = (
-   serverId: string,
-   bucketName: string,
-   objectKey: string,
-   contentType?: string
-) => {
-   const previewable = isPreviewable(contentType);
+const PRESIGN_STALE_MS = 0.8 * PRESIGN_EXPIRY_SECONDS * SECOND_MS;
 
-   return useQuery<S3ObjectPreviewResponse>({
-      queryKey: ["object-preview", serverId, bucketName, objectKey],
-      queryFn: async () => {
-         const validated = previewQuerySchema.parse({
-            serverId,
-            bucketName,
-            objectKey,
-            contentType: contentType || "",
-         });
-         const params = new URLSearchParams(validated);
+const useObjectPreview = (bucketName: string, objectKey: string) => {
+   const userId = useUserId();
+   const serverId = useSessionStore((state) => state.serverId);
 
-         const response = await createApiRequest(
-            `/s3/object/preview?${params}`,
-            {
-               method: "GET",
-            }
-         );
-
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         return response.json();
-      },
-      enabled: !!serverId && !!bucketName && !!objectKey && previewable,
+   return useQuery({
+      queryKey: queryKeys.objectPreview(
+         userId,
+         serverId,
+         bucketName,
+         objectKey
+      ),
+      queryFn: () =>
+         api.get<S3ObjectPreview>(
+            `${objectsPath(serverId, bucketName)}/preview-url${qs({ objectKey })}`
+         ),
+      enabled: Boolean(userId && serverId && bucketName && objectKey),
+      staleTime: PRESIGN_STALE_MS,
+      gcTime: PRESIGN_STALE_MS,
+      refetchOnWindowFocus: false,
+      retry: false,
    });
 };
 

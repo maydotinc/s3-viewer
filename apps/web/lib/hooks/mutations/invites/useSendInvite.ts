@@ -1,45 +1,42 @@
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { sendInviteSchema, SendInviteInput } from "@s3-viewer/types";
+import { ApiError, api, serverPath } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import { useUserId } from "@/lib/stores/sessionStore";
+import { toastError } from "@/lib/utils/toast";
+import { SendInviteInput, SendInviteResult } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 const useSendInvite = () => {
    const queryClient = useQueryClient();
+   const userId = useUserId();
 
-   return useMutation({
-      mutationFn: async (
-         input: SendInviteInput
-      ): Promise<{ message: string }> => {
-         const parsed = sendInviteSchema.parse({
-            ...input,
-            expiresAt:
-               input.expiresAt ||
-               new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
-         });
-
-         const response = await createApiRequest("/server/invites/send", {
-            method: "POST",
-            body: JSON.stringify(parsed),
-         });
-
-         if (!response.ok) {
-            await handleApiError(response);
+   return useMutation<SendInviteResult, ApiError, SendInviteInput>({
+      mutationFn: async ({ serverId, ...body }) => {
+         const { invites, alreadyMembers = [] } = await api.post<
+            Partial<SendInviteResult>
+         >(`${serverPath(serverId)}/invites`, body);
+         return { invites: invites ?? [], alreadyMembers };
+      },
+      onSuccess: ({ invites, alreadyMembers }, { serverId }) => {
+         if (invites.length > 0) {
+            toast.success(
+               invites.length === 1
+                  ? "Invite sent"
+                  : `${invites.length} invites sent`
+            );
          }
-
-         const data = await response.json();
-         return { message: data.message };
-      },
-
-      onSuccess: () => {
-         toast.success("Invitation sent successfully");
-         queryClient.invalidateQueries({ queryKey: ["sent-invites"] });
-      },
-
-      onError: (error: Error) => {
-         toast.error("Unable to send invitation", {
-            description: error.message,
+         if (alreadyMembers.length > 0) {
+            toast.info(
+               alreadyMembers.length === 1
+                  ? `${alreadyMembers[0]} is already a member`
+                  : `${alreadyMembers.length} of those people are already members`
+            );
+         }
+         queryClient.invalidateQueries({
+            queryKey: queryKeys.sentInvites(userId, serverId),
          });
       },
+      onError: toastError("Couldn't send invites"),
    });
 };
 

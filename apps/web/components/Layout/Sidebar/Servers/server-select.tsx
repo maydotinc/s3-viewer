@@ -1,76 +1,53 @@
-import { authClient } from "@s3-viewer/auth/client";
 import { useModalContext } from "@/lib/contexts/ModalContext";
 import useServers from "@/lib/hooks/queries/server/useServers";
-import useSessionStore from "@/lib/stores/sessionStore";
+import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import {
    DropdownMenu,
-   DropdownMenuTrigger,
    DropdownMenuContent,
+   DropdownMenuItem,
    DropdownMenuRadioGroup,
    DropdownMenuRadioItem,
-   DropdownMenuItem,
    DropdownMenuSeparator,
+   DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
-import { CirclePlus, ChevronsLeftRight } from "lucide-react";
-import ServerCard from "./server-card";
+import { CirclePlus } from "lucide-react";
+import ServerCard, { ServerCardSkeleton } from "./server-card";
 import ServerItem from "./server-item";
 
 const ServerSelector = () => {
    const { openConnectModal } = useModalContext();
-   const { servers, currentServer, isLoading, serverError } = useServers();
+   const { servers, currentServer, isServerListLoading, serverError } =
+      useServers();
    const setServerId = useSessionStore((state) => state.setServerId);
-   const { data: session, isPending } = authClient.useSession();
+   const userId = useUserId();
 
-   const handleServerSelect = (newServerId: string) => {
-      setServerId(newServerId);
-   };
-
-   if (isLoading || (!session && !isPending)) {
-      return (
-         <div
-            className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2 min-h-[74px]"
-            aria-hidden
-         >
-            <div className="flex gap-2 items-center">
-               <div className="bg-viewerwhite border border-xs rounded-sm p-1 flex-none">
-                  <Skeleton className="size-4 rounded bg-transparent" />
-               </div>
-               <div className="md:max-w-[100px] min-w-0">
-                  <Skeleton className="h-5 w-[100px] rounded" />
-               </div>
-               <div className="flex gap-2 items-center ml-auto border border-viewerborder rounded-full p-1.5 bg-viewerwhite">
-                  <ChevronsLeftRight className="size-4 rotate-90 text-viewertext" />
-               </div>
-            </div>
-            <div className="flex gap-2 items-center text-viewertext">
-               <Skeleton className="size-4 shrink-0 rounded" />
-               <Skeleton className="h-5 w-14 rounded" />
-            </div>
-         </div>
-      );
-   }
+   if (!userId || isServerListLoading) return <ServerCardSkeleton />;
 
    if (serverError) {
       return (
-         <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
-            <p className="text-viewertext text-center">Error loading servers</p>
-         </div>
+         <p
+            role="alert"
+            className="rounded-xl bg-viewergray p-2 text-center text-sm text-viewertextred"
+         >
+            {serverError.message}
+         </p>
       );
    }
 
-   if (servers.length === 0 || !currentServer) {
+   if (!currentServer) {
       return (
-         <div className="flex flex-col gap-2 bg-viewergray rounded-xl w-full border-none p-2">
-            <p className="text-viewertext text-center">No servers connected</p>
+         <div className="flex flex-col gap-2 rounded-xl bg-viewergray p-2">
+            <p className="text-center text-sm text-viewertext">
+               No servers yet
+            </p>
             <Button
-               className="w-full cursor-pointer"
                variant="outline"
-               onClick={() => openConnectModal()}
+               className="w-full"
+               onClick={openConnectModal}
             >
-               <CirclePlus className="size-5" />
-               Add new server
+               <CirclePlus aria-hidden="true" />
+               Add server
             </Button>
          </div>
       );
@@ -78,31 +55,35 @@ const ServerSelector = () => {
 
    return (
       <DropdownMenu>
-         <DropdownMenuTrigger className="select-none rounded-xl focus:outline-none focus:ring-0 focus-visible:ring-0">
+         <DropdownMenuTrigger
+            aria-label="Switch server"
+            className="w-full rounded-xl outline-none focus-visible:ring-[3px] focus-visible:ring-viewerblue/40"
+         >
             <ServerCard server={currentServer} />
          </DropdownMenuTrigger>
-         <DropdownMenuContent className="select-none">
+         <DropdownMenuContent align="start" className="w-64">
             <DropdownMenuRadioGroup
                value={currentServer.id}
-               onValueChange={handleServerSelect}
+               onValueChange={setServerId}
             >
                {servers.map((server) => (
                   <DropdownMenuRadioItem
                      key={server.id}
                      value={server.id}
-                     className="w-50 text-viewerblack"
+                     textValue={server.name}
+                     className="pl-1 pr-1"
                   >
-                     <ServerItem server={server} />
+                     <ServerItem
+                        server={server}
+                        selected={server.id === currentServer.id}
+                     />
                   </DropdownMenuRadioItem>
                ))}
             </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator className="w-19/20 bg-viewerborder mx-auto" />
-            <DropdownMenuItem
-               className="py-2 text-viewerblack"
-               onClick={() => openConnectModal()}
-            >
-               <CirclePlus className="size-5" />
-               Add new server
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={openConnectModal}>
+               <CirclePlus aria-hidden="true" />
+               Add server
             </DropdownMenuItem>
          </DropdownMenuContent>
       </DropdownMenu>

@@ -14,25 +14,26 @@ const SLUG = "switch-between-s3-buckets";
 const TITLE = "How to switch between S3 buckets quickly";
 const KEYWORD = "switch between S3 buckets";
 const TLDR =
-   "From the AWS CLI: configure named profiles in ~/.aws/credentials and switch with AWS_PROFILE — the right pattern for scripts. From the AWS console: navigate per-account and re-authenticate. From S3 Viewer: hit Cmd-K and fuzzy-match any bucket on any connected provider — across AWS accounts, across Cloudflare R2, MinIO, B2, all in one switcher.";
+   "From the AWS CLI: configure named profiles in ~/.aws/credentials and switch with AWS_PROFILE — the right pattern for scripts. From the AWS console: navigate per-account and re-authenticate every time. From S3 Viewer: every connected server and its buckets sit in one sidebar, so switching between an AWS bucket and an R2 bucket is a click, with no sign-in in between.";
 
 const steps: HowToStep[] = [
    {
-      title: "In S3 Viewer: press Cmd-K",
+      title: "In S3 Viewer: pick the server in the sidebar",
       body: (
          <>
-            A bucket switcher opens with fuzzy matching across every
-            bucket on every connected provider — AWS, R2, MinIO, anything
-            you&apos;ve wired up.
+            Every connection you have added with <strong>Add server</strong> is
+            listed in the sidebar — AWS, R2, MinIO, anything you have wired up.
+            Selecting one loads its buckets underneath it.
          </>
       ),
    },
    {
-      title: "Type any part of the name",
+      title: "Click the bucket",
       body: (
          <>
-            Match by bucket name or provider. Hit <code>Enter</code> to
-            jump. No re-authenticating, no profile switching.
+            The file list swaps to that bucket&apos;s root. No re-authenticating
+            and no profile switching — the credential for that server is already
+            stored and is used to sign the request.
          </>
       ),
    },
@@ -40,9 +41,9 @@ const steps: HowToStep[] = [
       title: "AWS CLI: named profiles",
       body: (
          <>
-            Configure profiles in <code>~/.aws/credentials</code> and
-            switch with <code>AWS_PROFILE</code>. The right pattern for
-            scripts and single-shell workflows.
+            Configure profiles in <code>~/.aws/credentials</code> and switch
+            with <code>AWS_PROFILE</code>. The right pattern for scripts and
+            single-shell workflows.
          </>
       ),
       code: "AWS_PROFILE=acme aws s3 ls s3://bucket-name",
@@ -62,9 +63,9 @@ const steps: HowToStep[] = [
       title: "Across multiple AWS accounts",
       body: (
          <>
-            Add each account&apos;s credentials separately. In S3 Viewer
-            they show up grouped by account in the sidebar; in the CLI
-            they&apos;re separate profiles.
+            Add each account&apos;s credentials as its own server. In S3 Viewer
+            they are separate entries in the sidebar; in the CLI they are
+            separate profiles.
          </>
       ),
    },
@@ -74,12 +75,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "What's the fastest way to switch between AWS S3 buckets?",
       answer:
-         "It depends on the workflow. For scripts, AWS CLI named profiles toggled with AWS_PROFILE are ideal. For interactive work where you bounce between many buckets in a session, a Cmd-K bucket switcher (like S3 Viewer's) is faster — fuzzy-match the bucket name and jump in two keystrokes, no profile switching, no re-authenticating.",
+         "It depends on the workflow. For scripts, AWS CLI named profiles toggled with AWS_PROFILE are ideal. For interactive work where you bounce between many buckets in a session, a browser tool that keeps every bucket in one sidebar is faster — in S3 Viewer, switching bucket or provider is a click, with no profile switching and no re-authenticating.",
    },
    {
       question: "Can I have buckets from multiple AWS accounts open at once?",
       answer:
-         "Yes. Connect each AWS account separately — S3 Viewer keeps a separate signer per credential. Buckets show up in the sidebar grouped by account so you can tell them apart.",
+         "Yes. Add each AWS account as its own server — S3 Viewer keeps a separate credential and signer per server. Buckets are listed under the server they belong to, so you can tell them apart at a glance. You browse one server at a time and switch from the sidebar.",
    },
    {
       question: "How do I switch between AWS profiles in the CLI?",
@@ -89,7 +90,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Can I jump between an AWS bucket and a Cloudflare R2 bucket?",
       answer:
-         "Yes — Cmd-K in S3 Viewer covers every connected provider in one switcher. The same hotkey jumps from AWS to R2 to MinIO without re-authenticating, since each provider keeps its own credential under the hood.",
+         "Yes. Add AWS and R2 as separate servers and both appear in the same sidebar; switching from one to the other is a click, with no re-authenticating, since each server keeps its own credential under the hood.",
    },
 ];
 
@@ -107,8 +108,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="How to Switch Between S3 Buckets Quickly (Cmd-K + AWS CLI)"
-            description="Two patterns for switching between AWS S3 buckets without losing context: a Cmd-K fuzzy switcher in S3 Viewer, or named profiles in the AWS CLI."
+            title="How to Switch Between S3 Buckets Quickly"
+            description="Two patterns for switching between AWS S3 buckets without losing context: one sidebar of servers and buckets in S3 Viewer, or named profiles in the AWS CLI."
             canonical={`/how-to/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -121,14 +122,15 @@ const Page = () => {
             underTheHood={
                <p>
                   The AWS CLI scopes credentials per profile (
-                  <code>~/.aws/credentials</code>) and you switch by
-                  setting <code>AWS_PROFILE</code>. That&apos;s the right
-                  pattern for scripts and single-shell workflows. For
-                  interactive sessions where you bounce between many
-                  buckets, a Cmd-K switcher is faster — S3 Viewer keeps
-                  every connected bucket loaded and routes each click to
-                  the right signer behind the scenes, so jumping is just
-                  fuzzy search over your bucket list.
+                  <code>~/.aws/credentials</code>) and you switch by setting{" "}
+                  <code>AWS_PROFILE</code>. That&apos;s the right pattern for
+                  scripts and single-shell workflows. For interactive sessions
+                  where you bounce between many buckets, the cost is not the
+                  switch itself but the re-authentication and the context loss
+                  around it. S3 Viewer keeps every server you have added in one
+                  sidebar and routes each click to that server&apos;s stored
+                  credential, so moving between an AWS bucket and an R2 bucket
+                  is the same gesture as moving between two folders.
                </p>
             }
             faqs={faqs}

@@ -1,44 +1,43 @@
-import useObjects from "@/lib/hooks/queries/s3/useObjects";
-import { useEffect, useMemo, useRef, useState } from "react";
+import useObjectKeys from "@/lib/hooks/queries/s3/useObjectKeys";
+import { useEffect, useMemo, useState } from "react";
 
-function useDebouncedValue(value: string, delay: number) {
-  const [debounced, setDebounced] = useState(value);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+const useDebouncedValue = <T>(value: T, delayMs: number) => {
+   const [debounced, setDebounced] = useState(value);
+   useEffect(() => {
+      const timer = setTimeout(() => setDebounced(value), delayMs);
+      return () => clearTimeout(timer);
+   }, [value, delayMs]);
+   return debounced;
+};
 
-  useEffect(() => {
-    timerRef.current = setTimeout(() => setDebounced(value), delay);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [value, delay]);
+const isAcceptSuggestionKey = (
+   event: React.KeyboardEvent<HTMLInputElement>
+): boolean => {
+   const { selectionStart, selectionEnd, value } = event.currentTarget;
+   return (
+      event.key === "ArrowRight" &&
+      !event.shiftKey &&
+      selectionStart === value.length &&
+      selectionEnd === value.length
+   );
+};
 
-  return debounced;
-}
+const usePathSuggestion = (bucketName: string, currentKey: string): string => {
+   const debouncedKey = useDebouncedValue(currentKey, 200);
+   const keys = useObjectKeys(
+      bucketName,
+      debouncedKey,
+      debouncedKey.length > 0
+   );
 
-function usePathSuggestion(
-  serverId: string,
-  bucketName: string,
-  currentKey: string
-) {
-  const debouncedKey = useDebouncedValue(currentKey, 200);
-
-  const lastSlash = debouncedKey.lastIndexOf("/");
-  const prefix =
-    lastSlash >= 0 ? debouncedKey.substring(0, lastSlash + 1) : "";
-  const partial =
-    lastSlash >= 0 ? debouncedKey.substring(lastSlash + 1) : debouncedKey;
-
-  const keys = useObjects({ serverId, bucketName, prefix, partial });
-
-  const suggestion = useMemo(() => {
-    if (!currentKey || !partial || !debouncedKey) return "";
-    const match = keys.find(
-      (key) => key.startsWith(debouncedKey) && key !== debouncedKey
-    );
-    return match ? match.substring(debouncedKey.length) : "";
-  }, [keys, currentKey, debouncedKey, partial]);
-
-  return currentKey ? suggestion : "";
-}
+   return useMemo(() => {
+      if (!currentKey || currentKey !== debouncedKey) return "";
+      const match = keys.find(
+         (key) => key.startsWith(currentKey) && key !== currentKey
+      );
+      return match ? match.slice(currentKey.length) : "";
+   }, [keys, currentKey, debouncedKey]);
+};
 
 export default usePathSuggestion;
+export { isAcceptSuggestionKey };

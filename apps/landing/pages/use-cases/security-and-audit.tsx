@@ -21,21 +21,23 @@ import {
 const SLUG = "security-and-audit";
 const TITLE = "Built so security teams sign off.";
 const KEYWORD = "secure S3 access management";
+const META_DESCRIPTION =
+   "Credentials encrypted in your browser, object bytes that are streamed and never stored, no per-person IAM users, and an MIT-licensed build you can self-host.";
 const DESCRIPTION =
-   "S3 Viewer is designed to be the kind of tool that doesn't add new attack surface. Credentials are encrypted at rest with RSA-4096. Object contents stream through, never persisted. No per-person IAM users to rotate at off-boarding. MIT-licensed and self-hostable inside your own VPC.";
+   "S3 Viewer is designed to be the kind of tool that doesn't add new attack surface. Credentials are encrypted in your browser before they reach us and decrypted only to run the operation you asked for. Uploads stream through our server into your bucket without being stored; downloads go straight from your bucket to the browser. No per-person IAM users to rotate at off-boarding. MIT-licensed and self-hostable inside your own VPC.";
 
 const steps: UseCaseStep[] = [
    {
       title: "Connect with least-privilege keys",
-      body: "Use an IAM policy scoped to the buckets and operations you actually need — typically s3:ListBucket, s3:GetObject, s3:PutObject, and s3:DeleteObject on specific bucket ARNs. If your token can't ListBuckets, pin an allowed-buckets whitelist when you connect.",
+      body: "Use an IAM policy scoped to the buckets and operations you actually need — typically s3:ListBucket, s3:GetObject, s3:PutObject, and s3:DeleteObject on specific bucket ARNs. If your token can't ListBuckets, name the buckets it may reach when you add the server.",
    },
    {
       title: "Invite the team — no IAM users to mint",
-      body: "Each member gets their own login and role per bucket. Off-boarding is a one-click revoke; you don't rotate any AWS keys because they never had any.",
+      body: "Each member gets their own login and a role — Owner, Admin, Editor or Viewer — with a per-bucket override where you need one. Off-boarding is removing them from the members dialog; you don't rotate any AWS keys because they never had any.",
    },
    {
       title: "Self-host if compliance demands it",
-      body: "Drop the open-source build inside your VPC. Credentials, sessions, and request signing all stay on your infrastructure. No third party in the request path.",
+      body: "Drop the open-source build inside your VPC. Credentials, sessions, and request signing all stay on your infrastructure — self-hosted, there is no third party in the request path at all.",
    },
 ];
 
@@ -43,27 +45,27 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Where are my AWS credentials stored?",
       answer:
-         "Encrypted at rest with RSA-4096 (PKCS1_OAEP, SHA-256). The keys are decrypted in memory only when signing an S3 request, then discarded. They never reach the browser, never appear in any API response, and never enter any log. On the self-hosted build, you control the encryption key entirely.",
+         "Encrypted in your browser with a public key before they are sent to us, so we only ever store the ciphertext: AES-256-GCM with the data key wrapped using RSA-OAEP (SHA-256). They are decrypted in memory only to run the operation you asked for, then discarded. They never come back to the browser, never appear in an API response, and never enter a log. Self-hosted, you hold the private key.",
    },
    {
       question: "Do you store the contents of my S3 objects?",
       answer:
-         "No. Files stream from your bucket through the server to your browser using short-lived presigned URLs. There is no object cache, no object database, and no object storage on our side. Cross-cloud copies stream byte-for-byte from source to destination — not into anything we keep.",
+         "No. Uploads pass through our API as a stream — the bytes go from your browser into your bucket in 25 MB parts, in memory, and are never written to disk or kept once the upload finishes; it is what lets uploads work without any CORS or bucket configuration. Downloads and previews go straight from your bucket to your browser over 15-minute presigned URLs and never touch us. Everything else the API does moves no object data: listing, metadata, signing download links, rename (a server-side copy plus a delete), delete and bucket creation. There is no object cache, no object database, and no object storage on our side.",
    },
    {
       question: "How is this safer than minting IAM users for every teammate?",
       answer:
-         "Per-person IAM users are permanent artifacts: keys to rotate, console access to manage, off-boarding to remember. Workspace members aren't IAM users — they're sessions tied to your single workspace credential. Revoking them ends their session immediately; no AWS keys to cycle, no policies to update, nothing for an attacker to lift from a stale config.",
+         "Per-person IAM users are permanent artifacts: keys to rotate, console access to manage, off-boarding to remember. S3 Viewer members aren't IAM users — they sign in to S3 Viewer, and their role is checked on our server before any request is signed with the server's single credential. Removing them cuts access immediately; no AWS keys to cycle, no policies to update, nothing for an attacker to lift from a stale config.",
    },
    {
       question: "Can I run S3 Viewer entirely inside my own infrastructure?",
       answer:
-         "Yes. The repo is open source under the MIT license. Self-host it behind your VPN or inside your VPC and credentials, sessions, and traffic never leave your network. The encryption key is yours to manage.",
+         "Yes. The repo is open source under the MIT license. Self-host it behind your VPN or inside your VPC and credentials, sessions, and traffic never leave your network. The RSA key pair used to encrypt credentials is yours to generate and manage.",
    },
    {
       question: "How do I off-board someone who's leaving?",
       answer:
-         "Click revoke on their workspace membership. Their session ends on the next request and they can no longer authenticate. You don't have to rotate any AWS or R2 keys — they never held any. Other teammates and applications keep working.",
+         "Remove them in the members dialog. They lose access to that server on their next request. You don't have to rotate any AWS or R2 keys — they never held any. Other teammates and applications keep working.",
    },
    {
       question: "What IAM policy should I use?",
@@ -91,8 +93,8 @@ const Page = () => {
    return (
       <>
          <Seo
-            title="Secure S3 Access — RSA-4096 Encrypted Keys, MIT Open Source"
-            description={DESCRIPTION}
+            title="Secure S3 Access — Client-Encrypted Keys, MIT Open Source"
+            description={META_DESCRIPTION}
             canonical={`/use-cases/${SLUG}`}
             jsonLd={jsonLd}
          />
@@ -103,40 +105,40 @@ const Page = () => {
             subtitle={DESCRIPTION}
             description="A tool you can hand to your security review."
             bullets={[
-               "RSA-4096 encrypted credentials — decrypted only in memory",
-               "Zero object retention — nothing persisted on our side",
+               "Credentials encrypted in your browser — decrypted only in memory, to sign",
+               "Object bytes are never stored — uploads stream through, downloads go bucket to browser",
                "MIT-licensed and self-hostable inside your VPC",
             ]}
             features={[
                {
                   icon: KeyRound,
-                  title: "RSA-4096 encrypted credentials",
-                  body: "Access keys are encrypted at rest with RSA-4096 (PKCS1_OAEP, SHA-256). Decrypted only in memory to sign requests, then discarded. They never reach the browser, never appear in logs, never return in API responses.",
+                  title: "Client-encrypted credentials",
+                  body: "Access keys are encrypted in your browser before they are sent — AES-256-GCM with the key wrapped using RSA-OAEP (SHA-256). Decrypted in memory only to run the operation you asked for, then discarded. They never come back to the browser, never appear in logs, never return in API responses.",
                },
                {
                   icon: Database,
-                  title: "Zero object retention",
-                  body: "Files stream from your bucket to the browser via short-lived presigned URLs. No object cache, no object database, no object storage. Cross-cloud copies stream source-to-destination, not into anything we keep.",
+                  title: "Object bytes are never stored",
+                  body: "Uploads stream through our API into your bucket in memory and are discarded as they go — no disk, no cache, no object database — which is why your bucket needs no CORS rule or other setting. Downloads and previews run bucket-to-browser over 15-minute presigned URLs and never touch us at all.",
                },
                {
                   icon: Lock,
                   title: "No IAM users to rotate",
-                  body: "Workspace members aren't IAM users — they're sessions tied to your single workspace credential. Off-boarding is a session revoke. Nothing permanent for attackers to lift, nothing for you to forget about.",
+                  body: "Members aren't IAM users — they sign in to S3 Viewer and their role is checked before any request is signed with the server's single credential. Off-boarding is removing them. Nothing permanent for attackers to lift, nothing for you to forget about.",
                },
                {
                   icon: UserMinus,
-                  title: "Revoke without key rotation",
-                  body: "Pulling a user's access ends their session immediately. No AWS keys to cycle, no policies to edit, no other teammates affected, no applications broken.",
+                  title: "Remove without key rotation",
+                  body: "Removing a member cuts their access on the next request. No AWS keys to cycle, no policies to edit, no other teammates affected, no applications broken.",
                },
                {
                   icon: Server,
                   title: "Self-host on your VPC",
-                  body: "MIT-licensed. Self-host with PostgreSQL, your own OpenSSL keys, and HTTPS — credentials never have to leave your network.",
+                  body: "MIT-licensed. Self-host with PostgreSQL, your own RSA key pair, and HTTPS — credentials never have to leave your network.",
                },
                {
                   icon: Github,
                   title: "Open and auditable",
-                  body: "The full source is on GitHub. Read the encryption code, the request signing path, and the access checks for yourself before you trust it.",
+                  body: "The full source is on GitHub. Read the encryption code, the request signing path, and the role checks for yourself before you trust it.",
                },
             ]}
             steps={steps}

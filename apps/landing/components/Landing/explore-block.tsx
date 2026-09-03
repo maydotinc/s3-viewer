@@ -21,7 +21,7 @@ const ExploreBlock = () => {
             <div className="select-none max-md:size-18">
                <Image
                   src="/icons/viewerblue.svg"
-                  alt="viewer-cube"
+                  alt=""
                   width={104}
                   height={105}
                   draggable={false}
@@ -29,13 +29,13 @@ const ExploreBlock = () => {
                />
             </div>
             <div className="flex flex-col gap-2 items-center">
-               <h1 className="md:text-4xl text-3xl text-viewerblack font-semibold text-center">
-                  Explore Awesome S3 - Viewer Experience
-               </h1>
-               <h2 className="md:text-xl text-base text-viewertext text-center">
-                  Experience the future of object storage management with our
-                  intuitive, fast, and secure S3 browser
+               <h2 className="md:text-4xl text-3xl text-viewerblack font-semibold text-center">
+                  Explore the S3 Viewer experience
                </h2>
+               <p className="md:text-xl text-base text-viewertext text-center">
+                  Browse, upload, share and manage files in any S3-compatible
+                  bucket from one fast, open-source interface
+               </p>
             </div>
             <Button
                asChild

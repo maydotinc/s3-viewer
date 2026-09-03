@@ -1,112 +1,40 @@
+import { landingOrigin } from "@/lib/env";
+import { LANDING_ROUTES, LEGACY_REDIRECTS } from "@/lib/site-config";
 import { NextRequest, NextResponse } from "next/server";
 
-const isProd = process.env.NODE_ENV === "production";
+const LANDING_PATHS = new Set(LANDING_ROUTES);
+const LANDING_SECTIONS = LANDING_ROUTES.filter((route) => route !== "/");
 
-const landingOrigin = {
-   hostname: isProd ? "s3-viewer-lp.vercel.app" : "landing.localhost",
-   protocol: "https" as const,
-   port: "",
-};
+const isLandingPath = (pathname: string) =>
+   LANDING_PATHS.has(pathname) ||
+   pathname.startsWith("/landing/") ||
+   LANDING_SECTIONS.some((route) => pathname.startsWith(`${route}/`));
 
-const rewriteToLanding = (url: URL) => {
-   url.hostname = landingOrigin.hostname;
-   url.protocol = landingOrigin.protocol;
-   url.port = landingOrigin.port;
-   return NextResponse.rewrite(url.toString());
-};
+const middleware = (request: NextRequest) => {
+   const { pathname, search } = request.nextUrl;
 
-const LANDING_OWNED = [
-   "/legal",
-   "/about",
-   "/use-cases",
-   "/how-to",
-   "/brand-kit",
-];
-
-const TERMS_ALIASES = new Set([
-   "/tos",
-   "/terms",
-   "/terms-of-service",
-   "/terms-and-conditions",
-   "/terms-conditions",
-]);
-const PRIVACY_ALIASES = new Set([
-   "/privacy",
-   "/privacy-policy",
-   "/privacy-notice",
-]);
-
-// Old slugs from the previous IA — 301 to the closest current page so existing
-// inbound links keep their SEO equity.
-const USE_CASE_REDIRECTS: Record<string, string> = {
-   "/use-cases/backups": "/use-cases/security-and-audit",
-   "/use-cases/media": "/use-cases/s3-browser",
-   "/use-cases/data-engineering": "/use-cases/s3-browser",
-   "/use-cases/ai-ml": "/use-cases/s3-browser",
-};
-
-function middleware(request: NextRequest) {
-   const url = request.nextUrl.clone();
-   const { pathname } = request.nextUrl;
-   const lower = pathname.toLowerCase();
-
-   if (lower === "/sitemap.xml") {
-      url.pathname = "/api/sitemap";
-      return NextResponse.rewrite(url.toString());
+   if (pathname === "/sitemap.xml") {
+      return NextResponse.rewrite(new URL("/api/sitemap", request.url));
    }
 
-   if (pathname.startsWith("/landing/")) {
-      return rewriteToLanding(url);
+   const redirect = LEGACY_REDIRECTS[pathname];
+   if (redirect) {
+      return NextResponse.redirect(new URL(redirect, request.url), 301);
    }
 
-   if (TERMS_ALIASES.has(lower)) {
-      const dest = url.clone();
-      dest.pathname = "/legal/terms-of-service";
-      return NextResponse.redirect(dest.toString(), 301);
-   }
-   if (PRIVACY_ALIASES.has(lower)) {
-      const dest = url.clone();
-      dest.pathname = "/legal/privacy-policy";
-      return NextResponse.redirect(dest.toString(), 301);
-   }
-
-   const useCaseRedirect = USE_CASE_REDIRECTS[lower];
-   if (useCaseRedirect) {
-      const dest = url.clone();
-      dest.pathname = useCaseRedirect;
-      return NextResponse.redirect(dest.toString(), 301);
-   }
-
-   const isLowerCanonical =
-      pathname === lower ||
-      pathname === "/" ||
-      pathname.startsWith("/_next/") ||
-      pathname.startsWith("/api/");
-   if (!isLowerCanonical) {
-      const ownsLower =
-         lower === "/" ||
-         LANDING_OWNED.some(
-            (p) => lower === p || lower.startsWith(`${p}/`)
-         );
-      if (ownsLower) {
-         const dest = url.clone();
-         dest.pathname = lower;
-         return NextResponse.redirect(dest.toString(), 301);
-      }
-   }
-
-   if (pathname === "/") {
-      return rewriteToLanding(url);
-   }
-
-   const matchesLanding = LANDING_OWNED.some(
-      (p) => pathname === p || pathname.startsWith(`${p}/`)
-   );
-   if (matchesLanding) {
-      return rewriteToLanding(url);
+   if (landingOrigin && isLandingPath(pathname)) {
+      return NextResponse.rewrite(new URL(pathname + search, landingOrigin));
    }
 
    return NextResponse.next();
-}
+};
+
+export const config = {
+   matcher: [
+      "/sitemap.xml",
+      "/landing/:path*",
+      "/((?!_next/|api/|landing/|.*\\.[^/]+$).*)",
+   ],
+};
 
 export default middleware;

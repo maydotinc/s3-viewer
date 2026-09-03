@@ -1,34 +1,22 @@
-import useSessionStore from "@/lib/stores/sessionStore";
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { bucketBodySchema } from "@s3-viewer/types";
+import { api, bucketPath } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-const useRemoveBucket = (serverId?: string) => {
+const useRemoveBucket = () => {
    const queryClient = useQueryClient();
-   const sessionServerId = useSessionStore((state) => state.serverId);
-   const currentServerId = serverId || sessionServerId;
+   const userId = useUserId();
+   const serverId = useSessionStore((state) => state.serverId);
 
    return useMutation({
-      mutationFn: async (bucketName: string): Promise<{ message: string }> => {
-         const data = bucketBodySchema.parse({
-            bucketName,
-            serverId: currentServerId,
+      mutationFn: (bucketName: string) =>
+         api.delete<void>(bucketPath(serverId, bucketName)),
+      onSuccess: (_, bucketName) => {
+         queryClient.removeQueries({
+            queryKey: queryKeys.bucket(userId, serverId, bucketName),
          });
-         const response = await createApiRequest("/s3/bucket/remove", {
-            method: "DELETE",
-            body: JSON.stringify(data),
-         });
-
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         return await response.json();
-      },
-
-      onSuccess: () => {
-         queryClient.invalidateQueries({
-            queryKey: ["buckets", currentServerId],
+         void queryClient.invalidateQueries({
+            queryKey: queryKeys.buckets(userId, serverId),
          });
       },
    });

@@ -17,11 +17,11 @@ const Home = () => {
          "@type": "WebApplication",
          name: "S3 Viewer",
          description:
-            "A fast, open-source S3 object storage viewer. 1-click self-host. Browse, upload, and manage your S3 buckets with ease.",
+            "Browse, upload, share and manage files in any S3-compatible bucket from a fast web UI. Open source, self-hostable.",
          url: SITE_URL,
          applicationCategory: "DeveloperApplication",
          operatingSystem: "Web",
-         codeRepository: "https://github.com/maydotinc",
+         codeRepository: "https://github.com/maydotinc/s3-viewer",
          offers: {
             "@type": "Offer",
             price: "0",
@@ -41,8 +41,8 @@ const Home = () => {
    return (
       <div className="size-full">
          <Seo
-            title="S3 Viewer – Fast, Open-Source S3 Object Storage Browser"
-            description="A fast, open-source S3 viewer with 1-click self-host. Browse buckets, upload files, and manage object storage. T3Chat but for S3 – built for speed."
+            title="Fast, open-source S3 object storage browser"
+            description="Browse, upload, share and manage files in any S3-compatible bucket from a fast web UI. Open source, self-hostable."
             canonical="/"
             image={`${SITE_URL}/landing/bucketview.png`}
             imageAlt="S3 Viewer dashboard showing buckets and objects"

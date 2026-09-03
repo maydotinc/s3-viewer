@@ -1,36 +1,26 @@
-import { createApiRequest, handleApiError } from "@/lib/utils/api";
-import { metadataQuerySchema, S3ObjectMetadata } from "@s3-viewer/types";
+import { api, objectsPath, qs } from "@/lib/api";
+import { queryKeys } from "@/lib/queryKeys";
+import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
+import type { S3ObjectMetadata } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
-const useObjectMetadata = (
-   serverId: string,
-   bucketName: string,
-   objectKey: string
-) => {
-   return useQuery<S3ObjectMetadata>({
-      queryKey: ["object-metadata", serverId, bucketName, objectKey],
-      queryFn: async () => {
-         const validated = metadataQuerySchema.parse({
-            serverId,
-            bucketName,
-            objectKey,
-         });
-         const params = new URLSearchParams(validated);
-         const response = await createApiRequest(
-            `/s3/object/metadata?${params}`,
-            {
-               method: "GET",
-            }
-         );
+const useObjectMetadata = (bucketName: string, objectKey: string) => {
+   const userId = useUserId();
+   const serverId = useSessionStore((state) => state.serverId);
 
-         if (!response.ok) {
-            await handleApiError(response);
-         }
-
-         const data = await response.json();
-         return data;
-      },
-      enabled: !!serverId && !!bucketName && !!objectKey,
+   return useQuery({
+      queryKey: queryKeys.objectMetadata(
+         userId,
+         serverId,
+         bucketName,
+         objectKey
+      ),
+      queryFn: () =>
+         api.get<S3ObjectMetadata>(
+            `${objectsPath(serverId, bucketName)}/metadata${qs({ objectKey })}`
+         ),
+      enabled: Boolean(userId && serverId && bucketName && objectKey),
+      retry: false,
    });
 };
 

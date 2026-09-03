@@ -1,0 +1,50 @@
+name: CI
+
+on:
+   push:
+      branches: [main]
+   pull_request:
+
+concurrency:
+   group: ci-${{ github.ref }}
+   cancel-in-progress: true
+
+jobs:
+   ci:
+      runs-on: ubuntu-latest
+      steps:
+         - uses: actions/checkout@v4
+
+         - name: Enable corepack
+           run: corepack enable
+
+         - uses: actions/setup-node@v4
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install
+           run: pnpm install --frozen-lockfile
+
+         - name: Generate Prisma client
+           run: pnpm --filter @s3-viewer/db db:generate
+
+         - name: Lint
+           run: pnpm lint
+
+         - name: Check types
+           run: pnpm check-types
+
+         - name: Test
+           run: pnpm test
+
+         - name: Format check
+           run: pnpm format:check
+
+         - name: Build
+           run: pnpm build
+           env:
+              NODE_ENV: production
+              NEXT_PUBLIC_SITE_URL: https://s3-viewer.com
+              NEXT_PUBLIC_API_URL: https://api.s3-viewer.com
+              NEXT_PUBLIC_ASSET_PREFIX: https://s3-viewer-lp.vercel.app

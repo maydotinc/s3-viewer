@@ -93,13 +93,11 @@ function BreadcrumbEllipsis({
    return (
       <span
          data-slot="breadcrumb-ellipsis"
-         role="presentation"
-         aria-hidden="true"
          className={cn("flex items-center justify-center", className)}
          {...props}
       >
-         <MoreHorizontal className="size-4" />
-         <span className="sr-only">More</span>
+         <MoreHorizontal aria-hidden="true" className="size-4" />
+         <span className="sr-only">Hidden folders</span>
       </span>
    );
 }

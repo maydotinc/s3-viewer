@@ -76,7 +76,7 @@ const HowToPage = ({
                </nav>
 
                <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-                  <div className="lg:col-span-7 flex flex-col gap-5 motion-fade-up">
+                  <div className="lg:col-span-7 flex flex-col gap-5">
                      <h1 className="text-[28px] sm:text-[36px] lg:text-[44px] font-semibold tracking-[-0.02em] leading-[1.08] text-viewerblack">
                         {title}
                      </h1>
@@ -94,9 +94,7 @@ const HowToPage = ({
                         </div>
                      </div>
                   </div>
-                  <div className="lg:col-span-5 motion-fade-up motion-delay-150 w-full">
-                     {visual}
-                  </div>
+                  <div className="lg:col-span-5 w-full">{visual}</div>
                </div>
             </div>
          </section>
@@ -180,24 +178,14 @@ const HowToPage = ({
                         Common questions.
                      </h2>
                   </div>
-                  <div
-                     className="lg:col-span-8 divide-y divide-viewerborder rounded-2xl border border-viewerborder bg-viewerwhite"
-                     itemScope
-                     itemType="https://schema.org/FAQPage"
-                  >
+                  <div className="lg:col-span-8 divide-y divide-viewerborder rounded-2xl border border-viewerborder bg-viewerwhite">
                      {faqs.map((faq, i) => (
                         <details
                            key={i}
                            className="group p-5 sm:p-6 [&_svg]:open:rotate-90"
-                           itemScope
-                           itemProp="mainEntity"
-                           itemType="https://schema.org/Question"
                         >
                            <summary className="flex cursor-pointer items-center justify-between gap-4 list-none">
-                              <h3
-                                 className="text-[15.5px] sm:text-[16px] font-semibold text-viewerblack tracking-tight pr-2"
-                                 itemProp="name"
-                              >
+                              <h3 className="text-[15.5px] sm:text-[16px] font-semibold text-viewerblack tracking-tight pr-2">
                                  {faq.question}
                               </h3>
                               <ChevronRight
@@ -205,13 +193,8 @@ const HowToPage = ({
                                  aria-hidden
                               />
                            </summary>
-                           <div
-                              className="mt-3 text-[14px] text-viewertext leading-[1.7] pr-4"
-                              itemScope
-                              itemProp="acceptedAnswer"
-                              itemType="https://schema.org/Answer"
-                           >
-                              <span itemProp="text">{faq.answer}</span>
+                           <div className="mt-3 text-[14px] text-viewertext leading-[1.7] pr-4">
+                              {faq.answer}
                            </div>
                         </details>
                      ))}
@@ -232,7 +215,7 @@ const HowToPage = ({
                      </h2>
                      <p className="text-[15px] text-viewertext leading-[1.6] max-w-[540px]">
                         S3 Viewer turns the steps above into a single click.
-                        Open source, self-hostable, free for personal use.
+                        Open source, self-hostable, free.
                      </p>
                   </div>
                   <div className="flex flex-col sm:flex-row lg:flex-col gap-3">

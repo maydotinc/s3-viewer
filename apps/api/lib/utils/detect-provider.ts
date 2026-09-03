@@ -1,18 +1,24 @@
-import { Provider, ServerCredentials } from "@s3-viewer/types";
+import { Provider } from "@s3-viewer/types";
 
-const detectProvider = (credentials: ServerCredentials): Provider => {
-   const { endpoint } = credentials;
+const PROVIDER_SUFFIXES: readonly [string, Provider][] = [
+   ["amazonaws.com", Provider.S3],
+   ["r2.cloudflarestorage.com", Provider.R2],
+];
 
-   if (
-      endpoint.includes("r2.cloudflarestorage.com") ||
-      endpoint.includes("r2.dev")
-   ) {
-      return Provider.R2;
-   } else if (endpoint.includes("s3.amazonaws.com")) {
-      return Provider.S3;
+const matches = (host: string, suffix: string): boolean =>
+   host === suffix || host.endsWith(`.${suffix}`);
+
+const detectProvider = (endpoint: string): Provider => {
+   let host: string;
+   try {
+      host = new URL(endpoint).hostname.toLowerCase();
+   } catch {
+      return Provider.Other;
    }
-
-   return Provider.Other;
+   return (
+      PROVIDER_SUFFIXES.find(([suffix]) => matches(host, suffix))?.[1] ??
+      Provider.Other
+   );
 };
 
-export default detectProvider;
+export { detectProvider };

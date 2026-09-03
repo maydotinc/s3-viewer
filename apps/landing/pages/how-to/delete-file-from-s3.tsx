@@ -14,17 +14,19 @@ const SLUG = "delete-file-from-s3";
 const TITLE = "How to delete a file from S3 safely";
 const KEYWORD = "delete file from S3";
 const TLDR =
-   "Run `aws s3 rm s3://bucket/key`, or right-click → Delete in S3 Viewer. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For bulk delete, S3 Viewer wraps the DeleteObjects API so you can clear up to 1,000 keys in a single call. If MFA Delete is enabled, you'll need an MFA token.";
+   "Run `aws s3 rm s3://bucket/key`, or open the ⋮ menu on the row in S3 Viewer and choose Delete. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For several objects at once, tick the checkboxes in S3 Viewer and hit Delete: the selection goes out as one DeleteObjects call. If MFA Delete is enabled, you'll need an MFA token.";
 
 const steps: HowToStep[] = [
    {
-      title: "In S3 Viewer: right-click → Delete",
+      title: "In S3 Viewer: ⋮ → Delete",
       body: (
          <>
-            Multi-select to bulk delete across many keys in a single{" "}
-            <code>DeleteObjects</code> call (the S3 API supports up to
-            1,000 keys per request). The confirmation shows the count
-            and total size before it commits.
+            Open the ⋮ menu on the object&apos;s row and choose{" "}
+            <strong>Delete</strong>. To clear several at once, tick their
+            checkboxes and use the <strong>Delete</strong> button in the toolbar
+            — the selection goes out as a single <code>DeleteObjects</code> call
+            (the S3 API takes up to 1,000 keys per request). The confirmation
+            shows how many objects you are about to delete.
          </>
       ),
    },
@@ -37,9 +39,9 @@ const steps: HowToStep[] = [
       title: "Check if versioning is on first",
       body: (
          <>
-            On a versioned bucket, <code>aws s3 rm</code> only adds a
-            delete marker — the prior version is still there and still
-            billed. Check before you delete.
+            On a versioned bucket, <code>aws s3 rm</code> only adds a delete
+            marker — the prior version is still there and still billed. Check
+            before you delete.
          </>
       ),
       code: "aws s3api get-bucket-versioning --bucket my-bucket",
@@ -53,9 +55,9 @@ const steps: HowToStep[] = [
       title: "Permanently delete: remove each version",
       body: (
          <>
-            Delete each version explicitly with its version ID. The
-            delete marker is itself a version — delete that too if you
-            want to fully erase the key.
+            Delete each version explicitly with its version ID. The delete
+            marker is itself a version — delete that too if you want to fully
+            erase the key.
          </>
       ),
       code: "aws s3api delete-object \\\n  --bucket my-bucket --key old-file.zip \\\n  --version-id <version-id>",
@@ -65,8 +67,8 @@ const steps: HowToStep[] = [
       body: (
          <>
             If MFA Delete is enabled on the bucket, deleting any version
-            requires the bucket owner&apos;s MFA token. Plan accordingly
-            — this is on by design for compliance buckets.
+            requires the bucket owner&apos;s MFA token. Plan accordingly — this
+            is on by design for compliance buckets.
          </>
       ),
    },
@@ -76,7 +78,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I delete a file from S3?",
       answer:
-         "From the AWS CLI: `aws s3 rm s3://bucket/key`. From a tool: right-click → Delete in S3 Viewer (multi-select to bulk delete in a single DeleteObjects call). For prefixes from the CLI: `aws s3 rm s3://bucket/prefix --recursive`. If the bucket has versioning enabled, this only adds a delete marker — see below for permanent deletion.",
+         "From the AWS CLI: `aws s3 rm s3://bucket/key`. From a tool: open the ⋮ menu on the row in S3 Viewer and choose Delete, or tick several checkboxes and use the Delete button to send them as one DeleteObjects call. For prefixes from the CLI: `aws s3 rm s3://bucket/prefix --recursive`. If the bucket has versioning enabled, this only adds a delete marker — see below for permanent deletion.",
    },
    {
       question: "Why does my deleted S3 file still appear?",
@@ -91,12 +93,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I delete an entire S3 folder?",
       answer:
-         "From the CLI: `aws s3 rm s3://bucket/prefix/ --recursive` lists every key under the prefix and deletes them. From S3 Viewer: select the prefix and use bulk delete. Remember S3 has no folders — you're deleting every key sharing that prefix.",
+         "From the CLI: `aws s3 rm s3://bucket/prefix/ --recursive` lists every key under the prefix and deletes them. From S3 Viewer: open the ⋮ menu on the folder's row and choose Delete folder, which walks the prefix and deletes everything under it. Remember S3 has no folders — you're deleting every key sharing that prefix.",
    },
    {
       question: "How do I bulk-delete multiple S3 files?",
       answer:
-         "The S3 API supports DeleteObjects (plural) — up to 1,000 keys per request. S3 Viewer wraps it in a multi-select toolbar, so shift-clicking a range and hitting delete clears the lot in one round trip. From the CLI, `aws s3 rm --recursive` with a prefix does the same thing.",
+         "The S3 API supports DeleteObjects (plural) — up to 1,000 keys per request. S3 Viewer wraps it in checkbox multi-select, so ticking the rows and hitting Delete clears the lot in one round trip. From the CLI, `aws s3 rm --recursive` with a prefix does the same thing.",
    },
    {
       question: "What is MFA Delete in S3?",
@@ -137,21 +139,20 @@ const Page = () => {
             steps={steps}
             underTheHood={
                <p>
-                  On a non-versioned bucket, <code>DeleteObject</code>{" "}
-                  removes the key immediately. On a versioned bucket, it
-                  writes a <strong>delete marker</strong> — the object
-                  becomes invisible to normal <code>GetObject</code>{" "}
-                  calls but every prior version is still there (and
-                  still billed). To actually purge a key, you delete
-                  each version explicitly via{" "}
-                  <code>delete-object --version-id</code>. S3 Viewer
-                  surfaces version state in the UI and prompts you when
-                  versioning is on, so you know whether your
-                  &ldquo;delete&rdquo; is a soft delete (delete marker)
-                  or a hard one. For bulk delete, S3 Viewer wraps the{" "}
-                  <code>DeleteObjects</code> API (up to 1,000 keys per
-                  call) — multi-select a range and clear them in one
-                  round trip.
+                  On a non-versioned bucket, <code>DeleteObject</code> removes
+                  the key immediately. On a versioned bucket, it writes a{" "}
+                  <strong>delete marker</strong> — the object becomes invisible
+                  to normal <code>GetObject</code> calls but every prior version
+                  is still there (and still billed). To actually purge a key,
+                  you delete each version explicitly via{" "}
+                  <code>delete-object --version-id</code>. S3 Viewer is not
+                  version-aware: it deletes the current version like any other
+                  S3 client, so whether that is a soft or a hard delete depends
+                  on the bucket&apos;s versioning setting, which is worth
+                  checking before you rely on it. For several objects at once,
+                  S3 Viewer wraps the <code>DeleteObjects</code> API (up to
+                  1,000 keys per call) — tick the checkboxes and clear them in
+                  one round trip.
                </p>
             }
             faqs={faqs}
