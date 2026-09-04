@@ -127,11 +127,13 @@ const ShortcutsProvider = ({ children }: { children: ReactNode }) => {
          // A modifier is held: this is never part of a sequence being typed
          // (⌘G is not the `g` of `g d`), and the only thing it may run is a
          // `mod` chord somebody registered on purpose. Everything else —
-         // ⌥, ⇧-chords, ⌘ combos we do not know — stays the browser's.
+         // ⌥, ⇧-chords, ⌘ combos we do not know — stays the browser's. A
+         // chord is ours inside a text field too: that is the point of
+         // holding ⌘, and ⌘K has to work from the filter input.
          if (event.metaKey || event.ctrlKey || event.altKey) {
             pending.current = null;
             if (event.altKey || event.shiftKey) return;
-            if (isTypingTarget(event.target) || isOverlayOpen()) return;
+            if (isOverlayOpen()) return;
             const chordToken = eventToken(event);
             if (!chordToken) return;
             const chord = matchShortcut(list(), chordSequence(chordToken));

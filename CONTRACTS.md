@@ -281,6 +281,17 @@ which is exact for listings up to 1000 entries and per-block above that.
 - `usePermission(permission, bucketName?)` returns a boolean from the current
   server role and the bucket's `userRole`; every action button is gated with it.
   Buttons the user cannot use are NOT rendered (not disabled).
+- Command menu (`⌘K`, `apps/web/components/CommandMenu` +
+  `lib/command-menu`): one dialog over the catalog `useCommands` builds from
+  data the app already has — pages, the current server's buckets, the other
+  servers, and the actions the user's role allows. It opens no queries of its
+  own and calls no search endpoint. `match.ts` scores a term as exact >
+  prefix > word-boundary > substring > subsequence, and only the label is
+  matched loosely — keywords are substring-only, or a four-letter
+  subsequence would hit every row. `rank.ts` groups the hits and floats the
+  group holding the best one. Recently used ids are kept in `localStorage`
+  and resolved against the live catalog, so a bucket you lose access to just
+  stops appearing.
 - Toasts only after the request resolves; never "success" for partial failures.
   Errors show `ApiError.message`.
 - Loading states are spinners inside containers that already have the final size; skeletons only for large, known-shape areas. Toolbars never swap controls (disable instead).
@@ -303,7 +314,7 @@ which is exact for listings up to 1000 entries and per-block above that.
 
 ## Landing (`apps/landing`)
 
-Only describe what ships (see routes and web notes). No Cmd-K, no
+Only describe what ships (see routes and web notes). No
 cross-provider copy, no versioning prompts, no bulk download, no audit log,
 no side-by-side. Rename refuses to overwrite and is limited to 5 GB. Search
 is a prefix filter inside the current folder. Share link = 15-minute presigned

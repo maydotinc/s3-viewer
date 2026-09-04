@@ -1,3 +1,4 @@
+import CommandMenu from "@/components/CommandMenu";
 import ModalManager from "@/components/Modals/ModalManager";
 import AuthGuard from "@/components/Session/auth-guard";
 import ErrorBoundary from "@/components/Session/error-boundary";
@@ -59,6 +60,7 @@ const App = ({ Component, pageProps }: AppPropsWithLayout) => {
                      <ShortcutsProvider>
                         <SidebarProvider>
                            {getLayout(<Component {...pageProps} />)}
+                           <CommandMenu />
                            <ModalManager />
                            <Toaster />
                            <ShortcutsHelp />

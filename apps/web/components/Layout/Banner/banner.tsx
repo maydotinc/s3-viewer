@@ -1,3 +1,4 @@
+import CommandMenuTrigger from "@/components/CommandMenu/trigger";
 import { PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
 import { SidebarTrigger } from "@s3-viewer/ui/components/sidebar";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
@@ -28,6 +29,7 @@ const ViewerBanner = () => (
          </SimpleTooltip>
       </div>
       <div className="flex shrink-0 items-center gap-2">
+         <CommandMenuTrigger />
          <ProfileDropdown />
       </div>
    </header>

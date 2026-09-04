@@ -103,11 +103,37 @@ text-viewerlighttext`; separator `-mx-1 my-1`; destructive item red.
 ## 6. Keyboard
 
 Global (not in inputs): `/` focus filter, `n` new bucket (dashboard), `u`
-upload (bucket page), `r` refresh, `⌘K`-free (no palette yet), `?` opens
-"Keyboard shortcuts" dialog, `Esc` closes. `g` then `d` dashboard, `g` then
-`s` settings. Every shortcut is discoverable: shown in the tooltip of the
-button it triggers (`SimpleTooltip shortcut="…"`) and in the `?` dialog.
-Tooltips appear on every icon-only button (label + shortcut when any).
+upload (bucket page), `r` refresh, `?` opens "Keyboard shortcuts" dialog,
+`Esc` closes. `g` then `d` dashboard, `g` then `s` settings. Every shortcut is
+discoverable: shown in the tooltip of the button it triggers
+(`SimpleTooltip shortcut="…"`) and in the `?` dialog. Tooltips appear on every
+icon-only button (label + shortcut when any).
+
+A `mod` chord (`⌘K` command menu, `⌘B` sidebar) also fires inside a text field
+— holding ⌘ is what makes it unambiguous — but never while a dialog or menu
+owns the keyboard.
+
+### Command menu (`⌘K`)
+
+One dialog, `max-w-xl` (`lg:max-w-2xl`), anchored at `top-[8vh]`
+(`sm:top-[12vh]`) rather than centred, unmounted while closed. Header row
+`h-14` with a search glyph, the input and an `Esc` chip; scrolling result list
+`p-2`; footer `border-t px-4 py-2.5` of ↑↓ / ↵ / Esc hints. Below `sm` the
+chip and the footer are hidden and the input is `text-base` so iOS does not
+zoom on focus.
+
+Rows are grouped and labelled with the menu label style; a row is
+`rounded-lg px-2.5 py-2 gap-2.5` with a `size-4` icon, label, optional second
+line and either a role/meta string or a `Kbd` at the end. Matched characters
+in the label are `font-semibold text-viewerblue`. The highlighted row is
+`bg-viewergray` (`bg-viewerbgred` when destructive) and hover and keyboard
+share that one highlight. Rows that navigate render as `Link`s so ⌘-click and
+prefetch work; rows that act render as buttons.
+
+With no query the list is Recent, then Navigation, Buckets, Actions, Servers.
+With a query the group holding the best match floats to the top. The trigger
+lives in the top bar: a `h-9 w-64` quiet field with a `⌘K` chip from `sm` up,
+a `size-8` ghost icon button below it.
 
 ## 7. Pages
 
