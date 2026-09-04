@@ -1,0 +1,35 @@
+name: CodeQL
+
+on:
+   push:
+      branches: [main]
+   pull_request:
+   schedule:
+      - cron: "27 4 * * 1"
+
+concurrency:
+   group: codeql-${{ github.ref }}
+   cancel-in-progress: true
+
+permissions:
+   contents: read
+
+jobs:
+   analyze:
+      runs-on: ubuntu-latest
+      permissions:
+         contents: read
+         security-events: write
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+           with:
+              persist-credentials: false
+
+         - name: Initialize CodeQL
+           uses: github/codeql-action/init@a45bef097606dca6eac8285c279babedd70e6dfd # v3.37.9
+           with:
+              languages: javascript-typescript
+              queries: security-extended
+
+         - name: Analyze
+           uses: github/codeql-action/analyze@a45bef097606dca6eac8285c279babedd70e6dfd # v3.37.9

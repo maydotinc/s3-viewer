@@ -24,6 +24,15 @@ const SESSION_COOKIE_CACHE_SECONDS = 60;
 
 type AuthCredentials = { otp: string; magicLinkUrl: string };
 
+// oauth tokens are never read back anywhere in the product, so they are dropped
+// rather than stored unencrypted next to envelope-encrypted s3 credentials
+const withoutTokens = <T extends Record<string, unknown>>(account: T): T => ({
+   ...account,
+   accessToken: null,
+   refreshToken: null,
+   idToken: null,
+});
+
 const sendAuthFlowEmail = async (
    email: string,
    headers: Headers,
@@ -83,15 +92,19 @@ const auth = betterAuth({
    },
    rateLimit: { enabled: false },
    databaseHooks: {
+      account: {
+         create: {
+            before: async (account) => ({ data: withoutTokens(account) }),
+         },
+         update: {
+            before: async (account) => ({ data: withoutTokens(account) }),
+         },
+      },
       user: {
          create: {
-            // `image: null` is the last word on profile pictures: the column
-            // exists because Better Auth's core user model declares it, but
-            // nothing in the product ever fills it in. Avatars are drawn from
-            // the name in the web app. `email` is normalized here too:
-            // `emailSchema` lowercases our own routes' input, but Better
-            // Auth's own OTP/OAuth endpoints don't run through it, so this
-            // hook is the one place every stored email is guaranteed lower.
+            // nothing fills `image`, and better auth's own otp/oauth endpoints
+            // bypass emailSchema, so this is the one place every stored email
+            // is guaranteed lowercase
             before: async (user) => ({
                data: {
                   ...user,
@@ -102,10 +115,6 @@ const auth = betterAuth({
             }),
          },
          update: {
-            // `/update-user` accepts any name/image; this is the one place
-            // the name is checked and any image is stripped. Any email that
-            // passes through an update is normalized for the same reason as
-            // on create.
             before: async (user) => {
                const result = validateProfile(user);
                if (!result.ok) {
@@ -168,10 +177,8 @@ const auth = betterAuth({
       ? {
            github: {
               ...authEnv.github,
-              // Drop GitHub's avatar_url before it reaches the user row.
-              // The option's return type only allows `string | undefined`,
-              // and `undefined` is enough: it overrides `avatar_url` in the
-              // provider's spread, and the create hook below writes `null`.
+              // undefined overrides avatar_url in the provider spread; the
+              // create hook then writes null
               mapProfileToUser: () => ({ image: undefined }),
            },
         }

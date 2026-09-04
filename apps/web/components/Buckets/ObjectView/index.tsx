@@ -2,7 +2,6 @@ import BucketUnavailable from "@/components/Buckets/unavailable";
 import { Page } from "@/components/Layout/page";
 import SignInPrompt from "@/components/Session/sign-in-prompt";
 import { authClient } from "@/lib/auth";
-import useObjectMetadata from "@/lib/hooks/queries/s3/useObjectMetadata";
 import useObjectPreview from "@/lib/hooks/queries/s3/useObjectPreview";
 import { baseName } from "@s3-viewer/types";
 import { useBucketContext } from "../Context";
@@ -15,7 +14,6 @@ const ObjectView = () => {
    const { bucketName, path, notFound } = useBucketContext();
    const objectKey = path.join("/");
 
-   const metadata = useObjectMetadata(bucketName, objectKey);
    const preview = useObjectPreview(bucketName, objectKey);
 
    if (!session && !isPending)
@@ -32,9 +30,9 @@ const ObjectView = () => {
          />
          <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row">
             <ObjectDetails
-               metadata={metadata.data}
-               isLoading={metadata.isPending}
-               error={metadata.error}
+               metadata={preview.data}
+               isLoading={preview.isPending}
+               error={preview.error}
             />
             <LazyPreview
                preview={preview.data}

@@ -6,15 +6,19 @@ import {
 } from "@aws-sdk/client-s3";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
-import { classifyS3Error } from "./classify";
+import { classifyBucketError, classifyS3Error } from "./classify";
 
 const CONNECT_TIMEOUT_MS = 15_000;
 
 const isAccessDenied = (err: unknown): boolean =>
    err instanceof S3ServiceException && err.name === "AccessDenied";
 
-const probeFailure = (err: unknown, event: string): ApiHttpError => {
-   const { status, message, code, name } = classifyS3Error(err);
+const probeFailure = (
+   err: unknown,
+   event: string,
+   classify: typeof classifyS3Error = classifyS3Error
+): ApiHttpError => {
+   const { status, message, code, name } = classify(err);
    logger.warn(`${event} failed`, { s3Error: name, status });
    return new ApiHttpError(status, message, code);
 };
@@ -66,7 +70,7 @@ const assertCredentialsWork = async (
          abortSignal: AbortSignal.timeout(CONNECT_TIMEOUT_MS),
       });
    } catch (err) {
-      const failure = probeFailure(err, event);
+      const failure = probeFailure(err, event, classifyBucketError);
       throw failure.status === 404
          ? new ApiHttpError(404, `Bucket ${bucketName} was not found`)
          : failure;

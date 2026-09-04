@@ -24,9 +24,9 @@ const resolveServerId = (
       ? current
       : (servers[0]?.id ?? "");
 
-// Every setter is a no-op when nothing changes: zustand emits on every `set`
-// call even when the values are identical, and an effect that re-sets the
-// same value on each render would otherwise re-render itself forever.
+// every setter is a no-op when nothing changes: zustand emits on every `set`
+// even with identical values, and an effect that re-sets the same value each
+// render would loop forever.
 const useSessionStore = create<SessionStore>()(
    persist(
       (set, get) => ({
@@ -37,7 +37,7 @@ const useSessionStore = create<SessionStore>()(
          setUserId: (userId) => {
             const previous = get().userId;
             if (previous === userId) return;
-            // A different account must not inherit the previous selection.
+            // a different account must not inherit the previous selection
             set(previous ? { userId, serverId: "" } : { userId });
          },
          clearSession: () => {

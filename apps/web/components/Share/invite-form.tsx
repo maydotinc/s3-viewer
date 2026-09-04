@@ -1,19 +1,23 @@
 import FormError from "@/components/Modals/form-error";
+import { ApiError } from "@/lib/api";
 import useSendInvite from "@/lib/hooks/mutations/invites/useSendInvite";
 import { splitList } from "@/lib/utils/split-list";
 import { assignableRoles } from "@s3-viewer/permissions";
 import {
    BucketAccessEntry,
+   ErrorCode,
    GrantableRole,
    MAX_INVITE_EMAILS,
    Role,
    S3Bucket,
+   SITE_PATHS,
    emailSchema,
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { X } from "lucide-react";
+import Link from "next/link";
 import { FormEvent, useState } from "react";
 import BucketAccessPicker from "./bucket-access-picker";
 import Card from "./card";
@@ -48,6 +52,9 @@ const InviteForm = ({
 
    const list = splitEmails(emails);
    const tooMany = list.length > MAX_INVITE_EMAILS;
+   const unverified =
+      sendInvite.error instanceof ApiError &&
+      sendInvite.error.code === ErrorCode.EMAIL_UNVERIFIED;
 
    const removeEmail = (address: string) => {
       setEmails(list.filter((entry) => entry !== address).join(", "));
@@ -170,6 +177,17 @@ const InviteForm = ({
                }
                disabled={sendInvite.isPending}
             />
+            {unverified && (
+               <div className="flex min-w-0 flex-col items-start gap-2 rounded-lg border border-viewerborder bg-viewergray px-3 py-2">
+                  <p className="text-sm text-viewertext">
+                     Verify your email to send invites. Sign in with the code we
+                     email you to verify it.
+                  </p>
+                  <Button asChild variant="outline" size="sm">
+                     <Link href={SITE_PATHS.login}>Sign in with email</Link>
+                  </Button>
+               </div>
+            )}
             <div className="flex min-w-0 justify-end">
                <Button
                   type="submit"

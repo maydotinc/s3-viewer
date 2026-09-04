@@ -9,14 +9,12 @@ const buttonVariants = cva(
    [
       "relative inline-flex cursor-pointer items-center justify-center whitespace-nowrap",
       "rounded-lg border border-transparent font-medium transition-colors",
-      // No focus ring and no focus-only border change — buttons show focus
-      // through their hover styling alone.
+      // no focus ring: buttons show focus through their hover styling alone
       "outline-none aria-invalid:border-viewertextred",
-      // Disabled keeps pointer events so the not-allowed cursor is visible; the
-      // hover utilities below are all gated behind `not-disabled:`.
+      // disabled keeps pointer events so the not-allowed cursor shows; the
+      // hover utilities below are gated behind `not-disabled:`.
       "disabled:cursor-not-allowed disabled:opacity-50",
-      // `asChild` renders an anchor, which has no `disabled` attribute — the
-      // aria-disabled pair is what stops it being followed.
+      // `asChild` renders an anchor, which has no `disabled` attribute
       "aria-disabled:pointer-events-none aria-disabled:opacity-50",
       "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
    ],
@@ -49,11 +47,8 @@ const buttonVariants = cva(
    }
 );
 
-/**
- * Width-stable loading overlay: the label stays mounted (and keeps the button
- * at its idle width) but is made invisible, and the spinner is absolutely
- * centred on top of it. Never swap the label for "Saving…".
- */
+// the label stays mounted but invisible, so the button keeps its idle width;
+// never swap the label for "saving…".
 const LoadingOverlay = () => (
    <span className="absolute inset-0 flex items-center justify-center">
       <Spinner

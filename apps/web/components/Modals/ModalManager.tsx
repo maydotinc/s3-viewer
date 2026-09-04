@@ -1,4 +1,4 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
+import { useModalActions, useModalState } from "@/lib/contexts/ModalContext";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
 import ConnectModal from "./ConnectModal";
 import CreateBucketModal from "./CreateBucketModal";
@@ -8,7 +8,8 @@ import RenameObjectModal from "./RenameObjectModal";
 import UpdateCredentialsModal from "./UpdateCredentialsModal";
 
 const ModalManager = () => {
-   const { modals, closeModal } = useModalContext();
+   const modals = useModalState();
+   const { closeModal } = useModalActions();
    return (
       <>
          {modals.connect && (

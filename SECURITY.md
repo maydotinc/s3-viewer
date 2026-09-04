@@ -20,11 +20,17 @@ Email [info@may.inc](mailto:info@may.inc?subject=S3%20Viewer%20security) with:
 
 ## Known limitations
 
-- Storage endpoints are checked when a server is connected: the hostname must
-  be public and every DNS answer must resolve to a public address. The name is
-  resolved once at that moment; a host whose DNS later changes to a private
-  address (DNS rebinding) is not re-checked. Self-hosters on a private network
-  should run the API in a segment that cannot reach internal services.
+- Storage endpoints are re-checked on every connection, not just once:
+  besides the up-front check when a server is connected, its credentials
+  change, or its cached S3 client is rebuilt, the same public/private
+  address rules run as a custom `dns.lookup` on the shared http/https agents
+  every S3 client connects through (`apps/api/lib/s3/client-cache.ts`), so a
+  hostname whose DNS answer changes to a private address after the initial
+  check (DNS rebinding) is still rejected when a socket actually connects.
+  This protects against DNS-based SSRF specifically, not against every route
+  a misconfigured or malicious endpoint could reach — self-hosters on a
+  private network should still run the API in a segment that cannot reach
+  internal services, as defense in depth.
 
 ## Supported versions
 

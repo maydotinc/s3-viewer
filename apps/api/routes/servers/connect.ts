@@ -26,14 +26,15 @@ const establish = async (_req: Request, res: Response) => {
    const { encryptedCredentials } = input<EstablishInput>(res);
    const credentials = readCredentials(encryptedCredentials);
    await assertPublicEndpoint(credentials.endpoint);
+   const provider = detectProvider(credentials.endpoint);
    const bucketCount = await countBuckets(
-      getS3ClientFromCredentials(credentials),
+      getS3ClientFromCredentials(credentials, provider),
       "Establish"
    );
    const result: EstablishResult = {
       listBucketsAllowed: bucketCount !== null,
       bucketCount: bucketCount ?? 0,
-      provider: detectProvider(credentials.endpoint),
+      provider,
    };
    res.json(result);
 };
@@ -43,7 +44,10 @@ const validateBuckets = async (_req: Request, res: Response) => {
       input<ValidateBucketsInput>(res);
    const credentials = readCredentials(encryptedCredentials);
    await assertPublicEndpoint(credentials.endpoint);
-   const client = getS3ClientFromCredentials(credentials);
+   const client = getS3ClientFromCredentials(
+      credentials,
+      detectProvider(credentials.endpoint)
+   );
    const deadline = AbortSignal.timeout(VALIDATE_TIMEOUT_MS);
    const results = await mapLimit(
       bucketNames,

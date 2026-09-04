@@ -3,10 +3,9 @@ import {
    HIDDEN_HEADER_TEXT,
    RIGHT_ALIGNED,
 } from "@/components/DataGrid/context";
-import { usePermission } from "@/lib/hooks/usePermission";
 import { formatDate } from "@/lib/utils/format";
 import { folderHref } from "@/lib/utils/s3/paths";
-import { Permission, ROLE_LABELS } from "@s3-viewer/permissions";
+import { ROLE_LABELS } from "@s3-viewer/permissions";
 import type { S3Bucket } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -42,21 +41,20 @@ const BucketNameCell = (params: ICellRendererParams<S3Bucket, string>) => {
    );
 };
 
-const BucketRowActions = (params: ICellRendererParams<S3Bucket>) => {
-   const canRemove = usePermission(Permission.DELETE_BUCKET);
+type BucketGridContext = { canRemove: boolean };
+
+const BucketActionsMenu = ({ bucketName }: { bucketName: string }) => {
    const [confirming, setConfirming] = useState(false);
-   const data = params.data;
-   if (!data || !canRemove) return null;
 
    return (
       <div className="flex h-full items-center justify-center">
          <DropdownMenu modal={false}>
-            <SimpleTooltip label={`Actions for ${data.name}`}>
+            <SimpleTooltip label={`Actions for ${bucketName}`}>
                <DropdownMenuTrigger asChild>
                   <Button
                      variant="ghost"
                      size="icon-sm"
-                     aria-label={`Actions for ${data.name}`}
+                     aria-label={`Actions for ${bucketName}`}
                   >
                      <Ellipsis aria-hidden="true" />
                   </Button>
@@ -73,12 +71,22 @@ const BucketRowActions = (params: ICellRendererParams<S3Bucket>) => {
             </DropdownMenuContent>
          </DropdownMenu>
          <RemoveBucketDialog
-            bucketName={data.name}
+            bucketName={bucketName}
             open={confirming}
             onOpenChange={setConfirming}
          />
       </div>
    );
+};
+
+const BucketRowActions = (
+   params: ICellRendererParams<S3Bucket, unknown, BucketGridContext>
+) => {
+   const data = params.data;
+   if (!data) return null;
+   return params.context.canRemove ? (
+      <BucketActionsMenu bucketName={data.name} />
+   ) : null;
 };
 
 const bucketColumns: ColDef<S3Bucket>[] = [
@@ -123,3 +131,4 @@ const bucketColumns: ColDef<S3Bucket>[] = [
 const bucketRowId = (params: GetRowIdParams<S3Bucket>) => params.data.name;
 
 export { bucketColumns, bucketRowId };
+export type { BucketGridContext };

@@ -1,8 +1,5 @@
-/**
- * A listing failure pinned to the datasource that produced it. Datasources are
- * replaced whenever the bucket, prefix or filter changes, so a late error from
- * a superseded one must never surface against the current listing.
- */
+// datasources are replaced whenever the bucket, prefix or filter changes, so a
+// late error from a superseded one must never surface against the current one.
 type ListFailure<S> = { source: S; error: unknown };
 
 const pinFailure = <S>(

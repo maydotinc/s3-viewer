@@ -52,11 +52,8 @@ type SimpleTooltipProps = {
    children: ReactNode;
 };
 
-/**
- * A disabled control fires no pointer events and takes no focus, so a tooltip
- * on it would never open — and "why is this greyed out?" is exactly when the
- * label is wanted. Radix's answer is a focusable wrapper around the trigger.
- */
+// a disabled control fires no pointer events and takes no focus, so a tooltip
+// on it needs radix's focusable wrapper around the trigger.
 type MaybeDisabled = {
    disabled?: boolean;
    loading?: boolean;
@@ -66,7 +63,7 @@ type MaybeDisabled = {
 const isDisabledElement = (child: ReactNode): boolean => {
    if (!isValidElement<MaybeDisabled>(child)) return false;
    const { disabled, loading, "aria-disabled": ariaDisabled } = child.props;
-   // `loading` counts: it sets the native `disabled` attribute too.
+   // `loading` counts: it sets the native `disabled` attribute too
    return (
       Boolean(disabled) ||
       Boolean(loading) ||

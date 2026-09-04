@@ -2,11 +2,7 @@ import * as React from "react";
 
 import { cn } from "@s3-viewer/ui/lib/utils";
 
-/**
- * Barberflow-style table (DESIGN.md §3). Wrap it in a card
- * (`rounded-xl border border-viewerborder bg-viewerwhite overflow-hidden`);
- * the table itself only draws hairlines between rows.
- */
+// wrap it in a card: the table only draws hairlines between rows
 function Table({ className, ...props }: React.ComponentProps<"table">) {
    return (
       <div data-slot="table-container" className="w-full overflow-x-auto">

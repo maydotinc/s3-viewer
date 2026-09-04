@@ -1,15 +1,8 @@
-/**
- * Avatar identity, derived entirely from the user's name. There are no
- * profile pictures in the product: nothing is uploaded and nothing is stored,
- * so the same name always yields the same initials and the same gradient,
- * everywhere, and the avatar follows a rename the moment the session updates.
- */
-
 const FNV_OFFSET_BASIS = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 
 const HUE_STEPS = 360;
-/** Second stop sits 40–99° round the wheel, so the two stops never match. */
+// second stop sits 40–99° round the wheel, so the two never match
 const HUE_GAP_MIN = 40;
 const HUE_GAP_SPREAD = 60;
 
@@ -27,7 +20,7 @@ const avatarInitials = (name: string): string => {
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)
-      // Spread so an astral first character (an emoji name) stays intact.
+      // spread so an astral first character stays intact
       .map((word) => [...word][0] ?? "")
       .join("");
    return letters.toUpperCase() || "?";

@@ -9,15 +9,20 @@ concurrency:
    group: ci-${{ github.ref }}
    cancel-in-progress: true
 
+permissions:
+   contents: read
+
 jobs:
    verify:
       runs-on: ubuntu-latest
       strategy:
          fail-fast: false
          matrix:
-            node-version: [20, 22]
+            node-version: [20, 22, 24]
       steps:
          - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+           with:
+              persist-credentials: false
 
          - name: Enable corepack
            run: corepack enable
@@ -45,11 +50,56 @@ jobs:
          - name: Format check
            run: pnpm format:check
 
+         - name: Audit dependencies
+           run: pnpm audit --audit-level=high
+
+   migrations:
+      runs-on: ubuntu-latest
+      services:
+         postgres:
+            image: postgres:16-alpine
+            env:
+               POSTGRES_PASSWORD: postgres
+            options: >-
+               --health-cmd pg_isready --health-interval 10s
+               --health-timeout 5s --health-retries 5
+            ports:
+               - 5432:5432
+      env:
+         DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+      steps:
+         - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+           with:
+              persist-credentials: false
+
+         - name: Enable corepack
+           run: corepack enable
+
+         - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+           with:
+              node-version: 20
+              cache: pnpm
+
+         - name: Install
+           run: pnpm install --frozen-lockfile
+
+         - name: Apply every migration to a throwaway database
+           run: pnpm --filter @s3-viewer/db db:deploy
+
+         - name: Fail if the schema has drifted from the migrations
+           run: >-
+              pnpm --filter @s3-viewer/db exec prisma migrate diff
+              --from-schema-datasource prisma/schema.prisma
+              --to-schema-datamodel prisma/schema.prisma
+              --exit-code
+
    build:
       needs: verify
       runs-on: ubuntu-latest
       steps:
          - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+           with:
+              persist-credentials: false
 
          - name: Enable corepack
            run: corepack enable

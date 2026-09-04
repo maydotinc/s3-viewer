@@ -13,6 +13,9 @@ export const bucketNameSchema = z
       "Invalid bucket name"
    );
 
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
 export const objectKeySchema = z
    .string()
    .min(1)
@@ -20,6 +23,7 @@ export const objectKeySchema = z
    .refine(
       (k) =>
          !k.startsWith("/") &&
+         !CONTROL_CHARS.test(k) &&
          k.split("/").every((seg, i, arr) => {
             const last = i === arr.length - 1;
             if (seg === "") return last;

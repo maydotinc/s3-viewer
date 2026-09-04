@@ -82,6 +82,28 @@ describe("objectKeySchema", () => {
          expect(objectKeySchema.safeParse(key).success).toBe(false);
       }
    });
+
+   it("rejects control characters anywhere in the key", () => {
+      for (const key of [
+         "a\u0000b.txt",
+         "\u0001leading.txt",
+         "line\nbreak.txt",
+         "carriage\rreturn.txt",
+         "tab\tseparated.txt",
+         "escape\u001b[31m.txt",
+         "unit\u001f.txt",
+         "delete\u007f.txt",
+         "folder/\u0007bell",
+      ]) {
+         expect(objectKeySchema.safeParse(key).success, key).toBe(false);
+      }
+   });
+
+   it("still accepts printable characters next to the rejected range", () => {
+      for (const key of ["space .txt", "tilde~.txt", "€uro.txt"]) {
+         expect(objectKeySchema.safeParse(key).success, key).toBe(true);
+      }
+   });
 });
 
 describe("emailSchema", () => {

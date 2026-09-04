@@ -66,10 +66,7 @@ const defaultView = (
    ];
 };
 
-/**
- * Groups float by their single best row, so typing a bucket name lifts
- * Buckets above Navigation while `GROUP_ORDER` still breaks ties.
- */
+// groups float by their single best row, with `GROUP_ORDER` breaking ties
 const searchView = (
    commands: readonly CommandItem[],
    terms: readonly string[],

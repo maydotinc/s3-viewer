@@ -71,13 +71,16 @@ openssl rsa -pubout -in private_key.pem -out public_key.pem
 
 ### 4. ⚙️ Environment
 
-There are three `.env` files — `apps/api/.env`, `apps/web/.env` and `apps/landing/.env` — each copied from the `.env.example` next to it:
+There are four `.env` files — `apps/api/.env`, `apps/web/.env`, `apps/landing/.env` and `packages/db/.env` — each copied from the `.env.example` next to it:
 
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 cp apps/landing/.env.example apps/landing/.env
+cp packages/db/.env.example packages/db/.env
 ```
+
+Prisma runs with `packages/db` as its working directory, so it reads `packages/db/.env` rather than `apps/api/.env` — set `DATABASE_URL` in both (they're usually the same value). Skipping this one is the most common reason a fresh clone's first `db:deploy` fails with `P1012 Environment variable not found: DATABASE_URL`.
 
 Users only ever see two hosts: the web app at `s3-viewer.com` and the API at `api.s3-viewer.com`.
 The landing site is deployed separately on a hidden origin (a `*.vercel.app` URL) and the web app proxies the marketing routes from it, so it never appears in a URL.
@@ -85,21 +88,24 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 
 `apps/api/.env` (validated on startup by `apps/api/lib/env.ts`):
 
-| Variable                 | Required | Local value               | Production value            | What it does                                                                        |
-| ------------------------ | :------: | ------------------------- | --------------------------- | ----------------------------------------------------------------------------------- |
-| `DATABASE_URL`           |    ✅    | `postgresql://…`          | `postgresql://…`            | PostgreSQL connection string for Prisma.                                            |
-| `BETTER_AUTH_SECRET`     |    ✅    | `openssl rand -base64 32` | `openssl rand -base64 32`   | Signs sessions and tokens; at least 32 characters.                                  |
-| `ENCRYPTION_PRIVATE_KEY` |    ✅    | `private_key.pem`         | `private_key.pem`           | RSA private key (2048 bits or more) that decrypts stored S3 credentials.            |
-| `NEXT_PUBLIC_SITE_URL`   |    ✅    | `https://web.localhost`   | `https://s3-viewer.com`     | The web app's origin: CORS, the `Origin` check, trusted origins and email links.    |
-| `NEXT_PUBLIC_API_URL`    |    ✅    | `https://api.localhost`   | `https://api.s3-viewer.com` | This API's own origin: Better Auth base URL, OAuth callbacks, `Secure` cookies.     |
-| `RESEND_KEY`             |          | unset                     | `re_…`                      | Resend API key. Unset ⇒ emails are printed to the API log (never in production).    |
-| `EMAIL_FROM`             |          | unset                     | `S3 Viewer <info@may.inc>`  | Sender for auth and invite email.                                                   |
-| `GITHUB_CLIENT_ID`       |          | unset                     | GitHub OAuth app id         | Set together with the secret, or leave both unset.                                  |
-| `GITHUB_CLIENT_SECRET`   |          | unset                     | GitHub OAuth app secret     | Set together with the id, or leave both unset.                                      |
-| `PORT`                   |          | `5001`                    | `5001`                      | Port the API listens on.                                                            |
-| `TRUST_PROXY`            |          | `loopback`                | `1`                         | Express `trust proxy`; behind a load balancer use the hop count.                    |
-| `MAX_UPLOAD_BYTES`       |          | unset                     | unset                       | Largest upload body in bytes (checked against `Content-Length`). Unset ⇒ unlimited. |
-| `LOG_LEVEL`              |          | `debug`                   | `warn`                      | `debug`, `info`, `warn` or `error`.                                                 |
+| Variable                 | Required | Local value               | Production value                   | What it does                                                                                                                                                                                                          |
+| ------------------------ | :------: | ------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`           |    ✅    | `postgresql://…`          | `postgresql://…`                   | PostgreSQL connection string for Prisma.                                                                                                                                                                              |
+| `BETTER_AUTH_SECRET`     |    ✅    | `openssl rand -base64 32` | `openssl rand -base64 32`          | Signs sessions and tokens; at least 32 characters.                                                                                                                                                                    |
+| `ENCRYPTION_PRIVATE_KEY` |    ✅    | `private_key.pem`         | `private_key.pem`                  | RSA private key (2048 bits or more) that decrypts stored S3 credentials.                                                                                                                                              |
+| `NEXT_PUBLIC_SITE_URL`   |    ✅    | `https://web.localhost`   | `https://s3-viewer.com`            | The web app's origin: CORS, the `Origin` check, trusted origins and email links.                                                                                                                                      |
+| `NEXT_PUBLIC_API_URL`    |    ✅    | `https://api.localhost`   | `https://api.s3-viewer.com`        | This API's own origin: Better Auth base URL, OAuth callbacks, `Secure` cookies.                                                                                                                                       |
+| `NODE_ENV`               |          | `development`             | `production`                       | Also gates whether a cleartext `http://` S3 endpoint is accepted (`development`/`test` only).                                                                                                                         |
+| `RESEND_KEY`             |   prod   | unset                     | `re_…`                             | Resend API key. **Required in production** — the API refuses to start without it there. Unset in development ⇒ emails are printed to the API log.                                                                     |
+| `EMAIL_FROM`             |   prod   | unset                     | `S3 Viewer <hello@yourdomain.com>` | Sender for auth and invite email. **Required in production** — there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc. Unset in development ⇒ a placeholder sender.         |
+| `SUPPORT_EMAIL`          |          | unset                     | `support@yourdomain.com`           | Contact shown to admins who hit the pending-invite cap. Unset ⇒ omitted from the message.                                                                                                                             |
+| `GITHUB_CLIENT_ID`       |          | unset                     | GitHub OAuth app id                | Set together with the secret, or leave both unset.                                                                                                                                                                    |
+| `GITHUB_CLIENT_SECRET`   |          | unset                     | GitHub OAuth app secret            | Set together with the id, or leave both unset.                                                                                                                                                                        |
+| `PORT`                   |          | `5001`                    | `5001`                             | Port the API listens on.                                                                                                                                                                                              |
+| `TRUST_PROXY`            |          | `loopback`                | `1`                                | Express `trust proxy`; behind a load balancer use the hop count.                                                                                                                                                      |
+| `MAX_UPLOAD_BYTES`       |          | `5368709120`              | `5368709120`                       | Largest upload body in bytes, enforced while streaming so a false `Content-Length` cannot bypass it. Unset ⇒ 5 GiB. Raise it for larger objects.                                                                      |
+| `UPLOAD_PART_BYTES`      |          | `26214400`                | `26214400`                         | Multipart part size in bytes. Unset ⇒ 25 MiB. Min 5 MiB, max 5 GiB. A known `Content-Length` raises the part size when needed to stay under S3's 10,000-part cap, capped at 64 MiB so one upload cannot exhaust heap. |
+| `LOG_LEVEL`              |          | `debug`                   | `warn`                             | `debug`, `info`, `warn` or `error`. Unset ⇒ `warn` in production, `debug` otherwise.                                                                                                                                  |
 
 `apps/web/.env`:
 
@@ -138,6 +144,19 @@ pnpm --filter @s3-viewer/db db:deploy
 
 `db:deploy` runs `prisma migrate deploy` — it only applies migrations that already exist and never drops data. Only use `pnpm --filter @s3-viewer/db db:migrate` (`prisma migrate dev`) if you are **changing the Prisma schema**; it can reset your local database.
 
+Two migrations need an operator's attention rather than a blind `db:deploy`:
+
+- **`20260903020000_lowercase_existing_emails`** aborts with a `RAISE EXCEPTION` if two accounts collide once their addresses are lowercased (`ada@x.com` and `Ada@x.com`). It names the offending addresses; merge or delete one of each pair, then re-run. It is deliberately fail-loud rather than picking a winner for you.
+- **`20260903000000_account_provider_account_unique`** copies duplicate `account` rows into a permanent `account_dedupe_backup` table before removing them. **That table is never cleaned up, and it has `accessToken`, `refreshToken`, `idToken` and `password` columns**, so on a database that has run this migration it can hold OAuth tokens in plaintext indefinitely. Once you have confirmed nobody lost a sign-in link, drop it:
+
+   ```sql
+   -- inspect first; it is empty on a database that never had duplicates
+   SELECT count(*) FROM "account_dedupe_backup";
+   DROP TABLE IF EXISTS "account_dedupe_backup";
+   ```
+
+   It is intentionally not dropped by a migration, because only you can tell whether its contents are still needed.
+
 The Prisma client is generated for you: `pnpm dev` and `pnpm build` both run `db:generate` first via Turborepo. To do it by hand:
 
 ```bash
@@ -164,9 +183,9 @@ Every non-`GET` request is additionally checked for an `Origin` matching `NEXT_P
 
 ## 📬 Email
 
-Transactional email (OTP codes, magic links, server invitations) goes through [Resend](https://resend.com). Set `RESEND_KEY` in `apps/api/.env`.
+Transactional email (OTP codes, magic links, server invitations) goes through [Resend](https://resend.com). Set `RESEND_KEY` and `EMAIL_FROM` in `apps/api/.env` — both are required in production; the API refuses to start without `RESEND_KEY`, and sending mail throws without `EMAIL_FROM` (there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc.).
 
-If `RESEND_KEY` is unset, no mail is sent — messages are logged to the API console instead, which is enough to copy an OTP code or an invite link during local development.
+If `RESEND_KEY` is unset in development, no mail is sent — messages are logged to the API console instead, which is enough to copy an OTP code or an invite link during local development.
 
 ## 👥 Permissions
 
@@ -198,7 +217,7 @@ Invitations carry the same shape: you pick a server role plus the buckets (and p
 Three deployments, two public hosts:
 
 - **Web** (`apps/web`) on `https://s3-viewer.com` with `NEXT_PUBLIC_SITE_URL=https://s3-viewer.com`, `NEXT_PUBLIC_API_URL=https://api.s3-viewer.com`, `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` and `LANDING_ORIGIN=<the landing's origin>`.
-- **API** (`apps/api`) on `https://api.s3-viewer.com` with the same two URLs plus `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_PRIVATE_KEY` and `RESEND_KEY`.
+- **API** (`apps/api`) on `https://api.s3-viewer.com` with the same two URLs plus `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_PRIVATE_KEY`, `RESEND_KEY` and `EMAIL_FROM`.
 - **Landing** (`apps/landing`) as its own Vercel project on a hidden origin, with `NEXT_PUBLIC_SITE_URL=https://s3-viewer.com` and `NEXT_PUBLIC_ASSET_PREFIX=<its own origin>`, e.g. `https://s3-viewer-lp.vercel.app`. The web app proxies `/`, `/how-to`, `/use-cases`, `/legal`, `/about`, `/brand-kit` and `/landing/*` from it; its `robots.txt` disallows everything and every canonical points at `s3-viewer.com`.
 
 Then:
@@ -235,13 +254,13 @@ Then:
 
 6. Set `TRUST_PROXY` on the API so rate limiting and client IP handling behave behind that proxy. It defaults to `loopback`, which is safe with no reverse proxy at all.
 
-> **⚠️ `TRUST_PROXY` warning.** All per-IP rate limits (see [Running in production](#running-in-production)) key off the IP Express derives from this setting. Set it to the exact number of reverse proxies in front of the API — e.g. `TRUST_PROXY=1` for a single load balancer or nginx/Caddy instance that overwrites `X-Forwarded-For` — and confirm that proxy strips or replaces any client-supplied `X-Forwarded-For` rather than appending to it. If you instead set `TRUST_PROXY=true` (or too high a hop count) behind a proxy that does not strip that header, any client can forge its own `X-Forwarded-For` and get a fresh rate-limit bucket on every request, making every per-IP limit trivially bypassable. When unsure, leave it at `loopback` and put the API behind a proxy you configure yourself.
+> **⚠️ `TRUST_PROXY` warning.** All per-IP rate limits (see [Running in production](#-running-in-production)) key off the IP Express derives from this setting. Set it to the exact number of reverse proxies in front of the API — e.g. `TRUST_PROXY=1` for a single load balancer or nginx/Caddy instance that overwrites `X-Forwarded-For` — and confirm that proxy strips or replaces any client-supplied `X-Forwarded-For` rather than appending to it. If you instead set `TRUST_PROXY=true` (or too high a hop count) behind a proxy that does not strip that header, any client can forge its own `X-Forwarded-For` and get a fresh rate-limit bucket on every request, making every per-IP limit trivially bypassable. When unsure, leave it at `loopback` and put the API behind a proxy you configure yourself.
 
 ## 📈 Running in production
 
 - **Rate limiting is in-memory and per-instance.** `express-rate-limit` (`apps/api/lib/middleware/rate-limit.ts`) uses the default in-memory store — there is no shared Redis/store backing it. Every limit documented under [Security](#security) is enforced per API process: run N instances behind a load balancer and the effective limit is N× the documented number, and every counter resets whenever a process restarts or redeploys. Treat the numbers as a soft, best-effort ceiling, not a hard guarantee, until you put a shared store in front of it.
 - **A misconfigured `RESEND_KEY` fails silently to the client.** `POST /auth-flow/start` always returns `204` — including when sending the email throws — so that a broken mail provider can't be used to tell attackers which email addresses have accounts (an email-enumeration oracle). If sign-in email is broken in production, users see no error at all; the only signal is the error-level log line ("Auth flow email failed") the API writes on that path. Alert on that log line, not on client-visible errors.
-- **SSRF guard checks DNS on every connection, not just once.** Server endpoints are checked up front when a server is connected or its credentials change: the hostname must be public and every DNS answer public at that moment (see [Security](#security)). That up-front check alone would leave a DNS-rebinding gap — a hostname whose DNS later repoints to a private address — but the same public/private rules also run as a custom `dns.lookup` on the shared http/https agents the S3 clients connect through (`apps/api/lib/s3/client-cache.ts`), so a rebound hostname is rejected when a socket actually connects, not just at the original check. Self-hosters should still restrict egress at the network layer (run the API in a network segment / security group that cannot reach internal services) as defense in depth — the app-level check protects against DNS-based SSRF, not against every route a misconfigured or malicious endpoint could reach.
+- **SSRF guard checks DNS on every connection, not just once.** Server endpoints are checked up front when a server is connected, its credentials change, or its cached S3 client is (re)built: the hostname must be public and every DNS answer public at that moment (see [Security](#security)). That up-front check alone would leave a DNS-rebinding gap — a hostname whose DNS later repoints to a private address — but the same public/private rules also run as a custom `dns.lookup` on the shared http/https agents the S3 clients connect through (`apps/api/lib/s3/client-cache.ts`), so a rebound hostname is rejected when a socket actually connects, not just at the original check. Self-hosters should still restrict egress at the network layer (run the API in a network segment / security group that cannot reach internal services) as defense in depth — the app-level check protects against DNS-based SSRF, not against every route a misconfigured or malicious endpoint could reach.
 
 ## 🔒 Data we store
 
@@ -249,9 +268,12 @@ Kept in your PostgreSQL database, and nowhere else:
 
 - **Account**: user id, email address, and name (it defaults to the local part of the email). There are no profile pictures: your avatar is your initials on a colour generated from your name, so nothing is uploaded and nothing is stored — not even the avatar URL GitHub offers when you sign in that way.
 - **Sessions**: session tokens with their expiry only — validity depends solely on the token and its expiry, not on IP or device. Neither IP address nor user agent is retained: IP tracking is disabled (`advanced.ipAddress.disableIpTracking`), so the session's `ipAddress` column (present because it's part of Better Auth's core schema) is never filled in; `userAgent` has no column at all — it was dropped from the schema since nothing ever read it.
-- **Linked GitHub account**: only if you sign in with GitHub — the provider account id and the OAuth tokens it returns.
+- **Linked GitHub account**: only if you sign in with GitHub — the provider account id. The OAuth access, refresh and id tokens GitHub returns are dropped before the row is written: nothing in the product ever reads them, so they are not worth storing next to envelope-encrypted credentials.
 - **Servers**: the name you gave the server, the provider it points at, and the bucket names you allowed. Its endpoint, region, access key and secret live inside one **encrypted** blob: encrypted with your RSA public key in the browser, so the server stores only ciphertext and decrypts it in memory when it needs to talk to your provider.
 - **Membership rows**: which users have access to which servers and buckets, and at what role, plus pending invitations.
+- **Audit log**: one row per administrative or destructive action (server and credential changes, membership and invite changes, bucket and object deletion or rename) with the action, the acting user id, the server id, and a short target such as a bucket name, object key or invited email address. Reads, downloads and uploads are deliberately not recorded — the volume would bury the signal.
+
+The audit log is **never pruned automatically and has no foreign keys**, so its rows deliberately outlive the user or server they refer to — that is what makes it an audit trail rather than a join table. Two consequences worth planning for: the table grows without bound, and it retains invited email addresses after an account is deleted, which you must account for under GDPR-style erasure requests. Set a retention window that suits your jurisdiction, for example a nightly `DELETE FROM "audit_log" WHERE "createdAt" < now() - interval '1 year';`.
 
 No analytics, no third-party trackers, and no IP address logging. Object data itself never touches S3 Viewer's database: uploads are streamed through the API straight into your bucket without being stored, and downloads use presigned URLs straight from your provider.
 
@@ -261,7 +283,7 @@ Report vulnerabilities privately per [SECURITY.md](./SECURITY.md). What is in pl
 
 - **Client-side hybrid encryption for S3 credentials.** The browser generates an AES-256-GCM key, encrypts the credentials with it, and wraps that key with RSA-OAEP (SHA-256) using `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY`. Only the API holds the private half. Credentials never come back to the browser and never appear in an API response.
 - **Cross-site request protection.** `SameSite=Lax`, `HttpOnly` session cookies, plus an `Origin` / `Sec-Fetch-Site` check on every non-`GET` request, which rejects anything that did not come from `NEXT_PUBLIC_SITE_URL` with a 403.
-- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes, after authentication), 1800/minute per user id, and 5/minute per IP plus 5/10 minutes per email address on the sign-in flow. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
+- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, and 5/minute per IP plus 5/10 minutes per email address on the sign-in flow. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
 - **SSRF guard on server endpoints.** An endpoint you add must be a public `https://` URL (`http://` is allowed outside production only); `localhost`, `*.localhost` and any hostname that resolves to a loopback, private, link-local or multicast address is rejected before a single request is signed.
 - **No IP logging.** Better Auth's IP tracking is switched off and the API logger never writes a client address.
 - **Authorization from validated input only.** Every route parses its input with a zod schema first, then checks the caller's server role and the effective bucket role; handlers never read `req.body` or `req.query` directly.
@@ -275,7 +297,7 @@ pnpm dlx shadcn@latest add [component]
 
 ## 🤝 Contributing
 
-Issues and pull requests are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, branch and commit conventions, and the checks to run before opening a PR (`pnpm lint && pnpm check-types && pnpm test`). Please also read our [Code of Conduct](./CODE_OF_CONDUCT.md), and report security issues privately per [SECURITY.md](./SECURITY.md).
+Issues and pull requests are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, branch and commit conventions, and the checks to run before opening a PR (`pnpm lint && pnpm check-types && pnpm test`). Changes to API routes, rate limits, error codes or permissions should also match [CONTRACTS.md](./CONTRACTS.md), the engineering agreement between the API, the web app, the landing site and the shared packages. Please also read our [Code of Conduct](./CODE_OF_CONDUCT.md), and report security issues privately per [SECURITY.md](./SECURITY.md).
 
 ## 📄 License
 

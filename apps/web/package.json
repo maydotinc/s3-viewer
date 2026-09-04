@@ -2,6 +2,7 @@
    "name": "web",
    "version": "0.0.0",
    "private": true,
+   "license": "MIT",
    "type": "module",
    "scripts": {
       "dev": "portless web next dev",
@@ -29,7 +30,7 @@
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
       "@tailwindcss/postcss": "catalog:",
-      "@types/node": "^20",
+      "@types/node": "^20.19.0",
       "@types/react": "^19",
       "@types/react-dom": "^19",
       "eslint": "catalog:",

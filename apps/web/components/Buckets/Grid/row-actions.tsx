@@ -1,4 +1,4 @@
-import useObjectCommands from "@/components/Buckets/useObjectCommands";
+import type { ObjectCommands } from "@/components/Buckets/useObjectCommands";
 import { baseName, type S3Object } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -13,14 +13,13 @@ import type { ICellRendererParams } from "ag-grid-community";
 import { Download, Ellipsis, FilePen, Link2, Trash2 } from "lucide-react";
 import type { ObjectGridContext } from "./columns";
 
-const RowActions = (
-   params: ICellRendererParams<S3Object, unknown, ObjectGridContext>
-) => {
-   const { bucketName } = params.context;
-   const commands = useObjectCommands(bucketName);
-   const data = params.data;
-   if (!data) return null;
-
+const RowActionsMenu = ({
+   data,
+   commands,
+}: {
+   data: S3Object;
+   commands: ObjectCommands;
+}) => {
    const name = baseName(data.key);
    const { can } = commands;
    const folderItems = can.delete;
@@ -96,6 +95,14 @@ const RowActions = (
          </DropdownMenu>
       </div>
    );
+};
+
+const RowActions = (
+   params: ICellRendererParams<S3Object, unknown, ObjectGridContext>
+) => {
+   const data = params.data;
+   if (!data) return null;
+   return <RowActionsMenu data={data} commands={params.context.commands} />;
 };
 
 export default RowActions;

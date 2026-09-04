@@ -40,18 +40,6 @@ const queryKeys = {
       bucketName: string,
       prefix: string
    ) => [...bucketObjects(userId, serverId, bucketName), prefix] as const,
-   objectMetadata: (
-      userId: string,
-      serverId: string,
-      bucketName: string,
-      objectKey: string
-   ) =>
-      [
-         ...bucket(userId, serverId, bucketName),
-         "object",
-         objectKey,
-         "metadata",
-      ] as const,
    objectPreview,
    objectPreviewBody: (
       userId: string,

@@ -48,7 +48,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "What roles are available?",
       answer:
-         "Four, cumulative: Viewer (browse and download), Editor (also upload, rename, delete and create buckets), Admin (also invite and remove members, rename the server and remove buckets from it), and Owner (also delete the server). Owner belongs to whoever created the server and is not assignable. A bucket can override a member's server role, so a teammate can be an Editor on one bucket and a Viewer on another.",
+         "Four, cumulative: Viewer (browse and download), Editor (also upload, rename, delete and create buckets), Admin (also manage members, rename the server and remove buckets), and Owner (also delete the server). Owner belongs to whoever created the server and is not assignable. A bucket can override a member's server role, so a teammate can be an Editor on one bucket and a Viewer on another.",
    },
    {
       question: "Can I limit a teammate to one bucket out of many?",
@@ -84,8 +84,8 @@ export default createUseCasePage({
    description: DESCRIPTION,
    seoTitle: "S3 Bucket Team Access — Email Invites, Per-Bucket Roles, No IAM",
    seoDescription: META_DESCRIPTION,
-   eyebrow: "Team workspaces",
-   tagline: "A workspace built for human collaboration on object storage.",
+   eyebrow: "Team access",
+   tagline: "Server access built for human collaboration on object storage.",
    bullets: [
       "Email invites instead of IAM users — no permanent artifacts to rotate",
       "Four cumulative roles: Owner, Admin, Editor, Viewer",
@@ -121,7 +121,7 @@ export default createUseCasePage({
       {
          icon: Github,
          title: "Self-host on your VPC",
-         body: "MIT-licensed open source. Run the same UI inside your own infrastructure — full data residency, full control, and self-hosted there is no third party in the request path.",
+         body: "MIT-licensed open source. Run the same UI inside your own infrastructure — full data residency, full control, and no third party in the request path.",
       },
    ],
    steps,

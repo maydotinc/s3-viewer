@@ -11,8 +11,7 @@ const encodeRfc5987 = (value: string): string =>
       (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
    );
 
-// Strips quotes, backslashes and control characters together (control chars matter for
-// the RFC 5987 value below, so do not re-derive one set from the other).
+// control chars matter for the rfc 5987 value too, so both are stripped here
 // eslint-disable-next-line no-control-regex
 const UNSAFE_FILENAME_CHARS = /["\\\u0000-\u001f\u007f]/g;
 const NON_ASCII = /[^ -~]/g;

@@ -4,7 +4,7 @@ import type {
    S3Client,
 } from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
-import { listKeysPage, listPage } from "./listing";
+import { existingKeys, listKeysPage, listPage } from "./listing";
 
 type Page = Partial<ListObjectsV2CommandOutput>;
 
@@ -119,6 +119,100 @@ describe("listPage", () => {
       expect(page.objects.map((o) => o.key)).toEqual(["a", "b"]);
       expect(page.nextToken).toBeNull();
       expect(inputs).toHaveLength(2);
+   });
+});
+
+describe("existingKeys", () => {
+   // ascii keys only: the mock compares as UTF-16, which only matches S3's
+   // UTF-8 ordering below U+0080
+   const fakeBucket = (keys: string[], pageSize = 1000) => {
+      const stored = [...keys].sort();
+      const inputs: ListObjectsV2CommandInput[] = [];
+      const send = vi.fn(
+         async (command: { input: ListObjectsV2CommandInput }) => {
+            const {
+               Prefix = "",
+               StartAfter = "",
+               MaxKeys = 1000,
+            } = command.input;
+            inputs.push(command.input);
+            const matching = stored.filter(
+               (key) => key.startsWith(Prefix) && key > StartAfter
+            );
+            const page = matching.slice(0, Math.min(MaxKeys, pageSize));
+            return {
+               Contents: page.map((Key) => ({ Key })),
+               IsTruncated: page.length < matching.length,
+            };
+         }
+      );
+      return { client: { send } as unknown as S3Client, inputs };
+   };
+
+   it("answers a whole batch from one listing under the common prefix", async () => {
+      const { client, inputs } = fakeBucket(["up/a.txt", "up/c.txt", "other"]);
+      const result = await existingKeys(client, "b", [
+         "up/c.txt",
+         "up/a.txt",
+         "up/b.txt",
+      ]);
+      expect(result.existing.sort()).toEqual(["up/a.txt", "up/c.txt"]);
+      expect(result.unresolved).toEqual([]);
+      expect(inputs).toHaveLength(1);
+      expect(inputs[0]?.Prefix).toBe("up/");
+   });
+
+   it("never sends a prefix cut between the halves of a surrogate pair", async () => {
+      const keys = ["\u{1F600}.txt", "\u{1F601}.txt"];
+      const { client, inputs } = fakeBucket(keys);
+      const result = await existingKeys(client, "b", keys);
+
+      const prefix = inputs[0]?.Prefix ?? "";
+      expect(Buffer.from(prefix, "utf8").toString("utf8")).toBe(prefix);
+      expect(result.existing.sort()).toEqual([...keys].sort());
+      expect(result.unresolved).toEqual([]);
+   });
+
+   it("reports nothing found without a single HeadObject", async () => {
+      const { client, inputs } = fakeBucket(["other/a"]);
+      expect(await existingKeys(client, "b", ["up/a", "up/b"])).toEqual({
+         existing: [],
+         unresolved: [],
+      });
+      expect(inputs).toHaveLength(1);
+   });
+
+   it("skips past keys nobody asked about instead of paging through them", async () => {
+      const { client, inputs } = fakeBucket(
+         ["a/1", "a/2", "a/3", "a/4", "a/5", "z/1"],
+         3
+      );
+      const result = await existingKeys(client, "b", ["a/1", "z/1"]);
+      expect(result.existing.sort()).toEqual(["a/1", "z/1"]);
+      expect(result.unresolved).toEqual([]);
+      expect(inputs).toHaveLength(2);
+      expect(inputs[0]?.Prefix).toBeUndefined();
+      expect(inputs[1]?.StartAfter).toBe("z/");
+   });
+
+   it("never cuts a surrogate pair in half when it picks StartAfter", async () => {
+      const key = "up/a\u{1F600}";
+      const { client, inputs } = fakeBucket([key]);
+      const result = await existingKeys(client, "b", [key, "up/b"]);
+      expect(inputs[0]?.StartAfter).toBe("up/a");
+      expect(result.existing).toEqual([key]);
+   });
+
+   it("caps the pages it spends and hands back what it couldn't decide", async () => {
+      const keys = Array.from(
+         { length: 30 },
+         (_, i) => `k${String(i).padStart(2, "0")}`
+      );
+      const { client, inputs } = fakeBucket(keys, 1);
+      const result = await existingKeys(client, "b", keys);
+      expect(inputs).toHaveLength(20);
+      expect(result.existing).toHaveLength(20);
+      expect(result.unresolved).toEqual(keys.slice(20));
    });
 });
 

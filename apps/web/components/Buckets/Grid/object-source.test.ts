@@ -7,6 +7,8 @@ const BLOCK = 1000;
 
 const calls: { token: string | null; blockSize: number }[] = [];
 let shortFirstPage = false;
+let pageLimit: number | null = null;
+let emptyFromCall: number | null = null;
 
 const get = vi.fn(async (path: string): Promise<S3ObjectListPage> => {
    const params = new URL(path, "http://x").searchParams;
@@ -14,8 +16,12 @@ const get = vi.fn(async (path: string): Promise<S3ObjectListPage> => {
    const blockSize = Number(params.get("blockSize"));
    calls.push({ token, blockSize });
    const start = token ? Number(token) : 0;
-   const take = shortFirstPage && calls.length === 1 ? 600 : blockSize;
-   shortFirstPage = false;
+   if (emptyFromCall !== null && calls.length > emptyFromCall)
+      return { objects: [], nextToken: String(start) };
+   const take = shortFirstPage
+      ? 600
+      : Math.min(blockSize, pageLimit ?? blockSize);
+   shortFirstPage = shortFirstPage && calls.length !== 1;
    const end = Math.min(total, start + take);
    const objects: S3Object[] = [];
    for (let i = start; i < end; i++) {
@@ -72,6 +78,8 @@ const rowsFor = (
 beforeEach(() => {
    calls.length = 0;
    shortFirstPage = false;
+   pageLimit = null;
+   emptyFromCall = null;
    total = 2500;
 });
 
@@ -106,6 +114,35 @@ describe("createObjectDatasource", () => {
       const second = await rowsFor(datasource, 1);
       expect(calls[2]).toEqual({ token: "1000", blockSize: BLOCK });
       expect(second.rows[0]?.key).toBe("k1000");
+   });
+
+   it("keeps blocks full when every page is short, so the row mapping holds", async () => {
+      pageLimit = 40;
+      const datasource = source();
+      const first = await rowsFor(datasource, 0);
+      expect(calls).toHaveLength(25);
+      expect(first.rows).toHaveLength(BLOCK);
+      expect(first.rows[999]?.key).toBe("k999");
+      expect(first.lastRow).toBeUndefined();
+
+      const second = await rowsFor(datasource, 1);
+      expect(second.rows).toHaveLength(BLOCK);
+      expect(second.rows[0]?.key).toBe("k1000");
+
+      const third = await rowsFor(datasource, 2);
+      expect(third.rows).toHaveLength(500);
+      expect(third.rows[0]?.key).toBe("k2000");
+      expect(third.lastRow).toBe(total);
+   });
+
+   it("stops a block that stops making progress and reports it as the end", async () => {
+      pageLimit = 40;
+      emptyFromCall = 1;
+      const datasource = source();
+      const first = await rowsFor(datasource, 0);
+      expect(calls).toHaveLength(21);
+      expect(first.rows).toHaveLength(40);
+      expect(first.lastRow).toBe(40);
    });
 
    it("returns nothing for a block past the known end", async () => {

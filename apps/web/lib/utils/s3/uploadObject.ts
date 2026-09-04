@@ -50,9 +50,9 @@ type UploadHandle = {
    abort: () => void;
 };
 
-const parseBody = (xhr: XMLHttpRequest): ApiErrorBody | null => {
+const parseJson = <T>(xhr: XMLHttpRequest): T | null => {
    try {
-      return JSON.parse(xhr.responseText) as ApiErrorBody;
+      return JSON.parse(xhr.responseText) as T;
    } catch {
       return null;
    }
@@ -73,12 +73,17 @@ const putOnce = (
             onProgress(Math.min(event.loaded, file.size));
       };
       xhr.onload = () => {
-         if (xhr.status >= 200 && xhr.status < 300) {
-            onProgress(file.size);
-            resolve(JSON.parse(xhr.responseText) as S3ObjectUploaded);
-         } else {
-            reject(responseError(xhr.status, parseBody(xhr)));
+         if (xhr.status < 200 || xhr.status >= 300) {
+            reject(responseError(xhr.status, parseJson<ApiErrorBody>(xhr)));
+            return;
          }
+         const uploaded = parseJson<S3ObjectUploaded>(xhr);
+         if (!uploaded) {
+            reject(responseError(xhr.status, null));
+            return;
+         }
+         onProgress(file.size);
+         resolve(uploaded);
       };
       xhr.onerror = () => reject(networkError());
       xhr.ontimeout = () => reject(networkError());

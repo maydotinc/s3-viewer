@@ -16,11 +16,18 @@ import { invitesRouter } from "@/routes/invites";
 import { s3Router } from "@/routes/s3";
 import { serversRouter } from "@/routes/servers";
 import { auth } from "@s3-viewer/auth";
-import { AUTH_BASE_PATH } from "@s3-viewer/types";
+import {
+   API_CONTRACT_VERSION,
+   AUTH_BASE_PATH,
+   MINUTE_MS,
+   REQUEST_ID_HEADER,
+} from "@s3-viewer/types";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express, { type Request } from "express";
 import helmet from "helmet";
+import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 import type { Socket } from "node:net";
 
 assertPrivateKey();
@@ -29,19 +36,40 @@ const OBJECT_UPLOAD_PATH = /^\/servers\/[^/]+\/buckets\/[^/]+\/objects$/;
 const isObjectUpload = (req: Request): boolean =>
    req.method === "PUT" && OBJECT_UPLOAD_PATH.test(req.path);
 
+const HEADERS_TIMEOUT_MS = 60_000;
+const IDLE_TIMEOUT_MS = 2 * MINUTE_MS;
+
 const app = express();
 
 app.use(helmet());
 app.set("trust proxy", env.TRUST_PROXY);
-app.use(globalIpLimit);
+
+// cors must precede the limiters: a 429 without the header reaches the browser
+// as an opaque network error instead of the documented RATE_LIMITED code
 app.use(
    cors({
       origin: siteOrigin,
       credentials: true,
       methods: ["GET", "PUT", "POST", "PATCH", "DELETE", "OPTIONS"],
+      exposedHeaders: [REQUEST_ID_HEADER],
    })
 );
 
+app.use((req, res, next) => {
+   const id = randomUUID();
+   res.locals.requestId = id;
+   res.setHeader(REQUEST_ID_HEADER, id);
+   if (!isObjectUpload(req)) req.setTimeout(IDLE_TIMEOUT_MS);
+   next();
+});
+
+// contract version, not the package version: bumped only when a route's shape
+// changes, so a web app deployed against an older api can detect the skew
+app.get("/health", (_req, res) => {
+   res.json({ ok: true, apiVersion: API_CONTRACT_VERSION });
+});
+
+app.use(globalIpLimit);
 app.use(originCheck);
 
 app.post(
@@ -75,12 +103,17 @@ app.use(BUCKET_MOUNT, s3Router);
 app.use((_req, res) => fail(res, 404, "Not found"));
 app.use(errorHandler);
 
-const server = app.listen(env.PORT, () => {
+// only honoured as constructor options; assigning them post-build is ignored.
+// requestTimeout is global and cannot be raised per route, so it stays 0 for
+// long uploads; the header phase and idle sockets are bounded instead
+const server = createServer(
+   { requestTimeout: 0, headersTimeout: HEADERS_TIMEOUT_MS },
+   app
+);
+
+server.listen(env.PORT, () => {
    logger.info("API listening", { port: env.PORT });
 });
-
-server.requestTimeout = 0;
-server.headersTimeout = 60_000;
 
 const sockets = new Set<Socket>();
 server.on("connection", (socket) => {

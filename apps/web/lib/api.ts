@@ -24,9 +24,11 @@ const networkError = () => new ApiError(0, NETWORK_MESSAGE, "NETWORK");
 
 const ABORTED = "ABORTED";
 
+const cancelledError = () => new ApiError(0, "Request cancelled", ABORTED);
+
 const transportError = (error: unknown) =>
    error instanceof DOMException && error.name === "AbortError"
-      ? new ApiError(0, "Request cancelled", ABORTED)
+      ? cancelledError()
       : networkError();
 
 const isAborted = (error: unknown) =>
@@ -116,6 +118,7 @@ export {
    api,
    apiUrl,
    bucketPath,
+   cancelledError,
    errorMessage,
    invitePath,
    isAborted,

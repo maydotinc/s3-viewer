@@ -8,10 +8,10 @@ import { getUseCaseRefs } from "@/components/UseCases/data";
 import { SearchIllustration } from "@/components/UseCases/illustrations";
 
 const SLUG = "search-across-s3-buckets";
-const TITLE = "How to search across S3 buckets";
+const TITLE = "How to search inside an S3 bucket";
 const KEYWORD = "search S3 buckets";
 const TLDR =
-   "Amazon S3 has no native search API — every tool lists keys with ListObjectsV2 and filters them. S3 Viewer's “Filter by prefix” box is exactly that — a prefix filter over the folder you are currently in: it narrows the rows on screen and does not walk into subfolders or other buckets. For a recursive sweep, `aws s3 ls --recursive | grep` is fast enough on small to medium buckets. For buckets with millions of keys, S3 Inventory + Athena is the right pattern.";
+   "Amazon S3 has no native search API — every tool lists keys with ListObjectsV2 and filters them. S3 Viewer's “Filter by prefix” box is exactly that — a prefix filter over the folder you are currently in: it narrows the rows on screen and does not walk into subfolders or other buckets. For a recursive sweep, aws s3 ls --recursive | grep is fast enough on small to medium buckets. For buckets with millions of keys, S3 Inventory + Athena is the right pattern.";
 
 const steps: HowToStep[] = [
    {
@@ -68,12 +68,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I search for a file in an S3 bucket?",
       answer:
-         "S3 has no search API — you list keys with ListObjectsV2 and filter them. From the CLI: `aws s3 ls s3://bucket --recursive | grep <query>`. From a tool: open the folder in S3 Viewer and type in the “Filter by prefix” box — it filters that folder's rows by prefix as you type. For a recursive search across a whole bucket, use the CLI; for buckets with millions of objects, use S3 Inventory + Athena.",
+         "S3 has no search API — you list keys with ListObjectsV2 and filter them. From the CLI: aws s3 ls s3://bucket --recursive | grep <query>. From a tool: open the folder in S3 Viewer and type in the “Filter by prefix” box — it filters that folder's rows by prefix as you type. For a recursive search across a whole bucket, use the CLI; for buckets with millions of objects, use S3 Inventory + Athena.",
    },
    {
       question: "Why doesn't the AWS S3 console search find my file?",
       answer:
-         "The console's search filters the keys currently visible on the page (typically 1,000 keys) and inside the current prefix. S3 Viewer's “Filter by prefix” box behaves the same way — it is a prefix filter on the folder you are in. For a genuinely bucket-wide sweep you need a recursive listing: `aws s3 ls s3://bucket --recursive | grep <query>`, or S3 Inventory + Athena on very large buckets.",
+         "The console's search filters the keys currently visible on the page (typically 1,000 keys) and inside the current prefix. S3 Viewer's “Filter by prefix” box behaves the same way — it is a prefix filter on the folder you are in. For a genuinely bucket-wide sweep you need a recursive listing: aws s3 ls s3://bucket --recursive | grep <query>, or S3 Inventory + Athena on very large buckets.",
    },
    {
       question: "Can I search across multiple S3 buckets at once?",
@@ -83,7 +83,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I search a Cloudflare R2 bucket?",
       answer:
-         "R2 implements ListObjectsV2 and works the same way as S3. From the AWS CLI with `--endpoint-url`: `aws s3 ls --endpoint-url https://<account>.r2.cloudflarestorage.com --recursive | grep <query>`. From S3 Viewer, type in the “Filter by prefix” box — R2 folders filter exactly like S3 folders.",
+         "R2 implements ListObjectsV2 and works the same way as S3. From the AWS CLI with --endpoint-url: aws s3 ls --endpoint-url https://<account>.r2.cloudflarestorage.com --recursive | grep <query>. From S3 Viewer, type in the “Filter by prefix” box — R2 folders filter exactly like S3 folders.",
    },
    {
       question: "Is there an S3 search API?",
@@ -97,7 +97,7 @@ export default createHowToPage({
    title: TITLE,
    tldr: TLDR,
    keyword: KEYWORD,
-   seoTitle: "How to Search Across S3 Buckets (Prefix Filter, CLI, Athena)",
+   seoTitle: "How to Search Inside an S3 Bucket (Prefix Filter, CLI, Athena)",
    seoDescription:
       "Three ways to search S3: a prefix filter on the current folder in S3 Viewer, a recursive listing from the AWS CLI, or S3 Inventory + Athena.",
    visual: <SearchIllustration />,

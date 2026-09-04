@@ -11,7 +11,7 @@ const SLUG = "rename-s3-file";
 const TITLE = "How to rename a file in S3 (and why it's tricky)";
 const KEYWORD = "rename file in S3";
 const TLDR =
-   "Amazon S3 has no rename API — keys are immutable, by design. Cloudflare R2 follows the same S3 API and inherits the same constraint. To rename, you copy the object to the new key and delete the original. The AWS CLI does it with `aws s3 mv`; the SDKs do it with copyObject + deleteObject; S3 Viewer wraps the same pattern behind the ⋮ menu on a row: it copies the object with its metadata, then deletes the original. It refuses to overwrite an existing key and is limited to objects up to 5 GB.";
+   "Amazon S3 has no rename API — keys are immutable, by design. Cloudflare R2 follows the same S3 API and inherits the same constraint. To rename, you copy the object to the new key and delete the original. The AWS CLI does it with aws s3 mv; the SDKs do it with copyObject + deleteObject; S3 Viewer wraps the same pattern behind the ⋮ menu on a row: it copies the object with its metadata, then deletes the original. It refuses to overwrite an existing key and is limited to objects up to 5 GB.";
 
 const steps: HowToStep[] = [
    {
@@ -93,12 +93,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "Can you rename a file in S3?",
       answer:
-         "Not natively — Amazon S3 has no rename API and keys are immutable once written, by design. The standard pattern is to copy the object to the new key and delete the original. Every S3 tool does this under the hood, including the AWS CLI's `aws s3 mv`, the AWS SDKs' copyObject + deleteObject, and S3 Viewer's ⋮ menu → Rename.",
+         "Not natively — Amazon S3 has no rename API and keys are immutable once written, by design. The standard pattern is to copy the object to the new key and delete the original. Every S3 tool does this under the hood, including the AWS CLI's aws s3 mv, the AWS SDKs' copyObject + deleteObject, and S3 Viewer's ⋮ menu → Rename.",
    },
    {
       question: "How do I rename a file in S3 with the AWS CLI?",
       answer:
-         "Run `aws s3 mv s3://bucket/old-key s3://bucket/new-key`. The CLI performs a server-side CopyObject followed by a DeleteObject. The bytes never download to your machine.",
+         "Run aws s3 mv s3://bucket/old-key s3://bucket/new-key. The CLI performs a server-side CopyObject followed by a DeleteObject. The bytes never download to your machine.",
    },
    {
       question: "Does renaming an S3 file cost money?",
@@ -118,7 +118,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I rename a folder in S3?",
       answer:
-         "S3 has no folders — what looks like a folder is a shared key prefix. To rename a 'folder', list every object under the prefix and copy + delete each one to the new prefix. S3 Viewer renames one object at a time, so for a whole prefix use `aws s3 mv s3://bucket/old-prefix/ s3://bucket/new-prefix/ --recursive` or rclone.",
+         "S3 has no folders — what looks like a folder is a shared key prefix. To rename a 'folder', list every object under the prefix and copy + delete each one to the new prefix. S3 Viewer renames one object at a time, so for a whole prefix use aws s3 mv s3://bucket/old-prefix/ s3://bucket/new-prefix/ --recursive or rclone.",
    },
 ];
 

@@ -156,6 +156,18 @@ describe("uploadObject", () => {
       await expect(handle.done).resolves.toEqual(body);
    });
 
+   it("rejects instead of hanging when a 2xx body can't be parsed", async () => {
+      const handle = upload();
+      const xhr = FakeXHR.instances[0];
+      if (!xhr) throw new Error("no xhr");
+      xhr.status = 200;
+      xhr.responseText = "<!doctype html>";
+      xhr.readyState = FakeXHR.DONE;
+      xhr.onload?.();
+      await expect(handle.done).rejects.toMatchObject({ status: 200 });
+      expect(FakeXHR.instances).toHaveLength(1);
+   });
+
    it("never retries a 4xx or 5xx response", async () => {
       const serverError = upload();
       FakeXHR.instances[0]?.respond(500, { message: "boom" });
@@ -183,8 +195,6 @@ describe("uploadObject", () => {
       FakeXHR.instances[0]?.fail();
       handle.abort();
       await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
-      // No second attempt was ever started, and nothing was waiting on the
-      // 500ms backoff timer to resolve this.
       expect(FakeXHR.instances).toHaveLength(1);
    });
 });

@@ -15,12 +15,9 @@ const GLYPHS: Record<string, string> = {
    delete: "⌦",
 };
 
-/**
- * `mod` is ⌘ on Apple hardware and Ctrl everywhere else. The check has to run
- * on the client, so it goes through `useSyncExternalStore`: the server
- * snapshot is also what React uses while hydrating, which keeps the first
- * client render identical to the HTML and defaults to ⌘.
- */
+// the apple check is client-only, so it goes through `useSyncExternalStore`:
+// react also uses the server snapshot while hydrating, keeping the first
+// client render identical to the html.
 const NEVER_CHANGES = () => () => {};
 
 const readIsApple = (): boolean =>

@@ -108,13 +108,13 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I give someone access to one folder in an S3 bucket?",
       answer:
-         "Write an IAM policy with two statements: `s3:GetObject` on `arn:aws:s3:::bucket/prefix/*` (the read), and `s3:ListBucket` on `arn:aws:s3:::bucket` with a Condition `StringLike: { s3:prefix: ['prefix/*'] }` (the listing). The listing condition is the part most people miss. For team workflows, S3 Viewer offers a simpler primitive — connect the bucket once and grant per-bucket roles to invited members instead of authoring custom IAM per teammate.",
+         "Write an IAM policy with two statements: s3:GetObject on arn:aws:s3:::bucket/prefix/* (the read), and s3:ListBucket on arn:aws:s3:::bucket with a Condition StringLike: { s3:prefix: ['prefix/*'] } (the listing). The listing condition is the part most people miss. For team workflows, S3 Viewer offers a simpler primitive — connect the bucket once and grant per-bucket roles to invited members instead of authoring custom IAM per teammate.",
    },
    {
       question:
          "Why does my IAM policy let users read S3 files but not list the folder?",
       answer:
-         "You're missing s3:ListBucket with an s3:prefix Condition. In S3, GetObject and ListBucket are separate permissions on different resources — GetObject is on the key (`bucket/prefix/*`), ListBucket is on the bucket (`bucket`). Granting one doesn't grant the other.",
+         "You're missing s3:ListBucket with an s3:prefix Condition. In S3, GetObject and ListBucket are separate permissions on different resources — GetObject is on the key (bucket/prefix/*), ListBucket is on the bucket (bucket). Granting one doesn't grant the other.",
    },
    {
       question: "What's the difference between s3:ListBucket and s3:GetObject?",
@@ -124,7 +124,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Can I scope down to a single S3 key?",
       answer:
-         "Yes — set Resource to the exact key ARN with no wildcard, e.g., `arn:aws:s3:::my-bucket/reports/q4-finance.pdf`. Pair it with a ListBucket condition on the parent prefix if the user also needs to see it in a listing.",
+         "Yes — set Resource to the exact key ARN with no wildcard, e.g., arn:aws:s3:::my-bucket/reports/q4-finance.pdf. Pair it with a ListBucket condition on the parent prefix if the user also needs to see it in a listing.",
    },
    {
       question: "Do I need a custom IAM policy for every teammate?",

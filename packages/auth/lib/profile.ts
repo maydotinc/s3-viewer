@@ -1,15 +1,12 @@
 const NAME_MAX = 80;
 
-/**
- * `image` is not part of the product. Better Auth's core user model still
- * declares the column, so an `/update-user` call can always carry one — it is
- * accepted and stripped rather than rejected, so nothing 400s over a field
- * the UI no longer offers.
- */
+// better auth's user model still declares `image`, so /update-user can always
+// carry one; it is stripped rather than rejected so nothing 400s over a field
+// the ui no longer offers
 type ProfileInput = { name?: string; image?: unknown };
 
-/** `image: undefined` is a deliberate own property: it overrides the incoming
- * value when spread, and Prisma treats undefined as "leave this column". */
+// `image: undefined` must stay an own property: it overrides the incoming value
+// when spread, and prisma reads undefined as "leave this column alone"
 type ProfileData = { name?: string; image?: undefined };
 
 type ProfileResult =

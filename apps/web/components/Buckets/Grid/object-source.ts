@@ -6,7 +6,7 @@ import {
 } from "@s3-viewer/types";
 import type { GridApi, IDatasource, IGetRowsParams } from "ag-grid-community";
 
-const MAX_CALLS_PER_BLOCK = 20;
+const MAX_EMPTY_PAGES_PER_BLOCK = 20;
 
 type ObjectSourceParams = {
    serverId: string;
@@ -19,12 +19,13 @@ type ObjectSourceParams = {
 
 type ObjectDatasource = IDatasource & {
    reset: () => void;
-   /** Starts over and fetches the first page, so a retry can be proven before the grid is shown again. */
+   // fetches the first page, so a retry can be proven before the grid is shown
    prime: () => Promise<void>;
 };
 
 type Listing = {
-   /** tokens[i] resumes S3 at block i; the array only ever grows by one known token at a time. */
+   // tokens[i] resumes s3 at block i. a token is only recorded once block i is
+   // full, so block i always starts at row i * MAX_LIST_BLOCK_SIZE.
    tokens: (string | undefined)[];
    end: number | null;
    chain: Promise<unknown>;
@@ -64,11 +65,17 @@ const createObjectDatasource = ({
    ): Promise<S3Object[]> => {
       const rows: S3Object[] = [];
       let token = target.tokens[index];
-      for (let calls = 0; calls < MAX_CALLS_PER_BLOCK; calls++) {
+      let emptyPages = 0;
+      for (;;) {
          const page = await fetchPage(token, MAX_LIST_BLOCK_SIZE - rows.length);
          rows.push(...page.objects);
          token = page.nextToken ?? undefined;
          if (!token || rows.length >= MAX_LIST_BLOCK_SIZE) break;
+         if (page.objects.length > 0) emptyPages = 0;
+         else if (++emptyPages >= MAX_EMPTY_PAGES_PER_BLOCK) {
+            token = undefined;
+            break;
+         }
       }
       if (token) target.tokens[index + 1] = token;
       else target.end = index * MAX_LIST_BLOCK_SIZE + rows.length;

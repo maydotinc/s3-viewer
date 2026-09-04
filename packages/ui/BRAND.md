@@ -129,13 +129,19 @@ whole visual vocabulary.
 
 ## Motion
 
-Modal-layer surfaces never animate. Dialogs, their overlays, dropdown menus and
-selects appear and disappear instantly — no `animate-in`/`animate-out`, no
-fade, zoom or slide, no `motion`/`AnimatePresence`. `tw-animate-css` is not a
-dependency and there are no `.fade-in`/`.motion-*` utilities in `globals.css`.
+Dialogs never animate: the dialog and its overlay appear and disappear
+instantly — no `animate-in`/`animate-out`, no zoom or slide, no
+`motion`/`AnimatePresence`. `tw-animate-css` is not a dependency.
 
-The only motion in the product is `transition-colors` on hover (≤150 ms), the
-spinner, and the toast's own enter/exit.
+Dropdown menus, selects and tooltips are the one exception: they fade in on
+open with the `animate-fade-in` utility (`@keyframes fade-in` in
+`globals.css`, 120ms ease-out, disabled under `prefers-reduced-motion`) —
+see `dropdown-menu.tsx`, `select.tsx` and `tooltip.tsx`. They still close
+instantly, with no exit animation, and a dropdown's own submenus skip the
+fade too (they open on hover intent and need to stay readable).
+
+The rest of the product's motion is `transition-colors` on hover (≤150 ms),
+the spinner, and the toast's own enter/exit.
 
 ## Dialogs
 

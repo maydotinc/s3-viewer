@@ -4,11 +4,15 @@ import { useUserId } from "@/lib/stores/sessionStore";
 import { ServerUser } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
+// shared instance: an inline `= []` default would be a new array every render
+// and re-trigger every memo and effect depending on it.
+const NO_MEMBERS: ServerUser[] = [];
+
 const useMembers = (serverId: string) => {
    const userId = useUserId();
 
    const {
-      data: members = [],
+      data: members = NO_MEMBERS,
       isLoading,
       error,
       dataUpdatedAt,

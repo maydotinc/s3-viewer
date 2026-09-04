@@ -6,12 +6,6 @@ import { useMutation } from "@tanstack/react-query";
 
 type ProfileUpdate = { name: string };
 
-/**
- * Updates the signed-in user's name through Better Auth — the only profile
- * field there is. The client refetches `useSession()` on its own after
- * `/update-user`, so every name and avatar on screen follows without a
- * reload (the avatar is generated from the name).
- */
 const useUpdateProfile = () =>
    useMutation<void, Error, ProfileUpdate>({
       mutationFn: async ({ name }) => {

@@ -2,18 +2,19 @@
    "name": "api",
    "version": "0.0.0",
    "private": true,
+   "license": "MIT",
    "type": "module",
    "scripts": {
       "dev": "portless api tsx watch server.ts",
       "build": "tsup",
-      "start": "pnpm --filter @s3-viewer/db db:generate && node dist/server.js",
+      "start": "pnpm --filter @s3-viewer/db db:generate && NODE_ENV=production node dist/server.js",
       "lint": "eslint . --max-warnings 0",
       "check-types": "tsc --noEmit"
    },
    "dependencies": {
-      "@aws-sdk/client-s3": "^3.802.0",
-      "@aws-sdk/lib-storage": "^3.1125.0",
-      "@aws-sdk/s3-request-presigner": "^3.821.0",
+      "@aws-sdk/client-s3": "^3.1127.0",
+      "@aws-sdk/lib-storage": "^3.1127.0",
+      "@aws-sdk/s3-request-presigner": "^3.1127.0",
       "@prisma/client": "catalog:",
       "@s3-viewer/auth": "workspace:*",
       "@s3-viewer/db": "workspace:*",
@@ -24,9 +25,8 @@
       "cors": "^2.8.5",
       "dotenv": "^16.5.0",
       "express": "^5.1.0",
-      "express-rate-limit": "^8.2.1",
+      "express-rate-limit": "^8.7.0",
       "helmet": "^8.3.0",
-      "resend": "^6.0.1",
       "zod": "catalog:"
    },
    "devDependencies": {
@@ -34,7 +34,7 @@
       "@s3-viewer/ts-config": "workspace:*",
       "@types/cors": "^2.8.17",
       "@types/express": "^5.0.2",
-      "@types/node": "^20.17.57",
+      "@types/node": "^20.19.0",
       "eslint": "catalog:",
       "tsup": "^8.4.0",
       "tsx": "^4.19.4",

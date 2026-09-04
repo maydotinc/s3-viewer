@@ -24,7 +24,7 @@ export default function Seo({
    modifiedTime,
    jsonLd,
 }: SeoProps) {
-   const fullTitle = title.includes("S3 Viewer")
+   const fullTitle = title.trim().endsWith("S3 Viewer")
       ? title
       : title + " | S3 Viewer";
    const url = canonical ? `${SITE_URL}${canonical}` : SITE_URL;
@@ -61,7 +61,7 @@ export default function Seo({
             <script
                type="application/ld+json"
                dangerouslySetInnerHTML={{
-                  __html: JSON.stringify(jsonLd),
+                  __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
                }}
             />
          )}

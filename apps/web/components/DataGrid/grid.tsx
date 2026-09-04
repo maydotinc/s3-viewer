@@ -1,7 +1,15 @@
 import { cn } from "@s3-viewer/ui/lib/utils";
 import {
-   AllCommunityModule,
+   CellStyleModule,
+   ClientSideRowModelModule,
+   EventApiModule,
+   InfiniteRowModelModule,
    ModuleRegistry,
+   PaginationModule,
+   QuickFilterModule,
+   RowApiModule,
+   RowSelectionModule,
+   ValidationModule,
    themeQuartz,
    type ColDef,
    type GetRowIdParams,
@@ -13,7 +21,19 @@ import { useGridPaginationContext } from "./context";
 import { LoadingOverlay } from "./overlays";
 import { SKELETON_ROWS } from "./skeleton";
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+// overlays, theming, headers and cell renderers need no entry here: they are
+// part of the always-registered community core.
+ModuleRegistry.registerModules([
+   ClientSideRowModelModule,
+   InfiniteRowModelModule,
+   PaginationModule,
+   RowSelectionModule,
+   QuickFilterModule,
+   CellStyleModule,
+   EventApiModule,
+   RowApiModule,
+   ...(process.env.NODE_ENV === "production" ? [] : [ValidationModule]),
+]);
 
 const viewerGridTheme = themeQuartz.withParams({
    accentColor: "var(--color-viewerblue)",
@@ -40,8 +60,7 @@ const viewerGridTheme = themeQuartz.withParams({
    selectedRowBackgroundColor:
       "color-mix(in srgb, var(--color-viewerblue) 5%, transparent)",
    spacing: 8,
-   // The card around the grid (GRID_CARD) draws the outer border, so the grid
-   // must not draw a second one inside it.
+   // the card around the grid draws the outer border.
    wrapperBorder: false,
 });
 
@@ -83,10 +102,8 @@ const BaseGrid = <TData,>(props: BaseGridProps<TData>) => {
               datasource: props.datasource,
               cacheBlockSize: props.cacheBlockSize,
               maxBlocksInCache: 10,
-              // Rows the grid draws before the first block answers. AG Grid
-              // defaults to 1, which leaves a single skeleton row stranded in
-              // an empty card; a page of them is the table's own anatomy
-              // (DESIGN.md §3), and each cell renders its own bar.
+              // ag grid defaults to 1, stranding a lone skeleton row in an
+              // empty card.
               infiniteInitialRowCount: SKELETON_ROWS,
            }
          : {

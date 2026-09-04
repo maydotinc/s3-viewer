@@ -30,7 +30,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Paste it in",
-      body: "Click Add server, paste the key and secret, and enter the endpoint with `auto` as the region. No SDK config, no wrangler, no AWS CLI.",
+      body: "Click Add server, paste the key and secret, and enter the endpoint with auto as the region. No SDK config, no wrangler, no AWS CLI.",
    },
    {
       title: "Use R2 the way you'd use any bucket",
@@ -52,13 +52,13 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "How do I search a Cloudflare R2 bucket?",
       answer:
-         "R2 implements the S3 ListObjectsV2 API, the same as AWS. In S3 Viewer, the “Filter by prefix” box filters the folder you're in by prefix. For a recursive sweep, use the AWS CLI against R2 with `--endpoint-url` and pipe it through grep.",
+         "R2 implements the S3 ListObjectsV2 API, the same as AWS. In S3 Viewer, the “Filter by prefix” box filters the folder you're in by prefix. For a recursive sweep, use the AWS CLI against R2 with --endpoint-url and pipe it through grep.",
    },
    {
       question:
          "Can I share a Cloudflare R2 bucket with someone who doesn't have a Cloudflare account?",
       answer:
-         "Yes. Click Share, invite them by email and give them a role — Viewer (browse and download), Editor (also upload, rename and delete) or Admin (also manage members). They sign in to S3 Viewer in a browser and see the bucket, with no Cloudflare account or API token of their own.",
+         "Yes. Click Share, invite them by email and give them a role — Viewer (browse and download), Editor (also upload, rename, delete and create buckets) or Admin (also manage members, rename the server and remove buckets). They sign in to S3 Viewer in a browser and see the bucket, with no Cloudflare account or API token of their own.",
    },
    {
       question: "Are large uploads to R2 reliable?",
@@ -121,7 +121,7 @@ export default createUseCasePage({
       {
          icon: Layers,
          title: "Mix R2 with S3",
-         body: "An R2 server and an AWS server sit side by side in the sidebar, one click apart. For moving objects between them, reach for rclone — S3 Viewer is how you check both ends.",
+         body: "An R2 server and an AWS server both live in the same sidebar, one click apart — though you browse one at a time, not side by side. For moving objects between them, reach for rclone — S3 Viewer is how you check both ends.",
       },
    ],
    steps,

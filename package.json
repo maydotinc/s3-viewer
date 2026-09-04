@@ -23,6 +23,7 @@
    "packageManager": "pnpm@10.28.2",
    "devDependencies": {
       "prettier": "^3.5.3",
+      "sharp": "^0.35.0",
       "turbo": "^2.5.4",
       "typescript": "catalog:",
       "vitest": "^3.2.4"

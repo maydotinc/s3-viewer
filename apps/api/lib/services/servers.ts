@@ -4,6 +4,7 @@ import { decryptCredentials } from "@/lib/utils/encryption";
 import { $Enums, Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import {
+   MAX_SERVERS_PER_USER,
    Provider,
    Role,
    type ServerCredentials,
@@ -25,20 +26,64 @@ const toServerInfo = (row: ServerRow, userRole: Role): ServerInfo => ({
    userRole,
 });
 
+type BucketScopeSettings = {
+   restrictedBuckets: boolean;
+   allowedBuckets: readonly string[];
+};
+
 const loadServerSettings = async (serverId: string) => {
    const server = await prisma.server.findUnique({
       where: { id: serverId },
-      select: { allowedBuckets: true, provider: true },
+      select: { allowedBuckets: true, restrictedBuckets: true, provider: true },
    });
    if (!server) throw new ApiHttpError(404, SERVER_NOT_FOUND);
    return server;
 };
 
+const lockBucketScope = async (
+   tx: Prisma.TransactionClient,
+   serverId: string
+): Promise<BucketScopeSettings> => {
+   const rows = await tx.$queryRaw<BucketScopeSettings[]>`
+      SELECT "restrictedBuckets", "allowedBuckets"
+      FROM "server"
+      WHERE "id" = ${serverId}
+      FOR UPDATE
+   `;
+   const scope = rows[0];
+   if (!scope) throw new ApiHttpError(404, SERVER_NOT_FOUND);
+   return scope;
+};
+
 const isBucketAllowed = (
-   allowedBuckets: readonly string[],
+   scope: BucketScopeSettings,
    bucketName: string
 ): boolean =>
-   allowedBuckets.length === 0 || allowedBuckets.includes(bucketName);
+   !scope.restrictedBuckets || scope.allowedBuckets.includes(bucketName);
+
+const assertBucketRemovable = (
+   scope: BucketScopeSettings,
+   bucketName: string
+): void => {
+   if (!scope.restrictedBuckets) {
+      throw new ApiHttpError(
+         409,
+         "This server reaches every bucket its credentials allow, so buckets can't be removed from it one by one."
+      );
+   }
+   if (!scope.allowedBuckets.includes(bucketName)) {
+      throw new ApiHttpError(404, "Bucket not found");
+   }
+   if (scope.allowedBuckets.length === 1) {
+      throw new ApiHttpError(
+         409,
+         `${bucketName} is the only bucket this server is allowed to reach. Delete the server instead.`
+      );
+   }
+};
+
+const exceedsServerCap = (existingTotal: number): boolean =>
+   existingTotal >= MAX_SERVERS_PER_USER;
 
 const isPrismaError = (err: unknown, code: string): boolean =>
    err instanceof Prisma.PrismaClientKnownRequestError && err.code === code;
@@ -57,11 +102,15 @@ const readCredentials = (encrypted: string): ServerCredentials => {
 };
 
 export {
+   assertBucketRemovable,
+   exceedsServerCap,
    isBucketAllowed,
    isMissingRow,
    isUniqueViolation,
    loadServerSettings,
+   lockBucketScope,
    readCredentials,
    serverInfoSelect,
    toServerInfo,
 };
+export type { BucketScopeSettings };

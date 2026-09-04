@@ -85,8 +85,7 @@ const ObjectPreview = ({
       );
    }
 
-   // The file name matters: plenty of clients store a .json object as
-   // application/octet-stream, and only the extension gives it away.
+   // plenty of clients store .json as application/octet-stream, so the name counts
    const kind = previewKind(preview.contentType, fileName);
    if (kind === "none") {
       return (
@@ -167,6 +166,7 @@ const ObjectPreview = ({
             <iframe
                src={preview.url}
                title={`Preview of ${fileName}`}
+               sandbox=""
                className="size-full rounded-lg border border-viewerborder bg-viewerwhite"
             />
          )}

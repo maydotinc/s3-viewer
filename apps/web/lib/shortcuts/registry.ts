@@ -3,11 +3,7 @@ const SHORTCUT_GROUPS = ["Navigation", "Buckets", "Objects"] as const;
 type ShortcutGroup = (typeof SHORTCUT_GROUPS)[number];
 
 type Shortcut = {
-   /**
-    * Canonical key string, also what the help dialog and tooltips render:
-    * a single token (`"/"`, `"n"`, `"delete"`), a two-key sequence pressed one
-    * after the other (`"g d"`), or a `mod` chord held together (`"mod b"`).
-    */
+   /** a token (`"n"`), a sequence (`"g d"`), or a held chord (`"mod b"`). */
    keys: string;
    label: string;
    group: ShortcutGroup;
@@ -18,12 +14,8 @@ type Shortcut = {
 
 const SEQUENCE_WINDOW_MS = 1000;
 
-/**
- * The platform-agnostic name for ⌘ on Apple hardware and Ctrl elsewhere. A
- * shortcut whose `keys` start with it — `"mod b"` — is a chord held together,
- * not the two-key sequence `"g d"` is. No key event ever produces the token
- * `mod`, so a chord can never be reached down the sequence path.
- */
+// ⌘ on apple hardware, ctrl elsewhere. no key event ever produces the token
+// `mod`, so a chord can never be reached down the sequence path.
 const MOD = "mod";
 
 const chordSequence = (token: string): string => `${MOD} ${token}`;
@@ -38,10 +30,7 @@ const NAMED_KEYS: Record<string, string> = {
    Enter: "enter",
 };
 
-/**
- * The token a key event contributes to a sequence, or null when the key is
- * not one we ever bind (modifiers, F-keys, Escape — which is Radix's).
- */
+// null for keys we never bind: modifiers, f-keys, and escape, which is radix's
 const eventToken = (event: KeyboardEvent): string | null => {
    if (event.key.length === 1)
       return event.key === " " ? null : event.key.toLowerCase();
@@ -53,15 +42,13 @@ const isTypingTarget = (target: EventTarget | null): boolean => {
    if (target.isContentEditable) return true;
    const tag = target.tagName;
    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return true;
-   // A combobox trigger runs its own typeahead, and the event can land on a
-   // span inside it rather than on the trigger itself.
+   // a combobox trigger runs its own typeahead, and the event can land on a
+   // span inside it rather than on the trigger.
    return target.closest("[role=combobox]") !== null;
 };
 
-/**
- * An open dialog, menu or listbox owns the keyboard: it has its own
- * arrow/typeahead behaviour, and Escape closing it is Radix's job, not ours.
- */
+// an open overlay owns the keyboard: its own arrow/typeahead behaviour, and
+// escape closing it is radix's job.
 const isOverlayOpen = (): boolean =>
    document.querySelector(
       "[role=dialog],[role=alertdialog],[role=menu],[role=listbox]"
@@ -101,8 +88,7 @@ const groupShortcuts = (
          (shortcut, index) =>
             shortcut.group === group &&
             isEnabled(shortcut) &&
-            // The same binding can be registered by two mounted components
-            // (a page and its toolbar); show it once.
+            // two mounted components can register the same binding
             shortcuts.findIndex(
                (other) =>
                   other.group === group &&

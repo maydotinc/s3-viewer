@@ -15,10 +15,7 @@ import {
 import { Kbd } from "@s3-viewer/ui/components/kbd";
 import { useSyncExternalStore } from "react";
 
-/**
- * Keys the app does not own but every user should know about. Escape is
- * Radix's, so there is nothing to register — it is listed, not bound.
- */
+// keys the app never binds — escape is radix's — but still worth listing.
 const UNBOUND: { keys: string; label: string; group: ShortcutGroup }[] = [
    { keys: "esc", label: "Close a dialog or menu", group: "Navigation" },
 ];
@@ -34,12 +31,11 @@ const ShortcutsHelp = () => {
    const { helpOpen, setHelpOpen, list, getVersion, subscribe } =
       useShortcutsContext();
 
-   // Re-render whenever something registers or unregisters, so a dialog left
-   // open across a navigation still lists the page you are on.
+   // re-render on register/unregister, so a dialog left open across a
+   // navigation still lists the page you are on.
    useSyncExternalStore(subscribe, getVersion, getVersion);
 
-   // Deliberately not memoised: `when()` is evaluated fresh on every render,
-   // and this list is at most a few dozen rows.
+   // deliberately not memoised: `when()` must be evaluated fresh every render.
    const shortcuts: Shortcut[] = helpOpen
       ? [...list(), ...UNBOUND.map((hint) => ({ ...hint, handler: () => {} }))]
       : [];

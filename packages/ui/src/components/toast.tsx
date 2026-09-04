@@ -1,12 +1,7 @@
 import { Toaster as SonnerToaster } from "sonner";
 
-/**
- * One toaster for the app. Brand tokens only, no rich colours, and a short
- * duration — toasts confirm, they do not explain.
- *
- * Sonner injects its own stylesheet at runtime, after Tailwind's, so the
- * colour utilities below carry `!` to win over its defaults.
- */
+// sonner injects its own stylesheet at runtime, after tailwind's, so the
+// utilities below carry `!` to win over its defaults.
 const Toaster = () => (
    <SonnerToaster
       position="bottom-center"

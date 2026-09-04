@@ -66,8 +66,9 @@ const ROLE_LABELS: Readonly<Record<Role, string>> = {
 
 const ROLE_DESCRIPTIONS: Readonly<Record<Role, string>> = {
    [Role.OWNER]: "Full control, including credentials and deleting the server.",
-   [Role.ADMIN]: "Manage members, rename the server, remove buckets.",
-   [Role.EDITOR]: "Upload, delete and create buckets.",
+   [Role.ADMIN]:
+      "Manage members, rename the server, remove buckets. Can only grant bucket access they hold themselves.",
+   [Role.EDITOR]: "Upload and delete objects, and create new buckets.",
    [Role.VIEWER]: "Browse and download only.",
 };
 
@@ -76,6 +77,9 @@ const rankOf = (role: Role | null | undefined): number =>
 
 const isAtLeast = (role: Role | null | undefined, minimum: Role): boolean =>
    rankOf(role) >= ROLE_RANK[minimum];
+
+const rolesAbove = (role: Role): Role[] =>
+   ROLES_ASCENDING.filter((r) => rankOf(r) > rankOf(role));
 
 const highestRole = (...roles: (Role | null | undefined)[]): Role | null =>
    roles.reduce<Role | null>(
@@ -114,4 +118,5 @@ export {
    highestRole,
    isAtLeast,
    rankOf,
+   rolesAbove,
 };

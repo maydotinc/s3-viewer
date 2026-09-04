@@ -100,10 +100,19 @@ const describeFailure = (err: unknown): FailureShape => {
 const isCopySourceTooLarge = ({ name, detail }: FailureShape): boolean =>
    name === "InvalidRequest" && /copy source/i.test(detail);
 
-const classifyFailure = (failure: FailureShape): HttpFailure => {
+type FailureScope = "object" | "bucket";
+
+const classifyFailure = (
+   failure: FailureShape,
+   scope: FailureScope = "object"
+): HttpFailure => {
    const { name, httpStatus } = failure;
    if (name === "NoSuchBucket") return BUCKET_NOT_FOUND;
-   if (NOT_FOUND_NAMES.has(name) || httpStatus === 404) return OBJECT_NOT_FOUND;
+   if (NOT_FOUND_NAMES.has(name) || httpStatus === 404) {
+      // a missing bucket comes back as a bare NotFound/404, so only the caller
+      // knows whether a bucket or an object was addressed
+      return scope === "bucket" ? BUCKET_NOT_FOUND : OBJECT_NOT_FOUND;
+   }
    if (REJECTED_CREDENTIAL_NAMES.has(name)) return CREDENTIALS_REJECTED;
    if (FORBIDDEN_NAMES.has(name) || httpStatus === 403) return FORBIDDEN;
    if (name === "EntityTooLarge" || isCopySourceTooLarge(failure))
@@ -118,11 +127,13 @@ const classifyS3Error = (err: unknown): HttpFailure & { name: string } => {
    return { ...classifyFailure(failure), name: failure.name };
 };
 
-/**
- * ListBuckets is the one call a server without an allowed-bucket list relies
- * on, so a 403 there means the credentials are the problem, not one bucket.
- * ListObjectsV2 is deliberately excluded: prefix-scoped IAM is legitimate.
- */
+const classifyBucketError = (err: unknown): HttpFailure & { name: string } => {
+   const failure = describeFailure(err);
+   return { ...classifyFailure(failure, "bucket"), name: failure.name };
+};
+
+// a 403 from listBuckets means the credentials are the problem, not one bucket.
+// listObjectsV2 is excluded on purpose: prefix-scoped iam is legitimate
 const classifyListBucketsError = (
    err: unknown
 ): HttpFailure & { name: string } => {
@@ -135,4 +146,9 @@ const classifyListBucketsError = (
 const deleteFailureMessage = (code: string | undefined): string =>
    classifyFailure({ name: code ?? "Unknown", detail: "" }).message;
 
-export { classifyListBucketsError, classifyS3Error, deleteFailureMessage };
+export {
+   classifyBucketError,
+   classifyListBucketsError,
+   classifyS3Error,
+   deleteFailureMessage,
+};

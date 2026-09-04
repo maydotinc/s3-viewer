@@ -20,11 +20,8 @@ import {
    type Shortcut,
 } from "./registry";
 
-/**
- * A registration is a live box around a shortcut. Components re-render often
- * and their handlers close over fresh state, so the registry holds the box
- * and reads `.current` at keypress time instead of re-registering.
- */
+// a live box: handlers close over fresh state, so the registry reads
+// `.current` at keypress time instead of re-registering.
 type Registration = { current: Shortcut };
 
 type ShortcutsValue = {
@@ -42,11 +39,9 @@ const ShortcutsProvider = ({ children }: { children: ReactNode }) => {
    const router = useRouter();
    const [helpOpen, setHelpOpen] = useState(false);
    const entries = useRef<Set<Registration>>(new Set());
-   /** The armed half of a two-key sequence, e.g. the `g` of `g d`. */
    const pending = useRef<{ token: string; at: number } | null>(null);
-   // The registry lives in refs so registering never re-renders the app. The
-   // help dialog is the one thing that needs to know it changed, so it
-   // subscribes here instead.
+   // the registry lives in refs so registering never re-renders the app; the
+   // help dialog subscribes here instead.
    const version = useRef(0);
    const listeners = useRef<Set<() => void>>(new Set());
 
@@ -76,8 +71,8 @@ const ShortcutsProvider = ({ children }: { children: ReactNode }) => {
       };
    }, []);
 
-   // Re-navigating to the page you are already on would remount it and throw
-   // away scroll and grid state for nothing.
+   // re-navigating to the current page would remount it and throw away scroll
+   // and grid state.
    const go = useCallback(
       (href: string) => {
          if (router.pathname !== href) void router.push(href);
@@ -109,7 +104,7 @@ const ShortcutsProvider = ({ children }: { children: ReactNode }) => {
       [go]
    );
 
-   // Page shortcuts come first so a page can shadow a global binding.
+   // page shortcuts come first so a page can shadow a global binding
    const list = useCallback(
       () => [
          ...Array.from(entries.current, (entry) => entry.current),
@@ -120,16 +115,14 @@ const ShortcutsProvider = ({ children }: { children: ReactNode }) => {
 
    useEffect(() => {
       const onKeyDown = (event: KeyboardEvent) => {
-         // A held key must not fire an action over and over, and an IME
-         // composition is text entry however it reaches us.
+         // a held key must not repeat the action, and an ime composition is
+         // text entry however it reaches us.
          if (event.repeat || event.isComposing) return;
 
-         // A modifier is held: this is never part of a sequence being typed
-         // (⌘G is not the `g` of `g d`), and the only thing it may run is a
-         // `mod` chord somebody registered on purpose. Everything else —
-         // ⌥, ⇧-chords, ⌘ combos we do not know — stays the browser's. A
-         // chord is ours inside a text field too: that is the point of
-         // holding ⌘, and ⌘K has to work from the filter input.
+         // a held modifier is never part of a sequence (⌘G is not the `g` of
+         // `g d`); only a registered `mod` chord may run, everything else stays
+         // the browser's. chords fire inside text fields too — ⌘K has to work
+         // from the filter input.
          if (event.metaKey || event.ctrlKey || event.altKey) {
             pending.current = null;
             if (event.altKey || event.shiftKey) return;

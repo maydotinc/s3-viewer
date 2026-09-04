@@ -16,7 +16,7 @@ const groups: LinkGroup[] = [
             label: "Sharing without AWS",
             href: "/use-cases/share-with-non-technical-users",
          },
-         { label: "Team workspaces", href: "/use-cases/teams" },
+         { label: "Team access", href: "/use-cases/teams" },
          { label: "Better S3 browser", href: "/use-cases/s3-browser" },
          { label: "Cloudflare R2", href: "/use-cases/cloudflare-r2" },
          { label: "Security", href: "/use-cases/security-and-audit" },

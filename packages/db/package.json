@@ -2,6 +2,7 @@
    "name": "@s3-viewer/db",
    "version": "0.0.0",
    "private": true,
+   "license": "MIT",
    "type": "module",
    "exports": {
       ".": "./src/client.ts"
@@ -20,7 +21,7 @@
    "devDependencies": {
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
-      "@types/node": "^20.17.57",
+      "@types/node": "^20.19.0",
       "eslint": "catalog:",
       "prisma": "catalog:",
       "typescript": "catalog:"

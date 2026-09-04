@@ -114,9 +114,8 @@ const ObjectsToolbar = () => {
       handler: () => commands.remove(selectedIds, clearSelection),
    });
 
-   // While the bucket loads the real buttons render disabled rather than as
-   // placeholders: a placeholder can only approximate a label's width, so the
-   // row visibly settled by a few pixels when the buttons replaced it.
+   // disabled real buttons while loading, not placeholders: a placeholder can
+   // only approximate a label's width, so the row visibly settled.
    return (
       <div className="flex min-h-9 flex-wrap items-center gap-2">
          <PrefixSearch className="w-72 shrink-0" />

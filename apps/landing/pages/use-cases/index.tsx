@@ -11,7 +11,7 @@ const UseCasesIndex = () => {
       name: "S3 Viewer Use Cases",
       url: `${SITE_URL}/use-cases`,
       description:
-         "What S3 Viewer is built for: a developer-first dashboard for AWS S3, Cloudflare R2, MinIO, B2, and Wasabi — multi-cloud browsing, team workspaces, sharing without IAM, and a real R2 dashboard.",
+         "What S3 Viewer is built for: a developer-first dashboard for AWS S3, Cloudflare R2, MinIO, B2, and Wasabi — multi-cloud browsing, team access, sharing without IAM, and a real R2 dashboard.",
       hasPart: USE_CASES.map((u) => ({
          "@type": "WebPage",
          name: u.title,

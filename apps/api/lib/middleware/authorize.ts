@@ -81,6 +81,7 @@ const authorizeBucket = async (
          server: {
             select: {
                allowedBuckets: true,
+               restrictedBuckets: true,
                bucketAccess: {
                   where: { userId, bucketName },
                   select: { role: true },
@@ -90,8 +91,8 @@ const authorizeBucket = async (
       },
    });
    if (!access) throw new ApiHttpError(404, SERVER_NOT_FOUND);
-   const { allowedBuckets, bucketAccess } = access.server;
-   if (!isBucketAllowed(allowedBuckets, bucketName)) {
+   const { bucketAccess, ...scope } = access.server;
+   if (!isBucketAllowed(scope, bucketName)) {
       throw new ApiHttpError(404, "Bucket not found");
    }
    const serverRole = Role[access.role];

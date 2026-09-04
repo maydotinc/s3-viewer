@@ -23,8 +23,7 @@ const COLUMNS = 5;
 
 const Expires = ({ expiresAt }: { expiresAt: string }) => {
    const hydrated = useHydrated();
-   // The clock only exists on the client, so nothing relative is rendered
-   // until after hydration.
+   // relative times depend on the clock, so nothing renders until hydration
    if (!hydrated) return <span>&nbsp;</span>;
    const expired = new Date(expiresAt).getTime() <= Date.now();
    return (

@@ -11,7 +11,7 @@ const SLUG = "copy-files-between-s3-and-r2";
 const TITLE = "How to copy files between AWS S3 and Cloudflare R2";
 const KEYWORD = "copy files from S3 to Cloudflare R2";
 const TLDR =
-   "There is no single API call for this: S3's CopyObject requires the source and destination to share an endpoint, so a cross-provider copy is always a read followed by a write. rclone is the tool for it — `rclone sync` handles multipart, parallelism, retries and resume. The AWS CLI works too, one file at a time, with `--endpoint-url` pointed at R2. S3 Viewer isn't the mover here; use it to browse both buckets, confirm what you're about to transfer, and verify the result afterwards.";
+   "There is no single API call for this: S3's CopyObject requires the source and destination to share an endpoint, so a cross-provider copy is always a read followed by a write. rclone is the tool for it — rclone sync handles multipart, parallelism, retries and resume. The AWS CLI works too, one file at a time, with --endpoint-url pointed at R2. S3 Viewer isn't the mover here; use it to browse both buckets, confirm what you're about to transfer, and verify the result afterwards.";
 
 const steps: HowToStep[] = [
    {
@@ -90,7 +90,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I copy a file from AWS S3 to Cloudflare R2?",
       answer:
-         "Use rclone: configure an `aws` remote and an `r2` remote (both the s3 backend, R2 with provider = Cloudflare, region = auto and your account endpoint), then run `rclone sync aws:bucket r2:bucket`. For a single file, pipe `aws s3 cp` from one profile into another with `--endpoint-url` set to R2. S3 Viewer doesn't do the transfer — use it to browse both buckets and verify the result.",
+         "Use rclone: configure an aws remote and an r2 remote (both the s3 backend, R2 with provider = Cloudflare, region = auto and your account endpoint), then run rclone sync aws:bucket r2:bucket. For a single file, pipe aws s3 cp from one profile into another with --endpoint-url set to R2. S3 Viewer doesn't do the transfer — use it to browse both buckets and verify the result.",
    },
    {
       question: "Can I do a server-side copy across providers?",
@@ -105,7 +105,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Will my object's metadata and tags survive the copy?",
       answer:
-         "Within one provider, CopyObject defaults MetadataDirective and TaggingDirective to COPY, so metadata and tags carry over unless you pass REPLACE. Across providers you are doing a fresh PUT, so it depends on your tool: rclone carries content-type and modification time, and `--metadata` preserves user metadata. R2 does not implement object tagging, so tags will not survive a transfer into R2.",
+         "Within one provider, CopyObject defaults MetadataDirective and TaggingDirective to COPY, so metadata and tags carry over unless you pass REPLACE. Across providers you are doing a fresh PUT, so it depends on your tool: rclone carries content-type and modification time, and --metadata preserves user metadata. R2 does not implement object tagging, so tags will not survive a transfer into R2.",
    },
    {
       question: "What about copying R2 to S3, or S3 to MinIO?",
@@ -143,12 +143,15 @@ export default createHowToPage({
          only real question is which machine the bytes pass through.{" "}
          <code>rclone</code> is the standard answer: it runs the read-and-write
          loop with configurable parallelism, splits large objects into parts,
-         retries what fails, and resumes where it stopped. S3 Viewer stays out
-         of that path on purpose — object bytes never flow through our servers,
-         so there is nowhere for a cross-provider copy to happen. What it gives
-         you instead is the same file browser over both buckets, which is what
-         you actually want when you are deciding what to move and checking that
-         it arrived.
+         retries what fails, and resumes where it stopped. S3 Viewer has no
+         cross-provider copy operation on purpose — the closest it comes to
+         moving object bytes at all is a same-provider upload, which streams
+         through its server into the bucket, and a download, which goes straight
+         from the bucket to your browser over a presigned URL and never touches
+         the server. Neither is a cross-cloud copy. What S3 Viewer gives you
+         instead is the same file browser over both buckets, which is what you
+         actually want when you are deciding what to move and checking that it
+         arrived.
       </p>
    ),
    faqs,

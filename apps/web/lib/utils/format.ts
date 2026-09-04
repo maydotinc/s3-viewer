@@ -1,15 +1,20 @@
-const UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
+// binary units: s3 sizes are conventionally shown as powers of 1024.
+const UNITS = ["B", "KiB", "MiB", "GiB", "TiB"] as const;
 
 const formatBytes = (bytes: number | null | undefined): string => {
-   if (bytes === null || bytes === undefined || !Number.isFinite(bytes))
+   if (
+      bytes === null ||
+      bytes === undefined ||
+      !Number.isFinite(bytes) ||
+      bytes < 0
+   )
       return "—";
-   const safe = Math.max(0, bytes);
-   if (safe === 0) return "0 B";
+   if (bytes === 0) return "0 B";
    const exponent = Math.min(
-      Math.floor(Math.log(safe) / Math.log(1024)),
+      Math.max(0, Math.floor(Math.log(bytes) / Math.log(1024))),
       UNITS.length - 1
    );
-   const value = safe / 1024 ** exponent;
+   const value = bytes / 1024 ** exponent;
    const rounded =
       value < 10 && exponent > 0
          ? value.toFixed(1)
@@ -44,10 +49,7 @@ const formatDay = (iso: string | null | undefined): string => {
    return date ? dateOnly.format(date) : "—";
 };
 
-/**
- * "in 5 days", "yesterday", "today" — whole days relative to now. Depends on
- * the clock, so only render it after hydration.
- */
+// depends on the clock, so only render it after hydration
 const formatRelativeDay = (iso: string | null | undefined): string => {
    const date = parse(iso);
    if (!date) return "—";

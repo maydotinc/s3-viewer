@@ -5,12 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 
 const PRESIGN_STALE_MS = 0.8 * PRESIGN_EXPIRY_SECONDS * SECOND_MS;
 
-/**
- * The object's own bytes as text, read straight from the presigned URL for a
- * viewer that has to parse the content (rather than hand it to an `iframe`).
- * The request is a cross-origin `fetch`, so a bucket without CORS rejects it —
- * callers must have something to fall back to.
- */
+// a cross-origin `fetch` on the presigned url, so a bucket without cors
+// rejects it — callers must have something to fall back to.
 const useObjectBody = (
    bucketName: string,
    objectKey: string,

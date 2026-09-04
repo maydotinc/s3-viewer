@@ -47,7 +47,34 @@ describe("isPrivateAddress", () => {
          "::ffff:127.0.0.1",
          "::ffff:10.0.0.1",
          "64:ff9b::a00:1",
+         "64:ff9b::7f00:1",
          "ff02::1",
+      ]) {
+         expect(isPrivateAddress(ip), ip).toBe(true);
+      }
+   });
+
+   it("flags an IPv4-mapped address written in hex rather than dotted form", () => {
+      for (const ip of [
+         "::ffff:7f00:1",
+         "::ffff:7f00:0001",
+         "0:0:0:0:0:ffff:7f00:0001",
+         "0000:0000:0000:0000:0000:ffff:a9fe:a9fe",
+         "::ffff:a9fe:a9fe",
+         "::ffff:c0a8:1",
+         "[::ffff:7f00:1]",
+      ]) {
+         expect(isPrivateAddress(ip), ip).toBe(true);
+      }
+   });
+
+   it("flags an IPv4-compatible address, which new URL() rewrites to hex", () => {
+      for (const ip of [
+         "::127.0.0.1",
+         "::7f00:1",
+         "::a9fe:a9fe",
+         "::169.254.169.254",
+         "::10.0.0.1",
       ]) {
          expect(isPrivateAddress(ip), ip).toBe(true);
       }
@@ -55,7 +82,10 @@ describe("isPrivateAddress", () => {
 
    it("allows public IPv6 and rejects garbage", () => {
       expect(isPrivateAddress("2606:4700::1111")).toBe(false);
+      expect(isPrivateAddress("2001:db8::1")).toBe(false);
       expect(isPrivateAddress("::ffff:8.8.8.8")).toBe(false);
+      expect(isPrivateAddress("::ffff:808:808")).toBe(false);
+      expect(isPrivateAddress("1.1.1.1")).toBe(false);
       expect(isPrivateAddress("not-an-ip")).toBe(true);
    });
 });
@@ -71,10 +101,20 @@ describe("publicHostname", () => {
       expect(publicHostname("file:///etc/passwd")).toBeNull();
    });
 
-   it("allows http only outside production", () => {
+   it("allows http only in development and test", () => {
       process.env.NODE_ENV = "development";
       expect(publicHostname("http://example.com")).toBe("example.com");
+      process.env.NODE_ENV = "test";
+      expect(publicHostname("http://example.com")).toBe("example.com");
       process.env.NODE_ENV = "production";
+      expect(publicHostname("http://example.com")).toBeNull();
+   });
+
+   it("rejects http when NODE_ENV is unset or unrecognised", () => {
+      delete process.env.NODE_ENV;
+      expect(publicHostname("http://example.com")).toBeNull();
+      expect(publicHostname("https://example.com")).toBe("example.com");
+      process.env.NODE_ENV = "staging";
       expect(publicHostname("http://example.com")).toBeNull();
    });
 
@@ -85,6 +125,10 @@ describe("publicHostname", () => {
       expect(publicHostname("https://[::1]")).toBeNull();
       expect(publicHostname("https://0x7f.1")).toBeNull();
       expect(publicHostname("https://169.254.169.254/latest")).toBeNull();
+      expect(publicHostname("https://[::ffff:7f00:1]")).toBeNull();
+      expect(publicHostname("https://[::ffff:a9fe:a9fe]/latest")).toBeNull();
+      expect(publicHostname("https://[::127.0.0.1]")).toBeNull();
+      expect(publicHostname("https://[0:0:0:0:0:ffff:7f00:0001]")).toBeNull();
    });
 
    it("allows public IP literals", () => {

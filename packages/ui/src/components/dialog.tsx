@@ -4,13 +4,6 @@ import * as React from "react";
 
 import { cn } from "@s3-viewer/ui/lib/utils";
 
-/**
- * Modal-layer surfaces never animate: the overlay and the content appear and
- * disappear instantly. The `animate` prop is kept for source compatibility but
- * is deliberately a no-op.
- */
-type AnimateCompat = { animate?: boolean };
-
 function Dialog({
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -30,10 +23,9 @@ function DialogClose({
 }
 
 function DialogOverlay({
-   animate: _animate,
    className,
    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Overlay> & AnimateCompat) {
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
    return (
       <DialogPrimitive.Overlay
          data-slot="dialog-overlay"
@@ -44,15 +36,13 @@ function DialogOverlay({
 }
 
 function DialogContent({
-   animate: _animate,
    className,
    children,
    showCloseButton = true,
    ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> &
-   AnimateCompat & {
-      showCloseButton?: boolean;
-   }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+   showCloseButton?: boolean;
+}) {
    return (
       <DialogPortal data-slot="dialog-portal">
          <DialogOverlay />

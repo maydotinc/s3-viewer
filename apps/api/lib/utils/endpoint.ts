@@ -37,21 +37,38 @@ const isPrivateV4 = (ip: string): boolean => {
    return NON_PUBLIC_V4_BLOCKS.some((block) => inV4Block(n, block));
 };
 
+const DOTTED_TAIL = /\d+\.\d+\.\d+\.\d+$/;
+
+const hexTail = (ip: string): string => {
+   const match = DOTTED_TAIL.exec(ip);
+   if (!match) return ip;
+   const n = v4ToInt(match[0]);
+   const groups = `${(n >>> 16).toString(16)}:${(n & 0xffff).toString(16)}`;
+   return `${ip.slice(0, match.index)}${groups}`;
+};
+
 const v6Groups = (ip: string): number[] => {
-   const [head = "", tail = ""] = ip.split("::");
+   const expanded = hexTail(ip);
+   const [head = "", tail = ""] = expanded.split("::");
    const parse = (s: string) =>
       s ? s.split(":").map((h) => parseInt(h, 16)) : [];
    const left = parse(head);
    const right = parse(tail);
-   const fill = ip.includes("::")
+   const fill = expanded.includes("::")
       ? Array<number>(8 - left.length - right.length).fill(0)
       : [];
    return [...left, ...fill, ...right];
 };
 
-const mappedV4 = (ip: string): string | null => {
-   const match = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/i.exec(ip);
-   return match?.[1] ?? null;
+const holdsV4 = (groups: number[]): boolean =>
+   groups.length === 8 &&
+   groups.slice(0, 5).every((x) => x === 0) &&
+   (groups[5] === 0xffff || groups[5] === 0);
+
+const embeddedV4 = (groups: number[]): string => {
+   const high = groups[6] ?? 0;
+   const low = groups[7] ?? 0;
+   return [high >>> 8, high & 0xff, low >>> 8, low & 0xff].join(".");
 };
 
 const isUnspecifiedV6 = (groups: number[]): boolean =>
@@ -72,9 +89,8 @@ const isNat64V6 = (groups: number[]): boolean =>
 const isMulticastV6 = (first: number): boolean => (first & 0xff00) === 0xff00;
 
 const isPrivateV6 = (ip: string): boolean => {
-   const mapped = mappedV4(ip);
-   if (mapped) return isPrivateV4(mapped);
    const groups = v6Groups(ip);
+   if (holdsV4(groups)) return isPrivateV4(embeddedV4(groups));
    const first = groups[0] ?? 0;
    return (
       isUnspecifiedV6(groups) ||
@@ -97,8 +113,15 @@ const isPrivateAddress = (ip: string): boolean => {
    return ANYTHING_THAT_IS_NOT_AN_IP_ADDRESS_IS_UNSAFE;
 };
 
+const CLEARTEXT_ENVIRONMENTS: ReadonlySet<string> = new Set([
+   "development",
+   "test",
+]);
+
 const allowedProtocols = (): readonly string[] =>
-   process.env.NODE_ENV === "production" ? ["https:"] : ["https:", "http:"];
+   CLEARTEXT_ENVIRONMENTS.has(process.env.NODE_ENV ?? "")
+      ? ["https:", "http:"]
+      : ["https:"];
 
 const publicHostname = (endpoint: string): string | null => {
    let url: URL;

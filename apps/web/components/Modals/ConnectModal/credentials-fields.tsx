@@ -48,7 +48,6 @@ const toServerCredentials = (f: CredentialFields): ServerCredentials => ({
 type CredentialsFieldsProps = {
    fields: CredentialFields;
    onChange: (key: keyof CredentialFields, value: string) => void;
-   /** Prefixes every input id so two forms can coexist on a page. */
    idPrefix: string;
    autoFocus?: boolean;
 };

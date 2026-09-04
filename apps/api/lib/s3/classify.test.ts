@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ErrorCode } from "@s3-viewer/types";
 import {
+   classifyBucketError,
    classifyListBucketsError,
    classifyS3Error,
    deleteFailureMessage,
@@ -131,6 +132,38 @@ describe("deleteFailureMessage", () => {
          "Storage request failed"
       );
       expect(deleteFailureMessage(undefined)).toBe("Storage request failed");
+   });
+});
+
+describe("classifyBucketError", () => {
+   it("reports a bucket-scoped 404 as a missing bucket, not a missing object", () => {
+      for (const err of [
+         s3Error("NotFound", 404),
+         s3Error("NoSuchBucket", 404),
+         s3Error("UnknownError", 404),
+      ]) {
+         expect(classifyBucketError(err)).toMatchObject({
+            status: 404,
+            message: "Bucket not found",
+         });
+      }
+      expect(classifyS3Error(s3Error("NotFound", 404))).toMatchObject({
+         message: "Object not found",
+      });
+   });
+
+   it("leaves everything that isn't a 404 alone", () => {
+      expect(classifyBucketError(s3Error("AccessDenied", 403))).toMatchObject({
+         status: 403,
+         message: "The server credentials don't allow this",
+      });
+      expect(classifyBucketError(s3Error("ECONNREFUSED"))).toMatchObject({
+         status: 502,
+         message: "Couldn't reach the storage endpoint",
+      });
+      expect(classifyBucketError(s3Error("NoSuchKey", 404)).name).toBe(
+         "NoSuchKey"
+      );
    });
 });
 

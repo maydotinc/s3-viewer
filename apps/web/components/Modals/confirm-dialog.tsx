@@ -18,22 +18,16 @@ type ConfirmDialogProps = {
    title: ReactNode;
    description: ReactNode;
    descriptionClassName?: string;
-   /** Reserves a single error line under the header when not undefined. */
+   /** anything but undefined reserves an error line under the header. */
    error?: string | null;
    confirmLabel: string;
+   confirmDisabled?: boolean;
    isPending?: boolean;
    confirmVariant?: "default" | "destructive";
    onConfirm: () => void;
    children?: ReactNode;
 };
 
-/**
- * The one confirmation dialog.
- *
- * A destructive confirm is the single place a Cancel button is allowed: the X
- * is hidden and Cancel sits next to the destructive action. Every other
- * confirm keeps the X and shows only its primary action.
- */
 const ConfirmDialog = ({
    open = true,
    closable = true,
@@ -43,6 +37,7 @@ const ConfirmDialog = ({
    descriptionClassName,
    error,
    confirmLabel,
+   confirmDisabled = false,
    isPending = false,
    confirmVariant = "default",
    onConfirm,
@@ -88,6 +83,7 @@ const ConfirmDialog = ({
                   variant={confirmVariant}
                   className={destructive ? "flex-1 sm:flex-initial" : undefined}
                   onClick={onConfirm}
+                  disabled={confirmDisabled}
                   loading={isPending}
                >
                   {confirmLabel}

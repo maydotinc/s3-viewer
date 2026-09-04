@@ -1,3 +1,4 @@
+import type { ObjectCommands } from "@/components/Buckets/useObjectCommands";
 import {
    HIDDEN_HEADER_TEXT,
    RIGHT_ALIGNED,
@@ -19,13 +20,14 @@ import type { ReactNode } from "react";
 import RowActions from "./row-actions";
 import { selectionColumn } from "./selection";
 
-type ObjectGridContext = { bucketName: string; prefix: string };
+type ObjectGridContext = {
+   bucketName: string;
+   prefix: string;
+   commands: ObjectCommands;
+};
 
-/**
- * A cell of a row the infinite model hasn't fetched yet. AG Grid gives it no
- * height of its own, so the bar has to be centred in the 44px row here
- * (DESIGN.md §3) — a bare `Skeleton` sits against the top edge.
- */
+// a cell of an unfetched row gets no height of its own, so centre the bar in
+// the 44px row here.
 const PendingCell = ({
    children,
    align = "left",

@@ -28,7 +28,6 @@ const MODE_ICON: Record<UploadMode, typeof FilePlus> = {
    folder: FolderPlus,
 };
 
-/** Only the common half of the menu is worth a key of its own. */
 const MODE_KEYS: Partial<Record<UploadMode, string>> = { files: "u" };
 
 const FOLDER_INPUT_ATTRS = { webkitdirectory: "" } as const;
@@ -49,7 +48,7 @@ const UploadMenu = ({ className, disabled = false }: UploadMenuProps) => {
       label: "Upload files",
       group: "Objects",
       when: () => !disabled && !isChecking,
-      // A keypress is a user gesture, so the picker is allowed to open.
+      // a keypress is a user gesture, so the picker is allowed to open
       handler: () => inputs.current.files?.click(),
    });
 

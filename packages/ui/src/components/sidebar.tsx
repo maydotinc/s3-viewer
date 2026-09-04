@@ -8,11 +8,8 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 
 const SIDEBAR_DESKTOP_QUERY = "(min-width: 48rem)";
 
-/**
- * DESIGN.md §2: the sidebar is an ordinary 256px flex child of the app shell.
- * No fixed positioning, no `--sidebar-width` dance, no gap element — the only
- * floating variant is the small-screen drawer, which has to sit over content.
- */
+// an ordinary flex child of the app shell: no fixed positioning, no
+// `--sidebar-width`, no gap element. only the small-screen drawer floats.
 const SIDEBAR_BASE =
    "flex w-64 shrink-0 flex-col gap-6 border-r border-viewerborder bg-viewerwhite px-4 py-5";
 

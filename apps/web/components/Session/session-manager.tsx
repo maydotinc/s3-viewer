@@ -3,11 +3,8 @@ import { authClient } from "@/lib/auth";
 import useSessionStore, { resolveServerId } from "@/lib/stores/sessionStore";
 import { useEffect } from "react";
 
-/**
- * Mirrors the auth session into the persisted session store and keeps the
- * selected server valid. Subscribes with selectors only: subscribing to the
- * whole store would re-render on every `set`, including our own.
- */
+// selectors only: subscribing to the whole store would re-render on every
+// `set`, including our own.
 const SessionManager = () => {
    const serverId = useSessionStore((state) => state.serverId);
    const setUserId = useSessionStore((state) => state.setUserId);

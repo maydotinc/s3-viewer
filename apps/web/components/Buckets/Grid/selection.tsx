@@ -71,7 +71,7 @@ const SelectionHeader = (params: IHeaderParams<S3Object>) => {
    return (
       <div className="flex size-full items-center justify-center">
          <Checkbox
-            aria-label="Select all files on this page"
+            aria-label="Select all objects on this page"
             checked={all ? true : some ? "indeterminate" : false}
             disabled={nodes.length === 0}
             onCheckedChange={toggle}

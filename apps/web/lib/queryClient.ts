@@ -15,10 +15,8 @@ const createQueryClient = (): QueryClient =>
             staleTime: 5 * MINUTE_MS,
             retry: shouldRetry,
             refetchOnWindowFocus: false,
-            // Error states render their own "Try again". Without this, an
-            // error view that subscribes to the failed query (e.g. through
-            // usePermission → useBuckets) would refetch on mount, flip the
-            // query back to pending, unmount itself, and loop forever.
+            // error views render their own "try again"; refetching on mount
+            // would flip the query back to pending, unmount the view, and loop.
             retryOnMount: false,
          },
       },
@@ -26,12 +24,9 @@ const createQueryClient = (): QueryClient =>
 
 let browserClient: QueryClient | null = null;
 
-/**
- * One client per browser session. Creating it inside a React state
- * initialiser is not enough: strict mode double-invokes the initialiser, so
- * a module-level "last created" reference would point at a client React
- * never mounted, and `clearQueryCache` would clear the wrong cache.
- */
+// not a react state initialiser: strict mode double-invokes it, so the
+// module-level reference would point at a client react never mounted and
+// `clearQueryCache` would clear the wrong cache.
 const getQueryClient = (): QueryClient => {
    if (typeof window === "undefined") return createQueryClient();
    browserClient ??= createQueryClient();

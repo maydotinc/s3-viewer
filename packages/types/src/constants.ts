@@ -5,9 +5,12 @@ export const MINUTE_MS = 60 * SECOND_MS;
 export const DAY_MS = 24 * 60 * MINUTE_MS;
 
 export const AUTH_BASE_PATH = "/auth";
+export const REQUEST_ID_HEADER = "X-Request-Id";
+export const API_CONTRACT_VERSION = 1;
 export const AUTH_CODE_LENGTH = 6;
 export const AUTH_CODE_TTL_MINUTES = 10;
 export const SESSION_TTL_DAYS = 30;
+export const SESSION_ABSOLUTE_TTL_DAYS = 90;
 
 export const SITE_PATHS = {
    dashboard: "/dashboard",
@@ -46,6 +49,7 @@ export const MAX_BATCH_KEYS = S3_MAX_KEYS_PER_REQUEST;
 export const MAX_BATCH_KEY_CHARS = 256 * 1024;
 export const MAX_RENAME_BYTES = 5 * 1024 ** 3;
 
+export const MAX_SERVERS_PER_USER = 20;
 export const MAX_INVITE_EMAILS = 5;
 export const MAX_PENDING_INVITES = 30;
 export const INVITE_TTL_DAYS = 7;

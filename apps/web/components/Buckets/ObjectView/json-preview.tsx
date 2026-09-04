@@ -58,11 +58,6 @@ const Scalar = ({ value }: { value: Json }) => (
 const ROW =
    "flex w-full items-start gap-1.5 px-4 text-left transition-colors duration-150 hover:bg-viewergray/60";
 
-/**
- * One line of the document. The chevron keeps its 14px slot on every row, so
- * keys line up whether or not the row can be opened, and the indent hangs off
- * that slot rather than off the text.
- */
 const Row = ({
    depth,
    open,
@@ -73,7 +68,6 @@ const Row = ({
    depth: number;
    open?: boolean;
    onToggle?: () => void;
-   /** A closing bracket folds the branch too, but marking it twice reads wrong. */
    chevron?: boolean;
    children: React.ReactNode;
 }) => {
@@ -215,10 +209,6 @@ const CopyButton = ({ text }: { text: string }) => {
    );
 };
 
-/**
- * Collapsing is always cheap; expanding a huge document is not, so past
- * `EXPAND_ALL_LIMIT` the button is disabled and says why.
- */
 const ExpandAllButton = ({
    collapsing,
    blocked,
@@ -372,12 +362,8 @@ type JsonPreviewProps = {
    fileName: string;
 };
 
-/**
- * A folding, syntax-coloured view of a JSON object. It needs the bytes, not
- * just a URL, so it reads them with a cross-origin `fetch`; a bucket without
- * CORS (or a file too large to hold in a tree) falls back to the plain text
- * frame, which only ever needs the presigned URL.
- */
+// needs the bytes rather than a url, so it fetches cross-origin; a bucket
+// without cors falls back to the text frame.
 const JsonPreview = ({ preview, objectKey, fileName }: JsonPreviewProps) => {
    const { bucketName } = useBucketContext();
    const readable = preview.contentLength <= MAX_JSON_PREVIEW_BYTES;

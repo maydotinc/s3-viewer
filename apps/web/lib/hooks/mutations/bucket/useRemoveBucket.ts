@@ -1,4 +1,4 @@
-import { api, bucketPath } from "@/lib/api";
+import { ApiError, api, bucketPath } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +15,13 @@ const useRemoveBucket = () => {
          queryClient.removeQueries({
             queryKey: queryKeys.bucket(userId, serverId, bucketName),
          });
+         void queryClient.invalidateQueries({
+            queryKey: queryKeys.buckets(userId, serverId),
+         });
+      },
+      onError: (error) => {
+         // a 404 means the bucket left the allowlist elsewhere, so our list is stale
+         if (!(error instanceof ApiError) || error.status !== 404) return;
          void queryClient.invalidateQueries({
             queryKey: queryKeys.buckets(userId, serverId),
          });

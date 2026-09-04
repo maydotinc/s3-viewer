@@ -33,8 +33,7 @@ type ModalType = keyof ModalPropsMap;
 
 type OpenModals = { [K in ModalType]?: ModalPropsMap[K] };
 
-type ModalContextValue = {
-   modals: OpenModals;
+type ModalActions = {
    closeModal: (type: ModalType) => void;
    openConnectModal: () => void;
    openCreateBucketModal: (props: ModalPropsMap["createBucket"]) => void;
@@ -47,7 +46,8 @@ type ModalContextValue = {
    ) => void;
 };
 
-const ModalContext = createContext<ModalContextValue | null>(null);
+const ModalActionsContext = createContext<ModalActions | null>(null);
+const ModalStateContext = createContext<OpenModals | null>(null);
 
 const ModalProvider = ({ children }: { children: ReactNode }) => {
    const [modals, setModals] = useState<OpenModals>({});
@@ -78,9 +78,9 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
       []
    );
 
-   const value = useMemo<ModalContextValue>(
+   // stable identity, so opening a modal re-renders only the modal renderer.
+   const actions = useMemo<ModalActions>(
       () => ({
-         modals,
          closeModal,
          openConnectModal: () => open("connect", {}),
          openCreateBucketModal: (p) => open("createBucket", p),
@@ -90,20 +90,32 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
          openDisconnectModal: (p) => open("disconnect", p),
          openUpdateCredentialsModal: (p) => open("updateCredentials", p),
       }),
-      [modals, closeModal, open]
+      [open, closeModal]
    );
 
    return (
-      <ModalContext.Provider value={value}>{children}</ModalContext.Provider>
+      <ModalActionsContext.Provider value={actions}>
+         <ModalStateContext.Provider value={modals}>
+            {children}
+         </ModalStateContext.Provider>
+      </ModalActionsContext.Provider>
    );
 };
 
-const useModalContext = (): ModalContextValue => {
-   const context = useContext(ModalContext);
-   if (!context) {
-      throw new Error("useModalContext must be used within a ModalProvider");
+const useModalActions = (): ModalActions => {
+   const actions = useContext(ModalActionsContext);
+   if (!actions) {
+      throw new Error("useModalActions must be used within a ModalProvider");
    }
-   return context;
+   return actions;
 };
 
-export { ModalProvider, useModalContext };
+const useModalState = (): OpenModals => {
+   const modals = useContext(ModalStateContext);
+   if (!modals) {
+      throw new Error("useModalState must be used within a ModalProvider");
+   }
+   return modals;
+};
+
+export { ModalProvider, useModalActions, useModalState };

@@ -17,13 +17,19 @@ import { ApiError } from "@/lib/api";
 import { authClient } from "@/lib/auth";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
+import { usePermission } from "@/lib/hooks/usePermission";
 import useSessionStore from "@/lib/stores/sessionStore";
+import { Permission } from "@s3-viewer/permissions";
 import { isCredentialsErrorCode } from "@s3-viewer/types";
 import { Kbd } from "@s3-viewer/ui/components/kbd";
 import { Folder, Search, ServerOff } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import BucketActions from "./bucket-actions";
-import { bucketColumns, bucketRowId } from "./bucket-columns";
+import {
+   bucketColumns,
+   bucketRowId,
+   type BucketGridContext,
+} from "./bucket-columns";
 import ServerInfo from "./header/server-info";
 
 const NoBucketsOverlay = () => (
@@ -108,6 +114,11 @@ const BucketsPanel = ({ filter }: { filter: string }) => {
    const { isServerListLoading } = useServers();
    const { buckets, isBucketsLoading, bucketsError, isFetching, refetch } =
       useBuckets();
+   const canRemove = usePermission(Permission.DELETE_BUCKET);
+   const gridContext = useMemo<BucketGridContext>(
+      () => ({ canRemove }),
+      [canRemove]
+   );
 
    if (!session && !isPending)
       return <SignInPrompt>Sign in to view your buckets.</SignInPrompt>;
@@ -141,6 +152,7 @@ const BucketsPanel = ({ filter }: { filter: string }) => {
                quickFilterText={filter}
                columnDefs={bucketColumns}
                getRowId={bucketRowId}
+               context={gridContext}
                noRowsOverlayComponent={NoBucketsOverlay}
             />
          )}

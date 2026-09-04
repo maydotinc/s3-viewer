@@ -1,13 +1,25 @@
-import { noContent } from "@/lib/http";
+import { ApiHttpError, noContent } from "@/lib/http";
 import { getAuth, type AuthContext } from "@/lib/middleware/authorize";
 import { serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
-import { throwHttpError, throwListBucketsError } from "@/lib/s3/errors";
+import {
+   isNotFound,
+   throwBucketError,
+   throwHttpError,
+   throwListBucketsError,
+} from "@/lib/s3/errors";
+import { recordAudit } from "@/lib/services/audit";
 import { bucketGrantSelect } from "@/lib/services/members";
-import { isBucketAllowed, loadServerSettings } from "@/lib/services/servers";
+import {
+   assertBucketRemovable,
+   isBucketAllowed,
+   loadServerSettings,
+   lockBucketScope,
+} from "@/lib/services/servers";
 import {
    CreateBucketCommand,
+   HeadBucketCommand,
    ListBucketsCommand,
    S3ServiceException,
    type BucketLocationConstraint,
@@ -31,9 +43,6 @@ const MAX_BUCKET_PAGES = 50;
 
 const bucketsRouter = Router({ mergeParams: true });
 
-const loadAllowedBuckets = async (serverId: string): Promise<string[]> =>
-   (await loadServerSettings(serverId)).allowedBuckets;
-
 const toBucket = (
    name: string,
    userRole: Role,
@@ -53,6 +62,20 @@ const createBucketConfiguration = async (
 
 const isBucketAlreadyOwnedByYou = (err: unknown): boolean =>
    err instanceof S3ServiceException && err.name === "BucketAlreadyOwnedByYou";
+
+const assertBucketIsNew = async (
+   client: S3Client,
+   bucketName: string
+): Promise<void> => {
+   const exists = await client
+      .send(new HeadBucketCommand({ Bucket: bucketName }))
+      .then(() => true)
+      .catch((err: unknown) => {
+         if (isNotFound(err)) return false;
+         return throwBucketError(err);
+      });
+   if (exists) throw new ApiHttpError(409, `${bucketName} already exists`);
+};
 
 const listAllBuckets = async (client: S3Client): Promise<S3Bucket[]> => {
    const buckets: S3Bucket[] = [];
@@ -81,7 +104,7 @@ const visibleBuckets = async (
    serverId: string,
    { userId, serverRole }: AuthContext
 ): Promise<S3Bucket[]> => {
-   const allowedBuckets = await loadAllowedBuckets(serverId);
+   const scope = await loadServerSettings(serverId);
    if (serverRole !== Role.OWNER) {
       const grants = await prisma.bucketAccess.findMany({
          where: { userId, serverId },
@@ -89,11 +112,11 @@ const visibleBuckets = async (
          orderBy: { bucketName: "asc" },
       });
       return grants
-         .filter((g) => isBucketAllowed(allowedBuckets, g.bucketName))
+         .filter((g) => isBucketAllowed(scope, g.bucketName))
          .map((g) => toBucket(g.bucketName, Role[g.role]));
    }
-   if (allowedBuckets.length > 0) {
-      return allowedBuckets.map((name) => toBucket(name, Role.OWNER));
+   if (scope.restrictedBuckets) {
+      return scope.allowedBuckets.map((name) => toBucket(name, Role.OWNER));
    }
    return listAllBuckets(await getS3Client(serverId));
 };
@@ -116,6 +139,8 @@ bucketsRouter.post(
          getS3Client(serverId),
          loadServerSettings(serverId),
       ]);
+      if (serverRole !== Role.OWNER)
+         await assertBucketIsNew(client, bucketName);
       await client
          .send(
             new CreateBucketCommand({
@@ -142,7 +167,7 @@ bucketsRouter.post(
             UPDATE "server"
             SET "allowedBuckets" = array_append("allowedBuckets", ${bucketName})
             WHERE "id" = ${serverId}
-              AND cardinality("allowedBuckets") > 0
+              AND "restrictedBuckets"
               AND NOT (${bucketName} = ANY("allowedBuckets"))
          `,
       ];
@@ -158,6 +183,12 @@ bucketsRouter.post(
          );
       }
       await prisma.$transaction(operations);
+      await recordAudit({
+         action: "bucket.create",
+         actorId: userId,
+         serverId,
+         target: bucketName,
+      });
 
       res.status(201).json({
          bucket: toBucket(bucketName, userRole, new Date().toISOString()),
@@ -169,10 +200,18 @@ bucketsRouter.delete(
    "/:bucketName",
    ...serverRoute(Permission.DELETE_BUCKET, bucketScope, async (req, res) => {
       const { serverId, bucketName } = input<BucketScope>(res);
-      await prisma.$transaction([
-         prisma.$executeRaw`UPDATE "server" SET "allowedBuckets" = array_remove("allowedBuckets", ${bucketName}) WHERE "id" = ${serverId}`,
-         prisma.bucketAccess.deleteMany({ where: { serverId, bucketName } }),
-      ]);
+      const { userId } = getAuth(res);
+      await prisma.$transaction(async (tx) => {
+         assertBucketRemovable(await lockBucketScope(tx, serverId), bucketName);
+         await tx.$executeRaw`UPDATE "server" SET "allowedBuckets" = array_remove("allowedBuckets", ${bucketName}) WHERE "id" = ${serverId}`;
+         await tx.bucketAccess.deleteMany({ where: { serverId, bucketName } });
+      });
+      await recordAudit({
+         action: "bucket.remove",
+         actorId: userId,
+         serverId,
+         target: bucketName,
+      });
       noContent(res);
    })
 );

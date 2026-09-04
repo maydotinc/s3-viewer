@@ -53,7 +53,7 @@ const sections: LegalContentItemProps[] = [
          <p>
             Use the Service only for lawful purposes. Do not use it to infringe
             anyone&apos;s rights, to store or distribute unlawful content, to
-            access storage you are not authorised to access, or to interfere
+            access storage you are not authorized to access, or to interfere
             with or overload the Service.
          </p>
       ),

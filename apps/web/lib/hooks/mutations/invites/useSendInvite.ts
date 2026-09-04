@@ -1,10 +1,12 @@
-import { ApiError, api, serverPath } from "@/lib/api";
+import { ApiError, api, isAborted, serverPath } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUserId } from "@/lib/stores/sessionStore";
 import { toastError } from "@/lib/utils/toast";
-import { SendInviteInput, SendInviteResult } from "@s3-viewer/types";
+import { ErrorCode, SendInviteInput, SendInviteResult } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+const toastSendFailed = toastError("Couldn't send invites");
 
 const useSendInvite = () => {
    const queryClient = useQueryClient();
@@ -39,7 +41,13 @@ const useSendInvite = () => {
             queryClient.invalidateQueries({ queryKey });
          }
       },
-      onError: toastError("Couldn't send invites"),
+      onError: (error) => {
+         // an unverified email is answered inline by the invite form instead
+         if (isAborted(error) || error.code === ErrorCode.EMAIL_UNVERIFIED) {
+            return;
+         }
+         toastSendFailed(error);
+      },
    });
 };
 

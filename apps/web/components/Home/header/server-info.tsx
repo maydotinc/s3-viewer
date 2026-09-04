@@ -1,15 +1,9 @@
 import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import useServers from "@/lib/hooks/queries/server/useServers";
+import { PROVIDER_NAMES } from "@/lib/constants";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
-import { Provider } from "@s3-viewer/types";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { ServerIcon, UserIcon } from "lucide-react";
-
-const PROVIDER_LABELS: Record<Provider, string> = {
-   [Provider.S3]: "AWS",
-   [Provider.R2]: "Cloudflare",
-   [Provider.Other]: "Other",
-};
 
 const CHIP =
    "flex h-9 items-center gap-2 rounded-lg border border-viewerborder px-3 text-sm text-viewerblack";
@@ -31,7 +25,7 @@ const ServerInfo = () => {
    }
 
    const provider = currentServer
-      ? PROVIDER_LABELS[currentServer.provider]
+      ? PROVIDER_NAMES[currentServer.provider]
       : "—";
    const role = currentServer ? ROLE_LABELS[currentServer.userRole] : "—";
 

@@ -3,9 +3,13 @@ import { BucketAccessEntry, Role, S3Bucket } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
-import { useId } from "react";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
+import { useId, useMemo, useRef } from "react";
 import RoleSelect from "./role-select";
 import { grantableBucketRoles, lowestRole } from "./roles";
+
+const ROW_HEIGHT = 40;
 
 type BucketAccessPickerProps = {
    myRole: Role;
@@ -13,12 +17,14 @@ type BucketAccessPickerProps = {
    isLoading: boolean;
    value: BucketAccessEntry[];
    onChange: (next: BucketAccessEntry[]) => void;
-   /** Pass (even as null) to reserve a validation line under the list. */
+   // pass (even as null) to reserve a validation line under the list.
    error?: string | null;
    disabled?: boolean;
    label: string;
    heading?: string;
 };
+
+type BucketRow = { bucket: S3Bucket; roles: Role[] };
 
 const BucketAccessPicker = ({
    myRole,
@@ -32,20 +38,40 @@ const BucketAccessPicker = ({
    heading,
 }: BucketAccessPickerProps) => {
    const labelId = useId();
-   const grantable = buckets.filter(
-      (b) => grantableBucketRoles(myRole, b).length > 0
+   const scrollRef = useRef<HTMLDivElement>(null);
+
+   const rows = useMemo<BucketRow[]>(
+      () =>
+         buckets.map((bucket) => ({
+            bucket,
+            roles: grantableBucketRoles(myRole, bucket),
+         })),
+      [buckets, myRole]
+   );
+   const grantable = useMemo(
+      () => rows.filter((row) => row.roles.length > 0),
+      [rows]
+   );
+   const selected = useMemo(
+      () => new Map(value.map((entry) => [entry.bucketName, entry])),
+      [value]
    );
    const allSelected =
       grantable.length > 0 && value.length === grantable.length;
 
-   const entryFor = (name: string) => value.find((e) => e.bucketName === name);
+   const virtualizer = useVirtualizer({
+      count: rows.length,
+      getScrollElement: () => scrollRef.current,
+      estimateSize: () => ROW_HEIGHT,
+      overscan: 8,
+   });
 
-   const toggle = (bucket: S3Bucket) => {
-      if (entryFor(bucket.name)) {
+   const toggle = (bucket: S3Bucket, roles: Role[]) => {
+      if (selected.has(bucket.name)) {
          onChange(value.filter((e) => e.bucketName !== bucket.name));
          return;
       }
-      const role = lowestRole(grantableBucketRoles(myRole, bucket));
+      const role = lowestRole(roles);
       if (role) onChange([...value, { bucketName: bucket.name, role }]);
    };
 
@@ -56,17 +82,15 @@ const BucketAccessPicker = ({
       onChange(
          allSelected
             ? []
-            : grantable.flatMap((b) => {
+            : grantable.flatMap(({ bucket, roles }) => {
                  const role =
-                    entryFor(b.name)?.role ??
-                    lowestRole(grantableBucketRoles(myRole, b));
-                 return role ? [{ bucketName: b.name, role }] : [];
+                    selected.get(bucket.name)?.role ?? lowestRole(roles);
+                 return role ? [{ bucketName: bucket.name, role }] : [];
               })
       );
 
-   // Always rendered so the header row never changes height or reflows when
-   // the buckets resolve — it is only made invisible when there is nothing to
-   // toggle.
+   // the toggle is only made invisible, never unmounted, so the header row
+   // does not reflow when the buckets resolve.
    const canToggleAll = !isLoading && grantable.length > 0;
 
    const list = isLoading ? (
@@ -78,48 +102,62 @@ const BucketAccessPicker = ({
          No buckets on this server
       </p>
    ) : (
-      <ul className="max-h-64 divide-y divide-viewerborder overflow-y-auto">
-         {buckets.map((bucket) => {
-            const roles = grantableBucketRoles(myRole, bucket);
-            const entry = entryFor(bucket.name);
-            const role = entry?.role ?? lowestRole(roles);
-            const id = `${labelId}-${bucket.name}`;
-            return (
-               <li
-                  key={bucket.name}
-                  className="flex h-10 min-w-0 items-center gap-3 px-3"
-               >
-                  <Checkbox
-                     id={id}
-                     checked={Boolean(entry)}
-                     disabled={disabled || roles.length === 0}
-                     onCheckedChange={() => toggle(bucket)}
-                  />
-                  <label
-                     htmlFor={id}
-                     className="min-w-0 flex-1 cursor-pointer truncate text-sm text-viewerblack"
+      <div ref={scrollRef} className="max-h-64 overflow-y-auto">
+         <ul
+            className="relative w-full"
+            style={{ height: `${virtualizer.getTotalSize()}px` }}
+         >
+            {virtualizer.getVirtualItems().map((item) => {
+               const row = rows[item.index];
+               if (!row) return null;
+               const { bucket, roles } = row;
+               const entry = selected.get(bucket.name);
+               const role = entry?.role ?? lowestRole(roles);
+               const id = `${labelId}-${bucket.name}`;
+               return (
+                  <li
+                     key={bucket.name}
+                     className={cn(
+                        "absolute left-0 top-0 flex w-full min-w-0 items-center gap-3 px-3",
+                        item.index > 0 && "border-t border-viewerborder"
+                     )}
+                     style={{
+                        transform: `translateY(${item.start}px)`,
+                        height: `${item.size}px`,
+                     }}
                   >
-                     {bucket.name}
-                  </label>
-                  {role === null ? (
-                     <span className="shrink-0 text-xs text-viewerlighttext">
-                        Can&apos;t grant
-                     </span>
-                  ) : (
-                     <RoleSelect
-                        size="sm"
-                        className="w-32 shrink-0"
-                        label={`Role on ${bucket.name}`}
-                        value={role}
-                        roles={roles}
-                        disabled={disabled || !entry}
-                        onChange={(next) => setRole(bucket.name, next)}
+                     <Checkbox
+                        id={id}
+                        checked={Boolean(entry)}
+                        disabled={disabled || roles.length === 0}
+                        onCheckedChange={() => toggle(bucket, roles)}
                      />
-                  )}
-               </li>
-            );
-         })}
-      </ul>
+                     <label
+                        htmlFor={id}
+                        className="min-w-0 flex-1 cursor-pointer truncate text-sm text-viewerblack"
+                     >
+                        {bucket.name}
+                     </label>
+                     {role === null ? (
+                        <span className="shrink-0 text-xs text-viewerlighttext">
+                           Can&apos;t grant
+                        </span>
+                     ) : (
+                        <RoleSelect
+                           size="sm"
+                           className="w-32 shrink-0"
+                           label={`Role on ${bucket.name}`}
+                           value={role}
+                           roles={roles}
+                           disabled={disabled || !entry}
+                           onChange={(next) => setRole(bucket.name, next)}
+                        />
+                     )}
+                  </li>
+               );
+            })}
+         </ul>
+      </div>
    );
 
    return (

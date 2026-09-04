@@ -159,8 +159,8 @@ describe("uploadStore", () => {
    it("cancelAll during a large drop stops later chunks from being queued and still settles the batch", async () => {
       const names = Array.from({ length: 450 }, (_, i) => `f${i}`);
       enqueue(...names);
-      // Only the first 200-file chunk has committed synchronously; the rest
-      // are still being enqueued in the background.
+      // only the first chunk commits synchronously; the rest are still being
+      // enqueued in the background.
       expect(useUploadStore.getState().order).toHaveLength(200);
 
       useUploadStore.getState().cancelAll();
@@ -177,6 +177,22 @@ describe("uploadStore", () => {
       expect(isUploading).toBe(false);
       expect(toast.success).not.toHaveBeenCalled();
       expect(toast.error).not.toHaveBeenCalled();
+   });
+
+   it("keeps one batch's ids unique when a second large drop interleaves with it", async () => {
+      const first = Array.from({ length: 450 }, (_, i) => `h${i}`);
+      const second = Array.from({ length: 450 }, (_, i) => `i${i}`);
+      enqueue(...first);
+      enqueue(...second);
+      await flush();
+      await flush();
+      await flush();
+      await flush();
+
+      const { batch, order } = useUploadStore.getState();
+      expect(order).toHaveLength(900);
+      expect(batch?.ids).toHaveLength(900);
+      expect(new Set(batch?.ids).size).toBe(900);
    });
 
    it("dismiss during a large drop clears everything and isn't resurrected by later chunks", async () => {

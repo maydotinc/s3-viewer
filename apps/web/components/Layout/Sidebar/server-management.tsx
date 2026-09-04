@@ -1,4 +1,4 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
+import { useModalActions } from "@/lib/contexts/ModalContext";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -10,7 +10,7 @@ const SECTION_LABEL =
    "px-2 text-[11px] font-medium tracking-wide text-viewerlighttext uppercase";
 
 const ServerManagement = () => {
-   const { openCreateBucketModal } = useModalContext();
+   const { openCreateBucketModal } = useModalActions();
    const canCreateBucket = usePermission(Permission.CREATE_BUCKET);
 
    return (

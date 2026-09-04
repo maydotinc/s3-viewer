@@ -107,7 +107,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Do presigned URLs work with Cloudflare R2?",
       answer:
-         "Yes. R2 implements the same S3 presigned URL pattern. Use the same SDK with the R2 endpoint configured (`endpoint: 'https://<account>.r2.cloudflarestorage.com'`); everything else stays the same.",
+         "Yes. R2 implements the same S3 presigned URL pattern. Use the same SDK with the R2 endpoint configured (endpoint: 'https://<account>.r2.cloudflarestorage.com'); everything else stays the same.",
    },
    {
       question: "How short should a presigned URL's expiry be?",

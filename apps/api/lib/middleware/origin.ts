@@ -4,7 +4,6 @@ import { ErrorCode } from "@s3-viewer/types";
 import type { RequestHandler } from "express";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
-const SAME_SITE = new Set(["same-origin", "same-site"]);
 
 const originCheck: RequestHandler = (req, res, next) => {
    if (SAFE_METHODS.has(req.method)) {
@@ -14,7 +13,7 @@ const originCheck: RequestHandler = (req, res, next) => {
    const origin = req.get("origin");
    const allowed = origin
       ? origin === siteOrigin
-      : SAME_SITE.has(req.get("sec-fetch-site") ?? "");
+      : req.get("sec-fetch-site") === "same-origin";
    if (!allowed) {
       fail(res, 403, "Cross-site request blocked", ErrorCode.ORIGIN);
       return;

@@ -8,10 +8,8 @@ const BOUNDARY = 60;
 const CONTAINS = 40;
 const SUBSEQUENCE = 20;
 
-/**
- * Capped so a late hit in one tier can never outrank an early hit in the tier
- * above it: the tiers sit 20 apart and the penalty tops out below that.
- */
+// must stay under the 20-point gap between tiers, so a late hit can never
+// outrank an early hit in the tier above.
 const MAX_PENALTY = 15;
 
 const KEYWORD_WEIGHT = 0.5;
@@ -112,15 +110,10 @@ const mergeRanges = (ranges: Range[]): Range[] => {
 const splitTerms = (query: string): string[] =>
    query.trim().split(/\s+/).filter(Boolean);
 
-/**
- * Every term has to land somewhere — on the label or on the hidden keywords —
- * so "buck prod" narrows rather than widens. The score is the average across
- * terms, which keeps a two-word query on the same scale as a one-word one.
- *
- * Only the label is matched loosely. Keywords are a long run-on string, and a
- * four-letter subsequence can be found in almost any of them, so a scattered
- * hit there means nothing.
- */
+// every term must land somewhere, so "buck prod" narrows rather than widens,
+// and the average keeps a two-word query on a one-word scale. only the label
+// is matched loosely: keywords are a run-on string, where a subsequence hit
+// means nothing.
 const matchFields = (
    label: string,
    keywords: string,
@@ -149,7 +142,6 @@ const matchFields = (
 
 type Segment = { text: string; matched: boolean };
 
-/** Splits a label into alternating plain and matched runs, for highlighting. */
 const segmentText = (text: string, ranges: readonly Range[]): Segment[] => {
    const segments: Segment[] = [];
    let cursor = 0;

@@ -39,8 +39,8 @@ function DropdownMenuTrigger({
 function DropdownMenuContent({
    className,
    sideOffset = 4,
-   // Returning focus to the trigger on close steals it from a dialog opened by
-   // a menu item. Callers that need the default behaviour can pass their own.
+   // returning focus to the trigger on close steals it from a dialog opened
+   // by a menu item.
    onCloseAutoFocus = (event) => event.preventDefault(),
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
@@ -87,10 +87,8 @@ function DropdownMenuItem({
    );
 }
 
-/**
- * Groups are plain divs inside the flex column, so they must repeat the
- * surface's 2px item gap or their rows' hover fills touch (DESIGN.md §5).
- */
+// groups are plain divs in the flex column, so they must repeat the surface's
+// item gap or their rows' hover fills touch.
 const GROUP = "flex flex-col gap-0.5";
 
 function DropdownMenuGroup({
@@ -190,8 +188,8 @@ function DropdownMenuSubContent({
             data-slot="dropdown-menu-sub-content"
             sideOffset={sideOffset}
             alignOffset={alignOffset}
-            // No fade here: submenus open on hover intent and must be readable
-            // the instant the pointer arrives.
+            // no fade: submenus open on hover intent and must be readable the
+            // instant the pointer arrives.
             className={cn(
                SURFACE,
                "max-h-[var(--radix-dropdown-menu-content-available-height)] min-w-[12rem]",

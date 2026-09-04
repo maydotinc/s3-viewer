@@ -6,7 +6,7 @@ import { Agent as HttpsAgent } from "node:https";
 import { SERVER_NOT_FOUND } from "../constants";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
-import { publicOnlyLookup } from "../utils/endpoint";
+import { assertPublicEndpoint, publicOnlyLookup } from "../utils/endpoint";
 import { decryptCredentials } from "../utils/encryption";
 import { credentialsUnreadableError } from "./errors";
 
@@ -95,6 +95,8 @@ const makeRoom = (): void => {
 };
 
 const getS3Client = async (serverId: string): Promise<S3Client> => {
+   // a cached client's endpoint was re-checked when the entry was filled, so a
+   // hit does not repeat the dns lookup until the entry expires
    const hit = cache.get(serverId);
    if (hit && hit.expiresAt > Date.now()) return hit.client;
 
@@ -107,10 +109,9 @@ const getS3Client = async (serverId: string): Promise<S3Client> => {
       });
       if (!server) throw new ApiHttpError(404, SERVER_NOT_FOUND);
 
-      const client = buildClient(
-         readStoredCredentials(serverId, server.credentials),
-         Provider[server.provider]
-      );
+      const credentials = readStoredCredentials(serverId, server.credentials);
+      await assertPublicEndpoint(credentials.endpoint);
+      const client = buildClient(credentials, Provider[server.provider]);
       if (generationOf(serverId) === generation) {
          makeRoom();
          cache.set(serverId, { client, expiresAt: Date.now() + CACHE_TTL_MS });

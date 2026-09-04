@@ -5,9 +5,12 @@ import {
    declaredLength,
    exceedsLimit,
    exceedsMaxPartSize,
+   exceedsObjectLimit,
    isUploadTooLargeError,
+   MAX_DERIVED_PART_BYTES,
    MAX_OBJECT_BYTES,
    MAX_PARTS,
+   maxPartBytesFor,
    partSizeFor,
    streamUpload,
 } from "./upload";
@@ -58,6 +61,38 @@ describe("partSizeFor", () => {
          MAX_PARTS
       );
    });
+
+   it("clamps the derived part size so a huge declared length can't eat the heap", () => {
+      expect(partSizeFor(MAX_OBJECT_BYTES, basePartBytes)).toBe(
+         MAX_DERIVED_PART_BYTES
+      );
+      expect(partSizeFor(5 * 1024 ** 4, basePartBytes)).toBeLessThanOrEqual(
+         MAX_DERIVED_PART_BYTES
+      );
+   });
+
+   it("never clamps below a part size the operator asked for", () => {
+      const bigBase = 512 * 1024 * 1024;
+      expect(partSizeFor(MAX_OBJECT_BYTES, bigBase)).toBe(bigBase);
+      expect(partSizeFor(undefined, bigBase)).toBe(bigBase);
+   });
+});
+
+describe("maxPartBytesFor", () => {
+   it("is the derived ceiling unless the configured part size is larger", () => {
+      expect(maxPartBytesFor(25 * 1024 * 1024)).toBe(MAX_DERIVED_PART_BYTES);
+      expect(maxPartBytesFor(MAX_DERIVED_PART_BYTES * 2)).toBe(
+         MAX_DERIVED_PART_BYTES * 2
+      );
+   });
+});
+
+describe("exceedsObjectLimit", () => {
+   it("trips only past S3's per-object limit", () => {
+      expect(exceedsObjectLimit(undefined)).toBe(false);
+      expect(exceedsObjectLimit(MAX_OBJECT_BYTES)).toBe(false);
+      expect(exceedsObjectLimit(MAX_OBJECT_BYTES + 1)).toBe(true);
+   });
 });
 
 describe("exceedsMaxPartSize", () => {
@@ -76,14 +111,12 @@ describe("exceedsMaxPartSize", () => {
       ).toBe(true);
    });
 
-   it("is true past S3's per-object limit even when parts would still fit", () => {
+   it("is only about part size now, so a huge length passes with a huge part size", () => {
       const generousMaxPartBytes = 5 * 1024 * 1024 * 1024;
-      expect(exceedsMaxPartSize(MAX_OBJECT_BYTES, generousMaxPartBytes)).toBe(
-         false
-      );
       expect(
          exceedsMaxPartSize(MAX_OBJECT_BYTES + 1, generousMaxPartBytes)
-      ).toBe(true);
+      ).toBe(false);
+      expect(exceedsObjectLimit(MAX_OBJECT_BYTES + 1)).toBe(true);
    });
 });
 

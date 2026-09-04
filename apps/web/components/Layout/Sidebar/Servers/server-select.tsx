@@ -1,4 +1,4 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
+import { useModalActions } from "@/lib/contexts/ModalContext";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import { Permission, ROLE_LABELS, hasPermission } from "@s3-viewer/permissions";
@@ -37,7 +37,7 @@ const TRIGGER =
 
 const ServerSelector = () => {
    const { openConnectModal, openRenameModal, openDisconnectModal } =
-      useModalContext();
+      useModalActions();
    const { servers, currentServer, isServerListLoading, serverError } =
       useServers();
    const setServerId = useSessionStore((state) => state.setServerId);
@@ -114,14 +114,14 @@ const ServerSelector = () => {
                            className={cn(isCurrent && "bg-viewergray")}
                            onClick={(event) => {
                               if (isCurrent) return;
-                              // Stop Radix from opening the submenu on a click
+                              // stop radix from opening the submenu on a click
                               // that is really "switch to this server".
                               event.preventDefault();
                               switchTo(server);
                            }}
                            onKeyDown={(event) => {
-                              // Enter switches. Space and → keep Radix's
-                              // default (open the submenu) — Space also has to
+                              // enter switches. space and → keep radix's
+                              // default (open the submenu) — space also has to
                               // stay typeable, server names contain spaces.
                               if (isCurrent || event.key !== "Enter") return;
                               event.preventDefault();

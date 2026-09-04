@@ -174,7 +174,7 @@ export const VOICE_EXAMPLES: VoiceExample[] = [
    {
       ok: true,
       label: "Use",
-      line: "Connect any S3-compatible bucket in one click.",
+      line: "Connect any S3-compatible bucket with one set of credentials.",
    },
    {
       ok: false,

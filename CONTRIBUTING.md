@@ -12,12 +12,15 @@ pnpm bootstrap                              # local HTTPS dev URLs via portless
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 cp apps/landing/.env.example apps/landing/.env
+cp packages/db/.env.example packages/db/.env
 pnpm --filter @s3-viewer/db db:deploy
 pnpm dev
 ```
 
 Node 20 or newer is required (`.nvmrc` pins 20). See the [README](./README.md) for
-the full setup, including generating the RSA key pair.
+the full setup, including generating the RSA key pair, and
+[CONTRACTS.md](./CONTRACTS.md) for the API/web/landing engineering agreement
+before touching routes, rate limits, error codes or permissions.
 
 ## Branch and PR flow
 

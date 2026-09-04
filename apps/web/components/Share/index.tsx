@@ -1,5 +1,5 @@
 import { Page, PageHeader } from "@/components/Layout/page";
-import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
+import useBuckets, { NO_BUCKETS } from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
@@ -70,9 +70,8 @@ const Share = ({ serverId }: { serverId: string }) => {
       return () => document.removeEventListener("keydown", onKeyDown);
    }, [goBack]);
 
-   // Buckets and the sidebar follow the selected server, so the route decides
-   // it on arrival — and the page follows the sidebar afterwards. A server the
-   // user cannot manage is never adopted, and never becomes this page.
+   // buckets and the sidebar follow the selected server, so the route decides
+   // it on arrival and the page follows the sidebar afterwards.
    useEffect(() => {
       if (!server || !canManage || sessionServerId === serverId) return;
       if (adoptedRef.current !== serverId) {
@@ -98,6 +97,10 @@ const Share = ({ serverId }: { serverId: string }) => {
       sessionServerId,
       setServerId,
    ]);
+
+   // useBuckets reads the session server, so its buckets belong to this page
+   // only once the adopt effect above has landed.
+   const bucketsAdopted = sessionServerId === serverId;
 
    if (isLoading || !serverId)
       return (
@@ -149,14 +152,14 @@ const Share = ({ serverId }: { serverId: string }) => {
          <InviteForm
             serverId={server.id}
             myRole={server.userRole}
-            buckets={buckets}
-            isBucketsLoading={isBucketsLoading}
+            buckets={bucketsAdopted ? buckets : NO_BUCKETS}
+            isBucketsLoading={!bucketsAdopted || isBucketsLoading}
          />
          <Members
             serverId={server.id}
             myRole={server.userRole}
-            buckets={buckets}
-            isBucketsLoading={isBucketsLoading}
+            buckets={bucketsAdopted ? buckets : NO_BUCKETS}
+            isBucketsLoading={!bucketsAdopted || isBucketsLoading}
          />
          <PendingInvites serverId={server.id} />
       </Page>

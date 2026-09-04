@@ -229,6 +229,9 @@ const useUploadStore = create<UploadStore>()(
             }
 
             const generation = enqueueGeneration;
+            // carried across chunks: batch.ids only grows, so rebuilding this
+            // per chunk is quadratic on a large drop.
+            const inBatch = new Set<string>();
             activeEnqueues++;
             void (async () => {
                try {
@@ -247,7 +250,10 @@ const useUploadStore = create<UploadStore>()(
                                    failed: 0,
                                 }
                               : state.batch;
-                        const inBatch = new Set(batch.ids);
+                        if (inBatch.size !== batch.ids.length) {
+                           inBatch.clear();
+                           for (const id of batch.ids) inBatch.add(id);
+                        }
                         state.batch = batch;
                         state.isUploading = true;
                         for (const { file, relativePath } of slice) {

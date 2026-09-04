@@ -1,8 +1,18 @@
+import { MEMBER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError } from "@/lib/http";
-import { isBucketAllowed } from "@/lib/services/servers";
+import {
+   isBucketAllowed,
+   type BucketScopeSettings,
+} from "@/lib/services/servers";
 import type { $Enums, Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
-import { ROLE_LABELS, canManageRole } from "@s3-viewer/permissions";
+import {
+   ROLE_LABELS,
+   canManageRole,
+   effectiveBucketRole,
+   isAtLeast,
+   rolesAbove,
+} from "@s3-viewer/permissions";
 import {
    BucketAccessEntry,
    ErrorCode,
@@ -73,9 +83,34 @@ const findMember = async (
    return row ? toServerUser(row) : null;
 };
 
+type GrantingActor = {
+   serverRole: Role;
+   bucketRoles: ReadonlyMap<string, Role>;
+};
+
+const loadGrantingActor = async (
+   userId: string,
+   serverId: string,
+   serverRole: Role,
+   grants: readonly BucketGrant[]
+): Promise<GrantingActor> => {
+   const bucketNames = grants.map((g) => g.bucketName);
+   if (serverRole === Role.OWNER || bucketNames.length === 0) {
+      return { serverRole, bucketRoles: new Map() };
+   }
+   const rows = await prisma.bucketAccess.findMany({
+      where: { userId, serverId, bucketName: { in: bucketNames } },
+      select: bucketGrantSelect,
+   });
+   return {
+      serverRole,
+      bucketRoles: new Map(rows.map((r) => [r.bucketName, Role[r.role]])),
+   };
+};
+
 const assertBucketGrants = (
-   actorRole: Role,
-   allowedBuckets: readonly string[],
+   actor: GrantingActor,
+   scope: BucketScopeSettings,
    grants: readonly BucketGrant[]
 ): void => {
    const seen = new Set<string>();
@@ -88,20 +123,44 @@ const assertBucketGrants = (
          );
       }
       seen.add(bucketName);
-      if (!isBucketAllowed(allowedBuckets, bucketName)) {
+      if (!isBucketAllowed(scope, bucketName)) {
          throw new ApiHttpError(
             400,
             `Unknown bucket: ${bucketName}`,
             ErrorCode.VALIDATION
          );
       }
-      if (!canManageRole(actorRole, Role[role])) {
+      if (!canManageRole(actor.serverRole, Role[role])) {
          throw new ApiHttpError(
             403,
             `You can't grant ${ROLE_LABELS[Role[role]]} on ${bucketName}`
          );
       }
+      const held = effectiveBucketRole(
+         actor.serverRole,
+         actor.bucketRoles.get(bucketName) ?? null
+      );
+      if (!isAtLeast(held, Role[role])) {
+         throw new ApiHttpError(
+            403,
+            `You don't have ${ROLE_LABELS[Role[role]]} access to ${bucketName}, so you can't grant it`
+         );
+      }
    }
+};
+
+const clampBucketAccess = async (
+   tx: Prisma.TransactionClient,
+   userId: string,
+   serverId: string,
+   role: Role
+): Promise<void> => {
+   const above = rolesAbove(role);
+   if (above.length === 0) return;
+   await tx.bucketAccess.updateMany({
+      where: { userId, serverId, role: { in: above } },
+      data: { role },
+   });
 };
 
 const replaceBucketAccess = async (
@@ -117,20 +176,26 @@ const replaceBucketAccess = async (
    });
 };
 
-const removeMembership = (userId: string, serverId: string) =>
-   prisma.$transaction([
+const removeMembership = async (
+   userId: string,
+   serverId: string
+): Promise<void> => {
+   const [, removed] = await prisma.$transaction([
       prisma.bucketAccess.deleteMany({ where: { userId, serverId } }),
-      prisma.serverAccess.delete({
-         where: { userId_serverId: { userId, serverId } },
-      }),
+      prisma.serverAccess.deleteMany({ where: { userId, serverId } }),
    ]);
+   if (removed.count === 0) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+};
 
 export {
    assertBucketGrants,
    bucketGrantSelect,
+   clampBucketAccess,
    findMember,
    listMembers,
+   loadGrantingActor,
    removeMembership,
    replaceBucketAccess,
    toBucketEntry,
 };
+export type { GrantingActor };

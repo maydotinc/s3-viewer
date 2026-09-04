@@ -27,7 +27,7 @@ const AuthGuard = ({ children }: { children: ReactNode }) => {
          return;
       }
       if (redirected.current) return;
-      // A deliberate sign-out owns its destination (plain /login, no `next`).
+      // a deliberate sign-out owns its destination (plain /login, no `next`)
       if (isSigningOut()) return;
       redirected.current = true;
       void router.replace(loginPathFor(router.asPath));

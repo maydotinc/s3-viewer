@@ -29,7 +29,7 @@ const fileEntry = (path: string, onOpen?: () => void): FakeFileEntry => ({
    },
 });
 
-/** Mirrors the real API: readEntries hands back at most `pageSize` entries per call and must be drained in a loop. */
+// mirrors the real api: readEntries pages, and must be drained in a loop
 const dirEntry = (
    path: string,
    children: FakeEntry[],

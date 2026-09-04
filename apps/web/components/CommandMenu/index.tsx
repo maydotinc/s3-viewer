@@ -59,8 +59,8 @@ const CommandMenuDialog = () => {
       () => new Map(flat.map((command, index) => [command.id, index])),
       [flat]
    );
-   // Clamped at read time rather than corrected by an effect, so a list that
-   // shrinks while you type keeps a valid selection with no extra render.
+   // clamped at read time rather than by an effect, so a list that shrinks
+   // while you type keeps a valid selection with no extra render.
    const active = Math.min(activeIndex, Math.max(0, flat.length - 1));
    const activeCommand = flat[active];
 
@@ -231,8 +231,7 @@ const CommandMenu = () => {
       handler: openMenu,
    });
 
-   // Unmounted while closed, so the query, the selection and the recents read
-   // all reset for free on every open.
+   // unmounted while closed, so query, selection and recents reset on open.
    return open && signedIn ? <CommandMenuDialog /> : null;
 };
 

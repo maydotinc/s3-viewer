@@ -57,10 +57,11 @@ const steps: HowToStep[] = [
             Open the server&apos;s bucket list and click <strong>Share</strong>{" "}
             to open the members dialog. Type the recipient&apos;s email and
             choose <strong>Viewer</strong> (browse and download),{" "}
-            <strong>Editor</strong> (also upload, rename and delete) or{" "}
-            <strong>Admin</strong> (also manage members and buckets). They sign
-            in with the code and sign-in link we email them — or with GitHub, if
-            it is enabled — and see the buckets on that server.
+            <strong>Editor</strong> (also upload, rename, delete and create
+            buckets) or <strong>Admin</strong> (also manage members, rename the
+            server and remove buckets). They sign in with the code and sign-in
+            link we email them — or with GitHub, if it is enabled — and see the
+            buckets on that server.
          </>
       ),
    },
@@ -90,7 +91,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I send an S3 file to a client who doesn't use AWS?",
       answer:
-         "Quickest: open the ⋮ menu on the file in S3 Viewer and choose Copy link — that's a presigned URL valid for 15 minutes, and it works in any browser. From the CLI the equivalent is `aws s3 presign s3://bucket/key --expires-in 3600`. For repeat access, invite them to the server by email — they sign in once and see the buckets you gave them, with no AWS account, IAM user or CLI required.",
+         "Quickest: open the ⋮ menu on the file in S3 Viewer and choose Copy link — that's a presigned URL valid for 15 minutes, and it works in any browser. From the CLI the equivalent is aws s3 presign s3://bucket/key --expires-in 3600. For repeat access, invite them to the server by email — they sign in once and see the buckets you gave them, with no AWS account, IAM user or CLI required.",
    },
    {
       question: "Are presigned URLs safe to share?",
@@ -100,7 +101,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How long can a presigned URL last?",
       answer:
-         "AWS allows presigned URLs to last up to 7 days when signed with IAM user credentials, or up to the session length when signed with temporary credentials (typically 1 hour for STS). Shorter is safer. Every URL S3 Viewer issues — Copy link, downloads, previews, upload parts — lasts 15 minutes, and that is not configurable.",
+         "AWS allows presigned URLs to last up to 7 days when signed with IAM user credentials, or up to the session length when signed with temporary credentials (typically 1 hour for STS). Shorter is safer. Every URL S3 Viewer issues — Copy link, downloads, previews — lasts 15 minutes, and that is not configurable. Uploads don't use presigned URLs at all: they stream through the S3 Viewer server into the bucket.",
    },
    {
       question: "Can I revoke a presigned URL after sharing it?",

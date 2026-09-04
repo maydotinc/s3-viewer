@@ -6,11 +6,16 @@ const LEVELS: Record<Level, number> = {
    warn: 30,
    error: 40,
 };
-const threshold =
-   LEVELS[
-      (process.env.LOG_LEVEL as Level | undefined) ??
-         (process.env.NODE_ENV === "production" ? "warn" : "debug")
-   ] ?? LEVELS.info;
+
+// env.ts rejects an unknown level at startup; logger keeps out of that import so
+// it stays usable without a full environment, and an unrecognised level falls
+// back to the documented default here instead of to something more verbose
+const isLevel = (value: string): value is Level => Object.hasOwn(LEVELS, value);
+
+const configured = process.env.LOG_LEVEL?.trim() ?? "";
+const fallback: Level =
+   process.env.NODE_ENV === "production" ? "warn" : "debug";
+const threshold = LEVELS[isLevel(configured) ? configured : fallback];
 
 const write = (
    level: Level,

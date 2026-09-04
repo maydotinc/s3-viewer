@@ -2,6 +2,7 @@
    "name": "@s3-viewer/email",
    "version": "0.0.0",
    "private": true,
+   "license": "MIT",
    "type": "module",
    "exports": {
       ".": "./src/index.ts"
@@ -19,7 +20,7 @@
    "devDependencies": {
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
-      "@types/node": "^20",
+      "@types/node": "^20.19.0",
       "eslint": "catalog:",
       "typescript": "catalog:"
    }

@@ -14,7 +14,7 @@ const fromFileList = (files: ArrayLike<File>): UploadFile[] =>
 const yieldToEventLoop = () =>
    new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-/** `reader.readEntries` hands back at most 100 entries per call; drain it with repeated calls until it returns empty. */
+// `readEntries` hands back at most 100 entries per call; drain it in a loop
 const readEntries = (reader: FileSystemDirectoryReader) =>
    new Promise<FileSystemEntry[]>((resolve, reject) =>
       reader.readEntries(resolve, reject)

@@ -20,11 +20,6 @@ import { useBucketContext } from "./Context";
 
 const VISIBLE_TAIL = 3;
 
-/**
- * The left half of the bucket page's `PageHeader` (DESIGN.md §2/§7): a home
- * button and the path. It draws no chrome of its own — the page header is the
- * row, so there is no second bordered strip under the top bar.
- */
 const BucketHeader = () => {
    const { data: session, isPending } = authClient.useSession();
    const { bucketName, path, isLoading } = useBucketContext();

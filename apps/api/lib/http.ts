@@ -73,6 +73,7 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
    logger.error("Unhandled request error", {
       method: req.method,
       path: req.path,
+      requestId: res.locals.requestId as string | undefined,
       error: describeError(err),
    });
    fail(res, 500, "Something went wrong");

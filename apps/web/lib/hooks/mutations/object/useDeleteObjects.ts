@@ -1,4 +1,4 @@
-import { api, isAborted, objectsPath } from "@/lib/api";
+import { api, cancelledError, objectsPath } from "@/lib/api";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import {
    MAX_BATCH_KEYS,
@@ -74,27 +74,21 @@ const useDeleteObjects = () => {
             MAX_BATCH_KEYS,
             MAX_BATCH_KEY_CHARS
          )) {
-            if (signal?.aborted) break;
-            try {
-               addPage(
-                  summary,
-                  await api.delete<S3DeleteResult>(
-                     objectsPath(serverId, bucketName),
-                     { objectKeys: batch },
-                     signal
-                  )
-               );
-            } catch (error) {
-               if (isAborted(error)) break;
-               throw error;
-            }
+            if (signal?.aborted) throw cancelledError();
+            addPage(
+               summary,
+               await api.delete<S3DeleteResult>(
+                  objectsPath(serverId, bucketName),
+                  { objectKeys: batch },
+                  signal
+               )
+            );
          }
          return summary;
       },
-      onSuccess: (result, { bucketName, objectKeys }) => {
-         reportDeleteResult(result);
-         forgetKeys(queryClient, userId, serverId, bucketName, objectKeys);
-      },
+      onSuccess: reportDeleteResult,
+      onSettled: (_result, _error, { bucketName, objectKeys }) =>
+         forgetKeys(queryClient, userId, serverId, bucketName, objectKeys),
    });
 };
 

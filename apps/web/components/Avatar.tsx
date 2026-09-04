@@ -7,11 +7,6 @@ type AvatarProps = {
    className?: string;
 };
 
-/**
- * Initials on a gradient derived from the name — the only avatar there is.
- * Profile pictures do not exist in the product, so there is nothing to pass
- * in and nothing to edit: change your name and the avatar changes with it.
- */
 const Avatar = ({ name, size = 32, className }: AvatarProps) => (
    <span
       role="img"

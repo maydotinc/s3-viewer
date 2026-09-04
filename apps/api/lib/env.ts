@@ -10,6 +10,8 @@ const optionalString = z
    .transform((value) => value || undefined);
 
 const MIB = 1024 * 1024;
+const GIB = 1024 * MIB;
+const DEFAULT_MAX_UPLOAD_BYTES = 5 * GIB;
 const DEFAULT_UPLOAD_PART_BYTES = 25 * MIB;
 const MIN_UPLOAD_PART_BYTES = 5 * MIB;
 const MAX_UPLOAD_PART_BYTES = 5 * 1024 * MIB;
@@ -30,9 +32,9 @@ const schema = z
       GITHUB_CLIENT_ID: optionalString,
       GITHUB_CLIENT_SECRET: optionalString,
       PORT: z.coerce.number().int().min(1).max(65535).default(5001),
-      MAX_UPLOAD_BYTES: optionalString.pipe(
-         z.coerce.number().int().positive().optional()
-      ),
+      MAX_UPLOAD_BYTES: optionalString
+         .pipe(z.coerce.number().int().positive().optional())
+         .transform((value) => value ?? DEFAULT_MAX_UPLOAD_BYTES),
       UPLOAD_PART_BYTES: optionalString
          .pipe(
             z.coerce
@@ -54,6 +56,9 @@ const schema = z
          .trim()
          .default("loopback")
          .transform((value) => (/^\d+$/.test(value) ? Number(value) : value)),
+      LOG_LEVEL: optionalString.pipe(
+         z.enum(["debug", "info", "warn", "error"]).optional()
+      ),
    })
    .superRefine((value, ctx) => {
       if (value.NODE_ENV === "production" && !value.RESEND_KEY) {

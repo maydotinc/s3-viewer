@@ -207,8 +207,12 @@ describe("segmentText", () => {
 
 describe("matchSubstring", () => {
    it("refuses a scattered hit that matchText accepts", () => {
-      expect(matchText("hide show collapse expand panel navigation", "cont")).not.toBeNull();
-      expect(matchSubstring("hide show collapse expand panel navigation", "cont")).toBeNull();
+      expect(
+         matchText("hide show collapse expand panel navigation", "cont")
+      ).not.toBeNull();
+      expect(
+         matchSubstring("hide show collapse expand panel navigation", "cont")
+      ).toBeNull();
    });
 
    it("still accepts every substring tier", () => {

@@ -50,14 +50,19 @@ the web app, the landing site and the shared packages. Keep it current.
 
 - Error envelope, always: `{ message: string, code?: string }` with a proper
   status (400 validation, 401 unauthenticated, 403 forbidden, 404 not found,
-  409 conflict, 413 too large, 429 rate limited, 502 upstream S3 failure,
-  500 unexpected). Never return raw error messages from AWS/Prisma/Zod.
-  Validation returns `code: "VALIDATION"` and a short human message. Codes
-  the web branches on live in `ErrorCode` (`@s3-viewer/types`): stored
-  credentials that fail to decrypt or parse → 409 `CREDENTIALS_UNREADABLE`;
-  S3 rejecting the key pair (`InvalidAccessKeyId`, `SignatureDoesNotMatch`,
-  expired tokens, or a 403 on `ListBuckets`) → 502 `CREDENTIALS_REJECTED`.
-  Both carry a message the UI shows verbatim next to "Update credentials".
+  409 conflict, 413 too large, 415 unsupported request encoding, 429 rate
+  limited, 502 upstream S3 failure, 500 unexpected — plus 201 created and
+  207 partial failure on success paths). Never return raw error messages
+  from AWS or Prisma. Validation is the one deliberate exception:
+  `validate(schema)` (`lib/middleware/validate.ts`) returns the first Zod
+  issue's own message verbatim as `path: message`, with `code: "VALIDATION"`
+  — those messages are written to be user-facing, unlike an AWS or Prisma
+  exception's. Codes the web branches on live in `ErrorCode`
+  (`@s3-viewer/types`): stored credentials that fail to decrypt or parse →
+  409 `CREDENTIALS_UNREADABLE`; S3 rejecting the key pair
+  (`InvalidAccessKeyId`, `SignatureDoesNotMatch`, expired tokens, or a 403 on
+  `ListBuckets`) → 502 `CREDENTIALS_REJECTED`. Both carry a message the UI
+  shows verbatim next to "Update credentials".
 - `validate(schema)` middleware parses `{ ...req.query, ...req.body, ...req.params }`
   (params win) with a zod schema from `@s3-viewer/types` and stores the result
   on `res.locals.input` (typed helper `input<T>(res)`). Handlers read ONLY from it.
@@ -70,13 +75,17 @@ the web app, the landing site and the shared packages. Keep it current.
 - Membership actions use `authorizeMemberAction()` which loads the target's
   current role and applies `canManageRole` for both current and new roles.
 - Rate limits: global 1200/min per IP before auth on everything except
-  `/servers/:serverId/buckets/**`, which instead gets its own 6000/min per IP
+  `/servers/:serverId/buckets` and everything under it (`BUCKET_ROUTE`,
+  `lib/middleware/rate-limit.ts`, matches the bucket collection route itself
+  too, not just its subpaths), which instead gets its own 6000/min per IP
   (also before auth; bulk listing, upload and delete loops live there); then
   1800/min per user id;
   non-GET `/auth/*` 20/min per IP (Better Auth's own limiter is a no-op with
-  `disableIpTracking`, so it is disabled); sign-in emails (`/auth-flow/start`,
-  `/auth/email-otp/send-verification-otp`, `/auth/sign-in/magic-link`) share
-  5/min per IP, plus 5/10min per email on `/auth-flow/start`; `establish`,
+  `disableIpTracking`, so it is disabled) — this covers whatever Better Auth
+  still serves there, since four specific paths are 404'd before reaching it
+  (see "`/auth/*` routes" below); sign-in email (`POST /auth-flow/start`,
+  the only route that actually sends a sign-in email — see below) is
+  5/min per IP, plus 5/10min per email; `establish`,
   `validate-buckets` and `PATCH …/credentials` 30/min per user. `TRUST_PROXY` env (default `loopback`)
   feeds `app.set("trust proxy", …)`.
 - Parsers: `express.json({ limit: "1mb" })` only, skipped for `PUT …/objects`
@@ -85,8 +94,8 @@ the web app, the landing site and the shared packages. Keep it current.
   check on every non-GET request, `/auth/*` included (allow only the
   `NEXT_PUBLIC_SITE_URL` origin; a request with neither header is rejected).
 - `helmet()` with defaults. CORS origin = `siteOrigin` (`NEXT_PUBLIC_SITE_URL`),
-  methods GET/PUT/POST/PATCH/DELETE; allowed headers reflect the preflight
-  (cors default), which covers the upload's `Content-Type`.
+  methods GET/PUT/POST/PATCH/DELETE/OPTIONS; allowed headers reflect the
+  preflight (cors default), which covers the upload's `Content-Type`.
 - S3 clients are cached per server (`lib/s3/client-cache.ts`, TTL 10 min, at
   most 500 entries, keep-alive agent, connect/request timeouts 5s/30s,
   `maxAttempts: 2`), invalidated on server delete and credential update.
@@ -98,10 +107,12 @@ the web app, the landing site and the shared packages. Keep it current.
   status/code), then stores the blob as sent, refreshes `provider` from the
   endpoint and drops the cached client. The cache keeps a per-server
   generation so a fill that raced the update never re-caches old keys.
-- Endpoints are checked on `establish`, `validate-buckets`, `POST /servers`
-  and `PATCH …/credentials` after decryption: https only in production, no localhost/private/link-local
-  literals, and every DNS answer must be public. That check is a fast,
-  friendly first pass; the same private/loopback/link-local rules
+- Endpoints are checked on `establish`, `validate-buckets`, `POST /servers`,
+  `PATCH …/credentials`, and every S3-client cache fill (`getS3Client`,
+  `lib/s3/client-cache.ts`) after decryption: https only in production, no
+  localhost/private/link-local literals, and every DNS answer must be
+  public. That check is a fast, friendly first pass; the same
+  private/loopback/link-local rules
   (`lib/utils/endpoint.ts`) also run as a custom `dns.lookup` on the shared
   http/https agents S3 clients connect through (`lib/s3/client-cache.ts`), so
   a hostname that's repointed at a private address after passing the
@@ -116,9 +127,14 @@ the web app, the landing site and the shared packages. Keep it current.
   that call. A 403 on `ListObjectsV2` stays 403 — prefix-scoped IAM is
   legitimate.
 - Presigned URLs (downloads and previews only) expire in 15 minutes. They are
-  used as navigations and `<img>`/`<video>`/`<audio>`/`<iframe>` sources, never
-  fetched, so buckets need no CORS configuration. Object keys are encoded with
-  `encodeURIComponent` per path segment when building `CopySource`.
+  used as navigations and `<img>`/`<video>`/`<audio>`/`<iframe>` sources, so
+  buckets need no CORS configuration for any of that — with one exception:
+  the JSON tree-view preview (`apps/web/lib/hooks/queries/s3/useObjectBody.ts`)
+  does a cross-origin `fetch()` of the presigned URL to parse the body, which
+  a bucket without CORS (or the app's own `connect-src` CSP, in production)
+  silently degrades to a plain-text preview instead of a tree. Object keys
+  are encoded with `encodeURIComponent` per path segment when building
+  `CopySource`.
 - Uploads stream through the API (`lib/s3/upload.ts`): `@aws-sdk/lib-storage`
   `Upload` with 4 parts in flight, `leavePartsOnError: false`; a client
   disconnect aborts the S3 upload. Part size defaults to 25 MiB, configurable
@@ -129,7 +145,8 @@ the web app, the landing site and the shared packages. Keep it current.
   request is rejected (413) up front when even the maximum part size can't
   fit the declared length. The cached client's 30 s `requestTimeout` is a
   socket-idle timeout, so it is fine for the server→S3 leg.
-  `server.requestTimeout = 0` and `headersTimeout = 60 s` keep long uploads alive.
+  `server.requestTimeout = 5 min` and `headersTimeout = 60 s` keep long
+  uploads alive without leaving a socket open forever.
 - Credential encryption is hybrid: AES-256-GCM payload, key wrapped with
   RSA-OAEP(SHA-256). Wire format (base64 JSON): `{ v: 1, k, iv, ct }`. The
   private key must be at least 2048 bits (checked at startup).
@@ -203,10 +220,14 @@ GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ k
 POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 if target exists, 413 if > 5 GB)
 ```
 
-Removed on purpose: copy/move routes (no UI), `does-user-exist`, session IP
-validation, folder-less single delete (use `objectKeys` with one key), presigned
-upload and multipart routes (uploads stream through the API instead, so no
-bucket CORS is required).
+Removed on purpose: a general-purpose copy/move route (no UI for it) —
+`POST …/objects/rename` above is the one copy the API does, and only because
+S3 has no native rename: it is a same-bucket `CopyObject` immediately
+followed by a `DeleteObject` of the source, not a route for copying or
+moving objects anywhere else. Also removed: `does-user-exist`, session IP
+validation, folder-less single delete (use `objectKeys` with one key), and
+presigned upload/multipart routes (uploads stream through the API instead,
+so no bucket CORS is required).
 
 ### Limits
 
@@ -268,6 +289,31 @@ which is exact for listings up to 1000 entries and per-block above that.
 - Sign-out clears the react-query cache and the session store.
 - The `/verify` page accepts `?email=` only. The code is never in a URL.
   The magic link is the Better Auth verify URL (`/auth/magic-link/verify?token=…&callbackURL=…`).
+
+### `/auth/*` routes
+
+`server.ts` mounts `app.all` for every method on every `/auth/*` path
+(Express's catch-all param) straight through to Better Auth's own router
+via `toNodeHandler(auth)`. That hands Better Auth its full endpoint
+surface there — dozens of routes covering session management
+(`/get-session`, `/sign-out`, `/list-sessions`, `/revoke-session(s)`, …),
+account management (`/update-user`, `/delete-user`, `/change-email`, …),
+the active `emailOTP` and `magicLink` plugins' endpoints, and — when
+`GITHUB_CLIENT_ID` is set — `/sign-in/social` and `/callback/:id` for
+GitHub. Nothing in `packages/auth/lib/auth.ts` restricts that list — the
+app's own surface is whatever those plugins plus Better Auth's core expose.
+
+Four specific paths never reach that router: `server.ts` intercepts
+non-`GET` requests to `/auth/email-otp/send-verification-otp`,
+`/auth/sign-in/magic-link`, `/auth/forget-password/email-otp` and
+`/auth/email-otp/reset-password` and returns a plain 404 before Better Auth
+sees them. The first two are pre-empted because this app only ever sends a
+combined OTP-plus-magic-link email (`POST /auth-flow/start`, see above) —
+calling either of Better Auth's own single-channel endpoints directly would
+send a partial email outside that flow and its rate limits. The other two
+are password-reset endpoints; this app has no `emailAndPassword` plugin and
+therefore no password to reset, so they're dead code paths that are 404'd
+rather than left reachable.
 
 ## Web (`apps/web`)
 

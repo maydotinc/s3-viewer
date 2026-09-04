@@ -21,8 +21,20 @@ type Message = {
 
 type Transport = (message: Message) => Promise<void>;
 
-const DEFAULT_FROM = `${PRODUCT_NAME} <info@may.inc>`;
-const from = process.env.EMAIL_FROM || DEFAULT_FROM;
+const DEV_FROM = `${PRODUCT_NAME} <dev@localhost>`;
+
+const resolveFrom = (): string => {
+   if (process.env.EMAIL_FROM) return process.env.EMAIL_FROM;
+   if (process.env.NODE_ENV === "production") {
+      throw new Error(
+         "EMAIL_FROM is required in production (there is no default sender — " +
+            "self-hosters must not send mail claiming to be from May Inc.)"
+      );
+   }
+   return DEV_FROM;
+};
+
+const from = resolveFrom();
 
 const resendTransport = (apiKey: string): Transport => {
    const resend = new Resend(apiKey);

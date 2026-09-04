@@ -5,9 +5,8 @@ import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import { ServerInfo } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
-// One shared instance so `servers` is referentially stable while there is no
-// data; an inline `= []` default would be a new array on every render and
-// re-trigger every effect that lists it as a dependency.
+// shared instance: an inline `= []` default would be a new array every render
+// and re-trigger every memo and effect depending on it.
 const NO_SERVERS: ServerInfo[] = [];
 
 const useServers = () => {

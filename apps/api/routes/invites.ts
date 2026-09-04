@@ -2,6 +2,7 @@ import { ApiHttpError, asyncHandler, noContent } from "@/lib/http";
 import { requireVerifiedUser } from "@/lib/middleware/authorize";
 import { validatedRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
+import { recordAudit } from "@/lib/services/audit";
 import {
    addressedTo,
    grantBucketRoles,
@@ -33,8 +34,7 @@ const listReceived = async (req: Request, res: Response) => {
    res.json({ invites: rows.map(toServerInvite) });
 };
 
-// Roles that may still revoke an invite; a sender who has since lost
-// MANAGE_MEMBERS on the server gets nothing to act on.
+// a sender who has since lost MANAGE_MEMBERS gets nothing to act on
 const MANAGING_ROLES = Object.values(Role).filter((role) =>
    hasPermission(role, Permission.MANAGE_MEMBERS)
 );
@@ -91,16 +91,32 @@ const acceptInvite = async (req: Request, res: Response) => {
       await grantBucketRoles(tx, user.id, invite.serverId, invite.bucketAccess);
       return toServerInfo(invite.server, role);
    });
+   await recordAudit({
+      action: "invite.accept",
+      actorId: user.id,
+      serverId: server.id,
+      target: user.email,
+   });
    res.json({ server });
 };
 
 const rejectInvite = async (req: Request, res: Response) => {
    const user = requireVerifiedUser(req);
    const { inviteId } = input<InviteIdInput>(res);
+   const invite = await prisma.pendingInvitation.findUnique({
+      where: { id: inviteId },
+      select: { serverId: true },
+   });
    const { count } = await prisma.pendingInvitation.deleteMany({
       where: { id: inviteId, email: addressedTo(user.email) },
    });
    if (count === 0) throw new ApiHttpError(404, NOT_FOUND);
+   await recordAudit({
+      action: "invite.reject",
+      actorId: user.id,
+      serverId: invite?.serverId,
+      target: user.email,
+   });
    noContent(res);
 };
 

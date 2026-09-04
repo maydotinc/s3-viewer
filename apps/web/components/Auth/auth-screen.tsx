@@ -67,7 +67,11 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
    const copy = COPY[mode];
    const reason =
       typeof router.query.reason === "string" ? router.query.reason : "";
-   const notice = NOTICES[reason] ?? null;
+   // own-property only: ?reason=toString would otherwise hand a prototype
+   // function to react as a child.
+   const notice = Object.hasOwn(NOTICES, reason)
+      ? (NOTICES[reason] ?? null)
+      : null;
 
    useEffect(() => {
       if (sessionState !== "signedIn" || redirected.current) return;

@@ -86,8 +86,8 @@ const CommandRow = ({
       </>
    );
 
-   // A navigating row is a real anchor, so Next prefetches it and ⌘-click
-   // still opens a tab; an unmodified click goes through `onSelect` like Enter.
+   // a real anchor, so next prefetches it and ⌘-click still opens a tab; an
+   // unmodified click goes through `onSelect` like enter.
    return command.href ? (
       <Link
          {...shared}

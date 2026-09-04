@@ -76,13 +76,14 @@ model Verification {
 }
 
 model Server {
-  id             String   @id @default(cuid())
-  name           String
-  provider       Provider @default(Other)
-  credentials    String
-  allowedBuckets String[] @default([])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  provider          Provider @default(Other)
+  credentials       String
+  allowedBuckets    String[] @default([])
+  restrictedBuckets Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   ownerId            String
   owner              User                @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
@@ -165,6 +166,21 @@ model InvitationBucketAccess {
   @@unique([invitationId, bucketName])
   @@index([invitationId])
   @@map("invitation_bucket_access")
+}
+
+// no relations on purpose: an audit record must survive deletion of the user or
+// server it refers to
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  actorId   String?
+  serverId  String?
+  target    String?
+  createdAt DateTime @default(now())
+
+  @@index([serverId, createdAt])
+  @@index([actorId, createdAt])
+  @@map("audit_log")
 }
 
 enum Role {

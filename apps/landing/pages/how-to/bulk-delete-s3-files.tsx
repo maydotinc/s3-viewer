@@ -11,7 +11,7 @@ const SLUG = "bulk-delete-s3-files";
 const TITLE = "How to bulk-delete S3 files";
 const KEYWORD = "bulk delete S3 files";
 const TLDR =
-   "Use the DeleteObjects API (plural) — up to 1,000 keys per request. From the AWS CLI: `aws s3 rm --recursive` against a prefix. From a tool: tick the checkboxes in S3 Viewer and hit Delete, which sends the selection as one batch. If the bucket has versioning on, each delete only adds a delete marker — you'll need to delete every version explicitly to actually purge.";
+   "Use the DeleteObjects API (plural) — up to 1,000 keys per request. From the AWS CLI: aws s3 rm --recursive against a prefix. From a tool: tick the checkboxes in S3 Viewer and hit Delete, which sends the selection as one batch. If the bucket has versioning on, each delete only adds a delete marker — you'll need to delete every version explicitly to actually purge.";
 
 const steps: HowToStep[] = [
    {
@@ -89,17 +89,17 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I bulk-delete files from S3?",
       answer:
-         "Use the DeleteObjects API (plural) — up to 1,000 keys per request. The simplest invocations: `aws s3 rm s3://bucket/prefix --recursive` from the CLI, or tick the checkboxes in S3 Viewer and click Delete. For programmatic deletes, use the SDK's DeleteObjectsCommand in batches of 1,000. The AWS S3 console handles single-key delete; for many keys at once, use the CLI, an SDK, or a tool like S3 Viewer that wraps the bulk API.",
+         "Use the DeleteObjects API (plural) — up to 1,000 keys per request. The simplest invocations: aws s3 rm s3://bucket/prefix --recursive from the CLI, or tick the checkboxes in S3 Viewer and click Delete. For programmatic deletes, use the SDK's DeleteObjectsCommand in batches of 1,000. The AWS S3 console handles single-key delete; for many keys at once, use the CLI, an SDK, or a tool like S3 Viewer that wraps the bulk API.",
    },
    {
       question: "How many objects can I delete in one S3 API call?",
       answer:
-         "Up to 1,000 per DeleteObjects request. For more, batch them — most SDKs and tools handle the batching for you. S3 Viewer batches automatically; the AWS CLI's `rm --recursive` does too.",
+         "Up to 1,000 per DeleteObjects request. For more, batch them — most SDKs and tools handle the batching for you. S3 Viewer batches automatically; the AWS CLI's rm --recursive does too.",
    },
    {
       question: "How do I delete all files in an S3 bucket prefix?",
       answer:
-         "From the CLI: `aws s3 rm s3://bucket/prefix/ --recursive` lists every key under the prefix and deletes them in 1,000-key batches. From S3 Viewer: open the ⋮ menu on the folder's row and choose Delete folder — it deletes everything under that prefix recursively, paging through the listing. Programmatically: list with ListObjectsV2 and call DeleteObjects.",
+         "From the CLI: aws s3 rm s3://bucket/prefix/ --recursive lists every key under the prefix and deletes them in 1,000-key batches. From S3 Viewer: open the ⋮ menu on the folder's row and choose Delete folder — it deletes everything under that prefix recursively, paging through the listing. Programmatically: list with ListObjectsV2 and call DeleteObjects.",
    },
    {
       question: "Why didn't my bulk delete remove my files?",
@@ -114,7 +114,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Does Cloudflare R2 support bulk delete?",
       answer:
-         "Yes. R2 implements DeleteObjects the same way as AWS S3 — up to 1,000 keys per request. The same CLI commands work with `--endpoint-url` set to R2; checkbox multi-select and Delete in S3 Viewer work against R2 buckets identically.",
+         "Yes. R2 implements DeleteObjects the same way as AWS S3 — up to 1,000 keys per request. The same CLI commands work with --endpoint-url set to R2; checkbox multi-select and Delete in S3 Viewer work against R2 buckets identically.",
    },
 ];
 

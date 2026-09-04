@@ -29,14 +29,12 @@ const ProfileDropdown = () => {
    const user = session?.user;
    const router = useRouter();
    const [open, setOpen] = useState(false);
-   // Written by the link's own click handler, which runs before Radix selects
-   // the item, so `onSelect` knows whether the browser is handling the click.
+   // written by the link's own click handler, which runs before radix selects
+   // the item, so `onSelect` knows the browser is handling the click.
    const modifiedClick = useRef(false);
 
-   // Navigating from the menu is one visual step: the menu stays up until the
-   // new page has rendered and closes together with the page change, instead
-   // of vanishing first and leaving the old page on screen until the route
-   // resolves.
+   // the menu stays up until the new page renders, instead of vanishing first
+   // and leaving the old page on screen until the route resolves.
    useEffect(() => {
       if (!open) return;
       const close = () => setOpen(false);
@@ -105,8 +103,7 @@ const ProfileDropdown = () => {
             <DropdownMenuItem
                variant="destructive"
                onSelect={() =>
-                  // signOut always clears local state and navigates to
-                  // /login, even when the request fails; just report it.
+                  // signOut still clears state and navigates on failure
                   void signOut().catch((error: unknown) =>
                      toast.error(errorMessage(error))
                   )

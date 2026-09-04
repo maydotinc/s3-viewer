@@ -1,4 +1,4 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
+import { useModalActions } from "@/lib/contexts/ModalContext";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { usePermission } from "@/lib/hooks/usePermission";
@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useRef } from "react";
 
 const BucketActions = () => {
-   const { openCreateBucketModal } = useModalContext();
+   const { openCreateBucketModal } = useModalActions();
    const { currentServer, isSessionPending, isServerListLoading } =
       useServers();
    const { refetch } = useBuckets();
@@ -43,10 +43,8 @@ const BucketActions = () => {
       handler: () => openCreateBucketModal({}),
    });
 
-   // While the session and server list load the real buttons render disabled
-   // rather than as placeholders: a placeholder can only approximate a label's
-   // width, so the row visibly settled when the buttons replaced it. Only the
-   // buttons this user is going to get are rendered at all.
+   // disabled real buttons while loading, not placeholders: a placeholder can
+   // only approximate a label's width, so the row visibly settled.
    return (
       <div
          ref={actionsRef}

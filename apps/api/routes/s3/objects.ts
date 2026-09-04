@@ -1,20 +1,24 @@
-import { env, MAX_UPLOAD_PART_BYTES } from "@/lib/env";
+import { env } from "@/lib/env";
 import { ApiHttpError, noContent } from "@/lib/http";
+import { getAuth } from "@/lib/middleware/authorize";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
 import { deleteKeys } from "@/lib/s3/delete";
 import { isNotFound, throwHttpError, toHttpError } from "@/lib/s3/errors";
 import { contentDispositionFilename, encodeCopySource } from "@/lib/s3/keys";
-import { listKeysPage, listPage } from "@/lib/s3/listing";
+import { existingKeys, listKeysPage, listPage } from "@/lib/s3/listing";
 import { presignedUrl } from "@/lib/s3/presign";
+import { recordAudit } from "@/lib/services/audit";
 import {
    declaredLength,
    exceedsLimit,
    exceedsMaxPartSize,
+   exceedsObjectLimit,
    isUploadTooLargeError,
    MAX_OBJECT_BYTES,
    MAX_PARTS,
+   maxPartBytesFor,
    partSizeFor,
    streamUpload,
 } from "@/lib/s3/upload";
@@ -52,6 +56,7 @@ import {
 import { Router, type Response } from "express";
 
 const HEAD_CONCURRENCY = 16;
+const EXISTS_LIST_THRESHOLD = 50;
 
 const objectsRouter = Router({ mergeParams: true });
 
@@ -76,6 +81,31 @@ const objectExists = async (
       if (isNotFound(err)) return false;
       throw toHttpError(err);
    }
+};
+
+const headExisting = (
+   client: S3Client,
+   bucket: string,
+   keys: readonly string[]
+): Promise<string[]> =>
+   mapLimit(keys, HEAD_CONCURRENCY, (key) =>
+      objectExists(client, bucket, key)
+   ).then((found) => keys.filter((_, i) => found[i]));
+
+// one HeadObject per key bills the bucket owner for the whole batch, so past a
+// small batch the answer comes from listings and only the keys the page budget
+// couldn't reach fall back to heads
+const whichExist = async (
+   client: S3Client,
+   bucket: string,
+   keys: string[]
+): Promise<string[]> => {
+   if (keys.length <= EXISTS_LIST_THRESHOLD) {
+      return headExisting(client, bucket, keys);
+   }
+   const { existing, unresolved } = await existingKeys(client, bucket, keys);
+   if (unresolved.length === 0) return existing;
+   return [...existing, ...(await headExisting(client, bucket, unresolved))];
 };
 
 const toMetadata = (head: HeadObjectCommandOutput): S3ObjectMetadata => ({
@@ -112,15 +142,6 @@ objectsRouter.get(
    )
 );
 
-objectsRouter.get(
-   "/metadata",
-   ...bucketRoute(Permission.LIST_OBJECTS, objectScope, async (req, res) => {
-      const { serverId, bucketName, objectKey } = input<ObjectScope>(res);
-      const client = await getS3Client(serverId);
-      res.json(toMetadata(await headObject(client, bucketName, objectKey)));
-   })
-);
-
 objectsRouter.post(
    "/exists",
    ...bucketRoute(
@@ -130,11 +151,8 @@ objectsRouter.post(
          const { serverId, bucketName, objectKeys } =
             input<ObjectKeysInput>(res);
          const client = await getS3Client(serverId);
-         const found = await mapLimit(objectKeys, HEAD_CONCURRENCY, (key) =>
-            objectExists(client, bucketName, key)
-         );
          const result: S3ObjectsExist = {
-            existing: objectKeys.filter((_, i) => found[i]),
+            existing: await whichExist(client, bucketName, objectKeys),
          };
          res.json(result);
       }
@@ -160,19 +178,18 @@ objectsRouter.get(
    ...bucketRoute(Permission.DOWNLOAD_OBJECT, objectScope, async (req, res) => {
       const { serverId, bucketName, objectKey } = input<ObjectScope>(res);
       const client = await getS3Client(serverId);
-      const { contentType, contentLength } = toMetadata(
+      const metadata = toMetadata(
          await headObject(client, bucketName, objectKey)
       );
       const command = new GetObjectCommand({
          Bucket: bucketName,
          Key: objectKey,
-         ResponseContentType: contentType,
+         ResponseContentType: metadata.contentType,
          ResponseContentDisposition: "inline",
       });
-      const preview: S3ObjectPreview = {
+      const preview: S3ObjectPreview & S3ObjectMetadata = {
          ...(await presignedUrl(client, command)),
-         contentType,
-         contentLength,
+         ...metadata,
       };
       res.json(preview);
    })
@@ -193,12 +210,23 @@ objectsRouter.put(
                `Uploads are limited to ${env.MAX_UPLOAD_BYTES} bytes`
             );
          }
-         if (exceedsMaxPartSize(contentLength, MAX_UPLOAD_PART_BYTES)) {
+         if (exceedsObjectLimit(contentLength)) {
             throw new ApiHttpError(
                413,
                `Uploads are limited to ${MAX_OBJECT_BYTES} bytes`
             );
          }
+         const maxPartBytes = maxPartBytesFor(env.UPLOAD_PART_BYTES);
+         if (exceedsMaxPartSize(contentLength, maxPartBytes)) {
+            throw new ApiHttpError(
+               413,
+               `Uploads over ${MAX_PARTS * maxPartBytes} bytes need a larger UPLOAD_PART_BYTES`
+            );
+         }
+
+         // a large upload can stream for hours, so this route drops the socket
+         // idle timeout instead of server.ts doing it for every route
+         req.setTimeout(0);
 
          const abortController = new AbortController();
          req.on("close", () => {
@@ -207,7 +235,7 @@ objectsRouter.put(
 
          const partSize = partSizeFor(contentLength, env.UPLOAD_PART_BYTES);
          const maxBytes = Math.min(
-            env.MAX_UPLOAD_BYTES ?? Number.POSITIVE_INFINITY,
+            env.MAX_UPLOAD_BYTES,
             MAX_PARTS * partSize,
             MAX_OBJECT_BYTES
          );
@@ -243,11 +271,16 @@ objectsRouter.delete(
       async (req, res) => {
          const { serverId, bucketName, objectKeys } =
             input<ObjectKeysInput>(res);
+         const { userId } = getAuth(res);
          const client = await getS3Client(serverId);
-         sendDeleteResult(
-            res,
-            await deleteKeys(client, bucketName, objectKeys)
-         );
+         const result = await deleteKeys(client, bucketName, objectKeys);
+         await recordAudit({
+            action: "object.delete",
+            actorId: userId,
+            serverId,
+            target: `${bucketName} (${result.deleted.length} objects)`,
+         });
+         sendDeleteResult(res, result);
       }
    )
 );
@@ -276,13 +309,17 @@ objectsRouter.post(
       async (req, res) => {
          const { serverId, bucketName, objectKey, newObjectKey } =
             input<RenameObjectInput>(res);
+         const { userId } = getAuth(res);
          const client = await getS3Client(serverId);
 
-         const source = await headObject(client, bucketName, objectKey);
+         const [source, destinationExists] = await Promise.all([
+            headObject(client, bucketName, objectKey),
+            objectExists(client, bucketName, newObjectKey),
+         ]);
          if ((source.ContentLength ?? 0) > MAX_RENAME_BYTES) {
             throw new ApiHttpError(413, "Objects over 5 GB can't be renamed");
          }
-         if (await objectExists(client, bucketName, newObjectKey)) {
+         if (destinationExists) {
             throw new ApiHttpError(
                409,
                "An object with that name already exists"
@@ -304,6 +341,12 @@ objectsRouter.post(
                new DeleteObjectCommand({ Bucket: bucketName, Key: objectKey })
             )
             .catch(throwHttpError);
+         await recordAudit({
+            action: "object.rename",
+            actorId: userId,
+            serverId,
+            target: `${bucketName}/${objectKey} -> ${newObjectKey}`,
+         });
          noContent(res);
       }
    )

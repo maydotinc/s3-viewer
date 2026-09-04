@@ -11,7 +11,7 @@ const SLUG = "download-file-from-s3";
 const TITLE = "How to download a file from S3";
 const KEYWORD = "download file from S3";
 const TLDR =
-   "Three patterns. In S3 Viewer, open the ⋮ menu on the row and choose Download (a 15-minute presigned URL is signed server-side, so your AWS keys never reach the browser, and the file saves under the last segment of its object key). Run `aws s3 cp s3://bucket/key ./` from a terminal. Or send someone a presigned URL — Copy link in the same menu — when they don't have AWS access.";
+   "Three patterns. In S3 Viewer, open the ⋮ menu on the row and choose Download (a 15-minute presigned URL is signed server-side, so your AWS keys never reach the browser, and the file saves under the last segment of its object key). Run aws s3 cp s3://bucket/key ./ from a terminal. Or send someone a presigned URL — Copy link in the same menu — when they don't have AWS access.";
 
 const steps: HowToStep[] = [
    {
@@ -72,12 +72,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I download a file from an S3 bucket?",
       answer:
-         "Easiest: open S3 Viewer in a browser, open the ⋮ menu on the file's row and choose Download — it fetches via a server-signed presigned URL and saves the file under the last segment of its object key. From a terminal: `aws s3 cp s3://bucket/key ./`. From an SDK: call GetObject and pipe the response body to a file. To share with someone who doesn't have AWS access: use Copy link in the same ⋮ menu, or `aws s3 presign`.",
+         "Easiest: open S3 Viewer in a browser, open the ⋮ menu on the file's row and choose Download — it fetches via a server-signed presigned URL and saves the file under the last segment of its object key. From a terminal: aws s3 cp s3://bucket/key ./. From an SDK: call GetObject and pipe the response body to a file. To share with someone who doesn't have AWS access: use Copy link in the same ⋮ menu, or aws s3 presign.",
    },
    {
       question: "How do I download an entire S3 prefix or folder?",
       answer:
-         "From the AWS CLI: `aws s3 sync s3://bucket/prefix ./local-dir` — it mirrors the prefix and skips files already on disk. Programmatically: list the prefix with ListObjectsV2 and GetObject each key in parallel.",
+         "From the AWS CLI: aws s3 sync s3://bucket/prefix ./local-dir — it mirrors the prefix and skips files already on disk. Programmatically: list the prefix with ListObjectsV2 and GetObject each key in parallel.",
    },
    {
       question: "How do I download a file from someone else's S3 bucket?",
@@ -92,7 +92,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Can I download from Cloudflare R2 the same way?",
       answer:
-         "Yes. R2 implements the S3 GetObject API and presigned URLs. The AWS CLI works against R2 with `--endpoint-url`; S3 Viewer's download flow is identical for R2 and AWS S3.",
+         "Yes. R2 implements the S3 GetObject API and presigned URLs. The AWS CLI works against R2 with --endpoint-url; S3 Viewer's download flow is identical for R2 and AWS S3.",
    },
 ];
 

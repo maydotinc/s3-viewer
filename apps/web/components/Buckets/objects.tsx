@@ -26,6 +26,7 @@ import {
 } from "./Grid/object-source";
 import { objectRowSelection } from "./Grid/selection";
 import ObjectsToolbar from "./toolbar";
+import useObjectCommands from "./useObjectCommands";
 import DropZone from "./Upload/drop-zone";
 import { UploadProvider } from "./Upload/provider";
 import BucketUnavailable from "./unavailable";
@@ -61,13 +62,14 @@ const Objects = () => {
    } = useBucketContext();
    const { filter } = useBucketFilter();
    const { gridRef, clearSelection } = useGridPaginationContext();
+   const commands = useObjectCommands(bucketName);
    const [failure, setFailure] = useState<ListFailure<ObjectDatasource> | null>(
       null
    );
    const [retrying, setRetrying] = useState(false);
    const listPrefix = `${prefix}${filter}`;
-   // The datasource the grid is actually using. Set in an effect, not inside
-   // useMemo: strict mode runs the memo twice and keeps the first result.
+   // tracked in an effect, not inside usememo: strict mode runs the memo twice
+   // and keeps the first result.
    const latest = useRef<ObjectDatasource | null>(null);
 
    const datasource = useMemo(() => {
@@ -102,8 +104,8 @@ const Objects = () => {
             api.purgeInfiniteCache();
             return;
          }
-         // The grid is hidden behind an error: prove the first page loads
-         // before showing it again, so "Try again" has a visible in-flight state.
+         // grid hidden behind an error: prove the first page loads before
+         // showing it again, so "try again" has an in-flight state.
          setRetrying(true);
          datasource
             .prime()
@@ -120,8 +122,8 @@ const Objects = () => {
    }, [registerRefresh, datasource, gridRef]);
 
    const gridContext = useMemo<ObjectGridContext>(
-      () => ({ bucketName, prefix }),
-      [bucketName, prefix]
+      () => ({ bucketName, prefix, commands }),
+      [bucketName, prefix, commands]
    );
 
    if (!session && !isSessionPending)

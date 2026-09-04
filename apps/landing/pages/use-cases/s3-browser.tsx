@@ -57,7 +57,7 @@ const faqs: UseCaseFAQ[] = [
       question:
          "Can I search across all keys in a bucket, not just one prefix?",
       answer:
-         "Not yet — search is a prefix filter on the folder you're currently in, and it doesn't recurse or span buckets. For a recursive sweep use `aws s3 ls s3://bucket --recursive | grep <query>`, or S3 Inventory + Athena on very large buckets.",
+         "Not yet — search is a prefix filter on the folder you're currently in, and it doesn't recurse or span buckets. For a recursive sweep use aws s3 ls s3://bucket --recursive | grep <query>, or S3 Inventory + Athena on very large buckets.",
    },
    {
       question: "What file types can I preview without downloading?",

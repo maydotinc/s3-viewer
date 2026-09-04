@@ -82,7 +82,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I switch between AWS profiles in the CLI?",
       answer:
-         "Set the AWS_PROFILE environment variable per command (`AWS_PROFILE=acme aws s3 ls`) or per shell (`export AWS_PROFILE=acme`). Profiles are configured in ~/.aws/credentials.",
+         "Set the AWS_PROFILE environment variable per command (AWS_PROFILE=acme aws s3 ls) or per shell (export AWS_PROFILE=acme). Profiles are configured in ~/.aws/credentials.",
    },
    {
       question: "Can I jump between an AWS bucket and a Cloudflare R2 bucket?",

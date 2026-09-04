@@ -7,8 +7,9 @@ import {
    type S3ObjectListPage,
 } from "@s3-viewer/types";
 import { logger } from "../logger";
-import { throwHttpError } from "./errors";
+import { throwBucketError } from "./errors";
 const MAX_CALLS_PER_PAGE = 20;
+const MAX_EXISTS_PAGES = 20;
 
 type ListPageArgs = {
    client: S3Client;
@@ -21,7 +22,7 @@ type ListPageArgs = {
 const utf8Before = (a: string, b: string): boolean =>
    Buffer.compare(Buffer.from(a), Buffer.from(b)) < 0;
 
-/** Both inputs arrive in S3's UTF-8 byte order, so one merge keeps the page in global key order. */
+// both inputs arrive in s3's utf-8 byte order, so one merge keeps global key order
 const mergeByKey = (a: S3Object[], b: S3Object[]): S3Object[] => {
    const out: S3Object[] = [];
    let i = 0;
@@ -66,7 +67,7 @@ const listPage = async ({
                ContinuationToken: token,
             })
          )
-         .catch(throwHttpError);
+         .catch(throwBucketError);
 
       for (const common of page.CommonPrefixes ?? []) {
          if (common.Prefix) {
@@ -119,7 +120,7 @@ const listKeysPage = async (
             ContinuationToken: continuationToken,
          })
       )
-      .catch(throwHttpError);
+      .catch(throwBucketError);
    const nextToken = page.IsTruncated ? page.NextContinuationToken : undefined;
    return {
       keys: (page.Contents ?? []).flatMap((o) => (o.Key ? [o.Key] : [])),
@@ -127,4 +128,80 @@ const listKeysPage = async (
    };
 };
 
-export { listKeysPage, listPage };
+type ExistingKeys = { existing: string[]; unresolved: string[] };
+
+// a cut between the halves of a surrogate pair leaves a lone unit that cannot be
+// utf-8 encoded, so s3 would receive u+fffd and match nothing
+const withoutLoneSurrogate = (value: string): string => {
+   const tail = value.charCodeAt(value.length - 1);
+   return tail >= 0xd800 && tail <= 0xdbff ? value.slice(0, -1) : value;
+};
+
+const commonPrefix = (keys: readonly string[]): string => {
+   let prefix = keys[0] ?? "";
+   for (const key of keys) {
+      let i = 0;
+      while (i < prefix.length && key[i] === prefix[i]) i++;
+      prefix = prefix.slice(0, i);
+      if (prefix === "") break;
+   }
+   return withoutLoneSurrogate(prefix);
+};
+
+const laterOf = (a: string, b: string): string => (utf8Before(a, b) ? b : a);
+
+// any proper prefix of a key sorts before it
+const justBefore = (key: string): string =>
+   withoutLoneSurrogate(key.slice(0, -1));
+
+// walks the keys in s3's own order: each page decides every key up to its last,
+// and whatever the page budget doesn't reach comes back unresolved for the
+// caller to head individually
+const existingKeys = async (
+   client: S3Client,
+   bucket: string,
+   keys: readonly string[]
+): Promise<ExistingKeys> => {
+   const wanted = new Set(keys);
+   const sorted = [...wanted].sort((a, b) => (utf8Before(a, b) ? -1 : 1));
+   const prefix = commonPrefix(sorted);
+   const existing: string[] = [];
+   let cursor = "";
+   let i = 0;
+
+   for (let calls = 0; calls < MAX_EXISTS_PAGES && i < sorted.length; calls++) {
+      const next = sorted[i];
+      const startAfter = laterOf(
+         cursor,
+         next === undefined ? "" : justBefore(next)
+      );
+      const page = await client
+         .send(
+            new ListObjectsV2Command({
+               Bucket: bucket,
+               Prefix: prefix || undefined,
+               MaxKeys: S3_MAX_KEYS_PER_REQUEST,
+               StartAfter: startAfter || undefined,
+            })
+         )
+         .catch(throwBucketError);
+
+      let last: string | undefined;
+      for (const object of page.Contents ?? []) {
+         if (!object.Key) continue;
+         last = object.Key;
+         if (wanted.has(object.Key)) existing.push(object.Key);
+      }
+      if (!page.IsTruncated) {
+         i = sorted.length;
+         break;
+      }
+      if (last === undefined) break;
+      cursor = last;
+      while (i < sorted.length && !utf8Before(last, sorted[i] ?? last)) i++;
+   }
+
+   return { existing, unresolved: sorted.slice(i) };
+};
+
+export { existingKeys, listKeysPage, listPage };

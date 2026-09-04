@@ -1,5 +1,5 @@
 import { PROVIDER_NAMES } from "@/lib/constants";
-import { useModalContext } from "@/lib/contexts/ModalContext";
+import { useModalActions } from "@/lib/contexts/ModalContext";
 import { signOut } from "@/lib/auth";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
@@ -48,7 +48,7 @@ const useCommands = (): CommandItem[] => {
       openDisconnectModal,
       openRenameModal,
       openUpdateCredentialsModal,
-   } = useModalContext();
+   } = useModalActions();
 
    const canCreateBucket = usePermission(Permission.CREATE_BUCKET);
    const canManageMembers = usePermission(Permission.MANAGE_MEMBERS);

@@ -69,7 +69,7 @@ const MemberRow = ({
 
    const manageable = !isMe && canManageRole(myRole, member.role);
    const panelId = `member-${member.id}-buckets`;
-   // Owners implicitly hold every bucket, so a count would be misleading.
+   // owners implicitly hold every bucket, so a count would mislead
    const isOwner = member.role === Role.OWNER;
    const bucketSummary = isOwner
       ? "All buckets"

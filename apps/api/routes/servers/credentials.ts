@@ -9,6 +9,7 @@ import {
    invalidateS3Client,
 } from "@/lib/s3/client-cache";
 import { assertCredentialsWork } from "@/lib/s3/probe";
+import { recordAudit } from "@/lib/services/audit";
 import {
    isMissingRow,
    readCredentials,
@@ -30,7 +31,7 @@ const credentialsRouter: Router = Router();
 const updateCredentials = async (_req: Request, res: Response) => {
    const { serverId, encryptedCredentials } =
       input<UpdateCredentialsInput>(res);
-   const { serverRole } = getAuth(res);
+   const { userId, serverRole } = getAuth(res);
    const credentials = readCredentials(encryptedCredentials);
    await assertPublicEndpoint(credentials.endpoint);
 
@@ -54,6 +55,11 @@ const updateCredentials = async (_req: Request, res: Response) => {
          select: serverInfoSelect,
       });
       invalidateS3Client(serverId);
+      await recordAudit({
+         action: "credentials.update",
+         actorId: userId,
+         serverId,
+      });
       res.json({ server: toServerInfo(server, serverRole) });
    } catch (err) {
       if (isMissingRow(err)) throw new ApiHttpError(404, SERVER_NOT_FOUND);

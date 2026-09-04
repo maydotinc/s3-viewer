@@ -103,7 +103,7 @@ export const HOW_TOS: HowToEntry[] = [
    {
       slug: "search-across-s3-buckets",
       title: "How to search across S3 buckets",
-      shortTitle: "Search across buckets",
+      shortTitle: "Search inside a bucket",
       tagline:
          "S3 has no search API. Filter by prefix in the current folder, or reach for S3 Inventory + Athena.",
       keyword: "search S3 buckets",

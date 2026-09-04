@@ -11,7 +11,7 @@ const SLUG = "delete-file-from-s3";
 const TITLE = "How to delete a file from S3 safely";
 const KEYWORD = "delete file from S3";
 const TLDR =
-   "Run `aws s3 rm s3://bucket/key`, or open the ⋮ menu on the row in S3 Viewer and choose Delete. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For several objects at once, tick the checkboxes in S3 Viewer and hit Delete: the selection goes out as one DeleteObjects call. If MFA Delete is enabled, you'll need an MFA token.";
+   "Run aws s3 rm s3://bucket/key, or open the ⋮ menu on the row in S3 Viewer and choose Delete. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For several objects at once, tick the checkboxes in S3 Viewer and hit Delete: the selection goes out as one DeleteObjects call. If MFA Delete is enabled, you'll need an MFA token.";
 
 const steps: HowToStep[] = [
    {
@@ -64,7 +64,7 @@ const steps: HowToStep[] = [
       body: (
          <>
             If MFA Delete is enabled on the bucket, deleting any version
-            requires the bucket owner&apos;s MFA token. Plan accordingly — this
+            requires the root account&apos;s MFA token. Plan accordingly — this
             is on by design for compliance buckets.
          </>
       ),
@@ -75,12 +75,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I delete a file from S3?",
       answer:
-         "From the AWS CLI: `aws s3 rm s3://bucket/key`. From a tool: open the ⋮ menu on the row in S3 Viewer and choose Delete, or tick several checkboxes and use the Delete button to send them as one DeleteObjects call. For prefixes from the CLI: `aws s3 rm s3://bucket/prefix --recursive`. If the bucket has versioning enabled, this only adds a delete marker — see below for permanent deletion.",
+         "From the AWS CLI: aws s3 rm s3://bucket/key. From a tool: open the ⋮ menu on the row in S3 Viewer and choose Delete, or tick several checkboxes and use the Delete button to send them as one DeleteObjects call. For prefixes from the CLI: aws s3 rm s3://bucket/prefix --recursive. If the bucket has versioning enabled, this only adds a delete marker — see below for permanent deletion.",
    },
    {
       question: "Why does my deleted S3 file still appear?",
       answer:
-         "Almost always versioning. On a versioned bucket, `aws s3 rm` adds a delete marker rather than purging the object — the prior versions are still there (and still billed). To fully remove the file, delete the specific version IDs with `aws s3api delete-object --version-id`.",
+         "Almost always versioning. On a versioned bucket, aws s3 rm adds a delete marker rather than purging the object — the prior versions are still there (and still billed). To fully remove the file, delete the specific version IDs with aws s3api delete-object --version-id.",
    },
    {
       question: "Can I undo a delete in S3?",
@@ -90,12 +90,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I delete an entire S3 folder?",
       answer:
-         "From the CLI: `aws s3 rm s3://bucket/prefix/ --recursive` lists every key under the prefix and deletes them. From S3 Viewer: open the ⋮ menu on the folder's row and choose Delete folder, which walks the prefix and deletes everything under it. Remember S3 has no folders — you're deleting every key sharing that prefix.",
+         "From the CLI: aws s3 rm s3://bucket/prefix/ --recursive lists every key under the prefix and deletes them. From S3 Viewer: open the ⋮ menu on the folder's row and choose Delete folder, which walks the prefix and deletes everything under it. Remember S3 has no folders — you're deleting every key sharing that prefix.",
    },
    {
       question: "How do I bulk-delete multiple S3 files?",
       answer:
-         "The S3 API supports DeleteObjects (plural) — up to 1,000 keys per request. S3 Viewer wraps it in checkbox multi-select, so ticking the rows and hitting Delete clears the lot in one round trip. From the CLI, `aws s3 rm --recursive` with a prefix does the same thing.",
+         "The S3 API supports DeleteObjects (plural) — up to 1,000 keys per request. S3 Viewer wraps it in checkbox multi-select, so ticking the rows and hitting Delete clears the lot in one round trip. From the CLI, aws s3 rm --recursive with a prefix does the same thing.",
    },
    {
       question: "What is MFA Delete in S3?",

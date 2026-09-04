@@ -62,8 +62,8 @@ const GridPagination = ({ className }: { className?: string }) => {
    const disabled = !gridReady;
 
    const from = rowCount === 0 ? 0 : page * pageSize + 1;
-   // The infinite model grows rowCount a block at a time, so it can briefly sit
-   // below the current page's first row — clamp rather than print "101–100".
+   // rowCount grows a block at a time, so it can briefly sit below the page's
+   // first row — clamp rather than print "101–100".
    const to = Math.max(from, Math.min((page + 1) * pageSize, rowCount));
    const summary =
       rowCount === 0
@@ -80,8 +80,6 @@ const GridPagination = ({ className }: { className?: string }) => {
             className
          )}
       >
-         {/* The controls always win the row: the summary disappears rather
-             than truncating to a fragment like "S…". */}
          <span className="hidden min-w-0 truncate text-sm text-viewertext tabular-nums md:block">
             {gridReady ? summary : ""}
          </span>

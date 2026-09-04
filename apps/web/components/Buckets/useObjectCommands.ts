@@ -1,21 +1,39 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
-import { usePermission } from "@/lib/hooks/usePermission";
+import { useModalActions } from "@/lib/contexts/ModalContext";
+import { useEffectiveRole } from "@/lib/hooks/usePermission";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { getDownloadUrl, saveFromUrl } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
-import { Permission } from "@s3-viewer/permissions";
+import { Permission, hasPermission } from "@s3-viewer/permissions";
 import { PRESIGN_EXPIRY_SECONDS, baseName } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useCallback, useMemo } from "react";
 import { useBucketContext } from "./Context";
 
-const useObjectCommands = (bucketName: string) => {
+type ObjectPermissions = {
+   download: boolean;
+   rename: boolean;
+   delete: boolean;
+};
+
+type ObjectCommands = {
+   can: ObjectPermissions;
+   download: (objectKey: string) => Promise<void>;
+   copyLink: (objectKey: string) => Promise<void>;
+   rename: (
+      objectKey: string,
+      onSuccess?: (newObjectKey: string) => void
+   ) => void;
+   remove: (objectKeys: string[], onSuccess?: () => void) => void;
+};
+
+const useObjectCommands = (bucketName: string): ObjectCommands => {
    const serverId = useSessionStore((state) => state.serverId);
-   const { openRenameObjectModal, openConfirmDeleteModal } = useModalContext();
+   const { openRenameObjectModal, openConfirmDeleteModal } = useModalActions();
    const { refresh } = useBucketContext();
 
-   const canDownload = usePermission(Permission.DOWNLOAD_OBJECT, bucketName);
-   const canDelete = usePermission(Permission.DELETE_OBJECT, bucketName);
+   const role = useEffectiveRole(bucketName);
+   const canDownload = hasPermission(role, Permission.DOWNLOAD_OBJECT);
+   const canDelete = hasPermission(role, Permission.DELETE_OBJECT);
 
    const download = useCallback(
       async (objectKey: string) => {
@@ -93,3 +111,4 @@ const useObjectCommands = (bucketName: string) => {
 };
 
 export default useObjectCommands;
+export type { ObjectCommands, ObjectPermissions };

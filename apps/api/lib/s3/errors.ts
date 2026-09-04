@@ -1,7 +1,11 @@
 import { ErrorCode } from "@s3-viewer/types";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
-import { classifyListBucketsError, classifyS3Error } from "./classify";
+import {
+   classifyBucketError,
+   classifyListBucketsError,
+   classifyS3Error,
+} from "./classify";
 
 const CREDENTIALS_UNREADABLE_MESSAGE =
    "Server credentials can't be read. Update them to continue.";
@@ -34,12 +38,17 @@ const throwListBucketsError = (err: unknown): never => {
    throw mapError(err, classifyListBucketsError);
 };
 
+const throwBucketError = (err: unknown): never => {
+   throw mapError(err, classifyBucketError);
+};
+
 const isNotFound = (err: unknown): boolean =>
    classifyS3Error(err).status === 404;
 
 export {
    credentialsUnreadableError,
    isNotFound,
+   throwBucketError,
    throwHttpError,
    throwListBucketsError,
    toHttpError,

@@ -61,11 +61,6 @@ const SKELETON_ROWS = 12;
 
 const BAR = "h-3.5 rounded";
 
-/**
- * The bar a cell shows where its text will be (DESIGN.md §3). Exported so the
- * cells AG Grid renders for a not-yet-loaded row use the same weight as the
- * standalone skeleton, and so the two never drift apart.
- */
 const CellBar = ({ className }: { className?: string }) => (
    <Skeleton className={cn(BAR, className)} />
 );

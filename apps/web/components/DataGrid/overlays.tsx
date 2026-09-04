@@ -1,4 +1,4 @@
-import { useModalContext } from "@/lib/contexts/ModalContext";
+import { useModalActions } from "@/lib/contexts/ModalContext";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { Permission } from "@s3-viewer/permissions";
@@ -73,7 +73,7 @@ const CredentialsErrorState = ({
    retrying,
 }: { message: string } & RetryProps) => {
    const { currentServer } = useServers();
-   const { openUpdateCredentialsModal } = useModalContext();
+   const { openUpdateCredentialsModal } = useModalActions();
    const canUpdate =
       usePermission(Permission.UPDATE_CREDENTIALS) && Boolean(currentServer);
 

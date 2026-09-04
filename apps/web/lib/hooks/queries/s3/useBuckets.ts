@@ -4,6 +4,10 @@ import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import type { S3Bucket } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
+// shared instance: an inline `= []` default would be a new array every render
+// and re-trigger every memo and effect depending on it.
+const NO_BUCKETS: S3Bucket[] = [];
+
 const useBuckets = (bucketName?: string) => {
    const userId = useUserId();
    const serverId = useSessionStore((state) => state.serverId);
@@ -20,7 +24,7 @@ const useBuckets = (bucketName?: string) => {
       enabled,
    });
 
-   const buckets = query.data ?? [];
+   const buckets = query.data ?? NO_BUCKETS;
    const currentBucket = bucketName
       ? buckets.find((bucket) => bucket.name === bucketName)
       : undefined;
@@ -36,3 +40,4 @@ const useBuckets = (bucketName?: string) => {
 };
 
 export default useBuckets;
+export { NO_BUCKETS };

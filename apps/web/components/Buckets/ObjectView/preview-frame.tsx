@@ -12,10 +12,7 @@ const PreviewLoading = () => (
    </div>
 );
 
-/**
- * Text straight from the presigned URL, sandboxed. Needs no CORS on the
- * bucket, which is why it is also the fallback for the richer viewers.
- */
+// loads the presigned url directly, so the bucket needs no cors
 const TextFrame = ({ url, fileName }: { url: string; fileName: string }) => (
    <div className={PREVIEW_BOX}>
       <iframe

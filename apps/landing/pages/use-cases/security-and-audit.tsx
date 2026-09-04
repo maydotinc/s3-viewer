@@ -26,7 +26,7 @@ const DESCRIPTION =
 const steps: UseCaseStep[] = [
    {
       title: "Connect with least-privilege keys",
-      body: "Use an IAM policy scoped to the buckets and operations you actually need — typically s3:ListBucket, s3:GetObject, s3:PutObject, and s3:DeleteObject on specific bucket ARNs. If your token can't ListBuckets, name the buckets it may reach when you add the server.",
+      body: "Use an IAM policy scoped to the buckets and operations you actually need — typically s3:ListBucket, s3:GetObject, s3:PutObject, and s3:DeleteObject on specific bucket ARNs. If your token can't call ListBuckets, name the buckets it may reach when you add the server.",
    },
    {
       title: "Invite the team — no IAM users to mint",
@@ -47,7 +47,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Do you store the contents of my S3 objects?",
       answer:
-         "No. Uploads pass through our API as a stream — the bytes go from your browser into your bucket in 25 MB parts, in memory, and are never written to disk or kept once the upload finishes; it is what lets uploads work without any CORS or bucket configuration. Downloads and previews go straight from your bucket to your browser over 15-minute presigned URLs and never touch us. Everything else the API does moves no object data: listing, metadata, signing download links, rename (a server-side copy plus a delete), delete and bucket creation. There is no object cache, no object database, and no object storage on our side.",
+         "No. Uploads pass through our API as a stream — the bytes go from your browser into your bucket in 25 MB parts, in memory, and are never written to disk or kept once the upload finishes; streaming them this way is what lets uploads work without any CORS or bucket configuration. Downloads and previews go straight from your bucket to your browser over 15-minute presigned URLs and never touch us. Everything else the API does moves no object data: listing, metadata, signing download links, rename (a server-side copy plus a delete), delete and bucket creation. There is no object cache, no object database, and no object storage on our side.",
    },
    {
       question: "How is this safer than minting IAM users for every teammate?",

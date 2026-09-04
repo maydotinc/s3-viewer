@@ -1,11 +1,14 @@
 import { SERVER_NOT_FOUND } from "@/lib/constants";
+import { env } from "@/lib/env";
 import { ApiHttpError, asyncHandler, noContent } from "@/lib/http";
 import { getAuth, requireUser } from "@/lib/middleware/authorize";
 import { serverRoute, validatedRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { invalidateS3Client } from "@/lib/s3/client-cache";
+import { recordAudit } from "@/lib/services/audit";
 import { removeMembership } from "@/lib/services/members";
 import {
+   exceedsServerCap,
    isMissingRow,
    isUniqueViolation,
    readCredentials,
@@ -15,6 +18,7 @@ import {
 import { detectProvider } from "@/lib/utils/detect-provider";
 import { assertPublicEndpoint } from "@/lib/utils/endpoint";
 import { prisma } from "@s3-viewer/db";
+import { MAX_SERVERS_PER_USER } from "@s3-viewer/types";
 import { Permission } from "@s3-viewer/permissions";
 import {
    Role,
@@ -47,6 +51,16 @@ const createServer = async (req: Request, res: Response) => {
       input<CreateServerInput>(res);
    const credentials = readCredentials(encryptedCredentials);
    await assertPublicEndpoint(credentials.endpoint);
+   const owned = await prisma.server.count({ where: { ownerId: user.id } });
+   if (exceedsServerCap(owned)) {
+      const contact = env.SUPPORT_EMAIL
+         ? ` Contact ${env.SUPPORT_EMAIL} for a higher limit.`
+         : "";
+      throw new ApiHttpError(
+         409,
+         `You can create at most ${MAX_SERVERS_PER_USER} servers. Delete one to add another.${contact}`
+      );
+   }
    try {
       const server = await prisma.server.create({
          data: {
@@ -54,10 +68,17 @@ const createServer = async (req: Request, res: Response) => {
             provider: detectProvider(credentials.endpoint),
             credentials: encryptedCredentials,
             allowedBuckets: bucketNames ?? [],
+            restrictedBuckets: (bucketNames?.length ?? 0) > 0,
             ownerId: user.id,
             serverAccess: { create: { userId: user.id, role: Role.OWNER } },
          },
          select: serverInfoSelect,
+      });
+      await recordAudit({
+         action: "server.create",
+         actorId: user.id,
+         serverId: server.id,
+         target: server.name,
       });
       res.status(201).json({ server: toServerInfo(server, Role.OWNER) });
    } catch (err) {
@@ -68,12 +89,18 @@ const createServer = async (req: Request, res: Response) => {
 
 const renameServer = async (_req: Request, res: Response) => {
    const { serverId, serverName } = input<RenameServerInput>(res);
-   const { serverRole } = getAuth(res);
+   const { userId, serverRole } = getAuth(res);
    try {
       const server = await prisma.server.update({
          where: { id: serverId },
          data: { name: serverName },
          select: serverInfoSelect,
+      });
+      await recordAudit({
+         action: "server.rename",
+         actorId: userId,
+         serverId,
+         target: server.name,
       });
       res.json({ server: toServerInfo(server, serverRole) });
    } catch (err) {
@@ -85,8 +112,14 @@ const renameServer = async (_req: Request, res: Response) => {
 
 const deleteServer = async (_req: Request, res: Response) => {
    const { serverId } = input<ServerScope>(res);
+   const { userId } = getAuth(res);
    await prisma.server.deleteMany({ where: { id: serverId } });
    invalidateS3Client(serverId);
+   await recordAudit({
+      action: "server.delete",
+      actorId: userId,
+      serverId,
+   });
    noContent(res);
 };
 
@@ -100,6 +133,7 @@ const leaveServer = async (_req: Request, res: Response) => {
       );
    }
    await removeMembership(userId, serverId);
+   await recordAudit({ action: "server.leave", actorId: userId, serverId });
    noContent(res);
 };
 

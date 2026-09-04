@@ -36,7 +36,8 @@ type MutationConfig = {
       objectKeys: string[];
       signal?: AbortSignal;
    }) => Promise<unknown>;
-   onSuccess: (result: unknown, params: unknown) => void;
+   onSuccess: (result: unknown) => void;
+   onSettled: (result: unknown, error: unknown, params: unknown) => void;
 };
 
 let mutationConfig: MutationConfig | undefined;
@@ -52,7 +53,7 @@ const { ApiError } = await import("@/lib/api");
 const { default: useDeleteObjects } = await import("./useDeleteObjects");
 
 describe("useDeleteObjects", () => {
-   it("stops before starting the next batch once the signal is already aborted", async () => {
+   it("settles as cancelled, not success, once the signal is already aborted", async () => {
       apiDelete.mockReset();
       const controller = new AbortController();
       apiDelete.mockImplementationOnce(async () => {
@@ -61,17 +62,18 @@ describe("useDeleteObjects", () => {
       });
 
       useDeleteObjects();
-      const summary = await mutationConfig?.mutationFn({
-         bucketName: "b",
-         objectKeys: ["a", "b", "c"],
-         signal: controller.signal,
-      });
+      await expect(
+         mutationConfig?.mutationFn({
+            bucketName: "b",
+            objectKeys: ["a", "b", "c"],
+            signal: controller.signal,
+         })
+      ).rejects.toMatchObject({ code: "ABORTED" });
 
       expect(apiDelete).toHaveBeenCalledTimes(1);
-      expect(summary).toEqual({ deleted: 1, failedTotal: 0, failed: [] });
    });
 
-   it("keeps the partial summary and doesn't throw when a batch rejects with an abort", async () => {
+   it("settles as cancelled when a batch itself rejects with an abort", async () => {
       apiDelete.mockReset();
       apiDelete
          .mockImplementationOnce(async () => ({
@@ -83,13 +85,27 @@ describe("useDeleteObjects", () => {
          });
 
       useDeleteObjects();
-      const summary = await mutationConfig?.mutationFn({
-         bucketName: "b",
-         objectKeys: ["a", "b", "c"],
-      });
+      await expect(
+         mutationConfig?.mutationFn({
+            bucketName: "b",
+            objectKeys: ["a", "b", "c"],
+         })
+      ).rejects.toMatchObject({ code: "ABORTED" });
 
       expect(apiDelete).toHaveBeenCalledTimes(2);
-      expect(summary).toEqual({ deleted: 1, failedTotal: 0, failed: [] });
+   });
+
+   it("reports nothing when a cancelled run never reaches onSuccess", () => {
+      toast.success.mockClear();
+      toast.error.mockClear();
+      useDeleteObjects();
+      mutationConfig?.onSettled(
+         undefined,
+         new ApiError(0, "Request cancelled", "ABORTED"),
+         { bucketName: "b", objectKeys: ["a"] }
+      );
+      expect(toast.success).not.toHaveBeenCalled();
+      expect(toast.error).not.toHaveBeenCalled();
    });
 
    it("still throws, and reports nothing deleted, for a real (non-abort) failure", async () => {
@@ -104,11 +120,12 @@ describe("useDeleteObjects", () => {
       ).rejects.toThrow("boom");
    });
 
-   it("invalidates the cache for a partial (aborted) result via onSuccess", () => {
+   it("invalidates the cache for a cancelled run via onSettled", () => {
       forgetKeys.mockClear();
       useDeleteObjects();
-      mutationConfig?.onSuccess(
-         { deleted: 1, failedTotal: 0, failed: [] },
+      mutationConfig?.onSettled(
+         undefined,
+         new ApiError(0, "Request cancelled", "ABORTED"),
          { bucketName: "b", objectKeys: ["a", "b", "c"] }
       );
       expect(forgetKeys).toHaveBeenCalledWith({}, "user-1", "srv", "b", [

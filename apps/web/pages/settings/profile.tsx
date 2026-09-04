@@ -10,7 +10,7 @@ const SettingsProfilePage: NextPageWithLayout = () => (
    <>
       <Seo
          title="Profile settings"
-         description="Your name, photo and account."
+         description="Your name and account."
          canonical={SITE_PATHS.settingsProfile}
       />
       <SettingsShell>

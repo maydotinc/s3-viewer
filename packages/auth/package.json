@@ -2,6 +2,7 @@
    "name": "@s3-viewer/auth",
    "version": "0.0.0",
    "private": true,
+   "license": "MIT",
    "type": "module",
    "scripts": {
       "lint": "eslint . --max-warnings 0",

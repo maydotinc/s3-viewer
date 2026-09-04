@@ -1,7 +1,8 @@
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
+import { ApiError, isAborted } from "@/lib/api";
 import useRemoveBucket from "@/lib/hooks/mutations/bucket/useRemoveBucket";
-import { toastError } from "@/lib/utils/toast";
 import { toast } from "@s3-viewer/ui/components/toast";
+import { useState } from "react";
 
 type RemoveBucketDialogProps = {
    bucketName: string;
@@ -10,6 +11,10 @@ type RemoveBucketDialogProps = {
    onRemoved?: () => void;
 };
 
+// a 409 is a refusal about the server's bucket scope, so retrying can't help
+const isPermanent = (error: Error | null): boolean =>
+   error instanceof ApiError && error.status === 409;
+
 const RemoveBucketDialog = ({
    bucketName,
    open,
@@ -17,22 +22,35 @@ const RemoveBucketDialog = ({
    onRemoved,
 }: RemoveBucketDialogProps) => {
    const removeBucket = useRemoveBucket();
+   const [error, setError] = useState<Error | null>(null);
+   const blocked = isPermanent(error);
 
-   const confirm = () =>
+   const close = () => {
+      setError(null);
+      onOpenChange(false);
+   };
+
+   const confirm = () => {
+      if (blocked || removeBucket.isPending) return;
+      setError(null);
       removeBucket.mutate(bucketName, {
          onSuccess: () => {
             toast.success(`${bucketName} removed from this server.`);
-            onOpenChange(false);
+            close();
             onRemoved?.();
          },
-         onError: toastError("Couldn't remove the bucket"),
+         onError: (failure) => {
+            if (isAborted(failure)) return;
+            setError(failure);
+         },
       });
+   };
 
    return (
       <ConfirmDialog
          open={open}
          closable={!removeBucket.isPending}
-         onClose={() => onOpenChange(false)}
+         onClose={close}
          title="Remove bucket"
          description={
             <>
@@ -43,6 +61,8 @@ const RemoveBucketDialog = ({
                from this server for every member. Nothing in S3 is deleted.
             </>
          }
+         error={error?.message}
+         confirmDisabled={blocked}
          confirmVariant="destructive"
          confirmLabel="Remove bucket"
          isPending={removeBucket.isPending}

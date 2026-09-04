@@ -63,7 +63,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Can I copy or move files between S3 and R2?",
       answer:
-         "Not from S3 Viewer. S3's CopyObject needs the source and destination to share an endpoint, and we deliberately keep object bytes out of our request path, so there is nowhere for a cross-provider copy to happen. Use rclone sync or the AWS CLI for the transfer, and S3 Viewer to browse and verify both buckets — the how-to guide walks through it.",
+         "Not from S3 Viewer. S3's CopyObject needs the source and destination to share an endpoint, and S3 Viewer has no cross-provider copy operation at all, so there is nowhere for one to happen. Use rclone sync or the AWS CLI for the transfer, and S3 Viewer to browse and verify both buckets — the how-to guide walks through it.",
    },
    {
       question: "Do my credentials get sent to your server?",

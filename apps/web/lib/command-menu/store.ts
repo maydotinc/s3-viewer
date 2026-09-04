@@ -1,10 +1,8 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-/**
- * More ids than the Recent group ever shows, so a renamed bucket or a
- * revoked permission thins the list without emptying it.
- */
+// more ids than Recent ever shows, so a renamed bucket or a revoked
+// permission thins the list without emptying it.
 const RECENT_LIMIT = 12;
 
 type CommandMenuStore = {
