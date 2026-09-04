@@ -1,3 +1,4 @@
+import FormError from "@/components/Modals/form-error";
 import { authClient } from "@/lib/auth";
 import useUpdateProfile from "@/lib/hooks/mutations/user/useUpdateProfile";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -63,11 +64,7 @@ const ProfileCard = () => {
                      if (nameError) setNameError(null);
                   }}
                />
-               {nameError && (
-                  <p className="text-xs text-viewertextred" role="alert">
-                     {nameError}
-                  </p>
-               )}
+               <FormError>{nameError}</FormError>
             </div>
             <div className="flex flex-col gap-2">
                <Label htmlFor="profile-email">Email</Label>

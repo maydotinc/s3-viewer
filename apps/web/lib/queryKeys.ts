@@ -30,6 +30,8 @@ const queryKeys = {
    receivedInvites: (userId: string) => ["user", userId, "invites"] as const,
    sentInvitesAll: (userId: string) =>
       ["user", userId, "sent-invites"] as const,
+   accountSummary: (userId: string) =>
+      ["user", userId, "account-summary"] as const,
    buckets: (userId: string, serverId: string) =>
       [...server(userId, serverId), "buckets"] as const,
    bucket,

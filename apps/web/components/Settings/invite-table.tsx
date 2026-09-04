@@ -1,7 +1,6 @@
 import { formatDay } from "@/lib/utils/format";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import type { Role } from "@s3-viewer/types";
-import { Badge } from "@s3-viewer/ui/components/badge";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import {
    Table,
@@ -24,7 +23,7 @@ type InviteTableProps = {
 const SKELETON_ROWS = 3;
 
 const InviteTable = ({ columns, children }: InviteTableProps) => (
-   <Table className="border-t border-viewerborder">
+   <Table>
       <TableHeader>
          <TableRow>
             {columns.map(({ label, align }) => (
@@ -44,7 +43,13 @@ const InviteTable = ({ columns, children }: InviteTableProps) => (
    </Table>
 );
 
-const InviteTableSkeleton = ({ columns }: { columns: number }) => (
+const InviteTableSkeleton = ({
+   columns,
+   actions,
+}: {
+   columns: number;
+   actions: "icon" | "pair";
+}) => (
    <>
       {Array.from({ length: SKELETON_ROWS }).map((_, row) => (
          <TableRow key={row} aria-busy="true" className="hover:bg-transparent">
@@ -54,7 +59,14 @@ const InviteTableSkeleton = ({ columns }: { columns: number }) => (
                </TableCell>
             ))}
             <TableCell>
-               <Skeleton className="ml-auto size-8 rounded-lg" />
+               {actions === "icon" ? (
+                  <Skeleton className="ml-auto size-8 rounded-lg" />
+               ) : (
+                  <div className="flex justify-end gap-2">
+                     <Skeleton className="h-8 w-16 rounded-lg" />
+                     <Skeleton className="h-8 w-16 rounded-lg" />
+                  </div>
+               )}
             </TableCell>
          </TableRow>
       ))}
@@ -62,9 +74,7 @@ const InviteTableSkeleton = ({ columns }: { columns: number }) => (
 );
 
 const RoleCell = ({ role }: { role: Role }) => (
-   <TableCell>
-      <Badge variant="outline">{ROLE_LABELS[role]}</Badge>
-   </TableCell>
+   <TableCell className="text-viewertext">{ROLE_LABELS[role]}</TableCell>
 );
 
 const ExpiresCell = ({ expiresAt }: { expiresAt: string }) => {

@@ -7,7 +7,7 @@ import Link from "next/link";
 import ProfileDropdown from "./profile-dropdown";
 
 const ViewerBanner = () => (
-   <header className="flex h-14 w-full shrink-0 items-center justify-between gap-4 border-b border-viewerborder bg-viewerwhite px-6">
+   <header className="flex h-16 w-full shrink-0 items-center justify-between gap-4 border-b border-viewerborder bg-viewerwhite px-6">
       <div className="flex min-w-0 items-center gap-3">
          <Link
             href={SITE_PATHS.dashboard}
@@ -21,14 +21,14 @@ const ViewerBanner = () => (
                height={32}
                priority
                draggable={false}
-               className="h-6 w-auto select-none"
+               className="h-8 w-auto select-none"
             />
          </Link>
          <SimpleTooltip label="Toggle sidebar" shortcut="mod b">
-            <SidebarTrigger className="size-8" />
+            <SidebarTrigger className="size-9" />
          </SimpleTooltip>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-3">
          <CommandMenuTrigger />
          <ProfileDropdown />
       </div>

@@ -25,7 +25,9 @@ let signingOut = false;
 // true from the start of `signOut()` until the login page is shown
 const isSigningOut = (): boolean => signingOut;
 
-const signOut = async (): Promise<void> => {
+const signOut = async (
+   redirectTo: string = SITE_PATHS.login
+): Promise<void> => {
    signingOut = true;
    try {
       await endSession();
@@ -37,7 +39,7 @@ const signOut = async (): Promise<void> => {
       clearQueryCache();
       useSessionStore.getState().clearSession();
       try {
-         await Router.replace(SITE_PATHS.login);
+         await Router.replace(redirectTo);
       } finally {
          signingOut = false;
       }

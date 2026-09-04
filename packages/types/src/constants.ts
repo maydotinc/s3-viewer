@@ -2,7 +2,8 @@ export const PRODUCT_NAME = "S3 Viewer";
 
 export const SECOND_MS = 1000;
 export const MINUTE_MS = 60 * SECOND_MS;
-export const DAY_MS = 24 * 60 * MINUTE_MS;
+export const HOUR_MS = 60 * MINUTE_MS;
+export const DAY_MS = 24 * HOUR_MS;
 
 export const AUTH_BASE_PATH = "/auth";
 export const REQUEST_ID_HEADER = "X-Request-Id";
@@ -11,6 +12,10 @@ export const AUTH_CODE_LENGTH = 6;
 export const AUTH_CODE_TTL_MINUTES = 10;
 export const SESSION_TTL_DAYS = 30;
 export const SESSION_ABSOLUTE_TTL_DAYS = 90;
+export const SESSION_FRESH_HOURS = 24;
+
+export const GITHUB_ISSUES_URL =
+   "https://github.com/maydotinc/s3-viewer/issues";
 
 export const SITE_PATHS = {
    dashboard: "/dashboard",

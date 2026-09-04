@@ -1,5 +1,11 @@
+import { render } from "@react-email/render";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { PRODUCT_NAME, type Role } from "@s3-viewer/types";
+import {
+   AccountDeletedEmail,
+   accountDeletedEmailText,
+   type AccountDeletedEmailProps,
+} from "@s3-viewer/ui/emails/account-deleted";
 import {
    AuthOtpEmail,
    authOtpEmailText,
@@ -10,6 +16,7 @@ import {
    serverInviteEmailText,
    type ServerInviteEmailProps,
 } from "@s3-viewer/ui/emails/server-invite";
+import { createTransport } from "nodemailer";
 import { Resend } from "resend";
 
 type Message = {
@@ -50,6 +57,19 @@ const resendTransport = (apiKey: string): Transport => {
    };
 };
 
+const smtpTransport = (url: string): Transport => {
+   const mailer = createTransport(url);
+   return async ({ to, subject, html, text }) => {
+      await mailer.sendMail({
+         from,
+         to,
+         subject,
+         html: await render(html),
+         text,
+      });
+   };
+};
+
 const consoleTransport = (): Transport => {
    if (process.env.NODE_ENV === "production") {
       throw new Error("RESEND_KEY is required in production");
@@ -61,9 +81,15 @@ const consoleTransport = (): Transport => {
    };
 };
 
-const send: Transport = process.env.RESEND_KEY
-   ? resendTransport(process.env.RESEND_KEY)
-   : consoleTransport();
+const resolveTransport = (): Transport => {
+   if (process.env.EMAIL_TRANSPORT === "smtp" && process.env.SMTP_URL) {
+      return smtpTransport(process.env.SMTP_URL);
+   }
+   if (process.env.RESEND_KEY) return resendTransport(process.env.RESEND_KEY);
+   return consoleTransport();
+};
+
+const send: Transport = resolveTransport();
 
 type SendAuthEmailInput = AuthOtpEmailProps & { to: string };
 
@@ -118,4 +144,18 @@ const sendServerInviteEmail = async ({
    });
 };
 
-export { sendAuthEmail, sendServerInviteEmail };
+type SendAccountDeletedEmailInput = AccountDeletedEmailProps & { to: string };
+
+const sendAccountDeletedEmail = async ({
+   to,
+   ...props
+}: SendAccountDeletedEmailInput): Promise<void> => {
+   await send({
+      to,
+      subject: `Your ${PRODUCT_NAME} account has been deleted`,
+      html: AccountDeletedEmail(props),
+      text: accountDeletedEmailText(props),
+   });
+};
+
+export { sendAccountDeletedEmail, sendAuthEmail, sendServerInviteEmail };

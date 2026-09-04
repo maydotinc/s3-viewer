@@ -36,7 +36,7 @@ const ReceivedInvites = () => {
       if (!userId || isLoading) {
          return (
             <InviteTable columns={COLUMNS}>
-               <InviteTableSkeleton columns={COLUMNS.length} />
+               <InviteTableSkeleton columns={COLUMNS.length} actions="pair" />
             </InviteTable>
          );
       }
@@ -45,25 +45,23 @@ const ReceivedInvites = () => {
          error.code === ErrorCode.EMAIL_UNVERIFIED
       ) {
          return (
-            <div className="flex flex-col items-center gap-3 border-t border-viewerborder py-16 text-center">
-               <p className="max-w-sm text-sm text-viewertext">
-                  Verify your email to see invites. Sign in with the code we
-                  email you to verify it.
-               </p>
-               <Button asChild variant="outline">
-                  <Link href={SITE_PATHS.login}>Sign in with email</Link>
-               </Button>
+            <div className="px-6 pt-4 pb-6">
+               <div className="flex flex-col items-start gap-2 rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
+                  <p>
+                     Sign in with the code we email you to verify your address
+                     and see your invites.
+                  </p>
+                  <Button asChild size="sm" variant="outline">
+                     <Link href={SITE_PATHS.login}>Sign in with email</Link>
+                  </Button>
+               </div>
             </div>
          );
       }
       if (error) return <InviteTableError message={error.message} />;
       if (!invites || invites.length === 0) {
          return (
-            <div className="border-t border-viewerborder">
-               <EmptyState icon={MailOpen}>
-                  No invites waiting for you
-               </EmptyState>
-            </div>
+            <EmptyState icon={MailOpen}>No invites waiting for you</EmptyState>
          );
       }
       return (

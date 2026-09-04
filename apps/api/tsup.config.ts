@@ -7,7 +7,7 @@ export default defineConfig((options: Options) => ({
    sourcemap: true,
    clean: true,
    noExternal: [/@s3-viewer\/.*/],
-   external: ["resend"],
+   external: ["nodemailer", "resend"],
    onSuccess: options.watch ? "tsx dist/server.js" : undefined,
    ...options,
 }));

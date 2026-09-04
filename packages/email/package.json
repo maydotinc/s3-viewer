@@ -12,9 +12,11 @@
       "check-types": "tsc --noEmit"
    },
    "dependencies": {
+      "@react-email/render": "^1.2.1",
       "@s3-viewer/permissions": "workspace:*",
       "@s3-viewer/types": "workspace:*",
       "@s3-viewer/ui": "workspace:*",
+      "nodemailer": "^10.0.0",
       "resend": "^6.0.1"
    },
    "devDependencies": {

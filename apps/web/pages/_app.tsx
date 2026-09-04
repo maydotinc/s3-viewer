@@ -8,6 +8,7 @@ import { ModalProvider } from "@/lib/contexts/ModalContext";
 import { getQueryClient } from "@/lib/queryClient";
 import { ShortcutsProvider } from "@/lib/shortcuts";
 import { PRODUCT_NAME } from "@s3-viewer/types";
+import { FAVICON_LINKS } from "@s3-viewer/ui/components/favicon-links";
 import { SidebarProvider } from "@s3-viewer/ui/components/sidebar";
 import Toaster from "@s3-viewer/ui/components/toast";
 import { TooltipProvider } from "@s3-viewer/ui/components/tooltip";
@@ -40,16 +41,7 @@ const App = ({ Component, pageProps }: AppPropsWithLayout) => {
             <meta name="theme-color" content="#3658c1" />
             <meta name="application-name" content={PRODUCT_NAME} />
             <meta name="apple-mobile-web-app-title" content={PRODUCT_NAME} />
-            <link rel="icon" href="/favicon.ico" sizes="any" />
-            <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-            <link
-               rel="icon"
-               href="/favicon-96x96.png"
-               type="image/png"
-               sizes="96x96"
-            />
-            <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-            <link rel="manifest" href="/site.webmanifest" />
+            {FAVICON_LINKS}
             <style>{`:root{--font-inter:${inter.style.fontFamily}}`}</style>
          </Head>
          <ErrorBoundary>

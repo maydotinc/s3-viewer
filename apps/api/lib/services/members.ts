@@ -108,13 +108,18 @@ const loadGrantingActor = async (
    };
 };
 
-const assertBucketGrants = (
-   actor: GrantingActor,
-   scope: BucketScopeSettings,
-   grants: readonly BucketGrant[]
-): void => {
+const loadBucketGrants = (
+   userId: string,
+   serverId: string
+): Promise<BucketRow[]> =>
+   prisma.bucketAccess.findMany({
+      where: { userId, serverId },
+      select: bucketGrantSelect,
+   });
+
+const assertUniqueBuckets = (grants: readonly BucketGrant[]): void => {
    const seen = new Set<string>();
-   for (const { bucketName, role } of grants) {
+   for (const { bucketName } of grants) {
       if (seen.has(bucketName)) {
          throw new ApiHttpError(
             400,
@@ -123,6 +128,16 @@ const assertBucketGrants = (
          );
       }
       seen.add(bucketName);
+   }
+};
+
+const assertBucketGrants = (
+   actor: GrantingActor,
+   scope: BucketScopeSettings,
+   grants: readonly BucketGrant[]
+): void => {
+   assertUniqueBuckets(grants);
+   for (const { bucketName, role } of grants) {
       if (!isBucketAllowed(scope, bucketName)) {
          throw new ApiHttpError(
             400,
@@ -144,6 +159,30 @@ const assertBucketGrants = (
          throw new ApiHttpError(
             403,
             `You don't have ${ROLE_LABELS[Role[role]]} access to ${bucketName}, so you can't grant it`
+         );
+      }
+   }
+};
+
+const assertBucketGrantChanges = (
+   actor: GrantingActor,
+   scope: BucketScopeSettings,
+   current: readonly BucketRow[],
+   grants: readonly BucketGrant[]
+): void => {
+   assertUniqueBuckets(grants);
+   const held = new Map(current.map((row) => [row.bucketName, Role[row.role]]));
+   assertBucketGrants(
+      actor,
+      scope,
+      grants.filter((g) => held.get(g.bucketName) !== Role[g.role])
+   );
+   const kept = new Set(grants.map((g) => g.bucketName));
+   for (const [bucketName, role] of held) {
+      if (!kept.has(bucketName) && !canManageRole(actor.serverRole, role)) {
+         throw new ApiHttpError(
+            403,
+            `You can't remove ${ROLE_LABELS[role]} access to ${bucketName}`
          );
       }
    }
@@ -188,14 +227,16 @@ const removeMembership = async (
 };
 
 export {
+   assertBucketGrantChanges,
    assertBucketGrants,
    bucketGrantSelect,
    clampBucketAccess,
    findMember,
    listMembers,
+   loadBucketGrants,
    loadGrantingActor,
    removeMembership,
    replaceBucketAccess,
    toBucketEntry,
 };
-export type { GrantingActor };
+export type { BucketRow, GrantingActor };

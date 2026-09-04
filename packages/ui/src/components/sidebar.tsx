@@ -190,7 +190,7 @@ function Sidebar({
             className={cn(
                SIDEBAR_BASE,
                openMobile
-                  ? "fixed bottom-0 left-0 top-14 z-20 md:static md:z-auto"
+                  ? "fixed bottom-0 left-0 top-16 z-20 md:static md:z-auto"
                   : "hidden md:flex",
                !open && "md:hidden",
                className

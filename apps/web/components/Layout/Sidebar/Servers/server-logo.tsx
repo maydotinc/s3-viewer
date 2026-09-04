@@ -20,7 +20,7 @@ const ServerLogo = ({ provider, size = "sm" }: ServerLogoProps) => {
    return (
       <span
          className={cn(
-            "flex shrink-0 items-center justify-center rounded-md border border-viewerborder bg-viewerwhite",
+            "flex shrink-0 items-center justify-center rounded-md bg-viewerwhite",
             size === "sm" ? "size-6" : "size-9"
          )}
       >

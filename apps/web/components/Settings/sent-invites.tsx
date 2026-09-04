@@ -7,7 +7,6 @@ import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { Send, X } from "lucide-react";
 import SettingsCard from "./card";
 import EmptyState from "./empty-state";
-import InvitePeople from "./invite-people";
 import {
    ExpiresCell,
    InviteTable,
@@ -33,19 +32,13 @@ const SentInvites = () => {
       if (!userId || isLoading) {
          return (
             <InviteTable columns={COLUMNS}>
-               <InviteTableSkeleton columns={COLUMNS.length} />
+               <InviteTableSkeleton columns={COLUMNS.length} actions="icon" />
             </InviteTable>
          );
       }
       if (error) return <InviteTableError message={error.message} />;
       if (!invites || invites.length === 0) {
-         return (
-            <div className="border-t border-viewerborder">
-               <EmptyState icon={Send} action={<InvitePeople />}>
-                  No pending invites
-               </EmptyState>
-            </div>
-         );
+         return <EmptyState icon={Send}>No pending invites</EmptyState>;
       }
       return (
          <InviteTable columns={COLUMNS}>

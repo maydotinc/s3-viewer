@@ -17,7 +17,7 @@
    /*
     * Syntax colours for the JSON preview, and nothing else. Code is the one
     * place where hue carries meaning rather than brand, so this is a scoped
-    * exception to the grayscale-plus-blue palette (BRAND.md, "Colors") — the
+    * exception to the grayscale-plus-blue palette (DESIGN.md §1) — the
     * same kind of exception the avatar gradient is. All four clear 4.5:1 on
     * viewerwhite and on viewergray; keys stay on the brand's dark blue.
     */

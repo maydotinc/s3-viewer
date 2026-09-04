@@ -20,12 +20,14 @@ if (isProduction && !assetPrefix) {
    );
 }
 
-// no inline <script> anywhere, so script-src stays 'self'; style-src needs
+// no inline <script> anywhere, so script-src stays 'self' in production;
+// next dev's webpack runtime needs eval, and without it the dev-only
+// anti-flicker style never lifts and the page stays hidden. style-src needs
 // 'unsafe-inline' for a few components' inline style={{}}. cdn-may.com is the
 // only cross-origin resource any page loads.
 const contentSecurityPolicy = [
    "default-src 'self'",
-   "script-src 'self'",
+   `script-src 'self'${isProduction ? "" : " 'unsafe-eval'"}`,
    "style-src 'self' 'unsafe-inline'",
    "img-src 'self' data: https://cdn-may.com",
    "font-src 'self' data:",

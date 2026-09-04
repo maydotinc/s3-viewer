@@ -13,6 +13,7 @@ type RoleSelectProps = {
    roles: readonly Role[];
    onChange: (role: Role) => void;
    label: string;
+   id?: string;
    className?: string;
    size?: "sm" | "default";
    disabled?: boolean;
@@ -23,6 +24,7 @@ const RoleSelect = ({
    roles,
    onChange,
    label,
+   id,
    className,
    size = "default",
    disabled,
@@ -32,7 +34,12 @@ const RoleSelect = ({
       disabled={disabled}
       onValueChange={(next) => onChange(next as Role)}
    >
-      <SelectTrigger size={size} aria-label={label} className={className}>
+      <SelectTrigger
+         id={id}
+         size={size}
+         aria-label={label}
+         className={className}
+      >
          <SelectValue>{ROLE_LABELS[value]}</SelectValue>
       </SelectTrigger>
       <SelectContent align="end" className="w-64">

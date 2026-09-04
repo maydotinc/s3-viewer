@@ -126,6 +126,12 @@ importers:
       helmet:
         specifier: ^8.3.0
         version: 8.3.0
+      nodemailer:
+        specifier: ^10.0.0
+        version: 10.0.0
+      resend:
+        specifier: ^6.0.1
+        version: 6.0.1(@react-email/render@1.2.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0))
       zod:
         specifier: 'catalog:'
         version: 3.25.67
@@ -341,6 +347,9 @@ importers:
 
   packages/email:
     dependencies:
+      '@react-email/render':
+        specifier: ^1.2.1
+        version: 1.2.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       '@s3-viewer/permissions':
         specifier: workspace:*
         version: link:../permissions
@@ -350,6 +359,9 @@ importers:
       '@s3-viewer/ui':
         specifier: workspace:*
         version: link:../ui
+      nodemailer:
+        specifier: ^10.0.0
+        version: 10.0.0
       resend:
         specifier: ^6.0.1
         version: 6.0.1(@react-email/render@1.2.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0))
@@ -485,9 +497,6 @@ importers:
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
-      clsx:
-        specifier: ^2.1.1
-        version: 2.1.1
       lucide-react:
         specifier: ^0.475.0
         version: 0.475.0(react@19.1.0)
@@ -3497,6 +3506,10 @@ packages:
         optional: true
       sass:
         optional: true
+
+  nodemailer@10.0.0:
+    resolution: {integrity: sha512-wdv+hXBg0iIPIOf108FaZyTxqjQpCvQeAJt9pHHTooPy/y3vQtI9eiImM9AIVKR3e/0FeMA1oueNfBjFJcaK+Q==}
+    engines: {node: '>=20.0.0'}
 
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
@@ -7251,6 +7264,8 @@ snapshots:
       - '@babel/core'
       - '@types/node'
       - babel-plugin-macros
+
+  nodemailer@10.0.0: {}
 
   object-assign@4.1.1: {}
 

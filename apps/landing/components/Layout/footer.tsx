@@ -1,8 +1,6 @@
-import { GITHUB_URL } from "@/lib/site-config";
+import { GITHUB_URL, MAY_URL } from "@/lib/site-config";
 import Image from "next/image";
 import Link from "next/link";
-
-const CONTACT_HREF = "mailto:info@may.inc?subject=S3%20Viewer";
 
 type LinkItem = { label: string; href: string; external?: boolean };
 type LinkGroup = { title: string; links: LinkItem[] };
@@ -53,7 +51,7 @@ const groups: LinkGroup[] = [
          { label: "GitHub", href: GITHUB_URL, external: true },
          { label: "Privacy policy", href: "/legal/privacy-policy" },
          { label: "Terms of service", href: "/legal/terms-of-service" },
-         { label: "Contact", href: CONTACT_HREF, external: true },
+         { label: "Contact", href: "/contact" },
       ],
    },
 ];
@@ -102,7 +100,7 @@ const Footer = () => {
          </h2>
 
          <div className="mx-auto w-full max-w-6xl px-6 pt-14 pb-8">
-            <div className="grid grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
+            <div className="grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
                <div className="col-span-2 flex flex-col gap-4 sm:col-span-3 lg:col-span-1">
                   <Link
                      href="/"
@@ -125,7 +123,7 @@ const Footer = () => {
                      storage.
                   </p>
                   <a
-                     href="https://may.inc"
+                     href={MAY_URL}
                      target="_blank"
                      rel="noopener noreferrer"
                      className="inline-flex w-fit items-center gap-2 text-sm text-viewerlighttext transition-colors hover:text-viewerblack"

@@ -29,6 +29,9 @@ const AuthGuard = ({ children }: { children: ReactNode }) => {
       if (redirected.current) return;
       // a deliberate sign-out owns its destination (plain /login, no `next`)
       if (isSigningOut()) return;
+      // before the router is ready a dynamic route's asPath is still the
+      // `[param]` pattern, which would become a useless `next=`
+      if (!router.isReady) return;
       redirected.current = true;
       void router.replace(loginPathFor(router.asPath));
    }, [isPublic, signedOut, router]);

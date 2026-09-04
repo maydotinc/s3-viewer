@@ -10,12 +10,14 @@ import {
    globalIpLimit,
    userLimit,
 } from "@/lib/middleware/rate-limit";
+import { accountDeletionHooks } from "@/lib/services/account";
 import { assertPrivateKey } from "@/lib/utils/encryption";
+import { accountRouter } from "@/routes/account";
 import { authFlowRouter } from "@/routes/auth-flow";
 import { invitesRouter } from "@/routes/invites";
 import { s3Router } from "@/routes/s3";
 import { serversRouter } from "@/routes/servers";
-import { auth } from "@s3-viewer/auth";
+import { auth, onUserDeletion } from "@s3-viewer/auth";
 import {
    API_CONTRACT_VERSION,
    AUTH_BASE_PATH,
@@ -31,6 +33,7 @@ import { createServer } from "node:http";
 import type { Socket } from "node:net";
 
 assertPrivateKey();
+onUserDeletion(accountDeletionHooks);
 
 const OBJECT_UPLOAD_PATH = /^\/servers\/[^/]+\/buckets\/[^/]+\/objects$/;
 const isObjectUpload = (req: Request): boolean =>
@@ -98,6 +101,7 @@ app.use(authGuard);
 app.use(userLimit);
 app.use("/servers", serversRouter);
 app.use("/invites", invitesRouter);
+app.use("/account", accountRouter);
 app.use(BUCKET_MOUNT, s3Router);
 
 app.use((_req, res) => fail(res, 404, "Not found"));

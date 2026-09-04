@@ -5,10 +5,11 @@ import { memberRoute, serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { recordAudit } from "@/lib/services/audit";
 import {
-   assertBucketGrants,
+   assertBucketGrantChanges,
    clampBucketAccess,
    findMember,
    listMembers,
+   loadBucketGrants,
    loadGrantingActor,
    removeMembership,
    replaceBucketAccess,
@@ -38,14 +39,12 @@ const updateRole = async (_req: Request, res: Response) => {
    const { serverId, userId, role, bucketAccess } = input<UpdateRoleInput>(res);
    const { userId: actorId, serverRole, targetRole } = getAuth(res);
    if (bucketAccess) {
-      const scope = await loadServerSettings(serverId);
-      const actor = await loadGrantingActor(
-         actorId,
-         serverId,
-         serverRole,
-         bucketAccess
-      );
-      assertBucketGrants(actor, scope, bucketAccess);
+      const [scope, current, actor] = await Promise.all([
+         loadServerSettings(serverId),
+         loadBucketGrants(userId, serverId),
+         loadGrantingActor(actorId, serverId, serverRole, bucketAccess),
+      ]);
+      assertBucketGrantChanges(actor, scope, current, bucketAccess);
    }
    const newRole = Role[role];
    const demoted = rankOf(newRole) < rankOf(targetRole);

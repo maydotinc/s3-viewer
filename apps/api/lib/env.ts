@@ -9,6 +9,14 @@ const optionalString = z
    .optional()
    .transform((value) => value || undefined);
 
+const isSmtpUrl = (value: string): boolean => {
+   try {
+      return ["smtp:", "smtps:"].includes(new URL(value).protocol);
+   } catch {
+      return false;
+   }
+};
+
 const MIB = 1024 * 1024;
 const GIB = 1024 * MIB;
 const DEFAULT_MAX_UPLOAD_BYTES = 5 * GIB;
@@ -26,6 +34,10 @@ const schema = z
       ENCRYPTION_PRIVATE_KEY: z.string().min(1),
       NEXT_PUBLIC_SITE_URL: z.string().url(),
       NEXT_PUBLIC_API_URL: z.string().url(),
+      EMAIL_TRANSPORT: optionalString
+         .pipe(z.enum(["resend", "smtp"]).optional())
+         .transform((value) => value ?? "resend"),
+      SMTP_URL: optionalString,
       RESEND_KEY: optionalString,
       EMAIL_FROM: optionalString,
       SUPPORT_EMAIL: optionalString,
@@ -61,7 +73,22 @@ const schema = z
       ),
    })
    .superRefine((value, ctx) => {
-      if (value.NODE_ENV === "production" && !value.RESEND_KEY) {
+      if (value.EMAIL_TRANSPORT === "smtp") {
+         if (!value.SMTP_URL) {
+            ctx.addIssue({
+               code: z.ZodIssueCode.custom,
+               path: ["SMTP_URL"],
+               message: "required when EMAIL_TRANSPORT is `smtp`",
+            });
+         } else if (!isSmtpUrl(value.SMTP_URL)) {
+            ctx.addIssue({
+               code: z.ZodIssueCode.custom,
+               path: ["SMTP_URL"],
+               message:
+                  "must be an smtp:// or smtps:// URL, e.g. smtp://user:pass@mail.example.com:587",
+            });
+         }
+      } else if (value.NODE_ENV === "production" && !value.RESEND_KEY) {
          ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["RESEND_KEY"],

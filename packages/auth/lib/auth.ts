@@ -5,7 +5,9 @@ import {
    AUTH_CODE_LENGTH,
    AUTH_CODE_TTL_MINUTES,
    DAY_MS,
+   HOUR_MS,
    SECOND_MS,
+   SESSION_FRESH_HOURS,
    SESSION_TTL_DAYS,
    SITE_PATHS,
 } from "@s3-viewer/types";
@@ -16,9 +18,11 @@ import { emailOTP, magicLink } from "better-auth/plugins";
 import { authFlowContext, type AuthFlowStore } from "./auth-flow-context";
 import { authEnv } from "./env";
 import { validateProfile } from "./profile";
+import { onUserDeletion, userDeletionHooks } from "./user-deletion";
 import { localPart, normalizeEmail } from "./utils";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
+const HOUR_SECONDS = HOUR_MS / SECOND_MS;
 const AUTH_CODE_TTL_SECONDS = AUTH_CODE_TTL_MINUTES * 60;
 const SESSION_COOKIE_CACHE_SECONDS = 60;
 
@@ -85,10 +89,11 @@ const auth = betterAuth({
    session: {
       expiresIn: SESSION_TTL_DAYS * DAY_SECONDS,
       updateAge: DAY_SECONDS,
+      freshAge: SESSION_FRESH_HOURS * HOUR_SECONDS,
       cookieCache: { enabled: true, maxAge: SESSION_COOKIE_CACHE_SECONDS },
    },
    user: {
-      deleteUser: { enabled: true },
+      deleteUser: { enabled: true, ...userDeletionHooks },
    },
    rateLimit: { enabled: false },
    databaseHooks: {
@@ -136,10 +141,9 @@ const auth = betterAuth({
       },
       session: {
          create: {
-            before: async (session) => {
-               const { userAgent: _userAgent, ...data } = session;
-               return { data };
-            },
+            // better auth merges the returned data over the row, so the
+            // column-less userAgent must be unset explicitly, not omitted
+            before: async () => ({ data: { userAgent: undefined } }),
          },
       },
    },
@@ -185,4 +189,5 @@ const auth = betterAuth({
       : undefined,
 });
 
-export { auth, sendAuthFlowEmail };
+export { auth, onUserDeletion, sendAuthFlowEmail };
+export type { DeletedUser, UserDeletionHooks } from "./user-deletion";

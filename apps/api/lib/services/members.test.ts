@@ -1,6 +1,10 @@
 import { Role } from "@s3-viewer/types";
 import { describe, expect, it, vi } from "vitest";
-import { assertBucketGrants, type GrantingActor } from "./members";
+import {
+   assertBucketGrantChanges,
+   assertBucketGrants,
+   type GrantingActor,
+} from "./members";
 
 vi.mock("@s3-viewer/db", () => ({ prisma: {} }));
 vi.mock("@/lib/utils/encryption", () => ({ decryptCredentials: () => ({}) }));
@@ -77,5 +81,81 @@ describe("assertBucketGrants", () => {
             { bucketName: "anything", role: Role.VIEWER },
          ])
       ).toThrow(/don't have Viewer access to anything/);
+   });
+});
+
+describe("assertBucketGrantChanges", () => {
+   const current = [
+      { bucketName: "photos", role: Role.EDITOR },
+      { bucketName: "logs", role: Role.VIEWER },
+   ];
+
+   it("keeps an unchanged grant the actor could not make themselves", () => {
+      expect(() =>
+         assertBucketGrantChanges(actor(Role.ADMIN), scope, current, [
+            { bucketName: "photos", role: Role.EDITOR },
+            { bucketName: "logs", role: Role.VIEWER },
+         ])
+      ).not.toThrow();
+   });
+
+   it("refuses a new grant above what the actor holds on that bucket", () => {
+      expect(() =>
+         assertBucketGrantChanges(
+            actor(Role.ADMIN, { logs: Role.VIEWER }),
+            scope,
+            [{ bucketName: "photos", role: Role.EDITOR }],
+            [
+               { bucketName: "photos", role: Role.EDITOR },
+               { bucketName: "logs", role: Role.EDITOR },
+            ]
+         )
+      ).toThrow(/don't have Editor access to logs/);
+   });
+
+   it("checks a changed role like a fresh grant", () => {
+      expect(() =>
+         assertBucketGrantChanges(
+            actor(Role.ADMIN, { photos: Role.VIEWER }),
+            scope,
+            current,
+            [
+               { bucketName: "photos", role: Role.VIEWER },
+               { bucketName: "logs", role: Role.VIEWER },
+            ]
+         )
+      ).not.toThrow();
+      expect(() =>
+         assertBucketGrantChanges(
+            actor(Role.ADMIN, { photos: Role.VIEWER }),
+            scope,
+            [{ bucketName: "photos", role: Role.VIEWER }],
+            [{ bucketName: "photos", role: Role.EDITOR }]
+         )
+      ).toThrow(/don't have Editor access to photos/);
+   });
+
+   it("refuses removing a grant the actor cannot manage", () => {
+      expect(() =>
+         assertBucketGrantChanges(
+            actor(Role.ADMIN),
+            scope,
+            [{ bucketName: "photos", role: Role.ADMIN }],
+            []
+         )
+      ).toThrow(/can't remove Admin access to photos/);
+      expect(() =>
+         assertBucketGrantChanges(actor(Role.ADMIN), scope, current, [])
+      ).not.toThrow();
+   });
+
+   it("still rejects duplicates when one copy is unchanged", () => {
+      expect(() =>
+         assertBucketGrantChanges(actor(Role.OWNER), scope, current, [
+            { bucketName: "photos", role: Role.EDITOR },
+            { bucketName: "photos", role: Role.VIEWER },
+            { bucketName: "logs", role: Role.VIEWER },
+         ])
+      ).toThrow(/Duplicate bucket/);
    });
 });

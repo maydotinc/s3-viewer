@@ -180,6 +180,7 @@ model AuditLog {
 
   @@index([serverId, createdAt])
   @@index([actorId, createdAt])
+  @@index([target])
   @@map("audit_log")
 }
 

@@ -173,7 +173,16 @@ GET    /invites                          (received, unexpired)→ { invites: Ser
 GET    /invites/sent                      (sent by me, on servers where I still hold MANAGE_MEMBERS) → { invites: ServerInvite[] }
 POST   /invites/:inviteId/accept                              → { server: ServerInfo }
 POST   /invites/:inviteId/reject                              → 204
+GET    /account/summary                  (what deleting the account removes) → AccountSummary
 ```
+
+`GET /account/summary` returns `{ ownedServers: [{ id, name, memberCount,
+pendingInviteCount }], memberships, sentInvites, receivedInvites }` for the
+delete-account dialog: `memberCount` excludes the owner, `memberships` are
+servers the caller belongs to but does not own, `sentInvites` are live invites
+the caller sent on servers they do not own (invites on owned servers are
+already counted under that server), and `receivedInvites` are live invites
+addressed to the caller's email. Expired invites are not counted.
 
 `/invites/*` require a verified email (403 `code: "EMAIL_UNVERIFIED"` otherwise):
 invites are addressed to an address, and an OAuth provider may hand us an
@@ -281,11 +290,30 @@ which is exact for listings up to 1000 entries and per-block above that.
   `databaseHooks.session.create.before` hook that deletes the field (the
   column no longer exists to null) plus a migration removing it from
   `session`.
-- `user.deleteUser` is enabled (`POST /auth/delete-user`, fresh session required).
-  Deleting a user cascades through the DB: their sessions, accounts,
-  memberships, bucket grants, invitations they sent, AND every server they own
-  (with all of its members' access and pending invites). This is intended: a
-  server's credentials belong to its owner.
+- Account deletion: `user.deleteUser` is enabled (`POST /auth/delete-user`) and
+  `session.freshAge` is `SESSION_FRESH_HOURS` (24, `@s3-viewer/types`), which
+  the web reads too, so a session older than that is sent to sign in again
+  instead of hitting Better Auth's `SESSION_EXPIRED`. `packages/auth` cannot
+  import from `apps/api`, so it exposes `onUserDeletion({ beforeDelete,
+afterDelete })` and forwards Better Auth's `deleteUser` hooks to whatever is
+  registered — `beforeDelete` throws when nothing is, so a user row can never
+  vanish without the erasure below. `apps/api/server.ts` registers
+  `lib/services/account.ts` at startup. `beforeDelete` runs one Prisma
+  transaction that collects the ids of the servers the user owns, deletes
+  `PendingInvitation` rows addressed to their email (the cascade misses those:
+  they are joined by address, not by id), rewrites every `AuditLog.target`
+  equal to their email to `[deleted user]` (`actorId` is kept — it resolves to
+  nobody once the row is gone, and the trail must stay intact for the other
+  members). Better Auth then deletes the user, which cascades sessions,
+  accounts, memberships, bucket grants, invitations they sent AND every server
+  they own (with all of its members' access and pending invites — a server's
+  credentials belong to its owner). `afterDelete` invalidates the cached S3
+  client of every collected server (after the cascade, so a racing request
+  cannot refill the cache), records `account.delete` with the user as actor
+  (only here, so a `deleteUser` that fails after `beforeDelete` leaves no
+  entry claiming a deletion happened) and sends `AccountDeletedEmail`; an
+  email failure is logged as `Account deletion email failed`, never thrown,
+  because the account is already gone.
 - Sign-out clears the react-query cache and the session store.
 - The `/verify` page accepts `?email=` only. The code is never in a URL.
   The magic link is the Better Auth verify URL (`/auth/magic-link/verify?token=…&callbackURL=…`).
@@ -356,7 +384,7 @@ rather than left reachable.
   previews use 15-minute presigned URLs, which need no CORS.
 - Login/signup page: one `AuthScreen` component; mobile = form only, desktop =
   split (form left, brand panel right on Viewer Dark Blue). See
-  `packages/ui/BRAND.md`.
+  `packages/ui/DESIGN.md`.
 
 ## Landing (`apps/landing`)
 

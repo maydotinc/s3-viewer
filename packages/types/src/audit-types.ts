@@ -13,7 +13,8 @@ type AuditAction =
    | "bucket.create"
    | "bucket.remove"
    | "object.delete"
-   | "object.rename";
+   | "object.rename"
+   | "account.delete";
 
 type AuditEntry = {
    action: AuditAction;

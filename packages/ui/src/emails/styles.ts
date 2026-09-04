@@ -46,6 +46,19 @@ const mutedText = {
    margin: "0 0 8px",
 };
 
+const list = {
+   color: "#525866",
+   fontFamily: fontStack,
+   fontSize: "16px",
+   lineHeight: "28px",
+   margin: "0 0 16px",
+   padding: "0 0 0 24px",
+};
+
+const listItem = {
+   margin: "0",
+};
+
 const buttonWrapper = {
    margin: "0 0 24px",
 };
@@ -98,6 +111,8 @@ export {
    container,
    footerText,
    h1,
+   list,
+   listItem,
    main,
    mutedText,
    text,

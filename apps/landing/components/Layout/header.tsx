@@ -20,7 +20,7 @@ const Header = () => {
                   alt="S3 Viewer"
                   width={150}
                   height={32}
-                  className="h-7 w-auto shrink-0 select-none"
+                  className="h-8 w-auto shrink-0 select-none"
                   priority
                   quality={100}
                   draggable={false}

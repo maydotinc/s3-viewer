@@ -10,7 +10,7 @@ const Page = ({
 }) => (
    <div
       className={cn(
-         "mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-6 overflow-y-auto px-8 py-6",
+         "mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 flex-col gap-6 overflow-y-auto px-4 py-6 md:px-8",
          className
       )}
    >

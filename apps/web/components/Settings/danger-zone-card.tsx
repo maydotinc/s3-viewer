@@ -7,8 +7,8 @@ const DangerZoneCard = () => {
    const [confirming, setConfirming] = useState(false);
    return (
       <SettingsCard
-         title="Danger zone"
-         description="Deleting your account also deletes every server you own and your members' access to it."
+         title="Delete account"
+         description="Permanently deletes your account, every server you own and your access to servers shared with you; buckets and files in your storage are not touched."
          className="border-viewertextred/30"
       >
          <div>

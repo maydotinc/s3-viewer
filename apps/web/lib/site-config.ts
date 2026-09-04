@@ -29,6 +29,7 @@ const LANDING_ROUTES: readonly string[] = [
    "/",
    "/about",
    "/brand-kit",
+   "/contact",
    "/legal",
    "/legal/terms-of-service",
    "/legal/privacy-policy",
@@ -55,7 +56,7 @@ const LEGACY_REDIRECTS: Readonly<Record<string, string>> = {
 
 const TERMS_URL = `${publicEnv.siteOrigin}/legal/terms-of-service`;
 const PRIVACY_URL = `${publicEnv.siteOrigin}/legal/privacy-policy`;
-const SUPPORT_URL = "https://github.com/maydotinc/s3-viewer/issues";
+const SUPPORT_URL = `${publicEnv.siteOrigin}/contact`;
 
 export {
    LANDING_ROUTES,

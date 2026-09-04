@@ -54,6 +54,12 @@ describe("signOut", () => {
       expect(isSigningOut()).toBe(false);
    });
 
+   it("navigates to the destination it was given", async () => {
+      const { signOut } = await load();
+      await signOut("/login?next=%2Fsettings%2Fprofile");
+      expect(replace).toHaveBeenCalledWith("/login?next=%2Fsettings%2Fprofile");
+   });
+
    it("still tears down and navigates when the sign-out request fails", async () => {
       const { signOut, isSigningOut } = await load();
       endSession.mockImplementation(async () => {

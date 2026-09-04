@@ -1,6 +1,7 @@
 import "@/styles/globals.css";
 import ErrorBoundary from "@/components/error-boundary";
 import { inter } from "@/lib/fonts";
+import { FAVICON_LINKS } from "@s3-viewer/ui/components/favicon-links";
 import { NextPage } from "next";
 import type { AppProps } from "next/app";
 import Head from "next/head";
@@ -30,8 +31,7 @@ export default function App({ Component, pageProps }: AppPropsWithLayout) {
                content="width=device-width, initial-scale=1"
             />
             <meta name="theme-color" content="#3658C1" />
-            <link rel="icon" href="/logo.svg" />
-            <link rel="apple-touch-icon" href="/logo.svg" />
+            {FAVICON_LINKS}
             <meta name="application-name" content="S3 Viewer" />
             <meta name="apple-mobile-web-app-title" content="S3 Viewer" />
             <meta name="apple-mobile-web-app-capable" content="yes" />

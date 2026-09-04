@@ -68,13 +68,33 @@ type SendInviteResult = {
    alreadyMembers: string[];
 };
 
+type OwnedServerSummary = {
+   id: string;
+   name: string;
+   /** members other than the owner */
+   memberCount: number;
+   pendingInviteCount: number;
+};
+
+type AccountSummary = {
+   ownedServers: OwnedServerSummary[];
+   /** servers the user belongs to but does not own */
+   memberships: number;
+   /** live invites the user sent on servers they do not own */
+   sentInvites: number;
+   /** live invites addressed to the user's email */
+   receivedInvites: number;
+};
+
 export { Provider, Role };
 export type {
+   AccountSummary,
    ApiError,
    BucketAccessEntry,
    BucketCheck,
    EstablishResult,
    GrantableRole,
+   OwnedServerSummary,
    SendInviteResult,
    ServerCredentials,
    ServerInfo,

@@ -62,7 +62,7 @@ const LegalHub = () => {
                   <h1 className="text-4xl md:text-5xl font-semibold tracking-tight text-viewerblack">
                      Legal documents
                   </h1>
-                  <p className="text-viewertext max-w-[600px]">
+                  <p className="text-viewertext max-w-[620px]">
                      The plain-English ground rules for using S3 Viewer. We try
                      to keep these short and honest.
                   </p>
@@ -72,20 +72,17 @@ const LegalHub = () => {
 
          <section>
             <div className="mx-auto w-full max-w-6xl px-6 py-20">
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-stretch">
                   {DOCS.map((doc) => (
                      <Link
                         key={doc.href}
                         href={doc.href}
                         aria-label={`Read the ${doc.title}`}
-                        className="group relative flex h-full flex-col gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-6 sm:p-7 transition-colors hover:border-viewerblue/40 outline-none focus-visible:outline-none focus-visible:border-viewerblue"
+                        className="group relative flex h-full flex-col gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-6 transition-colors hover:border-viewerblue/40 outline-none focus-visible:outline-none focus-visible:border-viewerblue"
                      >
                         <div className="flex items-center justify-between gap-3">
                            <span className="grid size-10 place-items-center rounded-lg bg-viewergray text-viewerblue">
-                              <doc.icon
-                                 className="size-4.5"
-                                 strokeWidth={1.8}
-                              />
+                              <doc.icon className="size-5" strokeWidth={1.8} />
                            </span>
                            <ArrowUpRight
                               aria-hidden
@@ -110,7 +107,14 @@ const LegalHub = () => {
                </div>
 
                <p className="mt-10 text-xs text-viewerlighttext max-w-[640px]">
-                  Questions about any of these policies? Open an issue on our{" "}
+                  Questions about any of these policies?{" "}
+                  <Link
+                     href="/contact"
+                     className="text-viewerblack font-medium underline decoration-viewerborder underline-offset-[3px] hover:decoration-viewerblack"
+                  >
+                     Contact us
+                  </Link>{" "}
+                  or open an issue on our{" "}
                   <Link
                      href={GITHUB_URL}
                      target="_blank"
