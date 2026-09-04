@@ -1,4 +1,7 @@
-import { GRID_CARD, useGridContext } from "@/components/DataGrid/context";
+import {
+   GRID_CARD,
+   useGridPaginationContext,
+} from "@/components/DataGrid/context";
 import { LazyGrid } from "@/components/DataGrid/lazy-grid";
 import { EmptyState } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
@@ -9,7 +12,7 @@ import usePreferencesStore from "@/lib/stores/preferencesStore";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useBucketContext } from "./Context";
+import { useBucketContext, useBucketFilter } from "./Context";
 import BucketHeader from "./header";
 import {
    objectColumns,
@@ -28,7 +31,7 @@ import { UploadProvider } from "./Upload/provider";
 import BucketUnavailable from "./unavailable";
 
 const NoObjectsOverlay = () => {
-   const { filter } = useBucketContext();
+   const { filter } = useBucketFilter();
    return filter ? (
       <EmptyState
          title="No matching objects"
@@ -50,14 +53,14 @@ const Objects = () => {
    const {
       bucketName,
       prefix,
-      filter,
       refresh,
       registerRefresh,
       notFound,
       bucketsError,
       isRefreshing,
    } = useBucketContext();
-   const { gridRef, clearSelection } = useGridContext();
+   const { filter } = useBucketFilter();
+   const { gridRef, clearSelection } = useGridPaginationContext();
    const [failure, setFailure] = useState<ListFailure<ObjectDatasource> | null>(
       null
    );

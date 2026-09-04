@@ -20,6 +20,7 @@ import { localPart, normalizeEmail } from "./utils";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
 const AUTH_CODE_TTL_SECONDS = AUTH_CODE_TTL_MINUTES * 60;
+const SESSION_COOKIE_CACHE_SECONDS = 60;
 
 type AuthCredentials = { otp: string; magicLinkUrl: string };
 
@@ -75,6 +76,7 @@ const auth = betterAuth({
    session: {
       expiresIn: SESSION_TTL_DAYS * DAY_SECONDS,
       updateAge: DAY_SECONDS,
+      cookieCache: { enabled: true, maxAge: SESSION_COOKIE_CACHE_SECONDS },
    },
    user: {
       deleteUser: { enabled: true },

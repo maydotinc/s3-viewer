@@ -1,14 +1,11 @@
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getRelated } from "@/components/UseCases/data";
 import { SecurityIllustration } from "@/components/UseCases/illustrations";
-import { buildUseCaseJsonLd } from "@/components/UseCases/jsonld";
-import UseCasePage, {
+import {
+   createUseCasePage,
    type UseCaseFAQ,
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
-import { SITE_URL } from "@/lib/site-config";
 import {
    Database,
    Github,
@@ -79,81 +76,59 @@ const faqs: UseCaseFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildUseCaseJsonLd({
-      slug: SLUG,
-      title: `${TITLE} — S3 Viewer`,
-      description: DESCRIPTION,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="Secure S3 Access — Client-Encrypted Keys, MIT Open Source"
-            description={META_DESCRIPTION}
-            canonical={`/use-cases/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <UseCasePage
-            visual={<SecurityIllustration />}
-            eyebrow="Security"
-            title={TITLE}
-            subtitle={DESCRIPTION}
-            description="A tool you can hand to your security review."
-            bullets={[
-               "Credentials encrypted in your browser — decrypted only in memory, to sign",
-               "Object bytes are never stored — uploads stream through, downloads go bucket to browser",
-               "MIT-licensed and self-hostable inside your VPC",
-            ]}
-            features={[
-               {
-                  icon: KeyRound,
-                  title: "Client-encrypted credentials",
-                  body: "Access keys are encrypted in your browser before they are sent — AES-256-GCM with the key wrapped using RSA-OAEP (SHA-256). Decrypted in memory only to run the operation you asked for, then discarded. They never come back to the browser, never appear in logs, never return in API responses.",
-               },
-               {
-                  icon: Database,
-                  title: "Object bytes are never stored",
-                  body: "Uploads stream through our API into your bucket in memory and are discarded as they go — no disk, no cache, no object database — which is why your bucket needs no CORS rule or other setting. Downloads and previews run bucket-to-browser over 15-minute presigned URLs and never touch us at all.",
-               },
-               {
-                  icon: Lock,
-                  title: "No IAM users to rotate",
-                  body: "Members aren't IAM users — they sign in to S3 Viewer and their role is checked before any request is signed with the server's single credential. Off-boarding is removing them. Nothing permanent for attackers to lift, nothing for you to forget about.",
-               },
-               {
-                  icon: UserMinus,
-                  title: "Remove without key rotation",
-                  body: "Removing a member cuts their access on the next request. No AWS keys to cycle, no policies to edit, no other teammates affected, no applications broken.",
-               },
-               {
-                  icon: Server,
-                  title: "Self-host on your VPC",
-                  body: "MIT-licensed. Self-host with PostgreSQL, your own RSA key pair, and HTTPS — credentials never have to leave your network.",
-               },
-               {
-                  icon: Github,
-                  title: "Open and auditable",
-                  body: "The full source is on GitHub. Read the encryption code, the request signing path, and the role checks for yourself before you trust it.",
-               },
-            ]}
-            steps={steps}
-            faqs={faqs}
-            relatedHowTos={getRelatedHowTos([
-               "set-granular-s3-permissions",
-               "invite-teammate-to-s3-bucket",
-               "delete-file-from-s3",
-            ])}
-            related={getRelated(SLUG)}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createUseCasePage({
+   slug: SLUG,
+   title: TITLE,
+   keyword: KEYWORD,
+   description: DESCRIPTION,
+   seoTitle: "Secure S3 Access — Client-Encrypted Keys, MIT Open Source",
+   seoDescription: META_DESCRIPTION,
+   eyebrow: "Security",
+   tagline: "A tool you can hand to your security review.",
+   bullets: [
+      "Credentials encrypted in your browser — decrypted only in memory, to sign",
+      "Object bytes are never stored — uploads stream through, downloads go bucket to browser",
+      "MIT-licensed and self-hostable inside your VPC",
+   ],
+   visual: <SecurityIllustration />,
+   features: [
+      {
+         icon: KeyRound,
+         title: "Client-encrypted credentials",
+         body: "Access keys are encrypted in your browser before they are sent — AES-256-GCM with the key wrapped using RSA-OAEP (SHA-256). Decrypted in memory only to run the operation you asked for, then discarded. They never come back to the browser, never appear in logs, never return in API responses.",
+      },
+      {
+         icon: Database,
+         title: "Object bytes are never stored",
+         body: "Uploads stream through our API into your bucket in memory and are discarded as they go — no disk, no cache, no object database — which is why your bucket needs no CORS rule or other setting. Downloads and previews run bucket-to-browser over 15-minute presigned URLs and never touch us at all.",
+      },
+      {
+         icon: Lock,
+         title: "No IAM users to rotate",
+         body: "Members aren't IAM users — they sign in to S3 Viewer and their role is checked before any request is signed with the server's single credential. Off-boarding is removing them. Nothing permanent for attackers to lift, nothing for you to forget about.",
+      },
+      {
+         icon: UserMinus,
+         title: "Remove without key rotation",
+         body: "Removing a member cuts their access on the next request. No AWS keys to cycle, no policies to edit, no other teammates affected, no applications broken.",
+      },
+      {
+         icon: Server,
+         title: "Self-host on your VPC",
+         body: "MIT-licensed. Self-host with PostgreSQL, your own RSA key pair, and HTTPS — credentials never have to leave your network.",
+      },
+      {
+         icon: Github,
+         title: "Open and auditable",
+         body: "The full source is on GitHub. Read the encryption code, the request signing path, and the role checks for yourself before you trust it.",
+      },
+   ],
+   steps,
+   faqs,
+   relatedHowTos: getRelatedHowTos([
+      "set-granular-s3-permissions",
+      "invite-teammate-to-s3-bucket",
+      "delete-file-from-s3",
+   ]),
+   related: getRelated(SLUG),
+});

@@ -17,20 +17,15 @@ const PAGE_SIZES = [25, 50, 100] as const;
 
 const HIDDEN_HEADER_TEXT = "[&_.ag-header-cell-text]:sr-only";
 
-/**
- * Numeric and date columns are right-aligned with tabular figures so the
- * digits line up down the column (DESIGN.md §3).
- */
 const RIGHT_ALIGNED = {
    cellClass: "ag-right-aligned-cell tabular-nums",
    headerClass: "ag-right-aligned-header",
 } as const;
 
-/** The grid and its pagination bar live inside one bordered card (DESIGN.md §3). */
 const GRID_CARD =
    "flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite";
 
-type GridContextValue = {
+type GridPaginationContextValue = {
    gridRef: React.RefObject<AgGridReact | null>;
    gridReady: boolean;
    pageSize: number;
@@ -38,7 +33,6 @@ type GridContextValue = {
    page: number;
    totalPages: number | null;
    rowCount: number;
-   selectedIds: string[];
    goToPage: (page: number) => void;
    clearSelection: () => void;
    handlers: {
@@ -49,7 +43,17 @@ type GridContextValue = {
    };
 };
 
-const GridContext = createContext<GridContextValue | null>(null);
+type SelectionContextValue = {
+   selectedIds: string[];
+   selectedIdSet: ReadonlySet<string>;
+};
+
+type GridContextValue = GridPaginationContextValue & SelectionContextValue;
+
+const GridPaginationContext = createContext<GridPaginationContextValue | null>(
+   null
+);
+const SelectionContext = createContext<SelectionContextValue | null>(null);
 
 const GridProvider = ({ children }: { children: React.ReactNode }) => {
    const gridRef = useRef<AgGridReact>(null);
@@ -96,7 +100,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
       gridRef.current?.api?.deselectAll();
    }, []);
 
-   const value = useMemo<GridContextValue>(
+   const paginationValue = useMemo<GridPaginationContextValue>(
       () => ({
          gridRef,
          gridReady,
@@ -105,7 +109,6 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
          page,
          totalPages,
          rowCount,
-         selectedIds,
          goToPage,
          clearSelection,
          handlers: {
@@ -121,7 +124,6 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
          page,
          totalPages,
          rowCount,
-         selectedIds,
          goToPage,
          clearSelection,
          onGridReady,
@@ -131,14 +133,40 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
       ]
    );
 
-   return <GridContext.Provider value={value}>{children}</GridContext.Provider>;
+   const selectionValue = useMemo<SelectionContextValue>(
+      () => ({ selectedIds, selectedIdSet: new Set(selectedIds) }),
+      [selectedIds]
+   );
+
+   return (
+      <GridPaginationContext.Provider value={paginationValue}>
+         <SelectionContext.Provider value={selectionValue}>
+            {children}
+         </SelectionContext.Provider>
+      </GridPaginationContext.Provider>
+   );
 };
 
-const useGridContext = () => {
-   const context = useContext(GridContext);
+const useGridPaginationContext = () => {
+   const context = useContext(GridPaginationContext);
    if (!context)
-      throw new Error("useGridContext must be used within a GridProvider");
+      throw new Error(
+         "useGridPaginationContext must be used within a GridProvider"
+      );
    return context;
+};
+
+const useSelectionContext = () => {
+   const context = useContext(SelectionContext);
+   if (!context)
+      throw new Error("useSelectionContext must be used within a GridProvider");
+   return context;
+};
+
+const useGridContext = (): GridContextValue => {
+   const pagination = useGridPaginationContext();
+   const selection = useSelectionContext();
+   return { ...pagination, ...selection };
 };
 
 export {
@@ -148,4 +176,6 @@ export {
    PAGE_SIZES,
    RIGHT_ALIGNED,
    useGridContext,
+   useGridPaginationContext,
+   useSelectionContext,
 };

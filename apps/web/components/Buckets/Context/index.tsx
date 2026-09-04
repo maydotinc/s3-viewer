@@ -20,18 +20,22 @@ type BucketContextValue = {
    path: string[];
    prefix: string;
    isLoading: boolean;
-   /** The bucket list failed, so nothing under this server can load. */
    bucketsError: Error | null;
-   /** A "Try again" is in flight. */
    isRefreshing: boolean;
    notFound: boolean;
-   filter: string;
-   setFilter: (filter: string) => void;
    refresh: () => void;
    registerRefresh: (handler: (() => void) | null) => void;
 };
 
+type BucketFilterContextValue = {
+   filter: string;
+   setFilter: (filter: string) => void;
+};
+
 const BucketContext = createContext<BucketContextValue | null>(null);
+const BucketFilterContext = createContext<BucketFilterContextValue | null>(
+   null
+);
 
 type BucketProviderProps = {
    bucketName: string;
@@ -88,8 +92,6 @@ const BucketProvider = ({
             !bucketsError &&
             Boolean(bucketName) &&
             !currentBucket,
-         filter,
-         setFilter,
          refresh,
          registerRefresh,
       }),
@@ -102,14 +104,22 @@ const BucketProvider = ({
          bucketsError,
          isBucketsFetching,
          isBucketsLoading,
-         filter,
          refresh,
          registerRefresh,
       ]
    );
 
+   const filterValue = useMemo<BucketFilterContextValue>(
+      () => ({ filter, setFilter }),
+      [filter]
+   );
+
    return (
-      <BucketContext.Provider value={value}>{children}</BucketContext.Provider>
+      <BucketContext.Provider value={value}>
+         <BucketFilterContext.Provider value={filterValue}>
+            {children}
+         </BucketFilterContext.Provider>
+      </BucketContext.Provider>
    );
 };
 
@@ -120,4 +130,11 @@ const useBucketContext = () => {
    return context;
 };
 
-export { BucketProvider, useBucketContext };
+const useBucketFilter = () => {
+   const context = useContext(BucketFilterContext);
+   if (!context)
+      throw new Error("useBucketFilter must be used within a BucketProvider");
+   return context;
+};
+
+export { BucketProvider, useBucketContext, useBucketFilter };

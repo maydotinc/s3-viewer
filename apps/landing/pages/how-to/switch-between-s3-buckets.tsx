@@ -1,14 +1,11 @@
 import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { SwitchBucketsIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "switch-between-s3-buckets";
 const TITLE = "How to switch between S3 buckets quickly";
@@ -94,57 +91,34 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Switch Between S3 Buckets Quickly"
-            description="Two patterns for switching between AWS S3 buckets without losing context: one sidebar of servers and buckets in S3 Viewer, or named profiles in the AWS CLI."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<SwitchBucketsIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  The AWS CLI scopes credentials per profile (
-                  <code>~/.aws/credentials</code>) and you switch by setting{" "}
-                  <code>AWS_PROFILE</code>. That&apos;s the right pattern for
-                  scripts and single-shell workflows. For interactive sessions
-                  where you bounce between many buckets, the cost is not the
-                  switch itself but the re-authentication and the context loss
-                  around it. S3 Viewer keeps every server you have added in one
-                  sidebar and routes each click to that server&apos;s stored
-                  credential, so moving between an AWS bucket and an R2 bucket
-                  is the same gesture as moving between two folders.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["multi-cloud", "s3-browser"])}
-            related={getRelatedHowTos([
-               "view-s3-and-r2-side-by-side",
-               "search-across-s3-buckets",
-               "invite-teammate-to-s3-bucket",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Switch Between S3 Buckets Quickly",
+   seoDescription:
+      "Two patterns for switching between AWS S3 buckets without losing context: one sidebar of servers and buckets in S3 Viewer, or named profiles in the AWS CLI.",
+   visual: <SwitchBucketsIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         The AWS CLI scopes credentials per profile (
+         <code>~/.aws/credentials</code>) and you switch by setting{" "}
+         <code>AWS_PROFILE</code>. That&apos;s the right pattern for scripts and
+         single-shell workflows. For interactive sessions where you bounce
+         between many buckets, the cost is not the switch itself but the
+         re-authentication and the context loss around it. S3 Viewer keeps every
+         server you have added in one sidebar and routes each click to that
+         server&apos;s stored credential, so moving between an AWS bucket and an
+         R2 bucket is the same gesture as moving between two folders.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["multi-cloud", "s3-browser"]),
+   related: getRelatedHowTos([
+      "view-s3-and-r2-side-by-side",
+      "search-across-s3-buckets",
+      "invite-teammate-to-s3-bucket",
+   ]),
+});

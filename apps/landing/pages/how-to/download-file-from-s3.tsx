@@ -1,14 +1,11 @@
-import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
+import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { DownloadIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "download-file-from-s3";
 const TITLE = "How to download a file from S3";
@@ -99,58 +96,35 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Download a File From S3 (Browser, CLI, Presigned URL)"
-            description="Three ways to download from S3 — browser via S3 Viewer, AWS CLI, or presigned URL. S3 Viewer signs server-side so your keys never reach the client."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<DownloadIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  A download is a <code>GetObject</code> API call. The CLI
-                  streams the response body to a local file; SDKs return a
-                  readable stream you pipe wherever you want; S3 Viewer signs a
-                  15-minute presigned URL server-side using your encrypted
-                  credentials, names the download after the last segment of the
-                  object key, and the browser fetches that URL directly from
-                  your bucket — so your AWS keys never reach the client and the
-                  bytes never pass through our servers. Sharing with a non-AWS
-                  user is the same primitive: a presigned URL is just a signed
-                  query-string version of GetObject that anyone with the link
-                  can fetch until it expires.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["s3-browser"])}
-            related={getRelatedHowTos([
-               "share-s3-file-with-non-technical-user",
-               "upload-large-files-to-s3",
-               "search-across-s3-buckets",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Download a File From S3 (Browser, CLI, Presigned URL)",
+   seoDescription:
+      "Three ways to download from S3 — browser via S3 Viewer, AWS CLI, or presigned URL. S3 Viewer signs server-side so your keys never reach the client.",
+   visual: <DownloadIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         A download is a <code>GetObject</code> API call. The CLI streams the
+         response body to a local file; SDKs return a readable stream you pipe
+         wherever you want; S3 Viewer signs a 15-minute presigned URL
+         server-side using your encrypted credentials, names the download after
+         the last segment of the object key, and the browser fetches that URL
+         directly from your bucket — so your AWS keys never reach the client and
+         the bytes never pass through our servers. Sharing with a non-AWS user
+         is the same primitive: a presigned URL is just a signed query-string
+         version of GetObject that anyone with the link can fetch until it
+         expires.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["s3-browser"]),
+   related: getRelatedHowTos([
+      "share-s3-file-with-non-technical-user",
+      "upload-large-files-to-s3",
+      "search-across-s3-buckets",
+   ]),
+});

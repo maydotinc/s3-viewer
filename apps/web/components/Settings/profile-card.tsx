@@ -9,8 +9,6 @@ import SettingsCard from "./card";
 
 const NAME_MAX = 80;
 
-// There is no profile picture to manage: the avatar in the top bar is drawn
-// from the name, so the name is the only thing to edit here.
 const ProfileCard = () => {
    const { data: session } = authClient.useSession();
    const user = session?.user;
@@ -20,7 +18,6 @@ const ProfileCard = () => {
    const [nameError, setNameError] = useState<string | null>(null);
    const update = useUpdateProfile();
 
-   // Follow the session: first load, and the saved value after an update.
    useEffect(() => setName(currentName), [currentName]);
 
    if (!user) {

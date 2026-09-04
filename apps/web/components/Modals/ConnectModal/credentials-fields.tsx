@@ -53,7 +53,6 @@ type CredentialsFieldsProps = {
    autoFocus?: boolean;
 };
 
-/** Endpoint, region and key pair — the credential step shared by connect and update. */
 const CredentialsFields = ({
    fields,
    onChange,

@@ -1,10 +1,14 @@
-import { GITHUB_URL } from "@/lib/site-config";
+import Layout from "@/components/Layout";
+import Seo from "@/components/Seo";
+import { GITHUB_URL, SITE_URL } from "@/lib/site-config";
+import type { NextPageWithLayout } from "@/pages/_app";
 import { Button } from "@s3-viewer/ui/components/button";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ArrowUpRight, ChevronRight, Lightbulb } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FaGithub } from "react-icons/fa";
+import { buildHowToJsonLd } from "./jsonld";
 
 export type HowToStep = {
    title: string;
@@ -336,3 +340,60 @@ const HowToPage = ({
 };
 
 export default HowToPage;
+
+type CreateHowToPageConfig = {
+   slug: string;
+   title: string;
+   tldr: string;
+   keyword: string;
+   seoTitle: string;
+   seoDescription: string;
+   visual: ReactNode;
+   steps: HowToStep[];
+   underTheHood?: ReactNode;
+   faqs: HowToFAQ[];
+   useCases?: LinkRef[];
+   related?: LinkRef[];
+};
+
+export const createHowToPage = (
+   config: CreateHowToPageConfig
+): NextPageWithLayout => {
+   const Page: NextPageWithLayout = () => {
+      const jsonLd = buildHowToJsonLd({
+         slug: config.slug,
+         title: config.title,
+         tldr: config.tldr,
+         siteUrl: SITE_URL,
+         steps: config.steps,
+         faqs: config.faqs,
+         keyword: config.keyword,
+      });
+
+      return (
+         <>
+            <Seo
+               title={config.seoTitle}
+               description={config.seoDescription}
+               canonical={`/how-to/${config.slug}`}
+               jsonLd={jsonLd}
+            />
+            <HowToPage
+               eyebrow={config.title}
+               title={config.title}
+               tldr={config.tldr}
+               visual={config.visual}
+               steps={config.steps}
+               underTheHood={config.underTheHood}
+               faqs={config.faqs}
+               useCases={config.useCases}
+               related={config.related}
+            />
+         </>
+      );
+   };
+
+   Page.getLayout = (page) => <Layout>{page}</Layout>;
+
+   return Page;
+};

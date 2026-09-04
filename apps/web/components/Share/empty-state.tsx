@@ -8,7 +8,6 @@ type EmptyStateProps = {
    onAction: () => void;
 };
 
-/** Table card empty state: icon tile + one line + one action (DESIGN.md §3). */
 const EmptyState = ({
    icon: Icon,
    message,

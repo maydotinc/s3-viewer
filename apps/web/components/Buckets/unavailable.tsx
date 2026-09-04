@@ -15,9 +15,7 @@ import RemoveBucketDialog from "./remove-bucket-dialog";
 
 type BucketUnavailableProps = {
    bucketName: string;
-   /** The failure that stopped the listing; omitted when the bucket is simply not on this server. */
    error?: unknown;
-   /** Which request failed, so the generic title names the right thing. */
    failedAt?: "buckets" | "objects";
    onRetry?: () => void;
    retrying?: boolean;

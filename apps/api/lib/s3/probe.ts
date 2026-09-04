@@ -13,14 +13,12 @@ const CONNECT_TIMEOUT_MS = 15_000;
 const isAccessDenied = (err: unknown): boolean =>
    err instanceof S3ServiceException && err.name === "AccessDenied";
 
-/** Classifies a probe failure and logs it under the flow that ran it ("Establish", "Credential update"). */
 const probeFailure = (err: unknown, event: string): ApiHttpError => {
    const { status, message, code, name } = classifyS3Error(err);
    logger.warn(`${event} failed`, { s3Error: name, status });
    return new ApiHttpError(status, message, code);
 };
 
-/** Bucket count for credentials that may list, `null` when they may not. */
 const countBuckets = async (
    client: S3Client,
    event: string
@@ -51,10 +49,6 @@ const canHeadBucket = async (
    }
 };
 
-/**
- * Proves a credential set can do what the server needs: reach the first
- * bucket the server is limited to, or list buckets when it has no such list.
- */
 const assertCredentialsWork = async (
    client: S3Client,
    allowedBuckets: readonly string[],

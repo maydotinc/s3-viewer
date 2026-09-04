@@ -3,17 +3,11 @@ import { ReactNode } from "react";
 
 type BasicBlockProps = {
    children: ReactNode;
-   /** Classes for the inner `max-w-6xl` container. */
    className?: string;
-   /** Classes for the outer full-bleed `<section>` (background, borders). */
    sectionClassName?: string;
    id?: string;
 };
 
-/**
- * The one section shell for the landing site: a full-bleed `<section>` with a
- * `py-20` rhythm wrapping a `max-w-6xl mx-auto px-6` container.
- */
 const BasicBlock = ({
    children,
    className,
@@ -29,7 +23,6 @@ const BasicBlock = ({
    );
 };
 
-/** Small uppercase label that sits above a section heading. */
 export const Eyebrow = ({
    children,
    className,
@@ -47,7 +40,6 @@ export const Eyebrow = ({
    </p>
 );
 
-/** Eyebrow + h2 + optional subcopy, in the one landing typography scale. */
 export const SectionHeading = ({
    eyebrow,
    title,

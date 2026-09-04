@@ -13,7 +13,6 @@ const HUE_STEPS = 360;
 const HUE_GAP_MIN = 40;
 const HUE_GAP_SPREAD = 60;
 
-/** FNV-1a over the UTF-8 bytes of the trimmed name, as an unsigned int32. */
 const hashName = (name: string): number => {
    let hash = FNV_OFFSET_BASIS;
    for (const byte of new TextEncoder().encode(name.trim())) {
@@ -22,7 +21,6 @@ const hashName = (name: string): number => {
    return hash >>> 0;
 };
 
-/** First letters of the first two words: "Ada Lovelace" → "AL", "Ada" → "A". */
 const avatarInitials = (name: string): string => {
    const letters = name
       .trim()
@@ -37,7 +35,6 @@ const avatarInitials = (name: string): string => {
 
 type AvatarHues = { from: number; to: number };
 
-/** The two gradient stops, both in [0, 360). */
 const avatarHues = (name: string): AvatarHues => {
    const hash = hashName(name);
    const from = hash % HUE_STEPS;
@@ -46,7 +43,6 @@ const avatarHues = (name: string): AvatarHues => {
    return { from, to };
 };
 
-/** 135° two-stop gradient: lighter top-left, darker bottom-right. */
 const avatarGradient = (name: string): string => {
    const { from, to } = avatarHues(name);
    return `linear-gradient(135deg, hsl(${from} 72% 58%), hsl(${to} 68% 42%))`;

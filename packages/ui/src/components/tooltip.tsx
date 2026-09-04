@@ -14,7 +14,6 @@ const Tooltip = TooltipPrimitive.Root;
 const TooltipTrigger = TooltipPrimitive.Trigger;
 
 type TooltipContentProps = ComponentProps<typeof TooltipPrimitive.Content> & {
-   /** Optional shortcut rendered after the label, e.g. "mod k". */
    shortcut?: string;
 };
 
@@ -76,7 +75,6 @@ const isDisabledElement = (child: ReactNode): boolean => {
    );
 };
 
-/** Wraps a single trigger element with a label (and optional shortcut). */
 const SimpleTooltip = ({
    label,
    shortcut,

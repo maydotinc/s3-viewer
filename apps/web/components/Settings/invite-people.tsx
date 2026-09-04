@@ -26,11 +26,6 @@ import { useState } from "react";
 const sharePath = (serverId: string) =>
    `/servers/${encodeURIComponent(serverId)}/share`;
 
-/**
- * Header action for the invites page. Goes straight to the share page when
- * there is one server to share; asks which one otherwise. Hidden for users
- * who can't manage members anywhere.
- */
 const InvitePeople = () => {
    const router = useRouter();
    const { servers, currentServer } = useServers();

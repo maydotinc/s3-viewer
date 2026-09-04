@@ -1,14 +1,11 @@
-import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
+import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { SearchIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "search-across-s3-buckets";
 const TITLE = "How to search across S3 buckets";
@@ -95,61 +92,37 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Search Across S3 Buckets (Prefix Filter, CLI, Athena)"
-            description="Three ways to search S3: a prefix filter on the current folder in S3 Viewer, a recursive listing from the AWS CLI, or S3 Inventory + Athena."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<SearchIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  S3 has no search API. Its only listing primitive is{" "}
-                  <code>ListObjectsV2</code> with a prefix and a delimiter,
-                  which is exactly what a folder view is: the delimiter groups
-                  everything below the current prefix into
-                  &ldquo;folders&rdquo;. S3 Viewer&apos;s{" "}
-                  <strong>Filter by prefix</strong> box works at that same level
-                  — it filters the rows already listed for the current prefix,
-                  so it is fast and predictable but scoped to one folder in one
-                  bucket. Anything recursive means walking the full listing
-                  yourself: <code>aws s3 ls --recursive</code> piped through{" "}
-                  <code>grep</code> for small and medium buckets, and S3
-                  Inventory + Athena once a bucket has millions of keys. The
-                  same holds for Cloudflare R2, MinIO and Backblaze B2, since
-                  they implement the same listing API.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["s3-browser", "multi-cloud"])}
-            related={getRelatedHowTos([
-               "switch-between-s3-buckets",
-               "view-s3-and-r2-side-by-side",
-               "rename-s3-file",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Search Across S3 Buckets (Prefix Filter, CLI, Athena)",
+   seoDescription:
+      "Three ways to search S3: a prefix filter on the current folder in S3 Viewer, a recursive listing from the AWS CLI, or S3 Inventory + Athena.",
+   visual: <SearchIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         S3 has no search API. Its only listing primitive is{" "}
+         <code>ListObjectsV2</code> with a prefix and a delimiter, which is
+         exactly what a folder view is: the delimiter groups everything below
+         the current prefix into &ldquo;folders&rdquo;. S3 Viewer&apos;s{" "}
+         <strong>Filter by prefix</strong> box works at that same level — it
+         filters the rows already listed for the current prefix, so it is fast
+         and predictable but scoped to one folder in one bucket. Anything
+         recursive means walking the full listing yourself:{" "}
+         <code>aws s3 ls --recursive</code> piped through <code>grep</code> for
+         small and medium buckets, and S3 Inventory + Athena once a bucket has
+         millions of keys. The same holds for Cloudflare R2, MinIO and Backblaze
+         B2, since they implement the same listing API.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["s3-browser", "multi-cloud"]),
+   related: getRelatedHowTos([
+      "switch-between-s3-buckets",
+      "view-s3-and-r2-side-by-side",
+      "rename-s3-file",
+   ]),
+});

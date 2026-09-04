@@ -1,6 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-// The store persists to localStorage, which node does not have.
 const memory = new Map<string, string>();
 vi.stubGlobal("localStorage", {
    getItem: (key: string) => memory.get(key) ?? null,

@@ -32,11 +32,9 @@ const useModGlyph = (): string =>
    useSyncExternalStore(NEVER_CHANGES, readIsApple, assumeApple) ? "⌘" : "Ctrl";
 
 type KbdProps = HTMLAttributes<HTMLElement> & {
-   /** Space or "+" separated keys, e.g. "mod k", "shift ?", "/" */
    keys: string;
 };
 
-/** Renders a keyboard shortcut as a row of key caps. */
 const Kbd = ({ keys, className, ...props }: KbdProps) => {
    const mod = useModGlyph();
 

@@ -1,9 +1,13 @@
-import { GITHUB_URL } from "@/lib/site-config";
+import Layout from "@/components/Layout";
+import Seo from "@/components/Seo";
+import { GITHUB_URL, SITE_URL } from "@/lib/site-config";
+import type { NextPageWithLayout } from "@/pages/_app";
 import { Button } from "@s3-viewer/ui/components/button";
 import { ArrowUpRight, Check, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { FaGithub } from "react-icons/fa";
+import { buildUseCaseJsonLd } from "./jsonld";
 
 type UseCaseFeature = {
    icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
@@ -353,3 +357,65 @@ const UseCasePage = ({
 };
 
 export default UseCasePage;
+
+type CreateUseCasePageConfig = {
+   slug: string;
+   title: string;
+   keyword: string;
+   description: string;
+   seoTitle: string;
+   seoDescription: string;
+   eyebrow: string;
+   tagline: string;
+   bullets: string[];
+   visual: ReactNode;
+   features: UseCaseFeature[];
+   steps: UseCaseStep[];
+   faqs?: UseCaseFAQ[];
+   relatedHowTos?: LinkRef[];
+   related: LinkRef[];
+};
+
+export const createUseCasePage = (
+   config: CreateUseCasePageConfig
+): NextPageWithLayout => {
+   const Page: NextPageWithLayout = () => {
+      const jsonLd = buildUseCaseJsonLd({
+         slug: config.slug,
+         title: `${config.title} — S3 Viewer`,
+         description: config.description,
+         siteUrl: SITE_URL,
+         steps: config.steps,
+         faqs: config.faqs,
+         keyword: config.keyword,
+      });
+
+      return (
+         <>
+            <Seo
+               title={config.seoTitle}
+               description={config.seoDescription}
+               canonical={`/use-cases/${config.slug}`}
+               jsonLd={jsonLd}
+            />
+            <UseCasePage
+               visual={config.visual}
+               eyebrow={config.eyebrow}
+               title={config.title}
+               subtitle={config.description}
+               description={config.tagline}
+               bullets={config.bullets}
+               features={config.features}
+               steps={config.steps}
+               faqs={config.faqs}
+               relatedHowTos={config.relatedHowTos}
+               related={config.related}
+            />
+         </>
+      );
+   };
+
+   Page.getLayout = (page) => <Layout>{page}</Layout>;
+
+   return Page;
+};

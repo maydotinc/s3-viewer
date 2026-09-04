@@ -16,11 +16,6 @@ type ProfileResult =
    | { ok: true; data: ProfileData }
    | { ok: false; message: string };
 
-/**
- * Checks the profile fields a user may change — the name is the only one.
- * Only the keys present in `input` are examined, so other updates (email
- * verification, timestamps) pass through untouched.
- */
 const validateProfile = ({ name }: ProfileInput): ProfileResult => {
    const data: ProfileData = { image: undefined };
    if (name !== undefined) {

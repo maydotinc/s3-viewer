@@ -16,7 +16,7 @@ import {
    type LucideIcon,
 } from "lucide-react";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
-import { PAGE_SIZES, useGridContext } from "./context";
+import { PAGE_SIZES, useGridPaginationContext } from "./context";
 
 const NAV_BUTTON = "size-8";
 
@@ -45,10 +45,6 @@ const NavButton = ({
    </SimpleTooltip>
 );
 
-/**
- * Full-width pagination bar that sits under the grid, inside the same bordered
- * card. Its height never changes, so nothing shifts while a page loads.
- */
 const GridPagination = ({ className }: { className?: string }) => {
    const {
       gridReady,
@@ -58,7 +54,7 @@ const GridPagination = ({ className }: { className?: string }) => {
       totalPages,
       rowCount,
       goToPage,
-   } = useGridContext();
+   } = useGridPaginationContext();
 
    const lastKnown = totalPages !== null;
    const atFirst = page <= 0;

@@ -5,7 +5,6 @@
  */
 type ListFailure<S> = { source: S; error: unknown };
 
-/** Records `error` only when `source` is still the live datasource; otherwise keeps `current`. */
 const pinFailure = <S>(
    current: ListFailure<S> | null,
    latest: S | null,
@@ -13,7 +12,6 @@ const pinFailure = <S>(
    error: unknown
 ): ListFailure<S> | null => (latest === source ? { source, error } : current);
 
-/** The error to show for `source`, or null when the recorded failure belongs to another datasource. */
 const failureOf = <S>(failure: ListFailure<S> | null, source: S): unknown =>
    failure?.source === source ? failure.error : null;
 

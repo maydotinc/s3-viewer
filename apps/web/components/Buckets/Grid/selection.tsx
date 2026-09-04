@@ -1,4 +1,4 @@
-import { useGridContext } from "@/components/DataGrid/context";
+import { useSelectionContext } from "@/components/DataGrid/context";
 import type { S3Object } from "@s3-viewer/types";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import type {
@@ -8,7 +8,7 @@ import type {
    IRowNode,
    RowSelectionOptions,
 } from "ag-grid-community";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const pageFileNodes = (api: IHeaderParams["api"]): IRowNode<S3Object>[] => {
    const pageSize = api.paginationGetPageSize();
@@ -24,10 +24,10 @@ const pageFileNodes = (api: IHeaderParams["api"]): IRowNode<S3Object>[] => {
 };
 
 const SelectionCell = (params: ICellRendererParams<S3Object>) => {
-   const { selectedIds } = useGridContext();
+   const { selectedIdSet } = useSelectionContext();
    const data = params.data;
    if (!data || data.isFolder) return null;
-   const checked = selectedIds.includes(data.key);
+   const checked = selectedIdSet.has(data.key);
    return (
       <div className="flex h-full items-center justify-center">
          <Checkbox
@@ -40,10 +40,24 @@ const SelectionCell = (params: ICellRendererParams<S3Object>) => {
 };
 
 const SelectionHeader = (params: IHeaderParams<S3Object>) => {
-   const { selectedIds } = useGridContext();
-   const nodes = pageFileNodes(params.api);
+   const { selectedIdSet } = useSelectionContext();
+   const [, setRevision] = useState(0);
+   const api = params.api;
+
+   useEffect(() => {
+      const bump = () => setRevision((value) => value + 1);
+      api.addEventListener("modelUpdated", bump);
+      api.addEventListener("paginationChanged", bump);
+      return () => {
+         if (api.isDestroyed()) return;
+         api.removeEventListener("modelUpdated", bump);
+         api.removeEventListener("paginationChanged", bump);
+      };
+   }, [api]);
+
+   const nodes = pageFileNodes(api);
    const selectedOnPage = nodes.filter((node) =>
-      selectedIds.includes(node.data?.key ?? "")
+      selectedIdSet.has(node.data?.key ?? "")
    );
    const all = nodes.length > 0 && selectedOnPage.length === nodes.length;
    const some = selectedOnPage.length > 0 && !all;
@@ -66,7 +80,6 @@ const SelectionHeader = (params: IHeaderParams<S3Object>) => {
    );
 };
 
-// DESIGN.md §3: a 40px checkbox column with the box centred in it.
 const selectionColumn: ColDef<S3Object> = {
    colId: "select",
    headerName: "Select",

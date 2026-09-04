@@ -227,9 +227,9 @@ const SkeletonRows = () => (
       {[0, 1, 2].map((row) => (
          <TableRow key={row}>
             <TableCell>
-               <div className="flex flex-col gap-1">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-52" />
+               <div className="flex flex-col">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-4 w-52" />
                </div>
             </TableCell>
             <TableCell>

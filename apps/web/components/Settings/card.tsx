@@ -4,9 +4,7 @@ import type { ReactNode } from "react";
 type SettingsCardProps = {
    title: string;
    description?: string;
-   /** Right-aligned control next to the title. */
    action?: ReactNode;
-   /** Children (a table) sit flush against the card edges below the header. */
    flush?: boolean;
    className?: string;
    children: ReactNode;

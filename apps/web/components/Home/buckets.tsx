@@ -1,7 +1,7 @@
 import {
    GRID_CARD,
    GridProvider,
-   useGridContext,
+   useGridPaginationContext,
 } from "@/components/DataGrid/context";
 import { GridSkeleton, LazyGrid } from "@/components/DataGrid/lazy-grid";
 import {
@@ -34,7 +34,6 @@ const NoBucketsOverlay = () => (
    />
 );
 
-/** Same anatomy as the objects toolbar's prefix search, so the two match. */
 const BucketFilter = ({
    value,
    onChange,
@@ -42,7 +41,7 @@ const BucketFilter = ({
    value: string;
    onChange: (v: string) => void;
 }) => {
-   const { gridReady } = useGridContext();
+   const { gridReady } = useGridPaginationContext();
    const [focused, setFocused] = useState(false);
    const inputId = useId();
 
@@ -68,7 +67,6 @@ const BucketFilter = ({
             spellCheck={false}
             className="h-9 w-full min-w-0 rounded-lg border border-viewerborder bg-transparent py-1 pl-9 pr-9 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:border-viewerblue disabled:cursor-not-allowed disabled:opacity-50"
          />
-         {/* The key that focuses this field, shown only while it is idle. */}
          {gridReady && !focused && !value && (
             <Kbd
                keys="/"
@@ -114,7 +112,6 @@ const BucketsPanel = ({ filter }: { filter: string }) => {
    if (!session && !isPending)
       return <SignInPrompt>Sign in to view your buckets.</SignInPrompt>;
 
-   // A failure fills the card on its own: there are no rows to paginate.
    if (bucketsError && !isBucketsLoading) {
       return (
          <div className={GRID_CARD}>

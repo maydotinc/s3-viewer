@@ -18,7 +18,6 @@ const buttonVariants = cva(
       // `asChild` renders an anchor, which has no `disabled` attribute — the
       // aria-disabled pair is what stops it being followed.
       "aria-disabled:pointer-events-none aria-disabled:opacity-50",
-      // Icons are size-4 unless the caller sizes them explicitly.
       "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
    ],
    {

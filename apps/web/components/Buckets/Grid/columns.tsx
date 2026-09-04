@@ -47,7 +47,6 @@ const NameCell = (
    params: ICellRendererParams<S3Object, string, ObjectGridContext>
 ) => {
    const data = params.data;
-   // The loaded cell is icon + label, so the placeholder is a square + a bar.
    if (!data)
       return (
          <PendingCell>
@@ -76,10 +75,6 @@ const NameCell = (
    );
 };
 
-/**
- * A right-aligned value column: its formatted text once the block lands, a bar
- * of the same weight until then, so the whole row loads as one line of text.
- */
 const pendingBarCell = (width: string) => {
    const ValueCell = (params: ICellRendererParams<S3Object>) =>
       params.data ? (

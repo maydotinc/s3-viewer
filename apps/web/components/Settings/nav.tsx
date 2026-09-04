@@ -9,7 +9,6 @@ const ITEMS = [
    { href: SITE_PATHS.settingsInvites, label: "Invites", icon: Mail },
 ] as const;
 
-/** Sub-navigation for settings; rows match the sidebar. */
 const SettingsNav = () => {
    const { pathname } = useRouter();
    return (

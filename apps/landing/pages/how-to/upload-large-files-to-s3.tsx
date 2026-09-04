@@ -1,14 +1,11 @@
 import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { UploadIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "upload-large-files-to-s3";
 const TITLE = "How to upload large files to S3 (multipart upload)";
@@ -131,63 +128,38 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Upload Large Files to S3 (Multipart, Browser, CLI)"
-            description="Use S3 multipart upload for files over 100 MB. Parts upload in parallel, failed parts retry independently, and objects up to 5 TB are supported."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<UploadIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  S3&apos;s <code>PutObject</code> caps at 5 GB and is
-                  non-resumable — a network blip on a 4 GB upload restarts from
-                  byte zero. Multipart upload (
-                  <code>CreateMultipartUpload</code> → many{" "}
-                  <code>UploadPart</code> → <code>CompleteMultipartUpload</code>
-                  ) splits the file into parts (5 MB minimum, 10,000 parts max),
-                  uploads them in parallel, and lets you retry only the failed
-                  parts. It supports objects up to 5 TB. S3 Viewer uploads every
-                  file this way: your browser streams it to the S3 Viewer
-                  server, which cuts it into 25 MB parts and sends four at a
-                  time to the bucket while the rest is still arriving — nothing
-                  buffered to disk, and the upload aborted in the bucket if the
-                  stream stops early. Because the browser never talks to the
-                  bucket, there is no CORS policy to set. The same pattern works
-                  against Cloudflare R2, MinIO, B2, and any other S3-compatible
-                  provider.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["s3-browser", "cloudflare-r2"])}
-            related={getRelatedHowTos([
-               "download-file-from-s3",
-               "rename-s3-file",
-               "delete-file-from-s3",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Upload Large Files to S3 (Multipart, Browser, CLI)",
+   seoDescription:
+      "Use S3 multipart upload for files over 100 MB. Parts upload in parallel, failed parts retry independently, and objects up to 5 TB are supported.",
+   visual: <UploadIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         S3&apos;s <code>PutObject</code> caps at 5 GB and is non-resumable — a
+         network blip on a 4 GB upload restarts from byte zero. Multipart upload
+         (<code>CreateMultipartUpload</code> → many <code>UploadPart</code> →{" "}
+         <code>CompleteMultipartUpload</code>) splits the file into parts (5 MB
+         minimum, 10,000 parts max), uploads them in parallel, and lets you
+         retry only the failed parts. It supports objects up to 5 TB. S3 Viewer
+         uploads every file this way: your browser streams it to the S3 Viewer
+         server, which cuts it into 25 MB parts and sends four at a time to the
+         bucket while the rest is still arriving — nothing buffered to disk, and
+         the upload aborted in the bucket if the stream stops early. Because the
+         browser never talks to the bucket, there is no CORS policy to set. The
+         same pattern works against Cloudflare R2, MinIO, B2, and any other
+         S3-compatible provider.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["s3-browser", "cloudflare-r2"]),
+   related: getRelatedHowTos([
+      "download-file-from-s3",
+      "rename-s3-file",
+      "delete-file-from-s3",
+   ]),
+});

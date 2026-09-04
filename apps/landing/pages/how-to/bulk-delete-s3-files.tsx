@@ -1,14 +1,11 @@
 import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { DeleteIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "bulk-delete-s3-files";
 const TITLE = "How to bulk-delete S3 files";
@@ -121,61 +118,37 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Bulk-Delete S3 Files (DeleteObjects API)"
-            description="Three ways to bulk-delete S3 files: AWS CLI rm --recursive, checkbox multi-select in S3 Viewer, or DeleteObjectsCommand — 1,000 keys per request."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<DeleteIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  S3&apos;s <code>DeleteObjects</code> API takes up to 1,000
-                  keys per request and returns a per-key result list — successes
-                  and failures together. For larger deletes you batch by 1,000
-                  and reissue any failed keys. The AWS CLI&apos;s{" "}
-                  <code>rm --recursive</code> handles the listing and batching
-                  for you under the hood. S3 Viewer wraps the same API in a
-                  checkbox multi-select: tick the rows, hit Delete, one round
-                  trip — and deleting a folder walks the prefix and deletes
-                  everything under it recursively. On versioned buckets, every
-                  &ldquo;delete&rdquo; is really a soft delete (it writes a
-                  delete marker); to actually purge, you have to enumerate
-                  versions and delete each one with its <code>VersionId</code>,
-                  which S3 Viewer does not do. For predictable cleanup,
-                  lifecycle rules are the right long-term tool.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["s3-browser", "security-and-audit"])}
-            related={getRelatedHowTos([
-               "delete-file-from-s3",
-               "rename-s3-file",
-               "search-across-s3-buckets",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Bulk-Delete S3 Files (DeleteObjects API)",
+   seoDescription:
+      "Three ways to bulk-delete S3 files: AWS CLI rm --recursive, checkbox multi-select in S3 Viewer, or DeleteObjectsCommand — 1,000 keys per request.",
+   visual: <DeleteIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         S3&apos;s <code>DeleteObjects</code> API takes up to 1,000 keys per
+         request and returns a per-key result list — successes and failures
+         together. For larger deletes you batch by 1,000 and reissue any failed
+         keys. The AWS CLI&apos;s <code>rm --recursive</code> handles the
+         listing and batching for you under the hood. S3 Viewer wraps the same
+         API in a checkbox multi-select: tick the rows, hit Delete, one round
+         trip — and deleting a folder walks the prefix and deletes everything
+         under it recursively. On versioned buckets, every &ldquo;delete&rdquo;
+         is really a soft delete (it writes a delete marker); to actually purge,
+         you have to enumerate versions and delete each one with its{" "}
+         <code>VersionId</code>, which S3 Viewer does not do. For predictable
+         cleanup, lifecycle rules are the right long-term tool.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["s3-browser", "security-and-audit"]),
+   related: getRelatedHowTos([
+      "delete-file-from-s3",
+      "rename-s3-file",
+      "search-across-s3-buckets",
+   ]),
+});

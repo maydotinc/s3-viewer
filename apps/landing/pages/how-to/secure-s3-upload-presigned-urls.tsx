@@ -1,14 +1,11 @@
 import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { UploadIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "secure-s3-upload-presigned-urls";
 const TITLE = "How to upload to S3 securely without touching your bucket";
@@ -119,60 +116,36 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Upload to S3 Securely Without Bucket Changes"
-            description="How S3 Viewer uploads to AWS S3 and Cloudflare R2 without your key reaching the browser or a single bucket setting changing — plus presigned URLs as background."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<UploadIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  An S3 Viewer upload is one HTTP request from your browser to
-                  the S3 Viewer API. The API checks your session and role, then
-                  hands the request body to the AWS SDK&apos;s streaming
-                  uploader, which cuts it into 25 MB parts and sends four at a
-                  time to the bucket while the rest is still arriving. The
-                  credential is decrypted in memory only to sign those parts;
-                  nothing is written to disk and nothing is retained. If the
-                  connection drops, the multipart upload is aborted in the
-                  bucket so no orphaned parts are billed. Downloads take the
-                  other route: the API signs a 15-minute presigned{" "}
-                  <code>GetObject</code> URL and the browser loads it directly
-                  from the bucket — a signed query-string version of the request
-                  that works once, for one operation, until it expires.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["security-and-audit", "s3-browser"])}
-            related={getRelatedHowTos([
-               "upload-large-files-to-s3",
-               "share-s3-file-with-non-technical-user",
-               "download-file-from-s3",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Upload to S3 Securely Without Bucket Changes",
+   seoDescription:
+      "How S3 Viewer uploads to AWS S3 and Cloudflare R2 without your key reaching the browser or a single bucket setting changing — plus presigned URLs as background.",
+   visual: <UploadIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         An S3 Viewer upload is one HTTP request from your browser to the S3
+         Viewer API. The API checks your session and role, then hands the
+         request body to the AWS SDK&apos;s streaming uploader, which cuts it
+         into 25 MB parts and sends four at a time to the bucket while the rest
+         is still arriving. The credential is decrypted in memory only to sign
+         those parts; nothing is written to disk and nothing is retained. If the
+         connection drops, the multipart upload is aborted in the bucket so no
+         orphaned parts are billed. Downloads take the other route: the API
+         signs a 15-minute presigned <code>GetObject</code> URL and the browser
+         loads it directly from the bucket — a signed query-string version of
+         the request that works once, for one operation, until it expires.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["security-and-audit", "s3-browser"]),
+   related: getRelatedHowTos([
+      "upload-large-files-to-s3",
+      "share-s3-file-with-non-technical-user",
+      "download-file-from-s3",
+   ]),
+});

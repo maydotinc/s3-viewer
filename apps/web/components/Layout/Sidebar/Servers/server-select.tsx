@@ -75,7 +75,6 @@ const ServerSelector = () => {
       );
    }
 
-   /** Switching closes the whole menu, submenu included. */
    const switchTo = (server: ServerInfo) => {
       setOpen(false);
       if (server.id !== currentServer.id) setServerId(server.id);

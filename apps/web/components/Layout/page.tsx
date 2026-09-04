@@ -24,21 +24,13 @@ const Page = ({
 );
 
 type PageHeaderProps = {
-   /** Page title. Omit and pass `children` for a breadcrumb instead. */
    title?: ReactNode;
    description?: ReactNode;
-   /** Right cluster: buttons, chips, menus. */
    actions?: ReactNode;
-   /** Custom left content (a breadcrumb), used instead of `title`. */
    children?: ReactNode;
    className?: string;
 };
 
-/**
- * One row: title or breadcrumb on the left, actions on the right. `min-h-9`
- * keeps the row the height of a button even when the right side is empty, so
- * pages with and without actions line up.
- */
 const PageHeader = ({
    title,
    description,

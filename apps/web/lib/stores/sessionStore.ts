@@ -16,10 +16,6 @@ type SessionStore = SessionStoreState & SessionStoreActions;
 
 const EMPTY_SESSION: SessionStoreState = { serverId: "", userId: null };
 
-/**
- * Keeps the current server when it is still in the list, otherwise falls back
- * to the first server (or none). Pure so it can be unit tested.
- */
 const resolveServerId = (
    servers: readonly { id: string }[],
    current: string

@@ -81,29 +81,74 @@ type InviteWrite = Pick<SendInviteInput, "role" | "bucketAccess"> & {
    expiresAt: Date;
 };
 
-const upsertInvite = (
+const writeInvites = async (
    client: Prisma.TransactionClient,
-   email: string,
+   emails: string[],
    w: InviteWrite
-) =>
-   client.pendingInvitation.upsert({
-      where: { email_serverId: { email, serverId: w.serverId } },
-      update: {
-         role: w.role,
-         expiresAt: w.expiresAt,
-         invitedById: w.invitedById,
-         bucketAccess: { deleteMany: {}, create: w.bucketAccess },
-      },
-      create: {
-         email,
-         serverId: w.serverId,
-         role: w.role,
-         expiresAt: w.expiresAt,
-         invitedById: w.invitedById,
-         bucketAccess: { create: w.bucketAccess },
-      },
+): Promise<ServerInvite[]> => {
+   if (emails.length === 0) return [];
+
+   const existing = await client.pendingInvitation.findMany({
+      where: { serverId: w.serverId, email: { in: emails } },
+      select: { id: true, email: true },
+   });
+   const existingEmails = existing.map((row) => row.email);
+   const fresh = emails.filter((email) => !existingEmails.includes(email));
+
+   if (fresh.length > 0) {
+      await client.pendingInvitation.createMany({
+         data: fresh.map((email) => ({
+            email,
+            serverId: w.serverId,
+            role: w.role,
+            expiresAt: w.expiresAt,
+            invitedById: w.invitedById,
+         })),
+         skipDuplicates: true,
+      });
+   }
+
+   if (existing.length > 0) {
+      await client.pendingInvitation.updateMany({
+         where: { serverId: w.serverId, email: { in: existingEmails } },
+         data: {
+            role: w.role,
+            expiresAt: w.expiresAt,
+            invitedById: w.invitedById,
+         },
+      });
+      await client.invitationBucketAccess.deleteMany({
+         where: { invitationId: { in: existing.map((row) => row.id) } },
+      });
+   }
+
+   if (w.bucketAccess.length > 0) {
+      const ids = await client.pendingInvitation.findMany({
+         where: { serverId: w.serverId, email: { in: emails } },
+         select: { id: true },
+      });
+      await client.invitationBucketAccess.createMany({
+         data: ids.flatMap((row) =>
+            w.bucketAccess.map((grant) => ({
+               ...grant,
+               invitationId: row.id,
+            }))
+         ),
+         skipDuplicates: true,
+      });
+   }
+
+   const rows = await client.pendingInvitation.findMany({
+      where: { serverId: w.serverId, email: { in: emails } },
       select: inviteSelect,
    });
+   const byEmail = new Map(rows.map((row) => [row.email, row]));
+   return emails.map((email) => {
+      const row = byEmail.get(email);
+      if (!row) throw new ApiHttpError(500, "Invite could not be saved");
+      return toServerInvite(row);
+   });
+};
 
 const emailInvites = async (
    invites: ServerInvite[],
@@ -168,10 +213,12 @@ const sendInvites = async (req: Request, res: Response) => {
    if (!canManageRole(serverRole, Role[role])) {
       throw new ApiHttpError(403, "You can't invite with that role");
    }
-   const { allowedBuckets } = await loadServerSettings(serverId);
+   const [{ allowedBuckets }, alreadyMembers] = await Promise.all([
+      loadServerSettings(serverId),
+      memberEmails(serverId, emails),
+   ]);
    assertBucketGrants(serverRole, allowedBuckets, bucketAccess);
 
-   const alreadyMembers = await memberEmails(serverId, emails);
    const pending = emails.filter((e) => !alreadyMembers.includes(e));
    await assertCanReplaceInvites(serverId, pending, serverRole);
 
@@ -193,11 +240,7 @@ const sendInvites = async (req: Request, res: Response) => {
          );
       }
       await assertUnderPendingCap(tx, serverId, pending);
-      const written: ServerInvite[] = [];
-      for (const e of pending) {
-         written.push(toServerInvite(await upsertInvite(tx, e, write)));
-      }
-      return written;
+      return writeInvites(tx, pending, write);
    });
    await emailInvites(invites, actor.name, invitesUrl, serverId);
    const result: SendInviteResult = { invites, alreadyMembers };

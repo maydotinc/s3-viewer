@@ -1,14 +1,11 @@
-import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
+import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { SideBySideIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "copy-files-between-s3-and-r2";
 const TITLE = "How to copy files between AWS S3 and Cloudflare R2";
@@ -127,62 +124,38 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Copy Files Between AWS S3 and Cloudflare R2"
-            description="Move objects from AWS S3 to Cloudflare R2 with rclone sync or the AWS CLI, and use S3 Viewer to browse and verify both buckets before and after."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<SideBySideIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  S3&apos;s native <code>CopyObject</code> is server-side but
-                  requires the source and destination to share an endpoint, so
-                  it cannot cross providers. Every cross-cloud copy is therefore
-                  a <code>GetObject</code> followed by a <code>PutObject</code>{" "}
-                  (or a multipart upload), and the only real question is which
-                  machine the bytes pass through. <code>rclone</code> is the
-                  standard answer: it runs the read-and-write loop with
-                  configurable parallelism, splits large objects into parts,
-                  retries what fails, and resumes where it stopped. S3 Viewer
-                  stays out of that path on purpose — object bytes never flow
-                  through our servers, so there is nowhere for a cross-provider
-                  copy to happen. What it gives you instead is the same file
-                  browser over both buckets, which is what you actually want
-                  when you are deciding what to move and checking that it
-                  arrived.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["multi-cloud", "cloudflare-r2"])}
-            related={getRelatedHowTos([
-               "view-s3-and-r2-side-by-side",
-               "upload-large-files-to-s3",
-               "rename-s3-file",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Copy Files Between AWS S3 and Cloudflare R2",
+   seoDescription:
+      "Move objects from AWS S3 to Cloudflare R2 with rclone sync or the AWS CLI, and use S3 Viewer to browse and verify both buckets before and after.",
+   visual: <SideBySideIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         S3&apos;s native <code>CopyObject</code> is server-side but requires
+         the source and destination to share an endpoint, so it cannot cross
+         providers. Every cross-cloud copy is therefore a <code>GetObject</code>{" "}
+         followed by a <code>PutObject</code> (or a multipart upload), and the
+         only real question is which machine the bytes pass through.{" "}
+         <code>rclone</code> is the standard answer: it runs the read-and-write
+         loop with configurable parallelism, splits large objects into parts,
+         retries what fails, and resumes where it stopped. S3 Viewer stays out
+         of that path on purpose — object bytes never flow through our servers,
+         so there is nowhere for a cross-provider copy to happen. What it gives
+         you instead is the same file browser over both buckets, which is what
+         you actually want when you are deciding what to move and checking that
+         it arrived.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["multi-cloud", "cloudflare-r2"]),
+   related: getRelatedHowTos([
+      "view-s3-and-r2-side-by-side",
+      "upload-large-files-to-s3",
+      "rename-s3-file",
+   ]),
+});

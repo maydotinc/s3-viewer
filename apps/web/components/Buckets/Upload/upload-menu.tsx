@@ -35,7 +35,6 @@ const FOLDER_INPUT_ATTRS = { webkitdirectory: "" } as const;
 
 type UploadMenuProps = {
    className?: string;
-   /** The bucket is still loading: shown, but not yet usable. */
    disabled?: boolean;
 };
 

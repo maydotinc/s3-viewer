@@ -1,14 +1,11 @@
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getRelated } from "@/components/UseCases/data";
 import { ShareNonTechnicalIllustration } from "@/components/UseCases/illustrations";
-import { buildUseCaseJsonLd } from "@/components/UseCases/jsonld";
-import UseCasePage, {
+import {
+   createUseCasePage,
    type UseCaseFAQ,
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
-import { SITE_URL } from "@/lib/site-config";
 import {
    Eye,
    Link as LinkIcon,
@@ -80,81 +77,59 @@ const faqs: UseCaseFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildUseCaseJsonLd({
-      slug: SLUG,
-      title: `${TITLE} — S3 Viewer`,
-      description: DESCRIPTION,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="Share S3 Files With Non-Technical Users — Email Invite, No IAM"
-            description={META_DESCRIPTION}
-            canonical={`/use-cases/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <UseCasePage
-            visual={<ShareNonTechnicalIllustration />}
-            eyebrow="Sharing without AWS"
-            title={TITLE}
-            subtitle={DESCRIPTION}
-            description="A clean browser view for clients, designers, and execs."
-            bullets={[
-               "Email invite — recipients sign in to a clean file viewer in any browser",
-               "Roles: Owner, Admin, Editor, Viewer — with per-bucket overrides",
-               "Remove any member instantly — no IAM keys to rotate",
-            ]}
-            features={[
-               {
-                  icon: Mail,
-                  title: "Email invites",
-                  body: "Send an invite; the recipient signs in with the code and sign-in link we email them (or with GitHub, if enabled) and sees only the buckets you shared. No AWS account, no IAM user, no Cloudflare login, no setup.",
-               },
-               {
-                  icon: ShieldCheck,
-                  title: "Server-side request signing",
-                  body: "S3 Viewer checks the member's role and then signs the S3 call with the server's stored credentials. Your access keys never reach their browser; removing the member stops their requests immediately.",
-               },
-               {
-                  icon: Eye,
-                  title: "Read-only by default",
-                  body: "Viewers can browse and download but cannot upload, rename, or delete. Drop-in safe for clients, executives, lawyers, and external reviewers.",
-               },
-               {
-                  icon: LinkIcon,
-                  title: "Copy link for one-offs",
-                  body: "Need a single file with no signup? Copy link in the row's ⋮ menu gives you a presigned URL, signed server-side and valid for 15 minutes. Works in any browser; treat it as a bearer token.",
-               },
-               {
-                  icon: Lock,
-                  title: "Encrypted credentials",
-                  body: "Your AWS keys are encrypted in your browser before they reach us and decrypted in memory only to sign a request. Recipients never see them.",
-               },
-               {
-                  icon: UserMinus,
-                  title: "Remove in one click",
-                  body: "Pull access without rotating IAM keys. They lose access to that server, your other teammates keep working, your applications keep running.",
-               },
-            ]}
-            steps={steps}
-            faqs={faqs}
-            relatedHowTos={getRelatedHowTos([
-               "share-s3-file-with-non-technical-user",
-               "invite-teammate-to-s3-bucket",
-               "set-granular-s3-permissions",
-            ])}
-            related={getRelated(SLUG)}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createUseCasePage({
+   slug: SLUG,
+   title: TITLE,
+   keyword: KEYWORD,
+   description: DESCRIPTION,
+   seoTitle: "Share S3 Files With Non-Technical Users — Email Invite, No IAM",
+   seoDescription: META_DESCRIPTION,
+   eyebrow: "Sharing without AWS",
+   tagline: "A clean browser view for clients, designers, and execs.",
+   bullets: [
+      "Email invite — recipients sign in to a clean file viewer in any browser",
+      "Roles: Owner, Admin, Editor, Viewer — with per-bucket overrides",
+      "Remove any member instantly — no IAM keys to rotate",
+   ],
+   visual: <ShareNonTechnicalIllustration />,
+   features: [
+      {
+         icon: Mail,
+         title: "Email invites",
+         body: "Send an invite; the recipient signs in with the code and sign-in link we email them (or with GitHub, if enabled) and sees only the buckets you shared. No AWS account, no IAM user, no Cloudflare login, no setup.",
+      },
+      {
+         icon: ShieldCheck,
+         title: "Server-side request signing",
+         body: "S3 Viewer checks the member's role and then signs the S3 call with the server's stored credentials. Your access keys never reach their browser; removing the member stops their requests immediately.",
+      },
+      {
+         icon: Eye,
+         title: "Read-only by default",
+         body: "Viewers can browse and download but cannot upload, rename, or delete. Drop-in safe for clients, executives, lawyers, and external reviewers.",
+      },
+      {
+         icon: LinkIcon,
+         title: "Copy link for one-offs",
+         body: "Need a single file with no signup? Copy link in the row's ⋮ menu gives you a presigned URL, signed server-side and valid for 15 minutes. Works in any browser; treat it as a bearer token.",
+      },
+      {
+         icon: Lock,
+         title: "Encrypted credentials",
+         body: "Your AWS keys are encrypted in your browser before they reach us and decrypted in memory only to sign a request. Recipients never see them.",
+      },
+      {
+         icon: UserMinus,
+         title: "Remove in one click",
+         body: "Pull access without rotating IAM keys. They lose access to that server, your other teammates keep working, your applications keep running.",
+      },
+   ],
+   steps,
+   faqs,
+   relatedHowTos: getRelatedHowTos([
+      "share-s3-file-with-non-technical-user",
+      "invite-teammate-to-s3-bucket",
+      "set-granular-s3-permissions",
+   ]),
+   related: getRelated(SLUG),
+});

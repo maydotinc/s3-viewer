@@ -17,7 +17,6 @@ const BucketActions = () => {
    const { refetch } = useBuckets();
    const canShare = usePermission(Permission.MANAGE_MEMBERS);
    const canCreate = usePermission(Permission.CREATE_BUCKET);
-   // The filter input is the sibling at the other end of this toolbar row.
    const actionsRef = useRef<HTMLDivElement>(null);
 
    const pending = isSessionPending || isServerListLoading;

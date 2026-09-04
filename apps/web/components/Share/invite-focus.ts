@@ -1,4 +1,3 @@
-/** The invite form's email field, which the empty states point people at. */
 const INVITE_EMAILS_ID = "invite-emails";
 
 const focusInviteEmails = () => {

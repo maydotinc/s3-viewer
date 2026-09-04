@@ -1,14 +1,11 @@
-import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
+import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { DeleteIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "delete-file-from-s3";
 const TITLE = "How to delete a file from S3 safely";
@@ -112,61 +109,37 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Delete a File From S3 Safely (Versioning, Bulk, MFA)"
-            description="Versioning, delete markers, MFA Delete — what aws s3 rm actually does. Plus how to bulk-delete with the DeleteObjects API."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<DeleteIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  On a non-versioned bucket, <code>DeleteObject</code> removes
-                  the key immediately. On a versioned bucket, it writes a{" "}
-                  <strong>delete marker</strong> — the object becomes invisible
-                  to normal <code>GetObject</code> calls but every prior version
-                  is still there (and still billed). To actually purge a key,
-                  you delete each version explicitly via{" "}
-                  <code>delete-object --version-id</code>. S3 Viewer is not
-                  version-aware: it deletes the current version like any other
-                  S3 client, so whether that is a soft or a hard delete depends
-                  on the bucket&apos;s versioning setting, which is worth
-                  checking before you rely on it. For several objects at once,
-                  S3 Viewer wraps the <code>DeleteObjects</code> API (up to
-                  1,000 keys per call) — tick the checkboxes and clear them in
-                  one round trip.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["s3-browser", "security-and-audit"])}
-            related={getRelatedHowTos([
-               "rename-s3-file",
-               "set-granular-s3-permissions",
-               "search-across-s3-buckets",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Delete a File From S3 Safely (Versioning, Bulk, MFA)",
+   seoDescription:
+      "Versioning, delete markers, MFA Delete — what aws s3 rm actually does. Plus how to bulk-delete with the DeleteObjects API.",
+   visual: <DeleteIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         On a non-versioned bucket, <code>DeleteObject</code> removes the key
+         immediately. On a versioned bucket, it writes a{" "}
+         <strong>delete marker</strong> — the object becomes invisible to normal{" "}
+         <code>GetObject</code> calls but every prior version is still there
+         (and still billed). To actually purge a key, you delete each version
+         explicitly via <code>delete-object --version-id</code>. S3 Viewer is
+         not version-aware: it deletes the current version like any other S3
+         client, so whether that is a soft or a hard delete depends on the
+         bucket&apos;s versioning setting, which is worth checking before you
+         rely on it. For several objects at once, S3 Viewer wraps the{" "}
+         <code>DeleteObjects</code> API (up to 1,000 keys per call) — tick the
+         checkboxes and clear them in one round trip.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["s3-browser", "security-and-audit"]),
+   related: getRelatedHowTos([
+      "rename-s3-file",
+      "set-granular-s3-permissions",
+      "search-across-s3-buckets",
+   ]),
+});

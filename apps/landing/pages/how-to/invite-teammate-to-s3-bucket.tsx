@@ -1,14 +1,11 @@
-import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
+import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { InviteIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "invite-teammate-to-s3-bucket";
 const TITLE = "How to invite a teammate to your S3 bucket";
@@ -115,61 +112,38 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Invite a Teammate to Your S3 Bucket (Without IAM Users)"
-            description="Skip per-person IAM users for human collaboration. Add the server once, then invite teammates by email and give them a role."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<InviteIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  AWS IAM is built for service-to-service authorization and
-                  fine-grained programmatic policy. For a small team that just
-                  needs to browse and share files in a bucket, per-person IAM is
-                  heavier than it needs to be: a JSON policy per role, a key per
-                  person, rotation cycles, and off-boarding to remember. S3
-                  Viewer takes a different approach for that human-collaboration
-                  case: the bucket is connected once with a server-level
-                  credential, and teammates authenticate to S3 Viewer instead of
-                  AWS. Their access is enforced on our server — every request is
-                  checked against their role before it is signed, and roles are
-                  ordered Viewer &lt; Editor &lt; Admin &lt; Owner, each one
-                  adding to the last. When you remove them, no keys need
-                  rotating because they never held any. The same model works for
-                  Cloudflare R2 and any other S3-compatible provider.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["teams"])}
-            related={getRelatedHowTos([
-               "set-granular-s3-permissions",
-               "share-s3-file-with-non-technical-user",
-               "switch-between-s3-buckets",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Invite a Teammate to Your S3 Bucket (Without IAM Users)",
+   seoDescription:
+      "Skip per-person IAM users for human collaboration. Add the server once, then invite teammates by email and give them a role.",
+   visual: <InviteIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         AWS IAM is built for service-to-service authorization and fine-grained
+         programmatic policy. For a small team that just needs to browse and
+         share files in a bucket, per-person IAM is heavier than it needs to be:
+         a JSON policy per role, a key per person, rotation cycles, and
+         off-boarding to remember. S3 Viewer takes a different approach for that
+         human-collaboration case: the bucket is connected once with a
+         server-level credential, and teammates authenticate to S3 Viewer
+         instead of AWS. Their access is enforced on our server — every request
+         is checked against their role before it is signed, and roles are
+         ordered Viewer &lt; Editor &lt; Admin &lt; Owner, each one adding to
+         the last. When you remove them, no keys need rotating because they
+         never held any. The same model works for Cloudflare R2 and any other
+         S3-compatible provider.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["teams"]),
+   related: getRelatedHowTos([
+      "set-granular-s3-permissions",
+      "share-s3-file-with-non-technical-user",
+      "switch-between-s3-buckets",
+   ]),
+});

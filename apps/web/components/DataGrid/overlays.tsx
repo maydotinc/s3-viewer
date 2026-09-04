@@ -32,11 +32,6 @@ const EmptyState = ({
    </div>
 );
 
-/**
- * The one centred failure state for a grid area: icon tile, title, one line of
- * detail and the actions that fix it. Shared by the bucket list and the object
- * list so both read the same.
- */
 const GridErrorState = ({
    icon = CircleAlert,
    title,
@@ -72,11 +67,6 @@ const RetryButton = ({ onRetry, retrying }: RetryProps) => (
    </Button>
 );
 
-/**
- * Unreadable or rejected server credentials are the one failure a user can fix
- * in place, so this state offers the credentials dialog as its primary action
- * to owners and tells everyone else who to ask.
- */
 const CredentialsErrorState = ({
    message,
    onRetry,
@@ -114,11 +104,6 @@ const CredentialsErrorState = ({
    );
 };
 
-/**
- * Skeleton rows, not a spinner — the loaded shape of a grid body is known.
- * AG Grid mounts this under its own header and passes the grid's columns
- * (`loadingOverlayComponentParams`), so the bars line up with the real cells.
- */
 const LoadingOverlay = ({ columns }: { columns?: readonly ColDef[] }) => (
    <SkeletonRows columns={columns} />
 );

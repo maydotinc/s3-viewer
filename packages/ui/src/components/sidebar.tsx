@@ -127,7 +127,6 @@ function Sidebar({
 }: React.ComponentProps<"aside">) {
    const { state, open, openMobile, setOpenMobile } = useSidebar();
    const ref = React.useRef<HTMLElement>(null);
-   // Whatever opened the drawer gets the focus back when it closes.
    const opener = React.useRef<HTMLElement | null>(null);
 
    React.useEffect(() => {
@@ -142,7 +141,6 @@ function Sidebar({
          Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
       (focusables()[0] ?? panel).focus();
 
-      // The drawer covers the page, so the keyboard must stay inside it.
       const onKeyDown = (event: KeyboardEvent) => {
          if (event.key === "Escape") {
             setOpenMobile(false);
@@ -194,8 +192,6 @@ function Sidebar({
             data-state={state}
             className={cn(
                SIDEBAR_BASE,
-               // Small screens: a drawer under the 56px top bar. Desktop: an
-               // ordinary column, which ⌘B takes out of the row.
                openMobile
                   ? "fixed bottom-0 left-0 top-14 z-20 md:static md:z-auto"
                   : "hidden md:flex",

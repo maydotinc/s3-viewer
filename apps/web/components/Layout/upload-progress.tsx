@@ -14,7 +14,7 @@ import {
    File,
    X,
 } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { memo, useCallback, useId, useRef, useState } from "react";
 
 const ROW_HEIGHT = 68;
 const ROW_GAP = 8;
@@ -64,13 +64,13 @@ const StatusIcon = ({ status }: { status: UploadEntry["status"] }) => {
    }
 };
 
-const UploadRow = ({
+const UploadRow = memo(function UploadRow({
    entry,
    onCancel,
 }: {
    entry: UploadEntry;
    onCancel: () => void;
-}) => {
+}) {
    const value = percent(entry);
    const cancellable = entry.status === "pending" || entry.status === "active";
    return (
@@ -129,7 +129,20 @@ const UploadRow = ({
          </div>
       </div>
    );
-};
+});
+
+const UploadRowItem = memo(function UploadRowItem({
+   id,
+   cancel,
+}: {
+   id: string;
+   cancel: (id: string) => void;
+}) {
+   const entry = useUploadStore((state) => state.entries[id]);
+   const onCancel = useCallback(() => cancel(id), [cancel, id]);
+   if (!entry) return null;
+   return <UploadRow entry={entry} onCancel={onCancel} />;
+});
 
 const UploadList = ({
    ids,
@@ -138,7 +151,6 @@ const UploadList = ({
    ids: string[];
    cancel: (id: string) => void;
 }) => {
-   const entries = useUploadStore((state) => state.entries);
    const containerRef = useRef<HTMLDivElement>(null);
    const virtualizer = useVirtualizer({
       count: ids.length,
@@ -155,8 +167,7 @@ const UploadList = ({
          >
             {virtualizer.getVirtualItems().map((item) => {
                const id = ids[item.index];
-               const entry = id ? entries[id] : undefined;
-               if (!id || !entry) return null;
+               if (!id) return null;
                return (
                   <div
                      key={item.key}
@@ -166,7 +177,7 @@ const UploadList = ({
                         height: `${item.size}px`,
                      }}
                   >
-                     <UploadRow entry={entry} onCancel={() => cancel(id)} />
+                     <UploadRowItem id={id} cancel={cancel} />
                   </div>
                );
             })}
@@ -250,7 +261,7 @@ const UploadProgressSheet = () => {
                </Button>
             </div>
             <div id={panelId} hidden={!expanded}>
-               <UploadList ids={order} cancel={cancel} />
+               {expanded && <UploadList ids={order} cancel={cancel} />}
             </div>
          </div>
       </div>

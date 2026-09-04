@@ -1,14 +1,11 @@
 import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { ShareLinkIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "share-s3-file-with-non-technical-user";
 const TITLE = "How to share an S3 file with a non-technical user";
@@ -122,66 +119,42 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Share an S3 File With a Non-Technical User",
+   seoDescription:
+      "Two ways to share AWS S3 and Cloudflare R2 files with people who don't use AWS: a 15-minute presigned link, or an email invite you can revoke.",
+   visual: <ShareLinkIllustration />,
+   steps,
+   underTheHood: (
       <>
-         <Seo
-            title="How to Share an S3 File With a Non-Technical User"
-            description="Two ways to share AWS S3 and Cloudflare R2 files with people who don't use AWS: a 15-minute presigned link, or an email invite you can revoke."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<ShareLinkIllustration />}
-            steps={steps}
-            underTheHood={
-               <>
-                  <p>
-                     A <strong>presigned URL</strong> is a signed query-string
-                     version of an S3 GET request. Anyone with the link can
-                     fetch the file until it expires (max 7 days with IAM user
-                     keys; S3 Viewer issues 15-minute ones). It&apos;s a bearer
-                     token — leaking the URL leaks the file, and it can&apos;t
-                     be revoked once it&apos;s out.
-                  </p>
-                  <br />
-                  <p>
-                     An <strong>invite</strong> ties access to a logged-in user,
-                     which means you can revoke at any time, give them a role,
-                     and avoid minting IAM users. S3 Viewer signs every request
-                     server-side with the server&apos;s stored credentials —
-                     encrypted in your browser before they reach us — so the
-                     recipient never sees an access key. Off-boarding is a
-                     one-click revoke: no AWS keys to rotate, because no IAM
-                     user was ever created.
-                  </p>
-               </>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["share-with-non-technical-users"])}
-            related={getRelatedHowTos([
-               "invite-teammate-to-s3-bucket",
-               "set-granular-s3-permissions",
-               "download-file-from-s3",
-            ])}
-         />
+         <p>
+            A <strong>presigned URL</strong> is a signed query-string version of
+            an S3 GET request. Anyone with the link can fetch the file until it
+            expires (max 7 days with IAM user keys; S3 Viewer issues 15-minute
+            ones). It&apos;s a bearer token — leaking the URL leaks the file,
+            and it can&apos;t be revoked once it&apos;s out.
+         </p>
+         <br />
+         <p>
+            An <strong>invite</strong> ties access to a logged-in user, which
+            means you can revoke at any time, give them a role, and avoid
+            minting IAM users. S3 Viewer signs every request server-side with
+            the server&apos;s stored credentials — encrypted in your browser
+            before they reach us — so the recipient never sees an access key.
+            Off-boarding is a one-click revoke: no AWS keys to rotate, because
+            no IAM user was ever created.
+         </p>
       </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["share-with-non-technical-users"]),
+   related: getRelatedHowTos([
+      "invite-teammate-to-s3-bucket",
+      "set-granular-s3-permissions",
+      "download-file-from-s3",
+   ]),
+});

@@ -1,10 +1,3 @@
-/**
- * The pure half of the keyboard-shortcut system: what a shortcut is, how a
- * key event turns into a token, and which registered shortcut a token (or a
- * two-key sequence) matches. No React, so it stays easy to reason about.
- */
-
-/** Help-dialog sections, in the order they are shown. */
 const SHORTCUT_GROUPS = ["Navigation", "Buckets", "Objects"] as const;
 
 type ShortcutGroup = (typeof SHORTCUT_GROUPS)[number];
@@ -16,17 +9,13 @@ type Shortcut = {
     * after the other (`"g d"`), or a `mod` chord held together (`"mod b"`).
     */
    keys: string;
-   /** Sentence-case description, e.g. "Filter buckets". */
    label: string;
    group: ShortcutGroup;
    handler: () => void;
-   /** Inert and hidden from the help dialog while this returns false. */
    when?: () => boolean;
-   /** Extra key strings that fire the same handler; never displayed. */
    aliases?: string[];
 };
 
-/** How long a sequence prefix such as `g` stays armed. */
 const SEQUENCE_WINDOW_MS = 1000;
 
 /**
@@ -37,10 +26,8 @@ const SEQUENCE_WINDOW_MS = 1000;
  */
 const MOD = "mod";
 
-/** The sequence string a `mod`-chord on `token` is registered under. */
 const chordSequence = (token: string): string => `${MOD} ${token}`;
 
-/** Multi-character `KeyboardEvent.key` values we accept, mapped to tokens. */
 const NAMED_KEYS: Record<string, string> = {
    ArrowDown: "down",
    ArrowLeft: "left",
@@ -61,7 +48,6 @@ const eventToken = (event: KeyboardEvent): string | null => {
    return NAMED_KEYS[event.key] ?? null;
 };
 
-/** Anywhere text goes swallows every shortcut. */
 const isTypingTarget = (target: EventTarget | null): boolean => {
    if (!(target instanceof HTMLElement)) return false;
    if (target.isContentEditable) return true;
@@ -88,7 +74,6 @@ const tokensOf = (shortcut: Shortcut): string[] => [
 
 const isEnabled = (shortcut: Shortcut): boolean => shortcut.when?.() !== false;
 
-/** The enabled shortcut bound to `sequence`, if any. */
 const matchShortcut = (
    shortcuts: readonly Shortcut[],
    sequence: string
@@ -97,7 +82,6 @@ const matchShortcut = (
       (shortcut) => isEnabled(shortcut) && tokensOf(shortcut).includes(sequence)
    ) ?? null;
 
-/** True when `token` starts a two-key sequence worth waiting on. */
 const startsSequence = (
    shortcuts: readonly Shortcut[],
    token: string
@@ -108,7 +92,6 @@ const startsSequence = (
          tokensOf(shortcut).some((keys) => keys.startsWith(`${token} `))
    );
 
-/** Enabled shortcuts bucketed into the help dialog's sections, in order. */
 const groupShortcuts = (
    shortcuts: readonly Shortcut[]
 ): { group: ShortcutGroup; items: Shortcut[] }[] =>

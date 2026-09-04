@@ -16,7 +16,6 @@ const ROWS: { label: string; value: (m: S3ObjectMetadata) => string }[] = [
    { label: "ETag", value: (m) => m.eTag ?? "—" },
 ];
 
-/** Reserved so the card keeps its size while the metadata loads. */
 const BODY_HEIGHT = "min-h-[228px]";
 
 const ObjectDetails = ({ metadata, isLoading, error }: ObjectDetailsProps) => (

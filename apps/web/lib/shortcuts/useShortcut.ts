@@ -20,7 +20,6 @@ const useShortcut = (shortcut: Shortcut): void => {
    useEffect(() => register(entry), [register]);
 };
 
-/** How far up from the actions to look for the row holding the filter. */
 const TOOLBAR_DEPTH = 4;
 
 /**

@@ -1,14 +1,11 @@
 import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { PermissionsIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "set-granular-s3-permissions";
 const TITLE = "How to set granular S3 permissions per prefix";
@@ -141,58 +138,35 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="How to Set Granular S3 Permissions Per Prefix (IAM + Roles)"
-            description="Two patterns for scoping S3 access to one folder: an IAM policy with s3:GetObject + s3:ListBucket conditions, or per-bucket roles in S3 Viewer."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<PermissionsIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  S3 has no folders — &ldquo;prefix-scoped&rdquo; access is
-                  enforced by IAM policy on the key pattern. The catch is that
-                  listing requires a separate <code>s3:ListBucket</code>{" "}
-                  permission on the <em>bucket</em> ARN scoped via{" "}
-                  <code>Condition</code>/<code>s3:prefix</code>, which trips up
-                  most people writing their first IAM policy. For team
-                  collaboration, S3 Viewer offers an alternative: add the server
-                  once with one least-privilege key and give invited members a
-                  role. Those roles are enforced on our server before any S3
-                  call is signed, so you don&apos;t have to write a new IAM
-                  policy every time you onboard someone.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["security-and-audit", "teams"])}
-            related={getRelatedHowTos([
-               "invite-teammate-to-s3-bucket",
-               "share-s3-file-with-non-technical-user",
-               "delete-file-from-s3",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Set Granular S3 Permissions Per Prefix (IAM + Roles)",
+   seoDescription:
+      "Two patterns for scoping S3 access to one folder: an IAM policy with s3:GetObject + s3:ListBucket conditions, or per-bucket roles in S3 Viewer.",
+   visual: <PermissionsIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         S3 has no folders — &ldquo;prefix-scoped&rdquo; access is enforced by
+         IAM policy on the key pattern. The catch is that listing requires a
+         separate <code>s3:ListBucket</code> permission on the <em>bucket</em>{" "}
+         ARN scoped via <code>Condition</code>/<code>s3:prefix</code>, which
+         trips up most people writing their first IAM policy. For team
+         collaboration, S3 Viewer offers an alternative: add the server once
+         with one least-privilege key and give invited members a role. Those
+         roles are enforced on our server before any S3 call is signed, so you
+         don&apos;t have to write a new IAM policy every time you onboard
+         someone.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["security-and-audit", "teams"]),
+   related: getRelatedHowTos([
+      "invite-teammate-to-s3-bucket",
+      "share-s3-file-with-non-technical-user",
+      "delete-file-from-s3",
+   ]),
+});

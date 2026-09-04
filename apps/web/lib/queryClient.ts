@@ -2,7 +2,6 @@ import { ApiError } from "@/lib/api";
 import { MINUTE_MS } from "@s3-viewer/types";
 import { QueryClient } from "@tanstack/react-query";
 
-// A 4xx answer is final: retrying only delays the error state.
 const shouldRetry = (failureCount: number, error: unknown): boolean => {
    if (error instanceof ApiError && error.status >= 400 && error.status < 500)
       return false;

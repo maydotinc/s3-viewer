@@ -5,7 +5,6 @@ import { authGuard } from "@/lib/middleware/auth";
 import { originCheck } from "@/lib/middleware/origin";
 import {
    BUCKET_MOUNT,
-   authFlowIpLimit,
    authRouteLimit,
    bucketIpLimit,
    globalIpLimit,
@@ -46,8 +45,13 @@ app.use(
 app.use(originCheck);
 
 app.post(
-   ["/auth/email-otp/send-verification-otp", "/auth/sign-in/magic-link"],
-   authFlowIpLimit
+   [
+      `${AUTH_BASE_PATH}/email-otp/send-verification-otp`,
+      `${AUTH_BASE_PATH}/sign-in/magic-link`,
+      `${AUTH_BASE_PATH}/forget-password/email-otp`,
+      `${AUTH_BASE_PATH}/email-otp/reset-password`,
+   ],
+   (_req, res) => fail(res, 404, "Not found")
 );
 app.use(AUTH_BASE_PATH, (req, res, next) =>
    req.method === "GET" ? next() : authRouteLimit(req, res, next)

@@ -3,15 +3,10 @@ import type { ReactNode } from "react";
 import SettingsNav from "./nav";
 
 type SettingsShellProps = {
-   /** Right-aligned header actions. */
    action?: ReactNode;
    children: ReactNode;
 };
 
-/**
- * Chrome for every `/settings/*` route: the "Settings" header, a left
- * sub-nav and a content column of cards.
- */
 const SettingsShell = ({ action, children }: SettingsShellProps) => (
    <Page>
       <PageHeader title="Settings" actions={action} />

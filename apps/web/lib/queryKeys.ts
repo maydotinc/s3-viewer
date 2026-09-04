@@ -53,7 +53,6 @@ const queryKeys = {
          "metadata",
       ] as const,
    objectPreview,
-   /** The object's bytes, fetched from the presigned URL for an inline viewer. */
    objectPreviewBody: (
       userId: string,
       serverId: string,

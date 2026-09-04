@@ -28,8 +28,6 @@ const Header = () => {
             </Link>
 
             <div className="flex items-center gap-2">
-               {/* Below `sm` there is no room for both at 320px, and the
-                   hero and footer both carry a GitHub link. */}
                <Button variant="ghost" asChild className="max-sm:hidden">
                   <Link href={GITHUB_URL} target="_blank" rel="noreferrer">
                      <FaGithub />

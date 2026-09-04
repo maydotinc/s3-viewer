@@ -7,51 +7,24 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { ChevronRight, Copy } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+   countNodes,
+   EXPAND_ALL_LIMIT,
+   entriesOf,
+   flattenJson,
+   isBranch,
+   SMALL_DOCUMENT,
+   type Json,
+   type JsonRow,
+} from "./json-rows";
 import { PREVIEW_PANEL, PreviewLoading, TextFrame } from "./preview-frame";
 
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
-type Branch = Json[] | Record<string, Json>;
-type Entry = { key: string; value: Json };
-
-/** One indent step, in px. Narrower than the 16px UI step: this is code. */
 const INDENT = 14;
 
-/** Under this many nodes the whole document opens on arrival. */
-const SMALL_DOCUMENT = 500;
-
-/** Over this, "Expand all" would build more rows than the page can afford. */
-const EXPAND_ALL_LIMIT = 5000;
-
-/** Everything shallower than this opens by default in a large document. */
-const AUTO_OPEN_DEPTH = 2;
-
-/** …unless the branch is this wide, in which case it stays a one-line summary. */
-const AUTO_OPEN_MAX_ENTRIES = 100;
-
-const isBranch = (value: Json): value is Branch =>
-   typeof value === "object" && value !== null;
-
-const entriesOf = (value: Branch): Entry[] =>
-   Array.isArray(value)
-      ? value.map((item, index) => ({ key: String(index), value: item }))
-      : Object.entries(value).map(([key, item]) => ({ key, value: item }));
-
-/** Stops at `limit`: the only questions asked of it are "small?" and "huge?". */
-const countNodes = (value: Json, limit: number): number => {
-   let seen = 0;
-   const walk = (node: Json) => {
-      if (!isBranch(node)) return;
-      for (const entry of entriesOf(node)) {
-         seen += 1;
-         if (seen >= limit) return;
-         walk(entry.value);
-      }
-   };
-   walk(value);
-   return seen;
-};
+const ROW_ESTIMATE = 24;
 
 const parseJson = (text: string): { value: Json } | null => {
    try {
@@ -68,7 +41,6 @@ const Punct = ({ children }: { children: React.ReactNode }) => (
    <span className="text-viewertext">{children}</span>
 );
 
-/** `JSON.stringify` gives the escaped, quoted form — the one a file shows. */
 const Scalar = ({ value }: { value: Json }) => (
    <span
       className={
@@ -140,108 +112,64 @@ const Row = ({
    );
 };
 
-type NodeProps = {
-   /** Absent on the root; a muted index inside an array, a key inside an object. */
-   label?: string;
-   indexed?: boolean;
-   value: Json;
-   depth: number;
-   last: boolean;
-   /** Set by the toolbar; `null` leaves each branch to its own default. */
-   expandAll: boolean | null;
-   small: boolean;
-};
-
-const Node = ({
-   label,
-   indexed = false,
-   value,
-   depth,
-   last,
-   expandAll,
-   small,
-}: NodeProps) => {
-   const entries = useMemo(
-      () => (isBranch(value) ? entriesOf(value) : []),
-      [value]
-   );
-   const [open, setOpen] = useState(
-      () =>
-         expandAll ??
-         (small ||
-            (depth < AUTO_OPEN_DEPTH &&
-               entries.length <= AUTO_OPEN_MAX_ENTRIES))
-   );
-
+const RowBody = ({ row }: { row: JsonRow }) => {
    const key =
-      label === undefined ? null : (
+      row.label === undefined ? null : (
          <>
-            <span className={indexed ? "text-viewerlighttext" : "text-jsonkey"}>
-               {indexed ? label : JSON.stringify(label)}
+            <span
+               className={row.indexed ? "text-viewerlighttext" : "text-jsonkey"}
+            >
+               {row.indexed ? row.label : JSON.stringify(row.label)}
             </span>
             <Punct>: </Punct>
          </>
       );
-   const comma = last ? null : <Punct>,</Punct>;
+   const comma = row.last ? null : <Punct>,</Punct>;
+   const [openBracket, closeBracket] = row.array ? ["[", "]"] : ["{", "}"];
 
-   if (!isBranch(value))
+   if (row.kind === "scalar")
       return (
-         <Row depth={depth}>
+         <>
             {key}
-            <Scalar value={value} />
+            <Scalar value={row.value} />
             {comma}
-         </Row>
+         </>
       );
 
-   const array = Array.isArray(value);
-   const [openBracket, closeBracket] = array ? ["[", "]"] : ["{", "}"];
-
-   if (entries.length === 0)
+   if (row.kind === "empty")
       return (
-         <Row depth={depth}>
+         <>
             {key}
             <Punct>{openBracket + closeBracket}</Punct>
             {comma}
-         </Row>
+         </>
       );
 
-   const toggle = () => setOpen((previous) => !previous);
-
-   if (!open)
+   if (row.kind === "closed")
       return (
-         <Row depth={depth} open={false} onToggle={toggle}>
+         <>
             {key}
             <Punct>{openBracket}</Punct>
             <span className="px-1 text-viewerlighttext">
-               {plural(entries.length, array ? "item" : "key")}
+               {plural(row.count, row.array ? "item" : "key")}
             </span>
             <Punct>{closeBracket}</Punct>
             {comma}
-         </Row>
+         </>
+      );
+
+   if (row.kind === "open")
+      return (
+         <>
+            {key}
+            <Punct>{openBracket}</Punct>
+         </>
       );
 
    return (
       <>
-         <Row depth={depth} open onToggle={toggle}>
-            {key}
-            <Punct>{openBracket}</Punct>
-         </Row>
-         {entries.map((entry, index) => (
-            <Node
-               key={entry.key}
-               label={entry.key}
-               indexed={array}
-               value={entry.value}
-               depth={depth + 1}
-               last={index === entries.length - 1}
-               expandAll={expandAll}
-               small={small}
-            />
-         ))}
-         <Row depth={depth} open onToggle={toggle} chevron={false}>
-            <Punct>{closeBracket}</Punct>
-            {comma}
-         </Row>
+         <Punct>{closeBracket}</Punct>
+         {comma}
       </>
    );
 };
@@ -264,7 +192,7 @@ const Panel = ({
             {actions}
          </div>
       </div>
-      <div className="min-h-0 flex-1 overflow-auto py-2 font-mono text-[13px] leading-6">
+      <div className="flex min-h-0 flex-1 flex-col font-mono text-[13px] leading-6">
          {children}
       </div>
    </div>
@@ -313,21 +241,92 @@ const ExpandAllButton = ({
    );
 };
 
+const VirtualRows = ({
+   rows,
+   onToggle,
+}: {
+   rows: JsonRow[];
+   onToggle: (path: string, open: boolean) => void;
+}) => {
+   const containerRef = useRef<HTMLDivElement>(null);
+   const virtualizer = useVirtualizer({
+      count: rows.length,
+      getScrollElement: () => containerRef.current,
+      estimateSize: () => ROW_ESTIMATE,
+      overscan: 12,
+      getItemKey: (index) => {
+         const row = rows[index];
+         return row ? `${row.path}:${row.kind}` : index;
+      },
+   });
+
+   return (
+      <div ref={containerRef} className="min-h-0 flex-1 overflow-auto py-2">
+         <div
+            className="relative w-full"
+            style={{ height: `${virtualizer.getTotalSize()}px` }}
+         >
+            {virtualizer.getVirtualItems().map((item) => {
+               const row = rows[item.index];
+               if (!row) return null;
+               const foldable = row.kind !== "scalar" && row.kind !== "empty";
+               const open = row.kind === "open" || row.kind === "close";
+               return (
+                  <div
+                     key={item.key}
+                     ref={virtualizer.measureElement}
+                     data-index={item.index}
+                     className="absolute left-0 top-0 w-full"
+                     style={{ transform: `translateY(${item.start}px)` }}
+                  >
+                     <Row
+                        depth={row.depth}
+                        {...(foldable
+                           ? {
+                                open,
+                                onToggle: () => onToggle(row.path, !open),
+                                chevron: row.kind !== "close",
+                             }
+                           : {})}
+                     >
+                        <RowBody row={row} />
+                     </Row>
+                  </div>
+               );
+            })}
+         </div>
+      </div>
+   );
+};
+
 const JsonTree = ({ value, text }: { value: Json; text: string }) => {
    const nodes = useMemo(() => countNodes(value, EXPAND_ALL_LIMIT), [value]);
    const small = nodes < SMALL_DOCUMENT;
    const canExpandAll = nodes < EXPAND_ALL_LIMIT;
 
-   // Remounting the tree is what applies a new default to every branch at once,
-   // so the nonce is the whole mechanism behind expand/collapse all.
    const [expandAll, setExpandAll] = useState<boolean | null>(null);
-   const [nonce, setNonce] = useState(0);
+   const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(
+      () => new Map()
+   );
    const collapsing = expandAll !== false;
 
    const toggleAll = () => {
       setExpandAll(!collapsing);
-      setNonce((previous) => previous + 1);
+      setOverrides(new Map());
    };
+
+   const onToggle = useCallback((path: string, open: boolean) => {
+      setOverrides((previous) => {
+         const next = new Map(previous);
+         next.set(path, open);
+         return next;
+      });
+   }, []);
+
+   const rows = useMemo(
+      () => flattenJson({ value, overrides, expandAll, small }),
+      [value, overrides, expandAll, small]
+   );
 
    const pretty = useMemo(
       () => JSON.stringify(value, null, 2) ?? text,
@@ -351,25 +350,17 @@ const JsonTree = ({ value, text }: { value: Json; text: string }) => {
             </>
          }
       >
-         <Node
-            key={nonce}
-            value={value}
-            depth={0}
-            last
-            expandAll={expandAll}
-            small={small}
-         />
+         <VirtualRows rows={rows} onToggle={onToggle} />
       </Panel>
    );
 };
 
-/** Valid file, invalid JSON: still worth showing, just without the colours. */
 const RawText = ({ text }: { text: string }) => (
    <Panel
       summary="Not valid JSON — showing the raw file"
       actions={<CopyButton text={text} />}
    >
-      <pre className="whitespace-pre-wrap break-words px-4 text-viewerblack">
+      <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-words px-4 py-2 text-viewerblack">
          {text}
       </pre>
    </Panel>

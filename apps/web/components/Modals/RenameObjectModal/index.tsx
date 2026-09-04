@@ -1,3 +1,4 @@
+import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
 import { ApiError, errorMessage } from "@/lib/api";
 import useRenameObject from "@/lib/hooks/mutations/object/useRenameObject";
@@ -6,16 +7,6 @@ import usePathSuggestion, {
 } from "@/lib/hooks/usePathSuggestion";
 import { formatBytes } from "@/lib/utils/format";
 import { MAX_RENAME_BYTES, isFolderKey } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
-import {
-   Dialog,
-   DialogBody,
-   DialogContent,
-   DialogDescription,
-   DialogFooter,
-   DialogHeader,
-   DialogTitle,
-} from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -66,8 +57,6 @@ const RenameObjectModal = ({
    const newKey = value.trim();
    const validation = validate(newKey, objectKey);
    const suggestion = usePathSuggestion(bucketName, newKey);
-   // The submit button is disabled while invalid, so the validation message has
-   // to appear on its own once the field has been touched.
    const error = requestError ?? (touched ? validation : null);
 
    const acceptSuggestion = () => {
@@ -96,74 +85,60 @@ const RenameObjectModal = ({
    };
 
    return (
-      <Dialog open onOpenChange={rename.isPending ? undefined : onClose}>
-         <DialogContent>
-            <DialogHeader>
-               <DialogTitle>Rename object</DialogTitle>
-               <DialogDescription>
-                  Edit the full key to move or rename this object; objects over{" "}
-                  {formatBytes(MAX_RENAME_BYTES)} can&apos;t be renamed.
-               </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={submit} className="flex min-h-0 flex-col">
-               <DialogBody className="flex flex-col gap-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                     <Label htmlFor={inputId}>Object key</Label>
-                     <span
-                        className="text-xs text-viewerlighttext"
-                        aria-hidden="true"
-                     >
-                        {suggestion ? "→ to autocomplete" : ""}
-                     </span>
-                  </div>
-                  <div className="relative">
-                     <Input
-                        id={inputId}
-                        value={value}
-                        autoFocus
-                        autoComplete="off"
-                        spellCheck={false}
-                        aria-invalid={error ? true : undefined}
-                        aria-describedby={errorId}
-                        onChange={(event) => {
-                           setValue(event.target.value);
-                           setTouched(true);
-                           setRequestError(null);
-                        }}
-                        onBlur={() => setTouched(true)}
-                        onKeyDown={(event) => {
-                           if (suggestion && isAcceptSuggestionKey(event)) {
-                              event.preventDefault();
-                              acceptSuggestion();
-                           }
-                        }}
-                     />
-                     {suggestion && (
-                        <div
-                           aria-hidden="true"
-                           className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 text-sm"
-                        >
-                           <span className="invisible">{value}</span>
-                           <span className="text-viewerlighttext">
-                              {suggestion}
-                           </span>
-                        </div>
-                     )}
-                  </div>
-                  <FormError id={errorId}>{error}</FormError>
-               </DialogBody>
-               <DialogFooter>
-                  <Button
-                     type="submit"
-                     loading={rename.isPending}
-                     disabled={validation !== null}
-                  >
-                     Rename
-                  </Button>
-               </DialogFooter>
-            </form>
-         </DialogContent>
-      </Dialog>
+      <FormDialog
+         onClose={onClose}
+         isPending={rename.isPending}
+         title="Rename object"
+         description={
+            <>
+               Edit the full key to move or rename this object; objects over{" "}
+               {formatBytes(MAX_RENAME_BYTES)} can&apos;t be renamed.
+            </>
+         }
+         onSubmit={submit}
+         submitLabel="Rename"
+         submitDisabled={validation !== null}
+      >
+         <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={inputId}>Object key</Label>
+            <span className="text-xs text-viewerlighttext" aria-hidden="true">
+               {suggestion ? "→ to autocomplete" : ""}
+            </span>
+         </div>
+         <div className="relative">
+            <Input
+               id={inputId}
+               value={value}
+               autoFocus
+               autoComplete="off"
+               spellCheck={false}
+               aria-invalid={error ? true : undefined}
+               aria-describedby={errorId}
+               onChange={(event) => {
+                  setValue(event.target.value);
+                  setTouched(true);
+                  setRequestError(null);
+               }}
+               onBlur={() => setTouched(true)}
+               onKeyDown={(event) => {
+                  if (suggestion && isAcceptSuggestionKey(event)) {
+                     event.preventDefault();
+                     acceptSuggestion();
+                  }
+               }}
+            />
+            {suggestion && (
+               <div
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre px-3 text-sm"
+               >
+                  <span className="invisible">{value}</span>
+                  <span className="text-viewerlighttext">{suggestion}</span>
+               </div>
+            )}
+         </div>
+         <FormError id={errorId}>{error}</FormError>
+      </FormDialog>
    );
 };
 

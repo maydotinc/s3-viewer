@@ -16,9 +16,7 @@ type BucketAccessPickerProps = {
    /** Pass (even as null) to reserve a validation line under the list. */
    error?: string | null;
    disabled?: boolean;
-   /** Accessible name for the group of checkboxes. */
    label: string;
-   /** Visible section heading. Omit for the inline member panel. */
    heading?: string;
 };
 

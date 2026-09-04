@@ -1,5 +1,8 @@
-import { useBucketContext } from "@/components/Buckets/Context";
-import { useGridContext } from "@/components/DataGrid/context";
+import {
+   useBucketContext,
+   useBucketFilter,
+} from "@/components/Buckets/Context";
+import { useGridPaginationContext } from "@/components/DataGrid/context";
 import usePathSuggestion, {
    isAcceptSuggestionKey,
 } from "@/lib/hooks/usePathSuggestion";
@@ -12,8 +15,9 @@ import { useEffect, useId, useRef, useState } from "react";
 const DEBOUNCE_MS = 300;
 
 const PrefixSearch = ({ className }: { className?: string }) => {
-   const { bucketName, prefix, filter, setFilter } = useBucketContext();
-   const { gridReady } = useGridContext();
+   const { bucketName, prefix } = useBucketContext();
+   const { filter, setFilter } = useBucketFilter();
+   const { gridReady } = useGridPaginationContext();
    const [text, setText] = useState(filter);
    const [focused, setFocused] = useState(false);
    const inputRef = useRef<HTMLInputElement>(null);
@@ -94,7 +98,6 @@ const PrefixSearch = ({ className }: { className?: string }) => {
                <span className="text-viewerlighttext">{suggestion}</span>
             </div>
          )}
-         {/* The key that focuses this field, shown only while it is idle. */}
          {gridReady && !focused && !text && (
             <Kbd
                keys="/"

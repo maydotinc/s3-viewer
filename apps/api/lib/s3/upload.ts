@@ -1,11 +1,38 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import type { Readable } from "node:stream";
+import { Transform, type Readable } from "node:stream";
 
 const QUEUE_SIZE = 4;
 const MAX_PARTS = 10_000;
 const TIB = 1024 ** 4;
 const MAX_OBJECT_BYTES = 5 * TIB;
+
+class UploadTooLargeError extends Error {
+   readonly limit: number;
+
+   constructor(limit: number) {
+      super(`Uploads are limited to ${limit} bytes`);
+      this.name = "UploadTooLargeError";
+      this.limit = limit;
+   }
+}
+
+const isUploadTooLargeError = (err: unknown): err is UploadTooLargeError =>
+   err instanceof UploadTooLargeError;
+
+const limitBytes = (limit: number): Transform => {
+   let total = 0;
+   return new Transform({
+      transform(chunk, _encoding, done) {
+         total += chunk.length;
+         if (total > limit) {
+            done(new UploadTooLargeError(limit));
+            return;
+         }
+         done(null, chunk);
+      },
+   });
+};
 
 const declaredLength = (header: string | undefined): number | undefined => {
    if (header === undefined || header.trim() === "") return undefined;
@@ -18,11 +45,9 @@ const exceedsLimit = (
    limit: number | undefined
 ): boolean => limit !== undefined && length !== undefined && length > limit;
 
-/** The smallest part size that keeps a known content length under `MAX_PARTS`. */
 const minPartSizeFor = (contentLength: number): number =>
    Math.ceil(contentLength / MAX_PARTS);
 
-/** True when `length` exceeds S3's per-object limit, or even `maxPartBytes` parts can't fit it under `MAX_PARTS`. */
 const exceedsMaxPartSize = (
    length: number | undefined,
    maxPartBytes: number
@@ -30,7 +55,6 @@ const exceedsMaxPartSize = (
    length !== undefined &&
    (length > MAX_OBJECT_BYTES || minPartSizeFor(length) > maxPartBytes);
 
-/** Base part size, bumped up so a known content length stays under `MAX_PARTS` parts. */
 const partSizeFor = (
    contentLength: number | undefined,
    basePartBytes: number
@@ -47,6 +71,7 @@ type StreamUploadParams = {
    body: Readable;
    contentLength: number | undefined;
    partSize: number;
+   maxBytes: number;
    abortController: AbortController;
 };
 
@@ -60,14 +85,19 @@ const streamUpload = async ({
    body,
    contentLength,
    partSize,
+   maxBytes,
    abortController,
 }: StreamUploadParams): Promise<StreamUploadResult> => {
+   const limiter = limitBytes(maxBytes);
+   body.on("error", (err) => limiter.destroy(err));
+   limiter.on("error", () => body.destroy());
+
    const upload = new Upload({
       client,
       params: {
          Bucket: bucket,
          Key: key,
-         Body: body,
+         Body: body.pipe(limiter),
          ContentType: contentType,
          ...(contentLength === undefined
             ? {}
@@ -84,16 +114,23 @@ const streamUpload = async ({
       if (loaded !== undefined) size = loaded;
    });
 
-   const out = await upload.done();
-   return { size, eTag: out.ETag ?? null };
+   try {
+      const out = await upload.done();
+      return { size, eTag: out.ETag ?? null };
+   } catch (err) {
+      if (isUploadTooLargeError(limiter.errored)) throw limiter.errored;
+      throw err;
+   }
 };
 
 export {
    declaredLength,
    exceedsLimit,
    exceedsMaxPartSize,
+   isUploadTooLargeError,
    MAX_OBJECT_BYTES,
    MAX_PARTS,
    partSizeFor,
    streamUpload,
+   UploadTooLargeError,
 };

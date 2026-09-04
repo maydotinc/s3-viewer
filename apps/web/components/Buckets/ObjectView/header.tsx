@@ -3,7 +3,6 @@ import useObjectCommands from "@/components/Buckets/useObjectCommands";
 import { PageHeader } from "@/components/Layout/page";
 import { folderHref, objectHref } from "@/lib/utils/s3/paths";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import {
@@ -65,14 +64,7 @@ const ObjectHeader = ({ bucketName, objectKey, path }: ObjectHeaderProps) => {
 
    const { can } = commands;
 
-   const actions = isLoading ? (
-      <div className="flex h-9 items-center gap-2" aria-busy="true">
-         <Skeleton className="h-9 w-32 rounded-lg" />
-         <Skeleton className="h-9 w-28 rounded-lg" />
-         <Skeleton className="h-9 w-28 rounded-lg" />
-         <Skeleton className="h-9 w-24 rounded-lg" />
-      </div>
-   ) : (
+   const actions = (
       <>
          {can.download && (
             <>
@@ -131,7 +123,7 @@ const ObjectHeader = ({ bucketName, objectKey, path }: ObjectHeaderProps) => {
    );
 
    return (
-      <PageHeader actions={actions}>
+      <PageHeader actions={isLoading ? null : actions}>
          <div className="flex min-w-0 items-center gap-2">
             <SimpleTooltip label="Back">
                <Button variant="ghost" size="icon-sm" asChild>

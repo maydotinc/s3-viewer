@@ -1,9 +1,7 @@
 import { Spinner } from "@s3-viewer/ui/components/spinner";
 
-/** The preview lives in a card, like every other panel on the page. */
 const PREVIEW_BOX =
    "flex min-h-64 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite p-6";
-/** The same card for a preview that fills it edge to edge and scrolls itself. */
 const PREVIEW_PANEL =
    "flex min-h-64 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite";
 const PREVIEW_ASPECT = "aspect-[4/3] w-full max-w-3xl max-h-full";

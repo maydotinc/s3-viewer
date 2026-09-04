@@ -17,7 +17,6 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
-/** A click the browser handles itself: new tab, new window, middle button. */
 const isModifiedClick = (event: MouseEvent) =>
    event.metaKey ||
    event.ctrlKey ||
@@ -50,12 +49,10 @@ const ProfileDropdown = () => {
    }, [open, router.events]);
 
    const holdOpenUntilRouted = (href: string) => (event: Event) => {
-      // Already on the page, or the click opens it elsewhere: close as usual.
       if (modifiedClick.current || router.asPath === href) return;
       event.preventDefault();
    };
 
-   // Same footprint as the trigger so the banner never shifts.
    if (!user) {
       return (
          <div

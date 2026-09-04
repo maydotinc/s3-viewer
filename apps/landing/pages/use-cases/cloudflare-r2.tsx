@@ -1,14 +1,11 @@
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getRelated } from "@/components/UseCases/data";
 import { CloudflareR2Illustration } from "@/components/UseCases/illustrations";
-import { buildUseCaseJsonLd } from "@/components/UseCases/jsonld";
-import UseCasePage, {
+import {
+   createUseCasePage,
    type UseCaseFAQ,
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
-import { SITE_URL } from "@/lib/site-config";
 import {
    Eye,
    Layers,
@@ -80,81 +77,59 @@ const faqs: UseCaseFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildUseCaseJsonLd({
-      slug: SLUG,
-      title: `${TITLE} — S3 Viewer`,
-      description: DESCRIPTION,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="Cloudflare R2 Dashboard — Rename, Preview and Share R2 Buckets"
-            description={META_DESCRIPTION}
-            canonical={`/use-cases/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <UseCasePage
-            visual={<CloudflareR2Illustration />}
-            eyebrow="Cloudflare R2"
-            title={TITLE}
-            subtitle={DESCRIPTION}
-            description="Built for the people who actually open R2 buckets every day."
-            bullets={[
-               "Rename, prefix filtering, and inline previews for R2 objects",
-               "Share R2 buckets by email — no Cloudflare account required for the recipient",
-               "Mix R2 servers with AWS S3, MinIO, and B2 in one sidebar",
-            ]}
-            features={[
-               {
-                  icon: PencilLine,
-                  title: "Rename in R2",
-                  body: "R2 has no rename API — same as S3, by design. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the source goes only after the copy succeeds, and an existing key is never overwritten.",
-               },
-               {
-                  icon: Search,
-                  title: "Filter an R2 folder",
-                  body: "The “Filter by prefix” box narrows the current folder's rows by prefix while you type — the same behavior as on an AWS bucket, since R2 answers the same ListObjectsV2 call.",
-               },
-               {
-                  icon: Eye,
-                  title: "Inline R2 previews",
-                  body: "Images, video, audio, PDF, Markdown, JSON and source code render in the browser via 15-minute presigned URLs.",
-               },
-               {
-                  icon: Upload,
-                  title: "Uploads with no bucket setup",
-                  body: "Files stream through S3 Viewer into R2 as a multipart upload — 25 MB parts, several at a time — so there is no CORS policy or exposed header to configure on the bucket, and a dropped connection is retried.",
-               },
-               {
-                  icon: UserPlus,
-                  title: "Share without Cloudflare access",
-                  body: "Invite teammates and clients by email. They sign in to S3 Viewer and see the R2 bucket — no Cloudflare account, no API token, no setup.",
-               },
-               {
-                  icon: Layers,
-                  title: "Mix R2 with S3",
-                  body: "An R2 server and an AWS server sit side by side in the sidebar, one click apart. For moving objects between them, reach for rclone — S3 Viewer is how you check both ends.",
-               },
-            ]}
-            steps={steps}
-            faqs={faqs}
-            relatedHowTos={getRelatedHowTos([
-               "rename-s3-file",
-               "view-s3-and-r2-side-by-side",
-               "upload-large-files-to-s3",
-            ])}
-            related={getRelated(SLUG)}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createUseCasePage({
+   slug: SLUG,
+   title: TITLE,
+   keyword: KEYWORD,
+   description: DESCRIPTION,
+   seoTitle: "Cloudflare R2 Dashboard — Rename, Preview and Share R2 Buckets",
+   seoDescription: META_DESCRIPTION,
+   eyebrow: "Cloudflare R2",
+   tagline: "Built for the people who actually open R2 buckets every day.",
+   bullets: [
+      "Rename, prefix filtering, and inline previews for R2 objects",
+      "Share R2 buckets by email — no Cloudflare account required for the recipient",
+      "Mix R2 servers with AWS S3, MinIO, and B2 in one sidebar",
+   ],
+   visual: <CloudflareR2Illustration />,
+   features: [
+      {
+         icon: PencilLine,
+         title: "Rename in R2",
+         body: "R2 has no rename API — same as S3, by design. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the source goes only after the copy succeeds, and an existing key is never overwritten.",
+      },
+      {
+         icon: Search,
+         title: "Filter an R2 folder",
+         body: "The “Filter by prefix” box narrows the current folder's rows by prefix while you type — the same behavior as on an AWS bucket, since R2 answers the same ListObjectsV2 call.",
+      },
+      {
+         icon: Eye,
+         title: "Inline R2 previews",
+         body: "Images, video, audio, PDF, Markdown, JSON and source code render in the browser via 15-minute presigned URLs.",
+      },
+      {
+         icon: Upload,
+         title: "Uploads with no bucket setup",
+         body: "Files stream through S3 Viewer into R2 as a multipart upload — 25 MB parts, several at a time — so there is no CORS policy or exposed header to configure on the bucket, and a dropped connection is retried.",
+      },
+      {
+         icon: UserPlus,
+         title: "Share without Cloudflare access",
+         body: "Invite teammates and clients by email. They sign in to S3 Viewer and see the R2 bucket — no Cloudflare account, no API token, no setup.",
+      },
+      {
+         icon: Layers,
+         title: "Mix R2 with S3",
+         body: "An R2 server and an AWS server sit side by side in the sidebar, one click apart. For moving objects between them, reach for rclone — S3 Viewer is how you check both ends.",
+      },
+   ],
+   steps,
+   faqs,
+   relatedHowTos: getRelatedHowTos([
+      "rename-s3-file",
+      "view-s3-and-r2-side-by-side",
+      "upload-large-files-to-s3",
+   ]),
+   related: getRelated(SLUG),
+});

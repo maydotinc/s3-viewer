@@ -1,14 +1,11 @@
 import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { SideBySideIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "view-s3-and-r2-side-by-side";
 const TITLE = "How to view AWS S3 and Cloudflare R2 in one dashboard";
@@ -119,60 +116,36 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="View AWS S3 and Cloudflare R2 in One Dashboard"
-            description="Add AWS S3 and Cloudflare R2 as servers in one sidebar and switch between them in a click — one file browser over both S3-compatible APIs."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<SideBySideIllustration />}
-            steps={steps}
-            underTheHood={
-               <p>
-                  R2, B2, MinIO and Wasabi all implement the S3 API, which is
-                  why a single client can talk to all of them — the only
-                  differences are the endpoint, the region string and a few
-                  signing nuances, which is why S3 Viewer asks you for the
-                  region and endpoint when you add a server rather than
-                  guessing. Each server keeps its own credential and its own
-                  signer, so nothing crosses over between providers. You browse
-                  one server at a time and switch from the sidebar. What S3
-                  Viewer deliberately does not do is move bytes between
-                  providers: <code>CopyObject</code> only works within one
-                  endpoint, and proxying object data through our servers is not
-                  something we want to be in the path of. Transfers belong to{" "}
-                  <code>rclone</code> or the AWS CLI.
-               </p>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["multi-cloud", "cloudflare-r2"])}
-            related={getRelatedHowTos([
-               "switch-between-s3-buckets",
-               "copy-files-between-s3-and-r2",
-               "search-across-s3-buckets",
-            ])}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "View AWS S3 and Cloudflare R2 in One Dashboard",
+   seoDescription:
+      "Add AWS S3 and Cloudflare R2 as servers in one sidebar and switch between them in a click — one file browser over both S3-compatible APIs.",
+   visual: <SideBySideIllustration />,
+   steps,
+   underTheHood: (
+      <p>
+         R2, B2, MinIO and Wasabi all implement the S3 API, which is why a
+         single client can talk to all of them — the only differences are the
+         endpoint, the region string and a few signing nuances, which is why S3
+         Viewer asks you for the region and endpoint when you add a server
+         rather than guessing. Each server keeps its own credential and its own
+         signer, so nothing crosses over between providers. You browse one
+         server at a time and switch from the sidebar. What S3 Viewer
+         deliberately does not do is move bytes between providers:{" "}
+         <code>CopyObject</code> only works within one endpoint, and proxying
+         object data through our servers is not something we want to be in the
+         path of. Transfers belong to <code>rclone</code> or the AWS CLI.
+      </p>
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["multi-cloud", "cloudflare-r2"]),
+   related: getRelatedHowTos([
+      "switch-between-s3-buckets",
+      "copy-files-between-s3-and-r2",
+      "search-across-s3-buckets",
+   ]),
+});

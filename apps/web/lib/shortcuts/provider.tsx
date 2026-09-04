@@ -28,13 +28,9 @@ import {
 type Registration = { current: Shortcut };
 
 type ShortcutsValue = {
-   /** Registers a shortcut until the returned cleanup runs. */
    register: (entry: Registration) => () => void;
-   /** Every shortcut currently registered, page ones before the globals. */
    list: () => Shortcut[];
-   /** Bumps whenever a shortcut is registered or unregistered. */
    getVersion: () => number;
-   /** Calls `listener` on every registry change; returns an unsubscribe. */
    subscribe: (listener: () => void) => () => void;
    helpOpen: boolean;
    setHelpOpen: (open: boolean) => void;
@@ -42,11 +38,6 @@ type ShortcutsValue = {
 
 const ShortcutsContext = createContext<ShortcutsValue | null>(null);
 
-/**
- * App-wide keyboard shortcuts. Components register their own bindings with
- * `useShortcut` while they are mounted, so the help dialog always lists what
- * actually works on the page you are looking at.
- */
 const ShortcutsProvider = ({ children }: { children: ReactNode }) => {
    const router = useRouter();
    const [helpOpen, setHelpOpen] = useState(false);

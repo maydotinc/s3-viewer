@@ -13,11 +13,9 @@ import type { ReactNode } from "react";
 
 type ConfirmDialogProps = {
    open?: boolean;
-   /** Whether Escape or an overlay click may close the dialog. */
    closable?: boolean;
    onClose: () => void;
    title: ReactNode;
-   /** One sentence describing the consequence of confirming. */
    description: ReactNode;
    descriptionClassName?: string;
    /** Reserves a single error line under the header when not undefined. */
@@ -26,7 +24,6 @@ type ConfirmDialogProps = {
    isPending?: boolean;
    confirmVariant?: "default" | "destructive";
    onConfirm: () => void;
-   /** Optional body below the error line. */
    children?: ReactNode;
 };
 

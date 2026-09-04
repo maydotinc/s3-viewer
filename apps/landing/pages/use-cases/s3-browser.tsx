@@ -1,14 +1,11 @@
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getRelated } from "@/components/UseCases/data";
 import { S3BrowserIllustration } from "@/components/UseCases/illustrations";
-import { buildUseCaseJsonLd } from "@/components/UseCases/jsonld";
-import UseCasePage, {
+import {
+   createUseCasePage,
    type UseCaseFAQ,
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
-import { SITE_URL } from "@/lib/site-config";
 import { Command, Eye, Github, PencilLine, Search, Trash2 } from "lucide-react";
 
 const SLUG = "s3-browser";
@@ -79,81 +76,59 @@ const faqs: UseCaseFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildUseCaseJsonLd({
-      slug: SLUG,
-      title: `${TITLE} — S3 Viewer`,
-      description: DESCRIPTION,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="S3 Browser — Rename, Previews, Multi-Select Delete, Open Source"
-            description={META_DESCRIPTION}
-            canonical={`/use-cases/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <UseCasePage
-            visual={<S3BrowserIllustration />}
-            eyebrow="Better S3 browser"
-            title={TITLE}
-            subtitle={DESCRIPTION}
-            description="A browsing layer on top of every S3-compatible provider."
-            bullets={[
-               "One-step rename — wrapping the S3 copy + delete pattern, metadata preserved",
-               "Inline previews for images, video, audio, PDF and text formats",
-               "Every connected provider in one sidebar, one click apart",
-            ]}
-            features={[
-               {
-                  icon: PencilLine,
-                  title: "One-step rename",
-                  body: "Amazon S3 has no rename API — keys are immutable. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the original is deleted only after the new key writes, and an existing key is never silently overwritten. Objects over 5 GB need a multipart copy from the CLI.",
-               },
-               {
-                  icon: Search,
-                  title: "Prefix filter as you type",
-                  body: "The “Filter by prefix” box narrows the current folder's rows by prefix while you type — folders and objects both. It's scoped to the folder you're in, which keeps it instant and predictable.",
-               },
-               {
-                  icon: Eye,
-                  title: "Inline previews",
-                  body: "Images, video, audio, PDF, Markdown, JSON and source code from JavaScript to Python render in the browser via 15-minute presigned URLs.",
-               },
-               {
-                  icon: Trash2,
-                  title: "Multi-select delete",
-                  body: "Tick the checkboxes and hit Delete — the selection goes out as a single DeleteObjects call, up to 1,000 keys per request. Delete folder on a folder row clears the whole prefix recursively.",
-               },
-               {
-                  icon: Command,
-                  title: "One sidebar, every provider",
-                  body: "Every server you've added, with its buckets underneath. Switching from an AWS bucket to an R2 bucket is a click — no re-authenticating, no separate console.",
-               },
-               {
-                  icon: Github,
-                  title: "MIT, open source, self-hostable",
-                  body: "Free to use, free to fork. Audit the code, run it inside your VPC, ship it to your enterprise — credentials never have to leave your network.",
-               },
-            ]}
-            steps={steps}
-            faqs={faqs}
-            relatedHowTos={getRelatedHowTos([
-               "rename-s3-file",
-               "search-across-s3-buckets",
-               "download-file-from-s3",
-            ])}
-            related={getRelated(SLUG)}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createUseCasePage({
+   slug: SLUG,
+   title: TITLE,
+   keyword: KEYWORD,
+   description: DESCRIPTION,
+   seoTitle: "S3 Browser — Rename, Previews, Multi-Select Delete, Open Source",
+   seoDescription: META_DESCRIPTION,
+   eyebrow: "Better S3 browser",
+   tagline: "A browsing layer on top of every S3-compatible provider.",
+   bullets: [
+      "One-step rename — wrapping the S3 copy + delete pattern, metadata preserved",
+      "Inline previews for images, video, audio, PDF and text formats",
+      "Every connected provider in one sidebar, one click apart",
+   ],
+   visual: <S3BrowserIllustration />,
+   features: [
+      {
+         icon: PencilLine,
+         title: "One-step rename",
+         body: "Amazon S3 has no rename API — keys are immutable. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the original is deleted only after the new key writes, and an existing key is never silently overwritten. Objects over 5 GB need a multipart copy from the CLI.",
+      },
+      {
+         icon: Search,
+         title: "Prefix filter as you type",
+         body: "The “Filter by prefix” box narrows the current folder's rows by prefix while you type — folders and objects both. It's scoped to the folder you're in, which keeps it instant and predictable.",
+      },
+      {
+         icon: Eye,
+         title: "Inline previews",
+         body: "Images, video, audio, PDF, Markdown, JSON and source code from JavaScript to Python render in the browser via 15-minute presigned URLs.",
+      },
+      {
+         icon: Trash2,
+         title: "Multi-select delete",
+         body: "Tick the checkboxes and hit Delete — the selection goes out as a single DeleteObjects call, up to 1,000 keys per request. Delete folder on a folder row clears the whole prefix recursively.",
+      },
+      {
+         icon: Command,
+         title: "One sidebar, every provider",
+         body: "Every server you've added, with its buckets underneath. Switching from an AWS bucket to an R2 bucket is a click — no re-authenticating, no separate console.",
+      },
+      {
+         icon: Github,
+         title: "MIT, open source, self-hostable",
+         body: "Free to use, free to fork. Audit the code, run it inside your VPC, ship it to your enterprise — credentials never have to leave your network.",
+      },
+   ],
+   steps,
+   faqs,
+   relatedHowTos: getRelatedHowTos([
+      "rename-s3-file",
+      "search-across-s3-buckets",
+      "download-file-from-s3",
+   ]),
+   related: getRelated(SLUG),
+});

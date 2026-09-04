@@ -17,7 +17,6 @@ import PendingInvites from "./pending-invites";
 
 const sharePath = (serverId: string) => `/servers/${serverId}/share`;
 
-// Escape only goes back when nothing is layered over the page.
 const OVERLAY_SELECTOR =
    "[data-slot=dialog-content],[data-slot=select-content],[data-slot=dropdown-menu-content]";
 

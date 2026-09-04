@@ -12,7 +12,9 @@ import {
    declaredLength,
    exceedsLimit,
    exceedsMaxPartSize,
+   isUploadTooLargeError,
    MAX_OBJECT_BYTES,
+   MAX_PARTS,
    partSizeFor,
    streamUpload,
 } from "@/lib/s3/upload";
@@ -203,6 +205,13 @@ objectsRouter.put(
             if (!req.complete) abortController.abort();
          });
 
+         const partSize = partSizeFor(contentLength, env.UPLOAD_PART_BYTES);
+         const maxBytes = Math.min(
+            env.MAX_UPLOAD_BYTES ?? Number.POSITIVE_INFINITY,
+            MAX_PARTS * partSize,
+            MAX_OBJECT_BYTES
+         );
+
          const client = await getS3Client(serverId);
          const { size, eTag } = await streamUpload({
             client,
@@ -211,9 +220,15 @@ objectsRouter.put(
             contentType,
             body: req,
             contentLength,
-            partSize: partSizeFor(contentLength, env.UPLOAD_PART_BYTES),
+            partSize,
+            maxBytes,
             abortController,
-         }).catch(throwHttpError);
+         }).catch((err: unknown) => {
+            if (isUploadTooLargeError(err)) {
+               throw new ApiHttpError(413, err.message);
+            }
+            return throwHttpError(err);
+         });
          const uploaded: S3ObjectUploaded = { key: objectKey, size, eTag };
          res.status(201).json(uploaded);
       }

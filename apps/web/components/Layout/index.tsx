@@ -12,10 +12,6 @@ type ViewerLayoutProps = {
    dashboardOnServerChange?: boolean;
 };
 
-/**
- * App shell: banner on top, then a sidebar + main row that fills the rest of
- * the viewport. Pages scroll inside `main`; the body never scrolls.
- */
 const ViewerLayout = ({
    children,
    dashboardOnServerChange = true,
@@ -33,7 +29,6 @@ const ViewerLayout = ({
       if (previous !== serverId) push(SITE_PATHS.dashboard);
    }, [dashboardOnServerChange, push, serverId]);
 
-   // The open drawer owns the screen: nothing behind it takes focus or clicks.
    useEffect(() => {
       const main = mainRef.current;
       if (!main) return;

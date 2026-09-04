@@ -5,10 +5,6 @@ import * as React from "react";
 
 import { cn } from "@s3-viewer/ui/lib/utils";
 
-/**
- * Menus fade in over 120ms (opacity + 2px rise) and disappear instantly — no
- * exit animation, no zoom or slide. Hover uses `transition-colors` only.
- */
 const ENTER = "data-[state=open]:animate-fade-in";
 
 const SURFACE =
@@ -185,8 +181,6 @@ function DropdownMenuSubTrigger({
 function DropdownMenuSubContent({
    className,
    sideOffset = 4,
-   // 0 lines the submenu box up with the trigger row box (both sit inside
-   // the same 4px content padding), which reads as "attached to this row".
    alignOffset = 0,
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {

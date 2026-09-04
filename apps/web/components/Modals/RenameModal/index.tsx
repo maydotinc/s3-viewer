@@ -1,16 +1,7 @@
+import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
 import useRenameServer from "@/lib/hooks/mutations/server/useRenameServer";
 import { ServerInfo, serverNameSchema } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
-import {
-   Dialog,
-   DialogBody,
-   DialogContent,
-   DialogDescription,
-   DialogFooter,
-   DialogHeader,
-   DialogTitle,
-} from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { FormEvent, useState } from "react";
@@ -41,8 +32,6 @@ const RenameModal = ({ server, onClose }: RenameModalProps) => {
 
    const parsed = parseServerName(value);
    const unchanged = parsed.ok && parsed.name === server.name;
-   // The submit button is disabled while invalid, so the validation message has
-   // to appear on its own once the field has been touched.
    const error = requestError ?? (touched && !parsed.ok ? parsed.error : null);
 
    const submit = (e: FormEvent) => {
@@ -56,46 +45,33 @@ const RenameModal = ({ server, onClose }: RenameModalProps) => {
    };
 
    return (
-      <Dialog open onOpenChange={rename.isPending ? undefined : onClose}>
-         <DialogContent>
-            <DialogHeader>
-               <DialogTitle>Rename server</DialogTitle>
-               <DialogDescription>
-                  Only the name shown in S3 Viewer changes.
-               </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={submit} className="flex min-h-0 flex-col">
-               <DialogBody className="flex flex-col gap-1.5">
-                  <Label htmlFor="server-name">Server name</Label>
-                  <Input
-                     id="server-name"
-                     value={value}
-                     maxLength={64}
-                     autoFocus
-                     autoComplete="off"
-                     aria-invalid={error ? true : undefined}
-                     aria-describedby="server-name-error"
-                     onChange={(e) => {
-                        setValue(e.target.value);
-                        setTouched(true);
-                        setRequestError(null);
-                     }}
-                     onBlur={() => setTouched(true)}
-                  />
-                  <FormError id="server-name-error">{error}</FormError>
-               </DialogBody>
-               <DialogFooter>
-                  <Button
-                     type="submit"
-                     loading={rename.isPending}
-                     disabled={unchanged || !parsed.ok}
-                  >
-                     Rename
-                  </Button>
-               </DialogFooter>
-            </form>
-         </DialogContent>
-      </Dialog>
+      <FormDialog
+         onClose={onClose}
+         isPending={rename.isPending}
+         title="Rename server"
+         description="Only the name shown in S3 Viewer changes."
+         onSubmit={submit}
+         submitLabel="Rename"
+         submitDisabled={unchanged || !parsed.ok}
+      >
+         <Label htmlFor="server-name">Server name</Label>
+         <Input
+            id="server-name"
+            value={value}
+            maxLength={64}
+            autoFocus
+            autoComplete="off"
+            aria-invalid={error ? true : undefined}
+            aria-describedby="server-name-error"
+            onChange={(e) => {
+               setValue(e.target.value);
+               setTouched(true);
+               setRequestError(null);
+            }}
+            onBlur={() => setTouched(true)}
+         />
+         <FormError id="server-name-error">{error}</FormError>
+      </FormDialog>
    );
 };
 

@@ -4,18 +4,12 @@ import { ReactNode } from "react";
 type CardProps = {
    title: string;
    description?: string;
-   /** Right-aligned control in the card header. */
    action?: ReactNode;
-   /**
-    * Render children flush against the card edges (tables), instead of inside
-    * the standard `p-6` body.
-    */
    flush?: boolean;
    className?: string;
    children: ReactNode;
 };
 
-/** Page section card: DESIGN.md §4 (`rounded-xl border p-6`, `gap-4` inside). */
 const Card = ({
    title,
    description,

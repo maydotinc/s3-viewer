@@ -5,10 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import ProfileDropdown from "./profile-dropdown";
 
-// DESIGN.md §2: `h-14 px-6`, so the logo sits on the 24px inset — the sidebar
-// toggle follows it rather than pushing it off that inset. The account slot
-// renders a same-size placeholder while the session loads, so nothing below
-// the banner moves.
 const ViewerBanner = () => (
    <header className="flex h-14 w-full shrink-0 items-center justify-between gap-4 border-b border-viewerborder bg-viewerwhite px-6">
       <div className="flex min-w-0 items-center gap-3">

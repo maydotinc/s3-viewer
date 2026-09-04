@@ -1,11 +1,15 @@
+import type { S3Client } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import {
    declaredLength,
    exceedsLimit,
    exceedsMaxPartSize,
+   isUploadTooLargeError,
    MAX_OBJECT_BYTES,
    MAX_PARTS,
    partSizeFor,
+   streamUpload,
 } from "./upload";
 
 describe("declaredLength", () => {
@@ -80,5 +84,54 @@ describe("exceedsMaxPartSize", () => {
       expect(
          exceedsMaxPartSize(MAX_OBJECT_BYTES + 1, generousMaxPartBytes)
       ).toBe(true);
+   });
+});
+
+describe("streamUpload byte cap", () => {
+   const collect = async (chunks: Buffer[], maxBytes: number) => {
+      const body = Readable.from(chunks);
+      const sent: Buffer[] = [];
+      const client = {
+         config: { requestHandler: {} },
+         send: async (command: { input: { Body?: unknown } }) => {
+            const part = command.input.Body;
+            if (part !== undefined) sent.push(Buffer.from(part as Uint8Array));
+            return { ETag: '"etag"' };
+         },
+      } as unknown as S3Client;
+
+      await streamUpload({
+         client,
+         bucket: "b",
+         key: "k",
+         contentType: "application/octet-stream",
+         body,
+         contentLength: undefined,
+         partSize: 5 * 1024 * 1024,
+         maxBytes,
+         abortController: new AbortController(),
+      });
+      return Buffer.concat(sent).length;
+   };
+
+   it("rejects a chunked body that streams past the cap", async () => {
+      const chunk = Buffer.alloc(64 * 1024, 1);
+      await expect(
+         collect([chunk, chunk, chunk], 100 * 1024)
+      ).rejects.toSatisfy(isUploadTooLargeError);
+   });
+
+   it("does not trip the cap for a body at exactly the limit", async () => {
+      const chunk = Buffer.alloc(64 * 1024, 1);
+      const err = await collect([chunk], 64 * 1024).catch((e: unknown) => e);
+      expect(isUploadTooLargeError(err)).toBe(false);
+   });
+
+   it("trips the cap one byte over the limit", async () => {
+      const chunk = Buffer.alloc(64 * 1024, 1);
+      const err = await collect([chunk], 64 * 1024 - 1).catch(
+         (e: unknown) => e
+      );
+      expect(isUploadTooLargeError(err)).toBe(true);
    });
 });

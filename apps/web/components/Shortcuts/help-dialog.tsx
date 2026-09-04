@@ -30,10 +30,6 @@ const ShortcutRow = ({ keys, label }: { keys: string; label: string }) => (
    </li>
 );
 
-/**
- * The `?` cheatsheet. It lists what is registered right now, so the rows
- * follow the page you opened it from.
- */
 const ShortcutsHelp = () => {
    const { helpOpen, setHelpOpen, list, getVersion, subscribe } =
       useShortcutsContext();

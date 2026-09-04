@@ -1,4 +1,7 @@
-import { useGridContext } from "@/components/DataGrid/context";
+import {
+   useGridContext,
+   useGridPaginationContext,
+} from "@/components/DataGrid/context";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { useShortcut } from "@/lib/shortcuts";
 import { Permission } from "@s3-viewer/permissions";
@@ -36,7 +39,7 @@ const SortMenu = () => {
    const setFoldersFirst = usePreferencesStore(
       (state) => state.setFoldersFirst
    );
-   const { rowCount } = useGridContext();
+   const { rowCount } = useGridPaginationContext();
    const value: SortOrder = foldersFirst ? "first" : "mixed";
    const spansMultipleBlocks = foldersFirst && rowCount > MAX_LIST_BLOCK_SIZE;
    return (
@@ -103,7 +106,6 @@ const ObjectsToolbar = () => {
    });
 
    useShortcut({
-      // ⌫ is the key people actually reach for; ⌦ does the same thing.
       keys: "backspace",
       aliases: ["delete"],
       label: "Delete selected objects",

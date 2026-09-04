@@ -1,14 +1,11 @@
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
 import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getRelated } from "@/components/UseCases/data";
 import { MultiCloudIllustration } from "@/components/UseCases/illustrations";
-import { buildUseCaseJsonLd } from "@/components/UseCases/jsonld";
-import UseCasePage, {
+import {
+   createUseCasePage,
    type UseCaseFAQ,
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
-import { SITE_URL } from "@/lib/site-config";
 import {
    Cloud,
    Command,
@@ -81,81 +78,60 @@ const faqs: UseCaseFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildUseCaseJsonLd({
-      slug: SLUG,
-      title: `${TITLE} — S3 Viewer`,
-      description: DESCRIPTION,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
-      <>
-         <Seo
-            title="Multi-Cloud S3 Dashboard — AWS S3, Cloudflare R2 and MinIO in One Sidebar"
-            description={META_DESCRIPTION}
-            canonical={`/use-cases/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <UseCasePage
-            visual={<MultiCloudIllustration />}
-            eyebrow="Multi-cloud"
-            title={TITLE}
-            subtitle={DESCRIPTION}
-            description="One layer across every S3-compatible provider you use."
-            bullets={[
-               "AWS S3, Cloudflare R2, MinIO, B2, Wasabi — same sidebar, same file browser",
-               "One click to switch provider, with no re-authenticating",
-               "Credentials encrypted in your browser before they reach us",
-            ]}
-            features={[
-               {
-                  icon: FolderTree,
-                  title: "One sidebar, every cloud",
-                  body: "Every server you have added, with its buckets underneath, in one tree. Each provider's native console is scoped to its own service; S3 Viewer is the layer that puts them together.",
-               },
-               {
-                  icon: Search,
-                  title: "Filter the folder you're in",
-                  body: "The “Filter by prefix” box above the file list narrows the current folder's rows by prefix as you type — the same behavior on every provider, since they all answer the same ListObjectsV2 call.",
-               },
-               {
-                  icon: Layers,
-                  title: "The same operations everywhere",
-                  body: "Upload, download, Copy link, rename and delete behave identically on S3, R2, MinIO and B2 — one set of habits instead of one per console.",
-               },
-               {
-                  icon: Command,
-                  title: "Switch in one click",
-                  body: "Pick another server in the sidebar and you are in the other cloud. No re-authenticating, no logging into a separate console.",
-               },
-               {
-                  icon: Cloud,
-                  title: "Restricted-token friendly",
-                  body: "Have a token without ListBuckets permission? Name the buckets it may reach when you add the server — S3 Viewer skips the listing call and works from your list.",
-               },
-               {
-                  icon: Github,
-                  title: "MIT-licensed, self-hostable",
-                  body: "Free to use, free to fork. Self-host the same multi-cloud UI inside your VPC and credentials never leave your network.",
-               },
-            ]}
-            steps={steps}
-            faqs={faqs}
-            relatedHowTos={getRelatedHowTos([
-               "view-s3-and-r2-side-by-side",
-               "switch-between-s3-buckets",
-               "search-across-s3-buckets",
-            ])}
-            related={getRelated(SLUG)}
-         />
-      </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+export default createUseCasePage({
+   slug: SLUG,
+   title: TITLE,
+   keyword: KEYWORD,
+   description: DESCRIPTION,
+   seoTitle:
+      "Multi-Cloud S3 Dashboard — AWS S3, Cloudflare R2 and MinIO in One Sidebar",
+   seoDescription: META_DESCRIPTION,
+   eyebrow: "Multi-cloud",
+   tagline: "One layer across every S3-compatible provider you use.",
+   bullets: [
+      "AWS S3, Cloudflare R2, MinIO, B2, Wasabi — same sidebar, same file browser",
+      "One click to switch provider, with no re-authenticating",
+      "Credentials encrypted in your browser before they reach us",
+   ],
+   visual: <MultiCloudIllustration />,
+   features: [
+      {
+         icon: FolderTree,
+         title: "One sidebar, every cloud",
+         body: "Every server you have added, with its buckets underneath, in one tree. Each provider's native console is scoped to its own service; S3 Viewer is the layer that puts them together.",
+      },
+      {
+         icon: Search,
+         title: "Filter the folder you're in",
+         body: "The “Filter by prefix” box above the file list narrows the current folder's rows by prefix as you type — the same behavior on every provider, since they all answer the same ListObjectsV2 call.",
+      },
+      {
+         icon: Layers,
+         title: "The same operations everywhere",
+         body: "Upload, download, Copy link, rename and delete behave identically on S3, R2, MinIO and B2 — one set of habits instead of one per console.",
+      },
+      {
+         icon: Command,
+         title: "Switch in one click",
+         body: "Pick another server in the sidebar and you are in the other cloud. No re-authenticating, no logging into a separate console.",
+      },
+      {
+         icon: Cloud,
+         title: "Restricted-token friendly",
+         body: "Have a token without ListBuckets permission? Name the buckets it may reach when you add the server — S3 Viewer skips the listing call and works from your list.",
+      },
+      {
+         icon: Github,
+         title: "MIT-licensed, self-hostable",
+         body: "Free to use, free to fork. Self-host the same multi-cloud UI inside your VPC and credentials never leave your network.",
+      },
+   ],
+   steps,
+   faqs,
+   relatedHowTos: getRelatedHowTos([
+      "view-s3-and-r2-side-by-side",
+      "switch-between-s3-buckets",
+      "search-across-s3-buckets",
+   ]),
+   related: getRelated(SLUG),
+});

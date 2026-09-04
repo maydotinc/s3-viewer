@@ -12,18 +12,12 @@ type RoleSelectProps = {
    value: Role;
    roles: readonly Role[];
    onChange: (role: Role) => void;
-   /** Accessible name for the trigger, e.g. "Role for Ada". */
    label: string;
-   /** Width utility for the trigger. Always fixed, never intrinsic. */
    className?: string;
    size?: "sm" | "default";
    disabled?: boolean;
 };
 
-/**
- * The trigger shows the role label and nothing else — descriptions only ever
- * live in the dropdown items, so the trigger can never overflow its box.
- */
 const RoleSelect = ({
    value,
    roles,

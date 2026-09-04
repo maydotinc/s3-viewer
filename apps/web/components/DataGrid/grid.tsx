@@ -9,14 +9,12 @@ import {
    type RowSelectionOptions,
 } from "ag-grid-community";
 import { AgGridReact } from "ag-grid-react";
-import { useGridContext } from "./context";
+import { useGridPaginationContext } from "./context";
 import { LoadingOverlay } from "./overlays";
 import { SKELETON_ROWS } from "./skeleton";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-// DESIGN.md §3. The numbers here are the table spec: 44px rows and header,
-// 16px cell padding, hairline rows, no wrapper border.
 const viewerGridTheme = themeQuartz.withParams({
    accentColor: "var(--color-viewerblue)",
    backgroundColor: "var(--color-viewerwhite)",
@@ -68,7 +66,7 @@ type BaseGridProps<TData> = {
 );
 
 const BaseGrid = <TData,>(props: BaseGridProps<TData>) => {
-   const { gridRef, pageSize, handlers } = useGridContext();
+   const { gridRef, pageSize, handlers } = useGridPaginationContext();
    const {
       columnDefs,
       getRowId,

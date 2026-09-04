@@ -129,7 +129,6 @@ body {
    }
 }
 
-/* Tooltips and menus get a very short opacity fade; dialogs never animate. */
 @keyframes fade-in {
    from {
       opacity: 0;

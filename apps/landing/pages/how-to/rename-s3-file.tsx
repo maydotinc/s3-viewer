@@ -1,14 +1,11 @@
-import { getRelatedHowTos } from "@/components/HowTo/data";
-import HowToPage, {
+import {
+   createHowToPage,
    type HowToFAQ,
    type HowToStep,
 } from "@/components/HowTo/how-to-page";
-import { buildHowToJsonLd } from "@/components/HowTo/jsonld";
-import Layout from "@/components/Layout";
-import Seo from "@/components/Seo";
+import { getRelatedHowTos } from "@/components/HowTo/data";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { RenameIllustration } from "@/components/UseCases/illustrations";
-import { SITE_URL } from "@/lib/site-config";
 
 const SLUG = "rename-s3-file";
 const TITLE = "How to rename a file in S3 (and why it's tricky)";
@@ -125,82 +122,57 @@ const faqs: HowToFAQ[] = [
    },
 ];
 
-const Page = () => {
-   const jsonLd = buildHowToJsonLd({
-      slug: SLUG,
-      title: TITLE,
-      tldr: TLDR,
-      siteUrl: SITE_URL,
-      steps,
-      faqs,
-      keyword: KEYWORD,
-   });
-
-   return (
+export default createHowToPage({
+   slug: SLUG,
+   title: TITLE,
+   tldr: TLDR,
+   keyword: KEYWORD,
+   seoTitle: "How to Rename a File in S3 (Copy + Delete Pattern Explained)",
+   seoDescription:
+      "Amazon S3 has no rename API — keys are immutable. The copy + delete pattern explained: what happens to metadata and tags, and what changes above 5 GB.",
+   visual: <RenameIllustration />,
+   steps,
+   underTheHood: (
       <>
-         <Seo
-            title="How to Rename a File in S3 (Copy + Delete Pattern Explained)"
-            description="Amazon S3 has no rename API — keys are immutable. The copy + delete pattern explained: what happens to metadata and tags, and what changes above 5 GB."
-            canonical={`/how-to/${SLUG}`}
-            jsonLd={jsonLd}
-         />
-         <HowToPage
-            eyebrow={TITLE}
-            title={TITLE}
-            tldr={TLDR}
-            visual={<RenameIllustration />}
-            steps={steps}
-            underTheHood={
-               <>
-                  <p>
-                     S3 is a flat key-value store. There is no{" "}
-                     <code>RenameObject</code> API call — keys are immutable
-                     once written, by design. Every &ldquo;rename&rdquo; in any
-                     S3 tool is the same two operations:{" "}
-                     <strong>
-                        <code>CopyObject</code> to write the bytes at the new
-                        key (server-side, no download)
-                     </strong>
-                     , then{" "}
-                     <strong>
-                        <code>DeleteObject</code>
-                     </strong>{" "}
-                     on the old key.
-                  </p>
-                  <br />
-                  <p>
-                     Two things to handle: a single <code>CopyObject</code>{" "}
-                     fails above 5 GB, and the pair of calls is not atomic, so a
-                     failure between copy and delete can leave you with two keys
-                     (or zero, if you deleted first). Metadata and tags carry
-                     over on their own — <code>MetadataDirective</code> and{" "}
-                     <code>TaggingDirective</code> both default to{" "}
-                     <code>COPY</code>.
-                  </p>
-                  <br />
-                  <p>
-                     S3 Viewer only deletes the source after the destination
-                     write returns success, refuses the rename when something
-                     already exists at the target key (you get a conflict error
-                     rather than a silent overwrite), and rejects objects over 5
-                     GB — use the CLI or an SDK for those. The same pattern
-                     works against Cloudflare R2 and any other S3-compatible
-                     provider.
-                  </p>
-               </>
-            }
-            faqs={faqs}
-            useCases={getUseCaseRefs(["s3-browser", "cloudflare-r2"])}
-            related={getRelatedHowTos([
-               "delete-file-from-s3",
-               "upload-large-files-to-s3",
-               "download-file-from-s3",
-            ])}
-         />
+         <p>
+            S3 is a flat key-value store. There is no <code>RenameObject</code>{" "}
+            API call — keys are immutable once written, by design. Every
+            &ldquo;rename&rdquo; in any S3 tool is the same two operations:{" "}
+            <strong>
+               <code>CopyObject</code> to write the bytes at the new key
+               (server-side, no download)
+            </strong>
+            , then{" "}
+            <strong>
+               <code>DeleteObject</code>
+            </strong>{" "}
+            on the old key.
+         </p>
+         <br />
+         <p>
+            Two things to handle: a single <code>CopyObject</code> fails above 5
+            GB, and the pair of calls is not atomic, so a failure between copy
+            and delete can leave you with two keys (or zero, if you deleted
+            first). Metadata and tags carry over on their own —{" "}
+            <code>MetadataDirective</code> and <code>TaggingDirective</code>{" "}
+            both default to <code>COPY</code>.
+         </p>
+         <br />
+         <p>
+            S3 Viewer only deletes the source after the destination write
+            returns success, refuses the rename when something already exists at
+            the target key (you get a conflict error rather than a silent
+            overwrite), and rejects objects over 5 GB — use the CLI or an SDK
+            for those. The same pattern works against Cloudflare R2 and any
+            other S3-compatible provider.
+         </p>
       </>
-   );
-};
-
-Page.getLayout = (page: React.ReactNode) => <Layout>{page}</Layout>;
-
-export default Page;
+   ),
+   faqs,
+   useCases: getUseCaseRefs(["s3-browser", "cloudflare-r2"]),
+   related: getRelatedHowTos([
+      "delete-file-from-s3",
+      "upload-large-files-to-s3",
+      "download-file-from-s3",
+   ]),
+});

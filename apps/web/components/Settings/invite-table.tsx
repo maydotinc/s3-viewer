@@ -23,7 +23,6 @@ type InviteTableProps = {
 
 const SKELETON_ROWS = 3;
 
-/** Table shell shared by the received and sent invite cards. */
 const InviteTable = ({ columns, children }: InviteTableProps) => (
    <Table className="border-t border-viewerborder">
       <TableHeader>
@@ -45,7 +44,6 @@ const InviteTable = ({ columns, children }: InviteTableProps) => (
    </Table>
 );
 
-/** Skeleton rows matching the row height — no spinner. */
 const InviteTableSkeleton = ({ columns }: { columns: number }) => (
    <>
       {Array.from({ length: SKELETON_ROWS }).map((_, row) => (
@@ -83,7 +81,6 @@ const ExpiresCell = ({ expiresAt }: { expiresAt: string }) => {
    );
 };
 
-/** Inline error inside a flush card. */
 const InviteTableError = ({ message }: { message: string }) => (
    <p role="alert" className="px-6 pb-6 text-sm text-viewertextred">
       {message}
