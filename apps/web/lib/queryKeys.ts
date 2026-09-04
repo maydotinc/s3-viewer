@@ -32,6 +32,7 @@ const queryKeys = {
       ["user", userId, "sent-invites"] as const,
    accountSummary: (userId: string) =>
       ["user", userId, "account-summary"] as const,
+   hasPassword: (userId: string) => ["user", userId, "has-password"] as const,
    buckets: (userId: string, serverId: string) =>
       [...server(userId, serverId), "buckets"] as const,
    bucket,

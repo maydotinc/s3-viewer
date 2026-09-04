@@ -6,7 +6,7 @@ const LoginPage = () => (
    <>
       <Seo
          title="Sign in"
-         description="Sign in to S3 Viewer with a one-time code or a link sent to your email."
+         description="Sign in to S3 Viewer with your password, a one-time code sent to your email, or GitHub."
          canonical={SITE_PATHS.login}
          noindex={false}
       />

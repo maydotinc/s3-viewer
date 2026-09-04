@@ -59,10 +59,10 @@ const steps: HowToStep[] = [
          <>
             You can send up to <strong>five addresses at a time</strong>, and an
             invite is good for <strong>seven days</strong>. Each recipient gets
-            one email; signing in sends them a second one carrying a six-digit
-            code and a sign-in link, both valid for ten minutes (or they use
-            GitHub, if it is enabled). They accept, and the server appears in
-            their sidebar — no AWS, no IAM, no CLI.
+            one email; they sign in with a password, with the six-digit code and
+            sign-in link we email them (both valid for ten minutes), or with
+            GitHub. They accept, and the server appears in their sidebar — no
+            AWS, no IAM, no CLI.
          </>
       ),
    },

@@ -43,6 +43,9 @@ model Session {
 
 model Account {
   id                    String    @id @default(cuid())
+  // better auth 1.7 keys an account by (issuer, accountId): `local:credential`
+  // for passwords, `local:oauth:<provider>` for oauth providers without one
+  issuer                String
   accountId             String
   providerId            String
   userId                String
@@ -59,6 +62,7 @@ model Account {
 
   @@index([userId])
   @@unique([providerId, accountId])
+  @@unique([issuer, accountId])
   @@map("account")
 }
 

@@ -98,9 +98,11 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 | `NODE_ENV`               |          | `development`             | `production`                            | Also gates whether a cleartext `http://` S3 endpoint is accepted (`development`/`test` only).                                                                                                                         |
 | `EMAIL_TRANSPORT`        |          | unset                     | unset                                   | `resend` or `smtp`. Unset ⇒ `resend`. Choose `smtp` to send auth and invite email through your own server instead of a third party.                                                                                   |
 | `SMTP_URL`               | if smtp  | unset                     | `smtp://user:pass@mail.example.com:587` | SMTP connection string (`smtp://` or `smtps://`). **Required in every environment when `EMAIL_TRANSPORT=smtp`**; ignored otherwise.                                                                                   |
-| `RESEND_KEY`             |   prod   | unset                     | `re_…`                                  | Resend API key. **Required in production** unless `EMAIL_TRANSPORT=smtp` — the API refuses to start without it there. Unset in development ⇒ emails are printed to the API log.                                       |
+| `RESEND_KEY`             |   prod   | unset                     | `re_…`                                  | Resend API key. **Required in production** while `EMAIL_LOGIN_ENABLED` is on, unless `EMAIL_TRANSPORT=smtp` — the API refuses to start without it there. Unset otherwise ⇒ emails are printed to the API log.         |
 | `EMAIL_FROM`             |   prod   | unset                     | `S3 Viewer <hello@yourdomain.com>`      | Sender for auth and invite email. **Required in production** — there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc. Unset in development ⇒ a placeholder sender.         |
 | `SUPPORT_EMAIL`          |          | unset                     | `support@yourdomain.com`                | Contact shown to admins who hit the server or pending-invite cap, and in the account-deletion confirmation email. Unset ⇒ omitted from the message; the email points at GitHub issues instead.                        |
+| `EMAIL_LOGIN_ENABLED`    |          | unset                     | unset                                   | Sign in with a one-time code / magic link; also powers email verification and password reset. On unless exactly `false`. Off ⇒ no mail transport needed, but addresses can never be verified, which invites require.  |
+| `PASSWORD_LOGIN_ENABLED` |          | unset                     | unset                                   | Sign in with email and password. On unless exactly `false`. At least one method (this, email, or GitHub) must stay on.                                                                                                |
 | `GITHUB_CLIENT_ID`       |          | unset                     | GitHub OAuth app id                     | Set together with the secret, or leave both unset.                                                                                                                                                                    |
 | `GITHUB_CLIENT_SECRET`   |          | unset                     | GitHub OAuth app secret                 | Set together with the id, or leave both unset.                                                                                                                                                                        |
 | `PORT`                   |          | `5001`                    | `5001`                                  | Port the API listens on.                                                                                                                                                                                              |
@@ -111,13 +113,15 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 
 `apps/web/.env`:
 
-| Variable                            | Required | Local value                 | Production value                    | What it does                                                               |
-| ----------------------------------- | :------: | --------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`              |    ✅    | `https://web.localhost`     | `https://s3-viewer.com`             | This app's own origin: auth redirects, canonical URLs and the sitemap.     |
-| `NEXT_PUBLIC_API_URL`               |    ✅    | `https://api.localhost`     | `https://api.s3-viewer.com`         | Where every request goes.                                                  |
-| `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` |    ✅    | `public_key.pem`            | `public_key.pem`                    | Public half of the RSA pair; encrypts S3 credentials in the browser.       |
-| `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`  |          | `false`                     | `true`                              | Exactly `true` shows the GitHub button.                                    |
-| `LANDING_ORIGIN`                    |          | `https://landing.localhost` | `https://<your-landing>.vercel.app` | Hidden landing deployment to proxy. Unset ⇒ `/` redirects to `/dashboard`. |
+| Variable                             | Required | Local value                 | Production value                    | What it does                                                               |
+| ------------------------------------ | :------: | --------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`               |    ✅    | `https://web.localhost`     | `https://s3-viewer.com`             | This app's own origin: auth redirects, canonical URLs and the sitemap.     |
+| `NEXT_PUBLIC_API_URL`                |    ✅    | `https://api.localhost`     | `https://api.s3-viewer.com`         | Where every request goes.                                                  |
+| `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY`  |    ✅    | `public_key.pem`            | `public_key.pem`                    | Public half of the RSA pair; encrypts S3 credentials in the browser.       |
+| `NEXT_PUBLIC_EMAIL_LOGIN_ENABLED`    |          | unset                       | unset                               | Mirrors `EMAIL_LOGIN_ENABLED`: on unless exactly `false`.                  |
+| `NEXT_PUBLIC_PASSWORD_LOGIN_ENABLED` |          | unset                       | unset                               | Mirrors `PASSWORD_LOGIN_ENABLED`: on unless exactly `false`.               |
+| `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`   |          | `false`                     | `true`                              | Exactly `true` shows the GitHub button.                                    |
+| `LANDING_ORIGIN`                     |          | `https://landing.localhost` | `https://<your-landing>.vercel.app` | Hidden landing deployment to proxy. Unset ⇒ `/` redirects to `/dashboard`. |
 
 `apps/landing/.env`:
 
@@ -173,11 +177,17 @@ pnpm dev
 
 ## 🔑 Auth
 
-Sign-in is handled by [Better Auth](https://better-auth.com):
+Sign-in is handled by [Better Auth](https://better-auth.com). Every method is a flag, and all of them are on by default:
 
-- **Email OTP** — a one-time code sent to the address you enter.
-- **Magic link** — a single-use sign-in link sent by email.
-- **GitHub OAuth** — optional; the button is hidden when `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` are unset.
+- **Email and password** — the simplest way to self-host: nothing to set up. `PASSWORD_LOGIN_ENABLED` / `NEXT_PUBLIC_PASSWORD_LOGIN_ENABLED`.
+- **Email OTP and magic link** — one email carrying a one-time code and a single-use sign-in link. `EMAIL_LOGIN_ENABLED` / `NEXT_PUBLIC_EMAIL_LOGIN_ENABLED`. Needs a mail transport in production.
+- **GitHub OAuth** — on once `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` are set and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`.
+
+Set a flag to exactly `false` to turn a method off; at least one must stay on or the API refuses to start. The login page shows whatever is on: with both email methods it offers a password form plus "Email me a code instead", and the code flow still creates accounts the way it always did.
+
+Passwords are 8–128 characters, hashed by Better Auth, and stored in the `account` row for the `credential` provider. A password sign-up starts signed in and is asked for a verification code right away (skippable); an unverified address can still use the app but cannot send or accept invites, since invites are matched by address. **Forgot password** sends a code by email and then takes a new password — this is also how an account that signed up by code or GitHub adds its first one — and **Settings → Profile** has a Password card to set or change it (changing it signs out other devices). Both need `EMAIL_LOGIN_ENABLED`, because that is what sends codes; a deployment with no mail transport is password-only and its addresses can never be verified.
+
+Password sign-in is limited to 10 attempts per address per 10 minutes on top of the per-IP limit, and outbound verification or reset codes to 5 per address per 10 minutes.
 
 Sessions are cookie-based. The web app and the API are different hostnames on the same site, so the cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` whenever `NEXT_PUBLIC_API_URL` is `https://` — which is why both origins need HTTPS. Locally the Portless certificates cover that. Sessions last 30 days and refresh at most once a day; IP address tracking is off.
 
@@ -185,11 +195,11 @@ Every non-`GET` request is additionally checked for an `Origin` matching `NEXT_P
 
 ## 📬 Email
 
-Transactional email (OTP codes, magic links, server invitations) goes through [Resend](https://resend.com) by default. Set `RESEND_KEY` and `EMAIL_FROM` in `apps/api/.env` — both are required in production; the API refuses to start without `RESEND_KEY`, and sending mail throws without `EMAIL_FROM` (there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc.).
+Transactional email (OTP codes, magic links, verification and reset codes, server invitations) goes through [Resend](https://resend.com) by default. Set `RESEND_KEY` and `EMAIL_FROM` in `apps/api/.env` — both are required in production while email login is on; the API refuses to start without `RESEND_KEY`, and sending mail throws without `EMAIL_FROM` (there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc.).
 
 To depend on no third party for mail, set `EMAIL_TRANSPORT=smtp` and point `SMTP_URL` at your own server (`smtp://user:pass@mail.example.com:587`, or `smtps://…` for implicit TLS). `SMTP_URL` is then required in every environment — selecting a transport with nowhere to connect is a misconfiguration, so it fails at boot rather than at first sign-in — and `RESEND_KEY` is not needed at all. `EMAIL_FROM` still applies.
 
-If neither is configured in development, no mail is sent — messages are logged to the API console instead, which is enough to copy an OTP code or an invite link during local development.
+If neither is configured, no mail is sent — messages are logged to the API console instead, which is enough to copy an OTP code or an invite link during local development. In production that is only allowed with `EMAIL_LOGIN_ENABLED=false` (password and/or GitHub sign-in only), where the log would carry invite and account notices rather than sign-in codes.
 
 ## 👥 Permissions
 
@@ -221,7 +231,7 @@ Invitations carry the same shape: you pick a server role plus the buckets (and p
 Three deployments, two public hosts:
 
 - **Web** (`apps/web`) on `https://s3-viewer.com` with `NEXT_PUBLIC_SITE_URL=https://s3-viewer.com`, `NEXT_PUBLIC_API_URL=https://api.s3-viewer.com`, `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` and `LANDING_ORIGIN=<the landing's origin>`.
-- **API** (`apps/api`) on `https://api.s3-viewer.com` with the same two URLs plus `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_PRIVATE_KEY`, `RESEND_KEY` and `EMAIL_FROM`.
+- **API** (`apps/api`) on `https://api.s3-viewer.com` with the same two URLs plus `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_PRIVATE_KEY`, `RESEND_KEY` and `EMAIL_FROM` (the last two only while email login is on).
 - **Landing** (`apps/landing`) as its own Vercel project on a hidden origin, with `NEXT_PUBLIC_SITE_URL=https://s3-viewer.com` and `NEXT_PUBLIC_ASSET_PREFIX=<its own origin>`, e.g. `https://s3-viewer-lp.vercel.app`. The web app proxies `/`, `/how-to`, `/use-cases`, `/legal`, `/about`, `/brand-kit` and `/landing/*` from it; its `robots.txt` disallows everything and every canonical points at `s3-viewer.com`.
 
 Then:
@@ -272,6 +282,7 @@ Kept in your PostgreSQL database, and nowhere else:
 
 - **Account**: user id, email address, and name (it defaults to the local part of the email). There are no profile pictures: your avatar is your initials on a colour generated from your name, so nothing is uploaded and nothing is stored — not even the avatar URL GitHub offers when you sign in that way.
 - **Sessions**: session tokens with their expiry only — validity depends solely on the token and its expiry, not on IP or device. Neither IP address nor user agent is retained: IP tracking is disabled (`advanced.ipAddress.disableIpTracking`), so the session's `ipAddress` column (present because it's part of Better Auth's core schema) is never filled in; `userAgent` has no column at all — it was dropped from the schema since nothing ever read it.
+- **Password**: only if you set one — a Better Auth hash in the `account` row for the `credential` provider, never the password itself.
 - **Linked GitHub account**: only if you sign in with GitHub — the provider account id. The OAuth access, refresh and id tokens GitHub returns are dropped before the row is written: nothing in the product ever reads them, so they are not worth storing next to envelope-encrypted credentials.
 - **Servers**: the name you gave the server, the provider it points at, and the bucket names you allowed. Its endpoint, region, access key and secret live inside one **encrypted** blob: encrypted with your RSA public key in the browser, so the server stores only ciphertext and decrypts it in memory when it needs to talk to your provider.
 - **Membership rows**: which users have access to which servers and buckets, and at what role, plus pending invitations.
@@ -291,7 +302,7 @@ Report vulnerabilities privately per [SECURITY.md](./SECURITY.md). What is in pl
 
 - **Client-side hybrid encryption for S3 credentials.** The browser generates an AES-256-GCM key, encrypts the credentials with it, and wraps that key with RSA-OAEP (SHA-256) using `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY`. Only the API holds the private half. Credentials never come back to the browser and never appear in an API response.
 - **Cross-site request protection.** `SameSite=Lax`, `HttpOnly` session cookies, plus an `Origin` / `Sec-Fetch-Site` check on every non-`GET` request, which rejects anything that did not come from `NEXT_PUBLIC_SITE_URL` with a 403.
-- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, and 5/minute per IP plus 5/10 minutes per email address on the sign-in flow. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
+- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, 5/minute per IP plus 5/10 minutes per email address on the sign-in email flow, 10/10 minutes per email address on password sign-in, and 5/10 minutes per address on verification and reset codes. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
 - **SSRF guard on server endpoints.** An endpoint you add must be a public `https://` URL (`http://` is allowed outside production only); `localhost`, `*.localhost` and any hostname that resolves to a loopback, private, link-local or multicast address is rejected before a single request is signed.
 - **No IP logging.** Better Auth's IP tracking is switched off and the API logger never writes a client address.
 - **Authorization from validated input only.** Every route parses its input with a zod schema first, then checks the caller's server role and the effective bucket role; handlers never read `req.body` or `req.query` directly.

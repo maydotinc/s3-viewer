@@ -85,7 +85,9 @@ the web app, the landing site and the shared packages. Keep it current.
   still serves there, since four specific paths are 404'd before reaching it
   (see "`/auth/*` routes" below); sign-in email (`POST /auth-flow/start`,
   the only route that actually sends a sign-in email — see below) is
-  5/min per IP, plus 5/10min per email; `establish`,
+  5/min per IP, plus 5/10min per email; inside Better Auth's own `before`
+  hook (`packages/auth/lib/throttle.ts`) password sign-in is 10/10min per
+  email and verification / reset codes 5/10min per email; `establish`,
   `validate-buckets` and `PATCH …/credentials` 30/min per user. `TRUST_PROXY` env (default `loopback`)
   feeds `app.set("trust proxy", …)`.
 - Parsers: `express.json({ limit: "1mb" })` only, skipped for `PUT …/objects`
@@ -154,7 +156,8 @@ the web app, the landing site and the shared packages. Keep it current.
 ### Routes (all under authGuard except `/auth/*` and `/auth-flow/*`)
 
 ```
-POST   /auth-flow/start                  { email }            → 204 (sends one email with OTP + magic link)
+POST   /auth-flow/start                  { email }            → 204 (sends one email with OTP + magic link; mounted only while EMAIL_LOGIN_ENABLED)
+POST   /account/password                 { password }         → 204 (sets a first password on the signed-in account; mounted only while PASSWORD_LOGIN_ENABLED)
 GET    /servers                                               → { servers: ServerInfo[] }
 POST   /servers/establish                establishSchema      → { listBucketsAllowed, bucketCount, provider }
 POST   /servers/validate-buckets         validateBucketsSchema→ { results: [{ bucketName, accessible }] }
@@ -260,10 +263,35 @@ which is exact for listings up to 1000 entries and per-block above that.
 
 ## Auth (`packages/auth`, `apps/api`, `apps/web`)
 
-- One flow for sign-in and sign-up: enter email → we send ONE email containing
-  a 6-digit code and a magic link (both valid 10 minutes) → user either types
-  the code or clicks the link. New users are created on first successful
-  verification; name defaults to the email local part. No name field.
+- Three sign-in methods, each behind a flag that is on unless exactly
+  `false`: email code/link (`EMAIL_LOGIN_ENABLED`), email and password
+  (`PASSWORD_LOGIN_ENABLED`) and GitHub (on when its credentials are set).
+  The web mirrors them as `NEXT_PUBLIC_*_LOGIN_ENABLED`. The API refuses to
+  start with every method off, and in production refuses to start without a
+  mail transport while email login is on.
+- Email flow, for sign-in and sign-up alike: enter email → we send ONE email
+  containing a 6-digit code and a magic link (both valid 10 minutes) → user
+  either types the code or clicks the link. New users are created on first
+  successful verification; name defaults to the email local part. No name
+  field.
+- Password flow: `emailAndPassword` with `PASSWORD_MIN_LENGTH` (8) /
+  `PASSWORD_MAX_LENGTH` (128) from `@s3-viewer/types` (`passwordSchema`),
+  `requireEmailVerification: false`, `revokeSessionsOnPasswordReset: true`.
+  Sign-up (`/sign-up/email`, name = local part) starts signed in and the
+  emailOTP plugin's `sendVerificationOnSignUp` sends an `email-verification`
+  code at once; the web shows a "Verify your email" step with "Skip for
+  now". Unverified accounts are only refused where `requireVerifiedUser`
+  gates invites (both sending and listing/accepting, because invites are
+  matched by address). Forgot password = `/email-otp/request-password-reset`
+  → `/email-otp/reset-password` (code + new password in one step, then the
+  web signs in with the new password); the reset creates the `credential`
+  account when there is none and marks the address verified, so it is also
+  the "add a password" path for code and GitHub accounts. `POST
+/account/password` wraps Better Auth's server-only `setPassword` for the
+  same purpose from Settings; `/change-password` needs the current one and
+  signs out other sessions. Verification and reset codes go out as
+  `AuthCodeEmail` (`packages/ui/src/emails/auth-code.tsx`), never the
+  combined sign-in email.
 - Implementation: Better Auth `emailOTP` + `magicLink` plugins. `POST /auth-flow/start`
   runs both `auth.api.sendVerificationOTP` and `auth.api.signInMagicLink` inside an
   `AsyncLocalStorage` context; the plugins' send callbacks stash the OTP/URL into
@@ -331,17 +359,21 @@ the active `emailOTP` and `magicLink` plugins' endpoints, and — when
 GitHub. Nothing in `packages/auth/lib/auth.ts` restricts that list — the
 app's own surface is whatever those plugins plus Better Auth's core expose.
 
-Four specific paths never reach that router: `server.ts` intercepts
-non-`GET` requests to `/auth/email-otp/send-verification-otp`,
-`/auth/sign-in/magic-link`, `/auth/forget-password/email-otp` and
-`/auth/email-otp/reset-password` and returns a plain 404 before Better Auth
-sees them. The first two are pre-empted because this app only ever sends a
-combined OTP-plus-magic-link email (`POST /auth-flow/start`, see above) —
-calling either of Better Auth's own single-channel endpoints directly would
-send a partial email outside that flow and its rate limits. The other two
-are password-reset endpoints; this app has no `emailAndPassword` plugin and
-therefore no password to reset, so they're dead code paths that are 404'd
-rather than left reachable.
+Which of those paths exist is decided in one place: the `hooks.before`
+middleware in `packages/auth/lib/auth.ts`, which runs for HTTP requests and
+`auth.api.*` calls alike (calls made inside `sendAuthFlowEmail`'s
+`AsyncLocalStorage` context are exempt — the route that started them already
+applied its limits). It returns 404 for: every emailOTP and magicLink
+endpoint while `EMAIL_LOGIN_ENABLED=false`; `/sign-in/email`,
+`/sign-up/email`, `/change-password` and the reset pair while
+`PASSWORD_LOGIN_ENABLED=false`; and, always, the single-channel senders
+`/sign-in/magic-link`, `/email-otp/send-verification-otp` with
+`type: "sign-in"`, and the deprecated `/forget-password/email-otp` — this
+app only ever sends the combined OTP-plus-magic-link email through
+`POST /auth-flow/start`, and calling a single-channel endpoint directly
+would send half of it outside that flow's rate limits. The same hook holds
+the per-email throttles (429 with code `RATE_LIMITED`). `server.ts` no
+longer pre-blocks any `/auth/*` path.
 
 ## Web (`apps/web`)
 
@@ -382,9 +414,20 @@ rather than left reachable.
   not the rows, and a purged block refetches directly from its known token
   instead of re-walking the listing. Downloads and
   previews use 15-minute presigned URLs, which need no CORS.
-- Login/signup page: one `AuthScreen` component; mobile = form only, desktop =
-  split (form left, brand panel right on Viewer Dark Blue). See
-  `packages/ui/DESIGN.md`.
+- Login/signup page: one `AuthScreen` component inside `AuthLayout`; mobile
+  = form only, desktop = split (form left, brand panel right on Viewer Dark
+  Blue). `SignInForm` renders whatever `publicEnv` enables: GitHub button,
+  email field, password field with "Forgot password?", primary "Sign in" /
+  "Create account" (or "Continue" when only the code flow is on) and an
+  outline "Email me a code instead". Steps: `form` → `code` (OTP sign-in) or
+  `verify` (after a password sign-up; "Skip for now" goes to the
+  destination). `/forgot-password` is `ForgotPasswordScreen`: email → code +
+  new password on one step. `useStepHeight` keeps the first step's height so
+  the legal footer never moves. Settings → Profile shows a Password card
+  (set or change) while password login is on, and a "Verify email" link /
+  `VerifyEmailDialog` for unverified addresses while email login is on;
+  `UnverifiedCallout` replaces the old "sign in with email" callouts in
+  invites. See `packages/ui/DESIGN.md`.
 
 ## Landing (`apps/landing`)
 

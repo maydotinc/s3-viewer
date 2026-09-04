@@ -1,24 +1,43 @@
-import { api } from "@/lib/api";
+import { api, errorMessage } from "@/lib/api";
 import { publicEnv } from "@/lib/env";
 import { clearQueryCache } from "@/lib/queryClient";
 import useSessionStore from "@/lib/stores/sessionStore";
-import { makeAuthClient } from "@s3-viewer/auth/client";
+import { makeAuthClient, type AuthResult } from "@s3-viewer/auth/client";
 import { SITE_PATHS } from "@s3-viewer/types";
 import Router from "next/router";
 
 const {
    authClient,
-   verifyOtp,
+   changePassword,
+   hasPassword,
+   requestPasswordReset,
+   resetPassword,
+   sendVerificationCode,
    signInWithGithub,
+   signInWithPassword,
    signOut: endSession,
+   signUpWithPassword,
+   verifyEmail,
+   verifyOtp,
 } = makeAuthClient(publicEnv);
 
 // better-auth types its atoms loosely; this is the slice we rely on
 type SessionAtom = { get: () => { refetch?: () => Promise<unknown> } };
 const sessionAtom = authClient.$store.atoms.session as SessionAtom | undefined;
 
-const startAuthFlow = (email: string): Promise<void> =>
-   api.post<void>("/auth-flow/start", { email });
+// one email carrying a code and a sign-in link; the api answers 204 whether or
+// not the address has an account
+const requestSignInCode = async (email: string): Promise<AuthResult> => {
+   try {
+      await api.post<void>("/auth-flow/start", { email });
+      return { error: null };
+   } catch (error) {
+      return { error: errorMessage(error) };
+   }
+};
+
+const setPassword = (password: string): Promise<void> =>
+   api.post<void>("/account/password", { password });
 
 let signingOut = false;
 
@@ -48,9 +67,19 @@ const signOut = async (
 
 export {
    authClient,
+   changePassword,
+   hasPassword,
    isSigningOut,
+   requestPasswordReset,
+   requestSignInCode,
+   resetPassword,
+   sendVerificationCode,
+   setPassword,
    signInWithGithub,
+   signInWithPassword,
    signOut,
-   startAuthFlow,
+   signUpWithPassword,
+   verifyEmail,
    verifyOtp,
 };
+export type { AuthResult };

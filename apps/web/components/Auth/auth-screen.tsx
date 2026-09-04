@@ -1,37 +1,63 @@
-import BrandPanel from "@/components/Auth/brand-panel";
+import { AuthLayout, StepHeader } from "@/components/Auth/auth-layout";
 import CodeStep from "@/components/Auth/code-step";
-import EmailStep from "@/components/Auth/email-step";
+import SignInForm from "@/components/Auth/sign-in-form";
+import { TEXT_LINK } from "@/components/Auth/text-link";
+import { useStepHeight } from "@/components/Auth/use-step-height";
 import FullPageSpinner from "@/components/Session/full-page-spinner";
-import { signInWithGithub } from "@/lib/auth";
+import {
+   requestSignInCode,
+   sendVerificationCode,
+   signInWithGithub,
+   verifyEmail,
+   verifyOtp,
+} from "@/lib/auth";
 import { afterLoginPath, reasonForError } from "@/lib/auth-redirect";
 import { publicEnv } from "@/lib/env";
 import { useSessionState } from "@/lib/hooks/useSessionState";
-import { PRIVACY_URL, TERMS_URL } from "@/lib/site-config";
-import { PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
+import { SITE_PATHS } from "@s3-viewer/types";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 
+type Mode = "login" | "signup";
+type Step = "form" | "code" | "verify";
+
 type AuthScreenProps = {
-   mode: "login" | "signup";
+   mode: Mode;
    initialEmail?: string;
+};
+
+const { emailLoginEnabled, passwordLoginEnabled, githubLoginEnabled } =
+   publicEnv;
+
+const subtitle = (mode: Mode): string => {
+   if (passwordLoginEnabled && emailLoginEnabled) {
+      return mode === "login"
+         ? "Use your password, or get a one-time code by email."
+         : "Choose a password, or get a one-time code by email.";
+   }
+   if (passwordLoginEnabled) {
+      return mode === "login"
+         ? "Enter your email and password."
+         : "Enter your email and choose a password.";
+   }
+   if (emailLoginEnabled) {
+      return "Enter your email and we'll send you a code and a sign-in link.";
+   }
+   if (githubLoginEnabled) return "Continue with your GitHub account.";
+   return "";
 };
 
 const COPY = {
    login: {
       title: "Welcome back",
-      subtitle:
-         "Enter your email and we'll send you a code and a sign-in link.",
       switchPrompt: "Don't have an account?",
       switchLabel: "Create one",
       switchHref: SITE_PATHS.signup,
    },
    signup: {
       title: "Create your account",
-      subtitle:
-         "Enter your email and we'll send you a code and a sign-in link.",
       switchPrompt: "Already have an account?",
       switchLabel: "Sign in",
       switchHref: SITE_PATHS.login,
@@ -43,26 +69,19 @@ const NOTICES: Readonly<Record<string, string>> = {
    failed: "Sign-in didn't complete. Try again, or use the code we email you.",
 };
 
-const STEP_HEIGHT = publicEnv.githubLoginEnabled
-   ? "min-h-[27rem]"
-   : "min-h-[20.5rem]";
-
-const TEXT_LINK =
-   "rounded-sm border border-transparent font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:border-viewerblue";
-
-const LEGAL_LINK =
-   "rounded-sm border border-transparent underline underline-offset-4 outline-none hover:text-viewertext focus-visible:border-viewerblue";
+const Email = ({ children }: { children: string }) => (
+   <span className="font-medium text-viewerblack">{children}</span>
+);
 
 const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
    const router = useRouter();
    const sessionState = useSessionState();
    const [email, setEmail] = useState(initialEmail ?? "");
-   const [step, setStep] = useState<"email" | "code">(
-      initialEmail ? "code" : "email"
-   );
+   const [step, setStep] = useState<Step>(initialEmail ? "code" : "form");
    const [leavingForGithub, setLeavingForGithub] = useState(false);
    const [githubError, setGithubError] = useState<string | null>(null);
    const redirected = useRef(false);
+   const stepHeight = useStepHeight(step === "form");
 
    const destination = afterLoginPath(router.query.next);
    const copy = COPY[mode];
@@ -82,11 +101,21 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
       ? (NOTICES[reason] ?? null)
       : null;
 
+   // a fresh password sign-up is signed in already but stays here to verify
+   const verifying = step === "verify";
+
+   const finish = async () => {
+      redirected.current = true;
+      await router.replace(destination);
+   };
+
    useEffect(() => {
-      if (sessionState !== "signedIn" || redirected.current) return;
+      if (sessionState !== "signedIn" || redirected.current || verifying) {
+         return;
+      }
       redirected.current = true;
       void router.replace(destination);
-   }, [sessionState, destination, router]);
+   }, [sessionState, destination, router, verifying]);
 
    const github = async () => {
       setGithubError(null);
@@ -98,7 +127,12 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
       }
    };
 
-   if (sessionState !== "signedOut") return <FullPageSpinner />;
+   if (
+      sessionState === "pending" ||
+      (sessionState === "signedIn" && !verifying)
+   ) {
+      return <FullPageSpinner />;
+   }
 
    const switchHref = {
       pathname: copy.switchHref,
@@ -108,103 +142,99 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
             : { next: destination },
    };
 
-   return (
-      <div className="grid min-h-dvh w-full lg:grid-cols-2">
-         <main className="relative flex flex-col justify-center px-6 pb-12 pt-24 sm:px-12">
-            <a
-               href={`${publicEnv.siteOrigin}/`}
-               aria-label={`${PRODUCT_NAME} home`}
-               className="absolute left-6 top-6 inline-flex rounded-sm border border-transparent outline-none focus-visible:border-viewerblue sm:left-12 sm:top-10"
-            >
-               <Image
-                  src="/icons/viewer.svg"
-                  alt=""
-                  width={150}
-                  height={32}
-                  priority
-                  draggable={false}
-                  className="h-7 w-[131px]"
+   const steps: Record<Step, () => React.ReactNode> = {
+      form: () => (
+         <>
+            <StepHeader title={copy.title}>{subtitle(mode)}</StepHeader>
+            <div className="mt-8">
+               <SignInForm
+                  mode={mode}
+                  initialEmail={email}
+                  notice={notice}
+                  githubError={githubError}
+                  onGithub={() => void github()}
+                  onCodeSent={(sent) => {
+                     setEmail(sent);
+                     setStep("code");
+                  }}
+                  onSignedIn={finish}
+                  onSignedUp={async (created) => {
+                     if (!emailLoginEnabled) {
+                        await finish();
+                        return;
+                     }
+                     setEmail(created);
+                     setStep("verify");
+                  }}
                />
-            </a>
+            </div>
+            <p className="mt-8 text-sm text-viewertext">
+               {copy.switchPrompt}{" "}
+               <Link href={switchHref} className={TEXT_LINK}>
+                  {copy.switchLabel}
+               </Link>
+            </p>
+         </>
+      ),
+      code: () => (
+         <>
+            <StepHeader title="Check your inbox">
+               We sent a code and a sign-in link to <Email>{email}</Email>.{" "}
+               <button
+                  type="button"
+                  onClick={() => setStep("form")}
+                  className={TEXT_LINK}
+               >
+                  Edit
+               </button>
+            </StepHeader>
+            <div className="mt-8">
+               <CodeStep
+                  onVerify={(code) => verifyOtp(email, code)}
+                  onResend={() => requestSignInCode(email)}
+                  onVerified={finish}
+               />
+            </div>
+         </>
+      ),
+      verify: () => (
+         <>
+            <StepHeader title="Verify your email">
+               We sent a code to <Email>{email}</Email>. Verifying lets you
+               share servers and accept invites.
+            </StepHeader>
+            <div className="mt-8">
+               <CodeStep
+                  onVerify={(code) => verifyEmail(email, code)}
+                  onResend={() => sendVerificationCode(email)}
+                  onVerified={finish}
+                  secondary={
+                     <button
+                        type="button"
+                        onClick={() => void finish()}
+                        className={TEXT_LINK}
+                     >
+                        Skip for now
+                     </button>
+                  }
+               />
+            </div>
+         </>
+      ),
+   };
 
-            {leavingForGithub ? (
-               <div className="flex flex-1 items-center justify-center">
-                  <Spinner size="lg" label="Opening GitHub sign-in" />
-               </div>
-            ) : (
-               <div className="mx-auto w-full max-w-sm">
-                  <div key={step} className={STEP_HEIGHT}>
-                     {step === "email" ? (
-                        <>
-                           <h1 className="text-title">{copy.title}</h1>
-                           <p className="mt-2 text-sm text-viewertext">
-                              {copy.subtitle}
-                           </p>
-                           <div className="mt-8">
-                              <EmailStep
-                                 initialEmail={email}
-                                 notice={notice}
-                                 onSent={(sent) => {
-                                    setEmail(sent);
-                                    setStep("code");
-                                 }}
-                                 onGithub={() => void github()}
-                                 githubError={githubError}
-                              />
-                           </div>
-                           <p className="mt-8 text-sm text-viewertext">
-                              {copy.switchPrompt}{" "}
-                              <Link href={switchHref} className={TEXT_LINK}>
-                                 {copy.switchLabel}
-                              </Link>
-                           </p>
-                        </>
-                     ) : (
-                        <>
-                           <h1 className="text-title">Check your inbox</h1>
-                           <p className="mt-2 text-sm text-viewertext">
-                              We sent a code and a sign-in link to{" "}
-                              <span className="font-medium text-viewerblack">
-                                 {email}
-                              </span>
-                              .{" "}
-                              <button
-                                 type="button"
-                                 onClick={() => setStep("email")}
-                                 className={TEXT_LINK}
-                              >
-                                 Edit
-                              </button>
-                           </p>
-                           <div className="mt-8">
-                              <CodeStep
-                                 email={email}
-                                 onVerified={async () => {
-                                    redirected.current = true;
-                                    await router.replace(destination);
-                                 }}
-                              />
-                           </div>
-                        </>
-                     )}
-                  </div>
-
-                  <p className="text-meta mt-10">
-                     By continuing you agree to the{" "}
-                     <a href={TERMS_URL} className={LEGAL_LINK}>
-                        terms of service
-                     </a>{" "}
-                     and{" "}
-                     <a href={PRIVACY_URL} className={LEGAL_LINK}>
-                        privacy policy
-                     </a>
-                     .
-                  </p>
-               </div>
-            )}
-         </main>
-         <BrandPanel />
-      </div>
+   return (
+      <AuthLayout
+         busy={
+            leavingForGithub && (
+               <Spinner size="lg" label="Opening GitHub sign-in" />
+            )
+         }
+      >
+         <div key={step} ref={stepHeight.ref} style={stepHeight.style}>
+            {steps[step]()}
+         </div>
+      </AuthLayout>
    );
 };
 

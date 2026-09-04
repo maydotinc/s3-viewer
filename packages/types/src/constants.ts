@@ -10,6 +10,8 @@ export const REQUEST_ID_HEADER = "X-Request-Id";
 export const API_CONTRACT_VERSION = 1;
 export const AUTH_CODE_LENGTH = 6;
 export const AUTH_CODE_TTL_MINUTES = 10;
+export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_MAX_LENGTH = 128;
 export const SESSION_TTL_DAYS = 30;
 export const SESSION_ABSOLUTE_TTL_DAYS = 90;
 export const SESSION_FRESH_HOURS = 24;
@@ -22,6 +24,7 @@ export const SITE_PATHS = {
    login: "/login",
    signup: "/signup",
    verify: "/verify",
+   forgotPassword: "/forgot-password",
    settings: "/settings",
    settingsProfile: "/settings/profile",
    settingsInvites: "/settings/invites",

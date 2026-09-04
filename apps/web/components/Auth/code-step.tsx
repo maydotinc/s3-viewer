@@ -1,37 +1,35 @@
 import OtpInput from "@/components/Auth/otp-input";
-import { errorMessage } from "@/lib/api";
-import { startAuthFlow, verifyOtp } from "@/lib/auth";
+import ResendLink from "@/components/Auth/resend-link";
+import type { AuthResult } from "@/lib/auth";
 import { AUTH_CODE_LENGTH } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-
-const RESEND_SECONDS = 45;
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 
 type CodeStepProps = {
-   email: string;
+   onVerify: (code: string) => Promise<AuthResult>;
+   onResend: () => Promise<AuthResult>;
    onVerified: () => Promise<void>;
+   // an extra way out next to the resend link, e.g. "Skip for now"
+   secondary?: ReactNode;
 };
 
-const CodeStep = ({ email, onVerified }: CodeStepProps) => {
+const CodeStep = ({
+   onVerify,
+   onResend,
+   onVerified,
+   secondary,
+}: CodeStepProps) => {
    const [code, setCode] = useState("");
    const [error, setError] = useState<string | null>(null);
    const [verifying, setVerifying] = useState(false);
-   const [resending, setResending] = useState(false);
-   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
    const inFlight = useRef(false);
-
-   useEffect(() => {
-      if (secondsLeft <= 0) return;
-      const timer = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
-      return () => clearTimeout(timer);
-   }, [secondsLeft]);
 
    const verify = async (value: string) => {
       if (inFlight.current || value.length !== AUTH_CODE_LENGTH) return;
       inFlight.current = true;
       setVerifying(true);
       setError(null);
-      const { error: verifyError } = await verifyOtp(email, value);
+      const { error: verifyError } = await onVerify(value);
       if (verifyError) {
          setError(verifyError);
          setCode("");
@@ -50,23 +48,6 @@ const CodeStep = ({ email, onVerified }: CodeStepProps) => {
       }
       void verify(code);
    };
-
-   const resend = async () => {
-      if (secondsLeft > 0 || resending || verifying) return;
-      setResending(true);
-      setError(null);
-      setCode("");
-      try {
-         await startAuthFlow(email);
-         setSecondsLeft(RESEND_SECONDS);
-      } catch (caught) {
-         setError(errorMessage(caught));
-      } finally {
-         setResending(false);
-      }
-   };
-
-   const canResend = secondsLeft <= 0 && !resending && !verifying;
 
    return (
       <form onSubmit={submit} className="flex flex-col gap-6">
@@ -89,28 +70,21 @@ const CodeStep = ({ email, onVerified }: CodeStepProps) => {
             </p>
          </div>
 
-         <Button
-            type="submit"
-            size="lg"
-            className="w-full"
-            loading={verifying}
-            disabled={resending}
-         >
+         <Button type="submit" size="lg" className="w-full" loading={verifying}>
             Verify
          </Button>
 
-         <p className="text-center text-sm text-viewertext">
-            Didn&apos;t get it?{" "}
-            <button
-               type="button"
-               onClick={resend}
-               disabled={!canResend}
-               className="rounded-sm border border-transparent font-medium text-viewerblue underline-offset-4 outline-none hover:underline focus-visible:border-viewerblue disabled:cursor-default disabled:text-viewerlighttext disabled:no-underline"
-            >
-               {secondsLeft > 0
-                  ? `Resend code in ${secondsLeft}s`
-                  : "Resend code"}
-            </button>
+         <p className="flex flex-wrap justify-center gap-x-3 text-center text-sm text-viewertext">
+            <ResendLink
+               onResend={onResend}
+               onError={setError}
+               onSent={() => {
+                  setError(null);
+                  setCode("");
+               }}
+               disabled={verifying}
+            />
+            {secondary}
          </p>
       </form>
    );

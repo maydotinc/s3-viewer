@@ -10,6 +10,7 @@ const PUBLIC_PATHS = new Set([
    SITE_PATHS.login,
    SITE_PATHS.signup,
    SITE_PATHS.verify,
+   SITE_PATHS.forgotPassword,
    "/404",
    "/_error",
 ]);

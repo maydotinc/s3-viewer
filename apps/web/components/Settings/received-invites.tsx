@@ -3,13 +3,13 @@ import useAcceptInvite from "@/lib/hooks/mutations/invites/useAcceptInvite";
 import useRejectInvite from "@/lib/hooks/mutations/invites/useRejectInvite";
 import { useReceivedInvites } from "@/lib/hooks/queries/server/useInvites";
 import { useUserId } from "@/lib/stores/sessionStore";
-import { ErrorCode, SITE_PATHS } from "@s3-viewer/types";
+import { ErrorCode } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { TableCell, TableRow } from "@s3-viewer/ui/components/table";
 import { MailOpen } from "lucide-react";
-import Link from "next/link";
 import SettingsCard from "./card";
 import EmptyState from "./empty-state";
+import UnverifiedCallout from "./unverified-callout";
 import {
    ExpiresCell,
    InviteTable,
@@ -46,15 +46,9 @@ const ReceivedInvites = () => {
       ) {
          return (
             <div className="px-6 pt-4 pb-6">
-               <div className="flex flex-col items-start gap-2 rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
-                  <p>
-                     Sign in with the code we email you to verify your address
-                     and see your invites.
-                  </p>
-                  <Button asChild size="sm" variant="outline">
-                     <Link href={SITE_PATHS.login}>Sign in with email</Link>
-                  </Button>
-               </div>
+               <UnverifiedCallout>
+                  Verify your email address to see the invites sent to it.
+               </UnverifiedCallout>
             </div>
          );
       }

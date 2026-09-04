@@ -7,6 +7,12 @@ import {
    type AccountDeletedEmailProps,
 } from "@s3-viewer/ui/emails/account-deleted";
 import {
+   AuthCodeEmail,
+   authCodeEmailSubject,
+   authCodeEmailText,
+   type AuthCodeEmailProps,
+} from "@s3-viewer/ui/emails/auth-code";
+import {
    AuthOtpEmail,
    authOtpEmailText,
    type AuthOtpEmailProps,
@@ -70,14 +76,16 @@ const smtpTransport = (url: string): Transport => {
    };
 };
 
+// no transport configured: mail is written to the log instead of sent. The
+// api refuses to start this way in production when a sign-in code would be
+// the thing being logged (see apps/api/lib/env.ts); otherwise only invite and
+// account notices land here, and the invite itself is still visible in-app
 const consoleTransport = (): Transport => {
-   if (process.env.NODE_ENV === "production") {
-      throw new Error("RESEND_KEY is required in production");
-   }
+   console.warn(
+      "[email] No mail transport configured (RESEND_KEY or SMTP_URL); email will be written to the log instead of sent"
+   );
    return async ({ to, subject, text }) => {
-      console.info(
-         `[email] to=${to} subject="${subject}" (RESEND_KEY unset, not sent)\n${text}`
-      );
+      console.info(`[email] to=${to} subject="${subject}" (not sent)\n${text}`);
    };
 };
 
@@ -102,6 +110,20 @@ const sendAuthEmail = async ({
       subject: `Sign in to ${PRODUCT_NAME}`,
       html: AuthOtpEmail(props),
       text: authOtpEmailText(props),
+   });
+};
+
+type SendAuthCodeEmailInput = AuthCodeEmailProps & { to: string };
+
+const sendAuthCodeEmail = async ({
+   to,
+   ...props
+}: SendAuthCodeEmailInput): Promise<void> => {
+   await send({
+      to,
+      subject: authCodeEmailSubject(props.intent),
+      html: AuthCodeEmail(props),
+      text: authCodeEmailText(props),
    });
 };
 
@@ -158,4 +180,10 @@ const sendAccountDeletedEmail = async ({
    });
 };
 
-export { sendAccountDeletedEmail, sendAuthEmail, sendServerInviteEmail };
+export {
+   sendAccountDeletedEmail,
+   sendAuthCodeEmail,
+   sendAuthEmail,
+   sendServerInviteEmail,
+};
+export type { AuthCodeIntent } from "@s3-viewer/ui/emails/auth-code";

@@ -34,7 +34,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "They open it in any browser",
-      body: "They sign in with the code and sign-in link we email them — or with GitHub, if it's enabled — accept the invite, and see exactly the buckets you shared. No AWS account, no IAM user, no Cloudflare account, nothing to install.",
+      body: "They sign in with a password, the code we email them, or GitHub, accept the invite, and see exactly the buckets you shared. No AWS account, no IAM user, no Cloudflare account, nothing to install.",
    },
 ];
 
@@ -96,7 +96,7 @@ export default createUseCasePage({
       {
          icon: Mail,
          title: "Email invites",
-         body: "Send an invite; the recipient signs in with the code and sign-in link we email them (or with GitHub, if enabled) and sees only the buckets you shared. No AWS account, no IAM user, no Cloudflare login, no setup.",
+         body: "Send an invite; the recipient signs in with a password, the code we email them, or GitHub, and sees only the buckets you shared. No AWS account, no IAM user, no Cloudflare login, no setup.",
       },
       {
          icon: ShieldCheck,

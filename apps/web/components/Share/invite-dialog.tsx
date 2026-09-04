@@ -1,5 +1,6 @@
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
+import UnverifiedCallout from "@/components/Settings/unverified-callout";
 import { ApiError } from "@/lib/api";
 import useSendInvite from "@/lib/hooks/mutations/invites/useSendInvite";
 import { splitList } from "@/lib/utils/split-list";
@@ -12,14 +13,11 @@ import {
    MAX_INVITE_EMAILS,
    Role,
    S3Bucket,
-   SITE_PATHS,
    emailSchema,
 } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { X } from "lucide-react";
-import Link from "next/link";
 import { FormEvent, useId, useState } from "react";
 import BucketAccessPicker from "./bucket-access-picker";
 import RoleSelect from "./role-select";
@@ -187,15 +185,9 @@ const InviteDialog = ({
             disabled={sendInvite.isPending}
          />
          {unverified && (
-            <div className="flex min-w-0 flex-col items-start gap-2 rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
-               <p>
-                  Sign in with the code we email you to verify your address
-                  before sending invites.
-               </p>
-               <Button asChild variant="outline" size="sm">
-                  <Link href={SITE_PATHS.login}>Sign in with email</Link>
-               </Button>
-            </div>
+            <UnverifiedCallout>
+               Verify your email address before sending invites.
+            </UnverifiedCallout>
          )}
       </FormDialog>
    );

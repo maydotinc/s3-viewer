@@ -343,6 +343,24 @@ characters `font-semibold text-viewerblue`.
   files). The user types their email to confirm. A session older than 24 h
   is sent to sign in again first. Success signs out, shows a toast and sends
   a confirmation email.
+- **Login / sign-up / forgot password** `/login`, `/signup`,
+  `/forgot-password`: `AuthLayout` = logo top-left (`left-6 top-6`, `sm:left-12
+sm:top-10`), a `max-w-sm` column centred in the left half, legal line
+  `mt-10`, brand panel on the right from `lg`. Step = `.text-title` + one
+  `text-sm` sentence, `mt-8` to the form. Fields stack `gap-4` with a reserved
+  `min-h-5` message line under each (error in red, otherwise a hint in
+  `viewerlighttext`). Buttons are `lg` and full width: one primary, then an
+  outline "Email me a code instead" `gap-4` below it; GitHub is an outline
+  button above an "or" hairline. The password label row holds "Forgot
+  password?" right-aligned as a text link; the show/hide eye is a ghost
+  `icon-sm` inside the field (`right-0.5 top-0.5`). Steps keep the first
+  step's height (`useStepHeight`) so nothing below them moves. Code steps:
+  `OtpInput`, primary "Verify", centred "Didn't get it? Resend code in 45s"
+  plus at most one text-link escape ("Skip for now").
+- **Settings → Profile** also has a **Password** card (current + new, or just
+  new when the account has none; primary right-aligned, hint on the reserved
+  line) and, for an unverified address, "Not verified yet. Verify email" as a
+  text link in the email hint that opens a `FormDialog` with the `OtpInput`.
 - **Profile menu**: name/email header, Settings (`g s`), Support (opens
   `/contact`), separator, Sign out.
 - **Landing `/contact`**: hero + three cards (email, GitHub issues, built by

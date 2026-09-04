@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { DEFAULT_CONTENT_TYPE } from "../constants";
+import {
+   DEFAULT_CONTENT_TYPE,
+   PASSWORD_MAX_LENGTH,
+   PASSWORD_MIN_LENGTH,
+} from "../constants";
 
 export const idSchema = z.string().regex(/^[A-Za-z0-9]{8,64}$/, "Invalid id");
 
@@ -44,6 +48,10 @@ export const contentTypeSchema = z
 export const serverNameSchema = z.string().trim().min(1).max(64);
 export const encryptedCredentialsSchema = z.string().min(1).max(8192);
 export const emailSchema = z.string().trim().toLowerCase().email().max(254);
+export const passwordSchema = z
+   .string()
+   .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters`)
+   .max(PASSWORD_MAX_LENGTH, `Use at most ${PASSWORD_MAX_LENGTH} characters`);
 
 export const grantableRoleSchema = z.enum(["ADMIN", "EDITOR", "VIEWER"]);
 

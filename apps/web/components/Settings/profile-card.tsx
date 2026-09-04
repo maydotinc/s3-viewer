@@ -1,5 +1,8 @@
+import { TEXT_LINK } from "@/components/Auth/text-link";
 import FormError from "@/components/Modals/form-error";
+import VerifyEmailDialog from "@/components/Settings/verify-email-dialog";
 import { authClient } from "@/lib/auth";
+import { publicEnv } from "@/lib/env";
 import useUpdateProfile from "@/lib/hooks/mutations/user/useUpdateProfile";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
@@ -17,6 +20,7 @@ const ProfileCard = () => {
 
    const [name, setName] = useState(currentName);
    const [nameError, setNameError] = useState<string | null>(null);
+   const [verifying, setVerifying] = useState(false);
    const update = useUpdateProfile();
 
    useEffect(() => setName(currentName), [currentName]);
@@ -71,6 +75,19 @@ const ProfileCard = () => {
                <Input id="profile-email" value={user.email} disabled readOnly />
                <p className="text-xs text-viewertext">
                   Email can&rsquo;t be changed.
+                  {!user.emailVerified && publicEnv.emailLoginEnabled && (
+                     <>
+                        {" "}
+                        Not verified yet.{" "}
+                        <button
+                           type="button"
+                           onClick={() => setVerifying(true)}
+                           className={TEXT_LINK}
+                        >
+                           Verify email
+                        </button>
+                     </>
+                  )}
                </p>
             </div>
             <div className="flex justify-end">
@@ -83,6 +100,12 @@ const ProfileCard = () => {
                </Button>
             </div>
          </form>
+         {verifying && (
+            <VerifyEmailDialog
+               email={user.email}
+               onClose={() => setVerifying(false)}
+            />
+         )}
       </SettingsCard>
    );
 };

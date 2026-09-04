@@ -75,15 +75,8 @@ app.get("/health", (_req, res) => {
 app.use(globalIpLimit);
 app.use(originCheck);
 
-app.post(
-   [
-      `${AUTH_BASE_PATH}/email-otp/send-verification-otp`,
-      `${AUTH_BASE_PATH}/sign-in/magic-link`,
-      `${AUTH_BASE_PATH}/forget-password/email-otp`,
-      `${AUTH_BASE_PATH}/email-otp/reset-password`,
-   ],
-   (_req, res) => fail(res, 404, "Not found")
-);
+// which `/auth/*` routes exist is decided inside better auth's own before
+// hook (packages/auth/lib/auth.ts), where the request body is available
 app.use(AUTH_BASE_PATH, (req, res, next) =>
    req.method === "GET" ? next() : authRouteLimit(req, res, next)
 );
@@ -94,7 +87,7 @@ app.use((req, res, next) =>
    isObjectUpload(req) ? next() : json(req, res, next)
 );
 
-app.use("/auth-flow", authFlowRouter);
+if (env.EMAIL_LOGIN_ENABLED) app.use("/auth-flow", authFlowRouter);
 
 app.use(BUCKET_MOUNT, bucketIpLimit);
 app.use(authGuard);

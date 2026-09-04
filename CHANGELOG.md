@@ -37,6 +37,14 @@ here until the first release.
 
 ### Added
 
+- Email and password sign-in, on by default next to the existing code/link
+  and GitHub methods. Every method is a flag (`EMAIL_LOGIN_ENABLED`,
+  `PASSWORD_LOGIN_ENABLED`, and the GitHub credentials; mirrored as
+  `NEXT_PUBLIC_*_LOGIN_ENABLED` in the web app), so a self-hosted deploy can
+  run password-only with no mail server. Includes forgot-password by emailed
+  code, a Password card in Settings to set or change one, email verification
+  after a password sign-up (and from Settings or the invite callouts), and
+  per-address throttles on password attempts and outbound codes.
 - An audit log of administrative and destructive actions. See "Data we store" in
   the README for its retention and erasure implications — it is never pruned
   automatically.
