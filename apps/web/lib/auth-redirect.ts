@@ -17,10 +17,14 @@ const isSafeNextPath = (value: unknown): value is string =>
 const afterLoginPath = (next: string | string[] | undefined): string =>
    isSafeNextPath(next) ? next : SITE_PATHS.dashboard;
 
+// a callback failure better auth reports as `?error=<code>` on the login page
+const reasonForError = (error: string): "link" | "failed" =>
+   MAGIC_LINK_ERRORS.has(error) ? "link" : "failed";
+
 const loginPathFor = (asPath: string): string => {
    const url = new URL(asPath, "http://placeholder");
    const error = url.searchParams.get("error");
-   const linkFailed = error !== null && MAGIC_LINK_ERRORS.has(error);
+   const linkFailed = error !== null && reasonForError(error) === "link";
    if (linkFailed) url.searchParams.delete("error");
 
    const params = new URLSearchParams();
@@ -32,4 +36,4 @@ const loginPathFor = (asPath: string): string => {
    return query ? `${SITE_PATHS.login}?${query}` : SITE_PATHS.login;
 };
 
-export { afterLoginPath, isSafeNextPath, loginPathFor };
+export { afterLoginPath, isSafeNextPath, loginPathFor, reasonForError };

@@ -78,6 +78,11 @@ const auth = betterAuth({
    secret: authEnv.secret,
    database: prismaAdapter(prisma, { provider: "postgresql" }),
    trustedOrigins: [authEnv.siteOrigin],
+   // a failed oauth or magic-link callback must land on the login page, not on
+   // better auth's default `/?error=` at the api origin (a 401 for the user)
+   onAPIError: {
+      errorURL: `${authEnv.siteOrigin}${SITE_PATHS.login}`,
+   },
    advanced: {
       ipAddress: { disableIpTracking: true },
       defaultCookieAttributes: {

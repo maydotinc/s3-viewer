@@ -3,7 +3,7 @@ import CodeStep from "@/components/Auth/code-step";
 import EmailStep from "@/components/Auth/email-step";
 import FullPageSpinner from "@/components/Session/full-page-spinner";
 import { signInWithGithub } from "@/lib/auth";
-import { afterLoginPath } from "@/lib/auth-redirect";
+import { afterLoginPath, reasonForError } from "@/lib/auth-redirect";
 import { publicEnv } from "@/lib/env";
 import { useSessionState } from "@/lib/hooks/useSessionState";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/site-config";
@@ -40,6 +40,7 @@ const COPY = {
 
 const NOTICES: Readonly<Record<string, string>> = {
    link: "That sign-in link has expired. Enter your email to get a new one.",
+   failed: "Sign-in didn't complete. Try again, or use the code we email you.",
 };
 
 const STEP_HEIGHT = publicEnv.githubLoginEnabled
@@ -65,8 +66,16 @@ const AuthScreen = ({ mode, initialEmail }: AuthScreenProps) => {
 
    const destination = afterLoginPath(router.query.next);
    const copy = COPY[mode];
+   // `error` is what better auth appends when an oauth or magic-link callback
+   // fails and redirects here
+   const callbackError =
+      typeof router.query.error === "string" ? router.query.error : "";
    const reason =
-      typeof router.query.reason === "string" ? router.query.reason : "";
+      typeof router.query.reason === "string"
+         ? router.query.reason
+         : callbackError
+           ? reasonForError(callbackError)
+           : "";
    // own-property only: ?reason=toString would otherwise hand a prototype
    // function to react as a child.
    const notice = Object.hasOwn(NOTICES, reason)
