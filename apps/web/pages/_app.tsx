@@ -78,11 +78,15 @@ const App = ({ Component, pageProps, runtimeEnv }: AppPropsWithLayout) => {
 // the site and api origins belong to the install, not to the build, so the
 // server reads them per boot and ships them in __NEXT_DATA__. it also opts
 // every page out of static optimisation, which is what makes that possible.
+// server only: `getInitialProps` also runs in the browser on every client-side
+// transition, where `process.env` is empty. handing that empty pair to
+// `setRuntimeEnv` would drop the origins shipped in __NEXT_DATA__ and send
+// every api request to the site origin instead.
 App.getInitialProps = async (
    context: AppContext
 ): Promise<AppInitialProps & AppOwnProps> => ({
    ...(await NextApp.getInitialProps(context)),
-   runtimeEnv: serverRuntimeEnv(),
+   ...(context.ctx.req ? { runtimeEnv: serverRuntimeEnv() } : {}),
 });
 
 export default App;

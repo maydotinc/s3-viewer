@@ -19,8 +19,62 @@ const {
 } = makeAuthClient(publicEnv);
 
 // better-auth types its atoms loosely; this is the slice we rely on
-type SessionAtom = { get: () => { refetch?: () => Promise<unknown> } };
-const sessionAtom = authClient.$store.atoms.session as SessionAtom | undefined;
+type SessionValue = {
+   data: unknown;
+   error: unknown;
+   isPending: boolean;
+   isRefetching: boolean;
+   refetch?: () => Promise<unknown>;
+};
+type SessionAtom = {
+   get: () => SessionValue;
+   set: (value: SessionValue) => void;
+   listen: (listener: (value: SessionValue) => void) => () => void;
+};
+const sessionAtom = authClient.$store.atoms.session as unknown as
+   | SessionAtom
+   | undefined;
+
+const SIGN_OUT_SETTLE_MS = 3000;
+
+const isSettledSignedOut = ({ data, isPending, isRefetching }: SessionValue) =>
+   data === null && !isPending && !isRefetching;
+
+// `useSession()` keeps the old user until better-auth's own `/get-session`
+// refetch lands, and that refetch is scheduled 10ms after `/sign-out`
+// succeeds, cancelling any refetch already in flight. Navigating before the
+// store reads signed out lands the login page on a signed-in user, which
+// bounces to the dashboard, which bounces back with `?next=`. So wait for the
+// store itself to settle, and past a deadline settle it by hand.
+const settleSignedOut = (): Promise<void> =>
+   new Promise((resolve) => {
+      if (!sessionAtom || isSettledSignedOut(sessionAtom.get())) {
+         resolve();
+         return;
+      }
+      let done = false;
+      const finish = () => {
+         if (done) return;
+         done = true;
+         clearTimeout(deadline);
+         unlisten();
+         resolve();
+      };
+      const unlisten = sessionAtom.listen((value) => {
+         if (isSettledSignedOut(value)) finish();
+      });
+      const deadline = setTimeout(() => {
+         sessionAtom.set({
+            ...sessionAtom.get(),
+            data: null,
+            error: null,
+            isPending: false,
+            isRefetching: false,
+         });
+         finish();
+      }, SIGN_OUT_SETTLE_MS);
+      void sessionAtom.get().refetch?.();
+   });
 
 const setPassword = (password: string): Promise<void> =>
    api.post<void>("/account/password", { password });
@@ -30,24 +84,20 @@ let signingOut = false;
 // true from the start of `signOut()` until the login page is shown
 const isSigningOut = (): boolean => signingOut;
 
+// a sign-out the server refused leaves the session in place, so it throws
+// for the caller to show and changes nothing locally
 const signOut = async (
    redirectTo: string = SITE_PATHS.login
 ): Promise<void> => {
    signingOut = true;
    try {
       await endSession();
-      // better-auth 1.2.8 refetches `/get-session` in the background and keeps
-      // the old user in `useSession()` until it resolves; await the atom's own
-      // refetch so nothing renders a signed-in user with no data.
-      await sessionAtom?.get()?.refetch?.();
-   } finally {
+      await settleSignedOut();
       clearQueryCache();
       useSessionStore.getState().clearSession();
-      try {
-         await Router.replace(redirectTo);
-      } finally {
-         signingOut = false;
-      }
+      await Router.replace(redirectTo);
+   } finally {
+      signingOut = false;
    }
 };
 

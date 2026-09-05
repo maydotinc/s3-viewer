@@ -50,8 +50,10 @@ const resolve = (): PublicEnv =>
       typeof window === "undefined" ? serverRuntimeEnv() : clientRuntimeEnv()
    ));
 
+// an empty pair carries no information (the server had nothing set, or a
+// client-side render passed one along), so it never replaces what is resolved
 const setRuntimeEnv = (env: RuntimeEnv | undefined): void => {
-   if (env) resolved = toPublicEnv(env);
+   if (env && (env.siteUrl || env.apiUrl)) resolved = toPublicEnv(env);
 };
 
 const publicEnv: PublicEnv = {

@@ -126,7 +126,8 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
          .then(toResult);
 
    const signOut = async (): Promise<void> => {
-      await authClient.signOut();
+      const { error } = await authClient.signOut();
+      if (error) throw new Error(authErrorMessage(error));
    };
 
    return {

@@ -101,6 +101,15 @@ describe("setRuntimeEnv", () => {
       setRuntimeEnv(undefined);
       expect(publicEnv.apiOrigin).toBe(SERVER.NEXT_PUBLIC_API_URL);
    });
+
+   it("ignores an empty pair, as a client-side transition produces", async () => {
+      asBrowser({ props: { runtimeEnv: CLIENT } });
+      const { publicEnv, setRuntimeEnv } = await load();
+      setRuntimeEnv(CLIENT);
+      setRuntimeEnv({ siteUrl: "", apiUrl: "" });
+      expect(publicEnv.apiOrigin).toBe(CLIENT.apiUrl);
+      expect(publicEnv.siteOrigin).toBe(CLIENT.siteUrl);
+   });
 });
 
 describe("serverRuntimeEnv", () => {
