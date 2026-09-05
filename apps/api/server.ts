@@ -1,4 +1,7 @@
+// first import on purpose: it resolves DATA_DIR secrets into process.env
+// before @s3-viewer/auth reads BETTER_AUTH_SECRET at its own import
 import { env, siteOrigin } from "@/lib/env";
+import { publicConfig } from "@/lib/config";
 import { errorHandler, fail } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { authGuard } from "@/lib/middleware/auth";
@@ -75,6 +78,12 @@ app.get("/health", (_req, res) => {
 
 app.use(globalIpLimit);
 app.use(originCheck);
+
+const config = publicConfig();
+app.get("/config", (_req, res) => {
+   res.setHeader("Cache-Control", "public, max-age=60");
+   res.json(config);
+});
 
 // which `/auth/*` routes exist is decided inside better auth's own before
 // hook (packages/auth/lib/auth.ts), where the request body is available

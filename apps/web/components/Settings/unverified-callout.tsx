@@ -1,17 +1,30 @@
+import Callout from "@/components/callout";
 import { authClient } from "@/lib/auth";
 import useResendVerification from "@/lib/hooks/mutations/user/useResendVerification";
+import useInstanceConfig, {
+   emailState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { Button } from "@s3-viewer/ui/components/button";
 
-// invites are refused until the address is verified; the callout says why
-// and resends the link on the spot
-const UnverifiedCallout = ({ children }: { children: string }) => {
+// invites and credentials are refused until the address is verified; the
+// callout says why and resends the link on the spot. an instance with no email
+// configured can send nothing, so it says that instead
+const UnverifiedCallout = ({ action }: { action: string }) => {
    const { data: session } = authClient.useSession();
+   const transport = emailState(useInstanceConfig());
    const resend = useResendVerification();
    const email = session?.user.email;
+   const noEmail = transport === "disabled";
+   // which of the two things to say isn't known yet, and neither is safe to guess
+   if (transport === "loading") return null;
    return (
-      <div className="flex min-w-0 flex-col items-start gap-2 rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
-         <p>{children}</p>
-         {email && (
+      <Callout>
+         <p>
+            {noEmail
+               ? `Email isn’t configured on this instance, so verification is unavailable. You can’t ${action} until your address is verified.`
+               : `Verify your email address to ${action}.`}
+         </p>
+         {email && !noEmail && (
             <Button
                variant="outline"
                size="sm"
@@ -21,7 +34,7 @@ const UnverifiedCallout = ({ children }: { children: string }) => {
                Resend verification email
             </Button>
          )}
-      </div>
+      </Callout>
    );
 };
 

@@ -22,12 +22,10 @@ const importPublicKey = (pem: string): Promise<CryptoKey> =>
    );
 
 const encryptCredentials = async (
-   credentials: ServerCredentials
+   credentials: ServerCredentials,
+   publicKeyPem: string
 ): Promise<string> => {
-   const pem = process.env.NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY;
-   if (!pem) throw new Error("NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY is not set");
-
-   const publicKey = await importPublicKey(pem);
+   const publicKey = await importPublicKey(publicKeyPem);
    const aesKey = await crypto.subtle.generateKey(
       { name: "AES-GCM", length: AES_KEY_BITS },
       true,

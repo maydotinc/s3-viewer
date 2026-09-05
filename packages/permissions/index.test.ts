@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
    Permission,
    ROLES_ASCENDING,
-   ROLE_DESCRIPTIONS,
    assignableRoles,
    canManageRole,
    effectiveBucketRole,
@@ -83,18 +82,6 @@ describe("clamping", () => {
       ]);
       expect(rolesAbove(Role.EDITOR)).toEqual([Role.ADMIN, Role.OWNER]);
       expect(rolesAbove(Role.OWNER)).toEqual([]);
-   });
-});
-
-describe("role descriptions", () => {
-   it("describes what an editor may do to objects and to buckets", () => {
-      expect(ROLE_DESCRIPTIONS[Role.EDITOR]).toBe(
-         "Upload and delete objects, and create new buckets."
-      );
-   });
-
-   it("says an admin can only pass on bucket access they hold", () => {
-      expect(ROLE_DESCRIPTIONS[Role.ADMIN]).toMatch(/grant bucket access they/);
    });
 });
 

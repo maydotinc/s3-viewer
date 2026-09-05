@@ -1,5 +1,9 @@
+import Callout from "@/components/callout";
 import useRevokeInvite from "@/lib/hooks/mutations/invites/useRevokeInvite";
 import { useAllSentInvites } from "@/lib/hooks/queries/server/useInvites";
+import useInstanceConfig, {
+   emailState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { useUserId } from "@/lib/stores/sessionStore";
 import { Button } from "@s3-viewer/ui/components/button";
 import { TableCell, TableRow } from "@s3-viewer/ui/components/table";
@@ -28,9 +32,22 @@ const SentInvites = () => {
    const userId = useUserId();
    const { data: invites, isLoading, error } = useAllSentInvites();
    const revoke = useRevokeInvite();
+   const email = emailState(useInstanceConfig());
 
    const body = () => {
-      if (!userId || isLoading) {
+      if (email === "disabled") {
+         return (
+            <div className="px-6 pt-4 pb-6">
+               <Callout>
+                  <p>
+                     This instance has no email configured, so invites can’t be
+                     sent.
+                  </p>
+               </Callout>
+            </div>
+         );
+      }
+      if (email === "loading" || !userId || isLoading) {
          return (
             <InviteTable columns={COLUMNS}>
                <InviteTableSkeleton columns={COLUMNS.length} actions="icon" />

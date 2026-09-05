@@ -15,6 +15,15 @@ export default defineConfig({
          ENCRYPTION_PRIVATE_KEY: "test",
          NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
          NEXT_PUBLIC_API_URL: "http://localhost:5001",
+         // pinned empty so a developer's own apps/api/.env, which dotenv loads
+         // into these tests, cannot change what they assert
+         DATA_DIR: "",
+         EMAIL_TRANSPORT: "",
+         RESEND_KEY: "",
+         SMTP_URL: "",
+         GITHUB_CLIENT_ID: "",
+         GITHUB_CLIENT_SECRET: "",
+         ALLOW_PRIVATE_ENDPOINTS: "",
       },
    },
 });

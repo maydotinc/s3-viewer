@@ -86,6 +86,13 @@ type AccountSummary = {
    receivedInvites: number;
 };
 
+/** GET /config: what an install can do, read by the web app at runtime */
+type PublicConfig = {
+   encryptionPublicKey: string;
+   githubLoginEnabled: boolean;
+   emailEnabled: boolean;
+};
+
 export { Provider, Role };
 export type {
    AccountSummary,
@@ -95,6 +102,7 @@ export type {
    EstablishResult,
    GrantableRole,
    OwnedServerSummary,
+   PublicConfig,
    SendInviteResult,
    ServerCredentials,
    ServerInfo,

@@ -3,6 +3,9 @@ import FormError from "@/components/Modals/form-error";
 import { authClient } from "@/lib/auth";
 import useResendVerification from "@/lib/hooks/mutations/user/useResendVerification";
 import useUpdateProfile from "@/lib/hooks/mutations/user/useUpdateProfile";
+import useInstanceConfig, {
+   emailState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
@@ -14,8 +17,6 @@ import SettingsCard from "./card";
 
 const NAME_MAX = 80;
 
-// name and email share a row; each carries a reserved line underneath (the
-// name's error, the email's note), so the row never changes height
 const FIELDS = "grid gap-4 sm:grid-cols-2";
 
 const FieldSkeleton = () => (
@@ -35,6 +36,7 @@ const ProfileCard = () => {
    const [nameError, setNameError] = useState<string | null>(null);
    const update = useUpdateProfile();
    const resend = useResendVerification();
+   const transport = emailState(useInstanceConfig());
    const router = useRouter();
 
    useEffect(() => setName(currentName), [currentName]);
@@ -119,6 +121,10 @@ const ProfileCard = () => {
                   >
                      {user.emailVerified ? (
                         "Email can’t be changed."
+                     ) : transport === "loading" ? (
+                        "Not verified."
+                     ) : transport === "disabled" ? (
+                        "Not verified. This instance has no email configured, so verification is unavailable."
                      ) : (
                         <>
                            Not verified yet.{" "}

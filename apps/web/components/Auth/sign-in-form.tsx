@@ -4,7 +4,9 @@ import GithubIcon from "@/components/Auth/github-icon";
 import PasswordInput from "@/components/Auth/password-input";
 import { TEXT_LINK } from "@/components/Auth/text-link";
 import { continueWithPassword } from "@/lib/auth";
-import { publicEnv } from "@/lib/env";
+import useInstanceConfig, {
+   githubEnabled,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import {
    PASSWORD_MIN_LENGTH,
    SITE_PATHS,
@@ -21,7 +23,6 @@ type Mode = "login" | "signup";
 type SignInFormProps = {
    mode: Mode;
    notice: string | null;
-   githubError: string | null;
    onGithub: () => void;
    onDone: (created: boolean) => Promise<void>;
 };
@@ -33,18 +34,13 @@ const SUBMIT_LABEL: Record<Mode, string> = {
    signup: "Create account",
 };
 
-const SignInForm = ({
-   mode,
-   notice,
-   githubError,
-   onGithub,
-   onDone,
-}: SignInFormProps) => {
+const SignInForm = ({ mode, notice, onGithub, onDone }: SignInFormProps) => {
    const [email, setEmail] = useState("");
    const [password, setPassword] = useState("");
    const [emailError, setEmailError] = useState<string | null>(null);
    const [passwordError, setPasswordError] = useState<string | null>(null);
    const [pending, setPending] = useState(false);
+   const { data: config } = useInstanceConfig();
 
    const submit = async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -81,7 +77,7 @@ const SignInForm = ({
             </p>
          )}
 
-         {publicEnv.githubLoginEnabled && (
+         {githubEnabled(config) && (
             <>
                <Button
                   type="button"
@@ -94,11 +90,6 @@ const SignInForm = ({
                   <GithubIcon className="size-4" />
                   Continue with GitHub
                </Button>
-               {githubError && (
-                  <p role="alert" className="text-sm text-viewertextred">
-                     {githubError}
-                  </p>
-               )}
                <div
                   className="text-meta flex items-center gap-3"
                   aria-hidden="true"

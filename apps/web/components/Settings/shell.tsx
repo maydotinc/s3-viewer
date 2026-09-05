@@ -11,8 +11,6 @@ const SECTIONS = [
    { href: SITE_PATHS.settingsInvites, label: "Invites", icon: Mail },
 ] as const;
 
-// settings sections are pages side by side: a nav column on the left (a
-// horizontal strip below `md`) and the section's cards in a form-width column
 const SettingsShell = ({ children }: { children: ReactNode }) => {
    const { pathname } = useRouter();
    return (

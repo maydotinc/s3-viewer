@@ -249,9 +249,12 @@ Content `max-w-md` (forms) or `max-w-lg` (wide), `rounded-xl`, one
 `shadow-lg`, no padding of its own: header `px-6 pt-5 pb-4 pr-12`, body
 `px-6 py-4`, footer `px-6 pt-2 pb-5 justify-end gap-2`. **Every body is
 wrapped in `DialogBody`.** One X top-right, one primary action; no Cancel
-next to the X. Destructive confirms hide the X and show Cancel + the
-destructive button. Fields stack with `gap-4`; a reserved `min-h-5` error
-line sits under the field the primary action depends on.
+next to the X. One-click destructive confirms hide the X and show Cancel +
+the destructive button; a typed confirmation (delete account) keeps the X
+and has no Cancel. Fields stack with `gap-4`; a reserved `min-h-5` error
+line sits under the field the primary action depends on. A dialog whose
+content depends on a request must not open until that request has
+resolved: the opening button holds its `loading` state instead (rule 3).
 
 ### Menus, tooltips, popovers
 
@@ -289,14 +292,14 @@ clip with an arbitrary `max-w-[Npx]`.
 
 ## 5. Motion
 
-| What                         | Motion                                                        |
-| ---------------------------- | ------------------------------------------------------------- |
-| Dialogs and overlays         | None. Appear and disappear instantly.                         |
-| Menus, selects, tooltips     | `animate-fade-in` (120 ms, opacity + 2px rise); close instant |
-| Submenus                     | None (must be readable the instant the pointer arrives)       |
-| Tab underline                | `transition-[transform,width] duration-200 ease-out`          |
-| Hover fills                  | `transition-colors duration-150`                              |
-| Spinner, toast               | Their own                                                     |
+| What                     | Motion                                                        |
+| ------------------------ | ------------------------------------------------------------- |
+| Dialogs and overlays     | None. Appear and disappear instantly.                         |
+| Menus, selects, tooltips | `animate-fade-in` (120 ms, opacity + 2px rise); close instant |
+| Submenus                 | None (must be readable the instant the pointer arrives)       |
+| Tab underline            | `transition-[transform,width] duration-200 ease-out`          |
+| Hover fills              | `transition-colors duration-150`                              |
+| Spinner, toast           | Their own                                                     |
 
 `prefers-reduced-motion` disables the fade and the tab slide. No
 `motion`/`AnimatePresence`, no `tw-animate-css`.
@@ -336,14 +339,14 @@ characters `font-semibold text-viewerblue`.
      footer "Send invite" / "Send 3 invites".
 - **Settings** `/settings`: header "Settings", then a section nav beside the
   content (`gap-8`): a `w-48` column of sidebar-style rows (`h-9 rounded-lg
-  px-2 gap-2.5 text-sm`, icon `size-4`, active `bg-viewergray text-viewerblack
-  font-medium`, hover `bg-viewergray/70`, `gap-1` between rows) linking to
+px-2 gap-2.5 text-sm`, icon `size-4`, active `bg-viewergray text-viewerblack
+font-medium`, hover `bg-viewergray/70`, `gap-1` between rows) linking to
   `/settings/profile` and `/settings/invites`; below `md` the rows become a
   horizontal strip above the content. The active row is a fill, so a route
   change needs no animation. Content in a `max-w-3xl` column that is the same
   on every section, and the header never changes between sections. Profile =
   the **Profile** card (name and read-only email side by side in a `sm:grid-
-  cols-2` row, each with a reserved `min-h-5` line under it: the name's error,
+cols-2` row, each with a reserved `min-h-5` line under it: the name's error,
   the email's note; an unverified address gets "Not verified yet. Resend
   verification email" as a text link there), the **Password** card (same
   two-column row: current + new, or just new when the account has none) and the
@@ -352,12 +355,19 @@ characters `font-semibold text-viewerblue`.
   **Sent** flush cards; the one "Invite people" button is the Sent card's
   header action, held by an `invisible` placeholder while the server list
   loads. `/invites` redirects here.
-- **Delete account**: the dialog lists exactly what will be deleted (owned
-  servers by name with member counts, memberships left, invites revoked),
-  what is kept (anonymised audit entries) and what is untouched (buckets and
-  files). The user types their email to confirm. A session older than 24 h
-  is sent to sign in again first. Success signs out, shows a toast and sends
-  a confirmation email.
+- **Delete account**: `max-w-lg`, X top-right, no Cancel. The card loads
+  the account summary with the page and the dialog only opens once it has
+  arrived, so it never grows after it renders. Body order: a "Never touched"
+  callout first (bold lead: buckets, files and S3 servers stay exactly as
+  they are; the app only stored the address and keys), then a "Removed from
+  S3 Viewer" hairline list (account and sessions, "Connection to
+  <name>" per owned server with member / invite counts on the right, shared
+  access, invites), a caption about anonymised audit entries, then the
+  typed-email confirmation. Copy never says a server or bucket "is deleted":
+  only records this app holds are removed. A session older than 24 h swaps
+  the field for a callout and the footer for one primary "Sign in again to
+  continue" button. Success signs out, shows a toast that repeats that
+  storage was untouched, and sends a confirmation email.
 - **Login / sign-up / forgot password / reset password** `/login`,
   `/signup`, `/forgot-password`, `/reset-password`: `AuthLayout` = a header
   row on the logo's line (`inset-x-6 top-6`, `sm:inset-x-12 sm:top-10`, `h-8`):

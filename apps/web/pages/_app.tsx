@@ -5,6 +5,7 @@ import ErrorBoundary from "@/components/Session/error-boundary";
 import SessionManager from "@/components/Session/session-manager";
 import ShortcutsHelp from "@/components/Shortcuts/help-dialog";
 import { ModalProvider } from "@/lib/contexts/ModalContext";
+import { serverRuntimeEnv, setRuntimeEnv, type RuntimeEnv } from "@/lib/env";
 import { getQueryClient } from "@/lib/queryClient";
 import { ShortcutsProvider } from "@/lib/shortcuts";
 import { PRODUCT_NAME } from "@s3-viewer/types";
@@ -16,7 +17,11 @@ import "@s3-viewer/ui/globals.css";
 import { inter } from "@/lib/fonts";
 import { QueryClientProvider } from "@tanstack/react-query";
 import type { NextPage } from "next";
-import type { AppProps } from "next/app";
+import NextApp, {
+   type AppContext,
+   type AppInitialProps,
+   type AppProps,
+} from "next/app";
 import Head from "next/head";
 import { ReactElement, ReactNode, useState } from "react";
 
@@ -24,9 +29,13 @@ type NextPageWithLayout<P = Record<string, never>, IP = P> = NextPage<P, IP> & {
    getLayout?: (page: ReactElement) => ReactNode;
 };
 
-type AppPropsWithLayout = AppProps & { Component: NextPageWithLayout };
+type AppOwnProps = { runtimeEnv?: RuntimeEnv };
 
-const App = ({ Component, pageProps }: AppPropsWithLayout) => {
+type AppPropsWithLayout = AppProps &
+   AppOwnProps & { Component: NextPageWithLayout };
+
+const App = ({ Component, pageProps, runtimeEnv }: AppPropsWithLayout) => {
+   setRuntimeEnv(runtimeEnv);
    const [queryClient] = useState(getQueryClient);
    const getLayout = Component.getLayout ?? ((page) => page);
 
@@ -65,6 +74,16 @@ const App = ({ Component, pageProps }: AppPropsWithLayout) => {
       </QueryClientProvider>
    );
 };
+
+// the site and api origins belong to the install, not to the build, so the
+// server reads them per boot and ships them in __NEXT_DATA__. it also opts
+// every page out of static optimisation, which is what makes that possible.
+App.getInitialProps = async (
+   context: AppContext
+): Promise<AppInitialProps & AppOwnProps> => ({
+   ...(await NextApp.getInitialProps(context)),
+   runtimeEnv: serverRuntimeEnv(),
+});
 
 export default App;
 export type { NextPageWithLayout };

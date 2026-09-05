@@ -7,15 +7,17 @@
       "node": ">=20.3"
    },
    "scripts": {
-      "dev": "turbo run dev",
+      "setup": "node scripts/setup.mjs",
+      "dev": "node scripts/dev.mjs",
+      "stop": "node scripts/stop.mjs",
       "build": "turbo run build",
       "lint": "turbo run lint",
       "check-types": "turbo run check-types",
       "test": "vitest run --passWithNoTests",
-      "db:generate": "turbo run db:generate",
-      "db:deploy": "pnpm --filter @s3-viewer/db db:deploy",
-      "db:migrate": "pnpm --filter @s3-viewer/db db:migrate",
-      "landing:assets": "tsx scripts/optimize-landing-assets.ts",
+      "db:generate": "node scripts/db.mjs generate",
+      "db:deploy": "node scripts/db.mjs deploy",
+      "db:migrate": "node scripts/db.mjs migrate",
+      "db:status": "node scripts/db.mjs status",
       "favicons": "tsx scripts/generate-favicons.ts",
       "format": "prettier --write .",
       "format:check": "prettier --check ."

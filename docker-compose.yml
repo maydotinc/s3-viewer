@@ -1,0 +1,117 @@
+name: s3-viewer
+
+# Self-hosting stack. `docker compose up -d` works from a clean clone with no
+# configuration at all and serves http://localhost:3000. See .env.example for
+# the handful of variables a real deployment sets, and SELF-HOSTING.md for the
+# `landing` and `proxy` profiles. The `proxy` profile is always run together
+# with docker-compose.proxy.yml, which carries the settings that only make
+# sense behind Caddy.
+
+services:
+   postgres:
+      image: postgres:16
+      restart: unless-stopped
+      environment:
+         POSTGRES_USER: s3viewer
+         POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-s3viewer}
+         POSTGRES_DB: s3viewer
+      volumes:
+         - pgdata:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U s3viewer -d s3viewer"]
+         interval: 5s
+         timeout: 5s
+         retries: 20
+
+   api:
+      image: ghcr.io/maydotinc/s3-viewer-api:latest
+      build:
+         context: .
+         dockerfile: apps/api/Dockerfile
+      restart: unless-stopped
+      depends_on:
+         postgres:
+            condition: service_healthy
+      environment:
+         - DATABASE_URL=postgresql://s3viewer:${POSTGRES_PASSWORD:-s3viewer}@postgres:5432/s3viewer
+         - DATA_DIR=/data
+         - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
+         - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:5001}
+         - TRUST_PROXY=${TRUST_PROXY:-loopback}
+         # Unset ⇒ generated on first boot and kept in the /data volume. Set
+         # either one in the root .env only when you are moving an existing
+         # install onto this stack and have to keep its keys.
+         - BETTER_AUTH_SECRET
+         - ENCRYPTION_PRIVATE_KEY
+         - EMAIL_TRANSPORT
+         - RESEND_KEY
+         - SMTP_URL
+         - EMAIL_FROM
+         - SUPPORT_EMAIL
+         - GITHUB_CLIENT_ID
+         - GITHUB_CLIENT_SECRET
+         - ALLOW_PRIVATE_ENDPOINTS
+         - MAX_UPLOAD_BYTES
+         - UPLOAD_PART_BYTES
+         - LOG_LEVEL
+      volumes:
+         - apidata:/data
+      ports:
+         - "127.0.0.1:5001:5001"
+
+   web:
+      image: ghcr.io/maydotinc/s3-viewer-web:latest
+      build:
+         context: .
+         dockerfile: apps/web/Dockerfile
+      restart: unless-stopped
+      depends_on:
+         - api
+      environment:
+         - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
+         - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:5001}
+         # Set to http://landing:3001 with the `landing` profile: web proxies
+         # the marketing routes and /landing-assets/* from it. Compose cannot
+         # make one service's environment depend on a profile, so this stays a
+         # variable. Unset ⇒ `/` redirects to /dashboard.
+         - LANDING_ORIGIN
+      ports:
+         - "127.0.0.1:3000:3000"
+
+   # No published image: this site inlines SITE_URL into its canonical, OG and
+   # JSON-LD URLs at build time, so a prebuilt one could only ever be right for
+   # a single domain. The landing profile always builds from this checkout.
+   landing:
+      build:
+         context: .
+         dockerfile: apps/landing/Dockerfile
+         args:
+            NEXT_PUBLIC_SITE_URL: ${SITE_URL:-http://localhost:3000}
+      profiles: [landing]
+      restart: unless-stopped
+      environment:
+         - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
+      expose:
+         - "3001"
+
+   caddy:
+      image: caddy:2-alpine
+      profiles: [proxy]
+      restart: unless-stopped
+      environment:
+         - SITE_HOSTNAME
+         - API_HOSTNAME
+         - ACME_EMAIL
+      ports:
+         - "80:80"
+         - "443:443"
+      volumes:
+         - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+         - caddydata:/data
+         - caddyconfig:/config
+
+volumes:
+   pgdata:
+   apidata:
+   caddydata:
+   caddyconfig:

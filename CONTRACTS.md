@@ -176,8 +176,40 @@ the web app, the landing site and the shared packages. Keep it current.
 - Credential encryption is hybrid: AES-256-GCM payload, key wrapped with
   RSA-OAEP(SHA-256). Wire format (base64 JSON): `{ v: 1, k, iv, ct }`. The
   private key must be at least 2048 bits (checked at startup).
+  `BETTER_AUTH_SECRET` and `ENCRYPTION_PRIVATE_KEY` are required, except when
+  `DATA_DIR` is set: they are then read from `$DATA_DIR/auth-secret` and
+  `$DATA_DIR/encryption-private-key.pem`, generated (32 random bytes base64; RSA
+  4096 pkcs8 PEM) and written `0600` on first boot. That runs in `lib/env.ts`
+  before validation and before `@s3-viewer/auth` reads the secret, which is why
+  `@/lib/env` is `server.ts`'s first import.
+- SSRF: S3 endpoints must be public https, and every DNS answer is re-checked
+  at connect time (`lib/utils/endpoint.ts`, `publicOnlyLookup`).
+  `ALLOW_PRIVATE_ENDPOINTS=true` (exactly that string) accepts private,
+  loopback and link-local addresses plus `localhost` / `*.localhost`, and
+  accepts `http://` in production too — a MinIO on a LAN is almost always
+  plain http. It is for a trusted network only and logs a loud boot warning;
+  anything but `true` keeps the default behaviour unchanged.
 
-### Routes (all under authGuard except `/auth/*`)
+### Public routes (no auth, no session)
+
+```
+GET    /health                                                → { ok: true, apiVersion: API_CONTRACT_VERSION }
+GET    /config                                                → { encryptionPublicKey, githubLoginEnabled, emailEnabled }
+```
+
+`GET /config` is what lets one prebuilt web image serve any install: the web
+app reads all three at runtime instead of from build-time env vars
+(`NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`
+are removed from `apps/web/.env`). `encryptionPublicKey` is the SPKI PEM
+derived from `ENCRYPTION_PRIVATE_KEY` at boot (`lib/utils/encryption.ts`),
+`githubLoginEnabled` is `GITHUB_CLIENT_ID` being set, `emailEnabled` is the
+resolved `EMAIL_TRANSPORT` not being `none`. It is mounted after
+`globalIpLimit` so it counts against the same per-IP budget, answers
+`Cache-Control: public, max-age=60`, and its values are computed once at boot
+— a change to any of them needs an API restart. `/health` is mounted before
+the limiter so a health check never spends it.
+
+### Routes (all under authGuard except `/auth/*` and the public routes above)
 
 ```
 POST   /account/password                 { password }         → 204 (sets a first password on the signed-in account)
@@ -308,8 +340,8 @@ which is exact for listings up to 1000 entries and per-block above that.
 ## Auth (`packages/auth`, `apps/api`, `apps/web`)
 
 - Two sign-in methods: email and password (always on) and GitHub (on when
-  its credentials are set; the web shows the button only with
-  `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`). There are no one-time codes and
+  its credentials are set; the web shows the button only when
+  `GET /config` reports `githubLoginEnabled`). There are no one-time codes and
   no magic links; email carries exactly two links, both `AuthLinkEmail`
   (`packages/ui/src/emails/auth-link.tsx`), both valid `AUTH_LINK_TTL_HOURS`
   (1).
@@ -351,8 +383,22 @@ which is exact for listings up to 1000 entries and per-block above that.
 - A failed link email is logged (`[auth] verify email failed` / `[auth] reset
 email failed`) and never fails the request that caused it: the account
   already exists, and the response must not reveal delivery.
-- GitHub OAuth is optional: enabled only when `GITHUB_CLIENT_ID` is set; the web
-  shows the button only when `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`.
+- GitHub OAuth is optional: `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are
+  set together or not at all (a boot error otherwise), and that is the only
+  switch — the web shows the button when `GET /config` reports
+  `githubLoginEnabled`.
+- Email is optional too. `EMAIL_TRANSPORT` is `none` | `resend` | `smtp`;
+  unset it is inferred (`resend` if `RESEND_KEY` is set, else `smtp` if
+  `SMTP_URL` is set, else `none`), and naming one explicitly without its
+  credential is a boot error. `resolveEmailTransport`
+  (`@s3-viewer/email/transport`) is the single implementation, used by the
+  API's `lib/env.ts` and by the email package itself. `none` is a first-class
+  mode: sign-in still works, password reset, email verification and invites do
+  not, and `GET /config` reports `emailEnabled: false` so the web can say so.
+  The API logs exactly one line at boot naming the mode; with `none`, a
+  development instance still prints the whole message (that is how a
+  verification link is picked up locally) while production drops it and logs
+  only the envelope.
 - No profile pictures. Name and email are the whole profile; the avatar is
   generated from the name (`apps/web/lib/utils/avatar.ts`) and is never stored,
   uploaded or editable. The `user.image` column stays because Better Auth's core
@@ -471,6 +517,16 @@ calls alike and holds the per-email throttles (429 with code
   (`useResendVerification`). See `packages/ui/DESIGN.md`.
 
 ## Landing (`apps/landing`)
+
+Served only through the web app. `apps/web/middleware.ts` rewrites the routes
+in `LANDING_ROUTES` plus `/landing/*` and `/landing-assets/*` to
+`LANDING_ORIGIN`; landing sets `assetPrefix` to `/landing-assets` so every
+`/_next/*` URL it emits is fetched from the web app's origin and proxied back.
+Landing therefore needs no public origin of its own, and `NEXT_PUBLIC_SITE_URL`
+in landing always names the **web app's** origin. Anything landing serves at a
+root-relative path that has a file extension (`/logo.svg`, `/icons/*.svg`) is
+not rewritten and must exist in `apps/web/public` too — `pnpm favicons`
+mirrors that set.
 
 Only describe what ships (see routes and web notes). No
 cross-provider copy, no versioning prompts, no bulk download, no audit log,

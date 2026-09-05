@@ -9,7 +9,8 @@
       "build": "tsup",
       "start": "pnpm --filter @s3-viewer/db db:generate && NODE_ENV=production node dist/server.js",
       "lint": "eslint . --max-warnings 0",
-      "check-types": "tsc --noEmit"
+      "check-types": "tsc --noEmit",
+      "test": "vitest run --passWithNoTests"
    },
    "dependencies": {
       "@aws-sdk/client-s3": "^3.1127.0",
@@ -28,6 +29,7 @@
       "express-rate-limit": "^8.7.0",
       "helmet": "^8.3.0",
       "nodemailer": "^10.0.0",
+      "prisma": "catalog:",
       "resend": "^6.0.1",
       "zod": "catalog:"
    },

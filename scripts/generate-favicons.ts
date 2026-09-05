@@ -1,6 +1,6 @@
 import { createRequire } from "node:module";
 import { readdirSync } from "node:fs";
-import { readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -8,23 +8,25 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 
-// The brand mark (outline cube in Viewer Blue) is the single source. Every
-// favicon, touch icon and manifest icon is that one drawing centred on a
-// square canvas, so a brand change is one SVG edit + `pnpm favicons`.
-const SOURCE_SVG = path.join(REPO_ROOT, "apps/landing/public/logo.svg");
+const WEB_PUBLIC = path.join(REPO_ROOT, "apps/web/public");
+const LANDING_PUBLIC = path.join(REPO_ROOT, "apps/landing/public");
 
-// The landing site is reverse-proxied behind the web app in production, so
-// its pages are served from the web app's domain and every root-relative icon
-// URL they emit resolves against apps/web/public — while a standalone landing
-// build (and `next dev` on its own port) resolves them against
-// apps/landing/public. Writing the identical set into both keeps
-// `<link rel="icon">` truthful from either origin. The shared markup lives in
-// packages/ui/src/components/favicon-links.tsx.
-const OUT_DIRS = ["apps/web/public", "apps/landing/public"].map((dir) =>
-   path.join(REPO_ROOT, dir)
-);
+// every icon is this one mark centred on a square canvas
+const SOURCE_SVG = path.join(LANDING_PUBLIC, "logo.svg");
 
-// Previous generations' filenames; deleted so stale icons can't linger.
+// landing is proxied behind the web app in production and served standalone in
+// dev, so the same root-relative icon urls must resolve from either public dir
+const OUT_DIRS = [WEB_PUBLIC, LANDING_PUBLIC];
+
+// next/image passes an `.svg` src through untouched, so these are mirrored too
+const MIRRORED_SVGS = [
+   "logo.svg",
+   "icons/viewer.svg",
+   "icons/viewerblue.svg",
+   "icons/whiteviewer.svg",
+];
+
+// filenames from earlier generations, removed so stale icons can't linger
 const STALE_FILES = [
    "web-app-manifest-192x192.png",
    "web-app-manifest-512x512.png",
@@ -49,19 +51,17 @@ const resolveSharp = (): typeof import("sharp") => {
 const sharp = resolveSharp();
 
 type Variant = {
-   // How much of the canvas height the mark occupies. Tab icons fill it; the
-   // iOS and maskable icons keep the mark inside the platform's safe zone
-   // (a circle 80% of the canvas wide) because the OS crops the rest.
+   // fraction of the canvas height the mark occupies
    markHeight: number;
-   // iOS paints transparency black and launchers mask to the edge, so those
-   // variants sit on an opaque backdrop. Everything else stays transparent.
    background: string | null;
 };
 
+// ios and maskable icons keep the mark inside the platform's safe zone (a
+// circle 80% of the canvas wide) and sit on an opaque backdrop, since ios
+// paints transparency black and launchers mask to the edge
 const TAB: Variant = { markHeight: 0.92, background: null };
 const PADDED: Variant = { markHeight: 0.6, background: "#ffffff" };
 
-// Arbitrary square user-space size the mark is placed into.
 const CANVAS = 64;
 
 type Mark = { width: number; height: number; body: string };
@@ -261,6 +261,12 @@ const main = async () => {
       }
    }
 
+   for (const name of MIRRORED_SVGS) {
+      const target = path.join(WEB_PUBLIC, name);
+      await mkdir(path.dirname(target), { recursive: true });
+      await copyFile(path.join(LANDING_PUBLIC, name), target);
+   }
+
    console.table(
       [...files].map(([name, contents]) => ({
          file: name,
@@ -268,7 +274,8 @@ const main = async () => {
       }))
    );
    console.log(
-      `Wrote ${files.size} files into:\n${OUT_DIRS.map((d) => `  ${path.relative(REPO_ROOT, d)}`).join("\n")}`
+      `Wrote ${files.size} files into:\n${OUT_DIRS.map((d) => `  ${path.relative(REPO_ROOT, d)}`).join("\n")}\n` +
+         `Mirrored ${MIRRORED_SVGS.length} logo files into ${path.relative(REPO_ROOT, WEB_PUBLIC)}`
    );
 };
 

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
    isPrivateAddress,
    PRIVATE_ADDRESS_CODE,
@@ -9,6 +9,8 @@ import {
 const originalEnv = process.env.NODE_ENV;
 afterEach(() => {
    process.env.NODE_ENV = originalEnv;
+   process.env.ALLOW_PRIVATE_ENDPOINTS = "";
+   vi.resetModules();
 });
 
 describe("isPrivateAddress", () => {
@@ -161,5 +163,78 @@ describe("publicOnlyLookup", () => {
       const { err, address } = await lookup("8.8.8.8");
       expect(err).toBeNull();
       expect(address).toBe("8.8.8.8");
+   });
+});
+
+describe("ALLOW_PRIVATE_ENDPOINTS", () => {
+   const load = async (allow: string, nodeEnv = "test") => {
+      process.env.ALLOW_PRIVATE_ENDPOINTS = allow;
+      process.env.NODE_ENV = nodeEnv;
+      vi.resetModules();
+      return import("./endpoint");
+   };
+
+   it("accepts localhost, LAN addresses and cleartext when true", async () => {
+      const endpoint = await load("true", "production");
+      expect(endpoint.publicHostname("http://localhost:9000")).toBe(
+         "localhost"
+      );
+      expect(endpoint.publicHostname("http://minio.localhost:9000")).toBe(
+         "minio.localhost"
+      );
+      expect(endpoint.publicHostname("http://192.168.1.10:9000")).toBe(
+         "192.168.1.10"
+      );
+      expect(endpoint.publicHostname("http://127.0.0.1:9000")).toBe(
+         "127.0.0.1"
+      );
+      expect(endpoint.publicHostname("https://s3.example.com")).toBe(
+         "s3.example.com"
+      );
+   });
+
+   it("still rejects what is not an http(s) URL at all when true", async () => {
+      const endpoint = await load("true");
+      expect(endpoint.publicHostname("nope")).toBeNull();
+      expect(endpoint.publicHostname("ftp://192.168.1.10")).toBeNull();
+      expect(endpoint.publicHostname("file:///etc/passwd")).toBeNull();
+   });
+
+   it("keeps the default rejections when false", async () => {
+      const endpoint = await load("", "production");
+      expect(endpoint.publicHostname("http://localhost:9000")).toBeNull();
+      expect(endpoint.publicHostname("http://192.168.1.10:9000")).toBeNull();
+      expect(endpoint.publicHostname("https://192.168.1.10:9000")).toBeNull();
+      expect(endpoint.publicHostname("http://s3.example.com")).toBeNull();
+      expect(endpoint.publicHostname("https://s3.example.com")).toBe(
+         "s3.example.com"
+      );
+   });
+
+   it("lets a private endpoint through assertPublicEndpoint only when true", async () => {
+      const allowed = await load("true");
+      await expect(
+         allowed.assertPublicEndpoint("http://192.168.1.10:9000")
+      ).resolves.toBeUndefined();
+
+      const blocked = await load("");
+      await expect(
+         blocked.assertPublicEndpoint("http://192.168.1.10:9000")
+      ).rejects.toThrow(/public https URL/);
+   });
+
+   it("lets the connect-time lookup resolve a private address only when true", async () => {
+      const lookup = (module: typeof import("./endpoint"), hostname: string) =>
+         new Promise<NodeJS.ErrnoException | null>((resolve) => {
+            module.publicOnlyLookup(hostname, {}, (err) => resolve(err));
+         });
+
+      const allowed = await load("true");
+      expect(await lookup(allowed, "127.0.0.1")).toBeNull();
+
+      const blocked = await load("");
+      expect((await lookup(blocked, "127.0.0.1"))?.code).toBe(
+         blocked.PRIVATE_ADDRESS_CODE
+      );
    });
 });

@@ -21,6 +21,7 @@ const objectPreview = (
    ] as const;
 
 const queryKeys = {
+   instanceConfig: ["instance-config"] as const,
    servers: (userId: string) => ["user", userId, "servers"] as const,
    server,
    members: (userId: string, serverId: string) =>

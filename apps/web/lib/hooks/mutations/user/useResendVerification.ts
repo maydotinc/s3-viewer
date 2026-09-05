@@ -2,7 +2,6 @@ import { sendVerificationEmail } from "@/lib/auth";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
 
-// one hook behind every "resend verification email" control
 const useResendVerification = () =>
    useMutation<void, Error, string>({
       mutationFn: async (email) => {

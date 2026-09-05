@@ -27,7 +27,7 @@ const EmailField = ({ value, error, disabled, onChange }: EmailFieldProps) => (
          aria-describedby="email-message"
          onChange={(event) => onChange(event.target.value)}
       />
-      <FieldMessage id="email-message" error={error} />
+      <FieldMessage id="email-message" error={error} reserve />
    </div>
 );
 

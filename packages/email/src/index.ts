@@ -19,6 +19,7 @@ import {
 } from "@s3-viewer/ui/emails/server-invite";
 import { createTransport } from "nodemailer";
 import { Resend } from "resend";
+import { resolveEmailTransport, type EmailTransportName } from "./transport";
 
 type Message = {
    to: string;
@@ -42,10 +43,9 @@ const resolveFrom = (): string => {
    return DEV_FROM;
 };
 
-const from = resolveFrom();
-
 const resendTransport = (apiKey: string): Transport => {
    const resend = new Resend(apiKey);
+   const from = resolveFrom();
    return async ({ to, subject, html, text }) => {
       const { error } = await resend.emails.send({
          from,
@@ -60,6 +60,7 @@ const resendTransport = (apiKey: string): Transport => {
 
 const smtpTransport = (url: string): Transport => {
    const mailer = createTransport(url);
+   const from = resolveFrom();
    return async ({ to, subject, html, text }) => {
       await mailer.sendMail({
          from,
@@ -71,36 +72,53 @@ const smtpTransport = (url: string): Transport => {
    };
 };
 
-// no transport configured. In development the whole message is written to
-// the log, which is how a verification or reset link is picked up locally. In
-// production the body is never logged — a reset link in a log file would be
-// an account takeover for anyone who can read logs — so the message is
-// dropped and only its envelope recorded
-const consoleTransport = (): Transport => {
+// no transport. In development the whole message is written to the log, which
+// is how a verification or reset link is picked up locally. In production the
+// body is never logged — a reset link in a log file would be an account
+// takeover for anyone who can read logs — so the message is dropped and only
+// its envelope recorded
+const noneTransport = (): Transport => {
    const production = process.env.NODE_ENV === "production";
-   console.warn(
-      production
-         ? "[email] No mail transport configured (RESEND_KEY or SMTP_URL): verification and password-reset links cannot be delivered, so invites stay unavailable and forgotten passwords cannot be recovered. Configure a transport."
-         : "[email] No mail transport configured (RESEND_KEY or SMTP_URL); email will be written to the log instead of sent"
-   );
    return async ({ to, subject, text }) => {
       console.info(
          production
-            ? `[email] to=${to} subject="${subject}" (no transport, dropped)`
-            : `[email] to=${to} subject="${subject}" (not sent)\n${text}`
+            ? `[email] to=${to} subject="${subject}" (transport none, dropped)`
+            : `[email] to=${to} subject="${subject}" (transport none, not sent)\n${text}`
       );
    };
 };
 
-const resolveTransport = (): Transport => {
-   if (process.env.EMAIL_TRANSPORT === "smtp" && process.env.SMTP_URL) {
-      return smtpTransport(process.env.SMTP_URL);
-   }
-   if (process.env.RESEND_KEY) return resendTransport(process.env.RESEND_KEY);
-   return consoleTransport();
+const BOOT_LINE: Record<EmailTransportName, string> = {
+   none: "[email] transport: none — password reset, email verification and invites are unavailable on this instance",
+   resend: "[email] transport: resend",
+   smtp: "[email] transport: smtp",
 };
 
-const send: Transport = resolveTransport();
+const required = (name: string, transport: EmailTransportName): string => {
+   const value = process.env[name]?.trim();
+   if (!value) {
+      throw new Error(
+         `${name} is required when EMAIL_TRANSPORT is \`${transport}\``
+      );
+   }
+   return value;
+};
+
+const buildTransport = (transport: EmailTransportName): Transport => {
+   if (transport === "resend") {
+      return resendTransport(required("RESEND_KEY", transport));
+   }
+   if (transport === "smtp")
+      return smtpTransport(required("SMTP_URL", transport));
+   return noneTransport();
+};
+
+const transport = resolveEmailTransport(process.env);
+const emailEnabled = transport !== "none";
+
+(emailEnabled ? console.info : console.warn)(BOOT_LINE[transport]);
+
+const send: Transport = buildTransport(transport);
 
 type SendAuthLinkEmailInput = AuthLinkEmailProps & { to: string };
 
@@ -169,4 +187,11 @@ const sendAccountDeletedEmail = async ({
    });
 };
 
-export { sendAccountDeletedEmail, sendAuthLinkEmail, sendServerInviteEmail };
+export {
+   emailEnabled,
+   sendAccountDeletedEmail,
+   sendAuthLinkEmail,
+   sendServerInviteEmail,
+};
+export { resolveEmailTransport } from "./transport";
+export type { EmailTransportName } from "./transport";

@@ -1,0 +1,20 @@
+# Overlay for the `proxy` profile:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml --profile proxy up -d
+#
+# Compose cannot make one service's environment depend on a profile, so the
+# setting that has to change behind Caddy lives here instead. Without it the API
+# keeps the `loopback` default, sees every request as coming from Caddy's
+# container IP, and collapses all of its per-IP rate limits (10 sign-ups an
+# hour, among others) into a single shared bucket.
+#
+# `deploy/Caddyfile` replaces `X-Forwarded-For` with the address it accepted the
+# connection from, so exactly one hop is trustworthy here. A TRUST_PROXY in the
+# root .env still wins, which is what a second hop (a CDN in front of Caddy)
+# needs. api and web keep publishing on 127.0.0.1: that reaches nothing off-box
+# and leaves you a way in when a certificate or a DNS record is what broke.
+
+services:
+   api:
+      environment:
+         - TRUST_PROXY=${TRUST_PROXY:-1}

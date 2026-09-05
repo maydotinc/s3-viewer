@@ -24,7 +24,6 @@ type Input = { current: string | null; next: string };
 
 const FRESH_SESSION_MS = SESSION_FRESH_HOURS * HOUR_MS;
 
-// the same two-column field row as the profile card above it
 const FIELDS = "grid gap-4 sm:grid-cols-2";
 
 // a first password claims the account outright, so like account deletion

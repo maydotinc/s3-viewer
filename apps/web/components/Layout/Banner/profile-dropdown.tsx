@@ -103,7 +103,6 @@ const ProfileDropdown = () => {
             <DropdownMenuItem
                variant="destructive"
                onSelect={() =>
-                  // signOut still clears state and navigates on failure
                   void signOut().catch((error: unknown) =>
                      toast.error(errorMessage(error))
                   )

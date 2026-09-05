@@ -1,0 +1,76 @@
+name: s3-viewer-dev
+
+# Local development infrastructure only — the apps themselves run on your
+# machine via `pnpm dev`. Services are grouped into profiles so only what you
+# picked in `pnpm run setup` starts; the scripts pass COMPOSE_PROFILES from
+# apps/api/.env. To drive it by hand:
+#   COMPOSE_PROFILES=core,email,demo docker compose -f docker-compose.dev.yml up -d
+# See docker-compose.yml for the self-hosting stack that runs the apps too.
+
+services:
+   postgres:
+      image: postgres:16
+      profiles: [core]
+      restart: unless-stopped
+      environment:
+         POSTGRES_USER: s3viewer
+         POSTGRES_PASSWORD: s3viewer
+         POSTGRES_DB: s3viewer
+      ports:
+         - "127.0.0.1:5432:5432"
+      volumes:
+         - pgdata:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U s3viewer -d s3viewer"]
+         interval: 5s
+         timeout: 5s
+         retries: 10
+
+   mailpit:
+      image: axllent/mailpit:latest
+      profiles: [email]
+      restart: unless-stopped
+      ports:
+         - "127.0.0.1:8025:8025"
+         - "127.0.0.1:1025:1025"
+      healthcheck:
+         test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025/readyz"]
+         interval: 5s
+         timeout: 5s
+         retries: 10
+
+   minio:
+      image: minio/minio:latest
+      profiles: [demo]
+      restart: unless-stopped
+      command: server /data --console-address ":9001"
+      environment:
+         MINIO_ROOT_USER: minioadmin
+         MINIO_ROOT_PASSWORD: minioadmin
+      ports:
+         - "127.0.0.1:9000:9000"
+         - "127.0.0.1:9001:9001"
+      volumes:
+         - miniodata:/data
+
+   # Seeds the demo bucket so a fresh connection has something to browse.
+   minio-bootstrap:
+      image: minio/mc:latest
+      profiles: [demo]
+      depends_on:
+         - minio
+      entrypoint: >
+         sh -c "
+         until mc alias set demo http://minio:9000 minioadmin minioadmin; do sleep 1; done &&
+         mc mb --ignore-existing demo/demo &&
+         printf 'Sample objects for the S3 Viewer demo bucket.\n' > /tmp/README.txt &&
+         printf 'id,name,size\n1,alpha,120\n2,beta,340\n' > /tmp/inventory.csv &&
+         printf '# Notes\n\nAnything you upload here stays in the local MinIO volume.\n' > /tmp/notes.md &&
+         mc cp /tmp/README.txt demo/demo/README.txt &&
+         mc cp /tmp/inventory.csv demo/demo/reports/inventory.csv &&
+         mc cp /tmp/notes.md demo/demo/reports/notes.md
+         "
+
+volumes:
+   pgdata:
+   miniodata:

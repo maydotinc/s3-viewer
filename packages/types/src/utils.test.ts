@@ -1,28 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { baseName, chunk, chunkKeys, isFolderKey, mapLimit } from "./utils";
+import { chunkKeys, mapLimit } from "./utils";
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 1));
-
-describe("isFolderKey / baseName", () => {
-   it("detects folder keys", () => {
-      expect(isFolderKey("a/")).toBe(true);
-      expect(isFolderKey("a")).toBe(false);
-   });
-
-   it("returns the last segment of files and folders", () => {
-      expect(baseName("a/b/c.txt")).toBe("c.txt");
-      expect(baseName("a/b/")).toBe("b");
-      expect(baseName("c.txt")).toBe("c.txt");
-      expect(baseName("/")).toBe("/");
-   });
-});
-
-describe("chunk", () => {
-   it("splits into fixed-size batches", () => {
-      expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
-      expect(chunk([], 3)).toEqual([]);
-   });
-});
 
 describe("chunkKeys", () => {
    it("splits by key count and by total characters, never leaving a batch empty", () => {

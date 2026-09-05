@@ -1,8 +1,12 @@
+import Callout from "@/components/callout";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
 import UnverifiedCallout from "@/components/Settings/unverified-callout";
 import { ApiError } from "@/lib/api";
 import useSendInvite from "@/lib/hooks/mutations/invites/useSendInvite";
+import useInstanceConfig, {
+   emailState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { splitList } from "@/lib/utils/split-list";
 import { assignableRoles } from "@s3-viewer/permissions";
 import {
@@ -51,6 +55,8 @@ const InviteDialog = ({
    const [submitted, setSubmitted] = useState(false);
    const [emailError, setEmailError] = useState<string | null>(null);
    const sendInvite = useSendInvite();
+   const transport = emailState(useInstanceConfig());
+   const noEmail = transport === "disabled";
 
    const list = splitEmails(emails);
    const tooMany = list.length > MAX_INVITE_EMAILS;
@@ -106,8 +112,18 @@ const InviteDialog = ({
          submitLabel={
             list.length > 1 ? `Send ${list.length} invites` : "Send invite"
          }
-         submitDisabled={tooMany || list.length === 0}
+         submitDisabled={
+            transport !== "enabled" || tooMany || list.length === 0
+         }
       >
+         {noEmail && (
+            <Callout>
+               <p>
+                  This instance has no email configured, so invites can’t be
+                  sent. Ask whoever runs it to set up email.
+               </p>
+            </Callout>
+         )}
          <div className="flex min-w-0 flex-col gap-2">
             <Label htmlFor={emailsId}>Email addresses</Label>
             <Input
@@ -184,11 +200,7 @@ const InviteDialog = ({
             }
             disabled={sendInvite.isPending}
          />
-         {unverified && (
-            <UnverifiedCallout>
-               Verify your email address before sending invites.
-            </UnverifiedCallout>
-         )}
+         {!noEmail && unverified && <UnverifiedCallout action="send invites" />}
       </FormDialog>
    );
 };

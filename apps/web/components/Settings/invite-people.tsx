@@ -1,4 +1,7 @@
 import useServers from "@/lib/hooks/queries/server/useServers";
+import useInstanceConfig, {
+   emailState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -29,6 +32,7 @@ const sharePath = (serverId: string) =>
 const InvitePeople = () => {
    const router = useRouter();
    const { servers, currentServer, isLoading } = useServers();
+   const email = emailState(useInstanceConfig());
    const [open, setOpen] = useState(false);
    const [serverId, setServerId] = useState("");
 
@@ -39,9 +43,13 @@ const InvitePeople = () => {
       </>
    );
 
+   // invites travel by email; without a transport the card explains itself
+   // and there is nothing for this button to do
+   if (email === "disabled") return null;
+
    // holds the button's place while the server list loads, so the card header
    // does not gain a button after it renders
-   if (isLoading) {
+   if (email === "loading" || isLoading) {
       return (
          <Button className="invisible" aria-hidden="true" tabIndex={-1}>
             {label}

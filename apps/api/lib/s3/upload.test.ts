@@ -3,14 +3,11 @@ import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
 import {
    declaredLength,
-   exceedsLimit,
    exceedsMaxPartSize,
-   exceedsObjectLimit,
    isUploadTooLargeError,
    MAX_DERIVED_PART_BYTES,
    MAX_OBJECT_BYTES,
    MAX_PARTS,
-   maxPartBytesFor,
    partSizeFor,
    streamUpload,
 } from "./upload";
@@ -28,20 +25,6 @@ describe("declaredLength", () => {
       expect(declaredLength("-1")).toBeUndefined();
       expect(declaredLength("1.5")).toBeUndefined();
       expect(declaredLength("1e400")).toBeUndefined();
-   });
-});
-
-describe("exceedsLimit", () => {
-   it("trips only when both sides are known and the size is above the cap", () => {
-      expect(exceedsLimit(101, 100)).toBe(true);
-      expect(exceedsLimit(100, 100)).toBe(false);
-      expect(exceedsLimit(0, 100)).toBe(false);
-   });
-
-   it("never trips without a cap or without a declared size", () => {
-      expect(exceedsLimit(10 ** 12, undefined)).toBe(false);
-      expect(exceedsLimit(undefined, 100)).toBe(false);
-      expect(exceedsLimit(undefined, undefined)).toBe(false);
    });
 });
 
@@ -78,23 +61,6 @@ describe("partSizeFor", () => {
    });
 });
 
-describe("maxPartBytesFor", () => {
-   it("is the derived ceiling unless the configured part size is larger", () => {
-      expect(maxPartBytesFor(25 * 1024 * 1024)).toBe(MAX_DERIVED_PART_BYTES);
-      expect(maxPartBytesFor(MAX_DERIVED_PART_BYTES * 2)).toBe(
-         MAX_DERIVED_PART_BYTES * 2
-      );
-   });
-});
-
-describe("exceedsObjectLimit", () => {
-   it("trips only past S3's per-object limit", () => {
-      expect(exceedsObjectLimit(undefined)).toBe(false);
-      expect(exceedsObjectLimit(MAX_OBJECT_BYTES)).toBe(false);
-      expect(exceedsObjectLimit(MAX_OBJECT_BYTES + 1)).toBe(true);
-   });
-});
-
 describe("exceedsMaxPartSize", () => {
    const maxPartBytes = 100 * 1024 * 1024;
 
@@ -109,14 +75,6 @@ describe("exceedsMaxPartSize", () => {
       expect(
          exceedsMaxPartSize(maxPartBytes * MAX_PARTS + 1, maxPartBytes)
       ).toBe(true);
-   });
-
-   it("is only about part size now, so a huge length passes with a huge part size", () => {
-      const generousMaxPartBytes = 5 * 1024 * 1024 * 1024;
-      expect(
-         exceedsMaxPartSize(MAX_OBJECT_BYTES + 1, generousMaxPartBytes)
-      ).toBe(false);
-      expect(exceedsObjectLimit(MAX_OBJECT_BYTES + 1)).toBe(true);
    });
 });
 

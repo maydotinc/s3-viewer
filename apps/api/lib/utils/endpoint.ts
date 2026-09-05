@@ -1,3 +1,4 @@
+import { env } from "@/lib/env";
 import { ApiHttpError } from "@/lib/http";
 import dns from "node:dns";
 import { isIP, type LookupFunction } from "node:net";
@@ -118,7 +119,10 @@ const CLEARTEXT_ENVIRONMENTS: ReadonlySet<string> = new Set([
    "test",
 ]);
 
+// a MinIO or Ceph on the LAN is almost always plain http, so the flag that
+// accepts private addresses accepts cleartext along with them
 const allowedProtocols = (): readonly string[] =>
+   env.ALLOW_PRIVATE_ENDPOINTS ||
    CLEARTEXT_ENVIRONMENTS.has(process.env.NODE_ENV ?? "")
       ? ["https:", "http:"]
       : ["https:"];
@@ -132,8 +136,9 @@ const publicHostname = (endpoint: string): string | null => {
    }
    if (!allowedProtocols().includes(url.protocol)) return null;
    const host = url.hostname.toLowerCase();
-   if (!host || host === "localhost" || host.endsWith(".localhost"))
-      return null;
+   if (!host) return null;
+   if (env.ALLOW_PRIVATE_ENDPOINTS) return host;
+   if (host === "localhost" || host.endsWith(".localhost")) return null;
    if (isIP(host.replace(/^\[|\]$/g, "")) && isPrivateAddress(host))
       return null;
    return host;
@@ -142,7 +147,8 @@ const publicHostname = (endpoint: string): string | null => {
 const assertPublicEndpoint = async (endpoint: string): Promise<void> => {
    const host = publicHostname(endpoint);
    if (!host) throw new ApiHttpError(400, REJECTION);
-   if (isIP(host.replace(/^\[|\]$/g, ""))) return;
+   if (env.ALLOW_PRIVATE_ENDPOINTS || isIP(host.replace(/^\[|\]$/g, "")))
+      return;
    let addresses: dns.LookupAddress[];
    try {
       addresses = await dns.promises.lookup(host, { all: true });
@@ -173,7 +179,7 @@ type DnsLookupCallback = (
 
 const publicOnlyLookup: LookupFunction = (hostname, options, callback) => {
    const onLookup: DnsLookupCallback = (err, address, family) => {
-      if (err) {
+      if (err || env.ALLOW_PRIVATE_ENDPOINTS) {
          callback(err, address, family);
          return;
       }

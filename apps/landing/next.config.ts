@@ -4,34 +4,25 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 if (!siteUrl) throw new Error("NEXT_PUBLIC_SITE_URL is not set");
 
 const isProduction = process.env.NODE_ENV === "production";
-const assetPrefix = isProduction
-   ? process.env.NEXT_PUBLIC_ASSET_PREFIX
-   : undefined;
-if (isProduction && !assetPrefix) {
-   throw new Error(
-      "NEXT_PUBLIC_ASSET_PREFIX is not set. This landing app is designed to " +
-         "be reverse-proxied behind apps/web in production, so its pages are " +
-         "served from that app's domain while its own static/_next assets " +
-         "still need to resolve back to landing's real origin. Set " +
-         "NEXT_PUBLIC_ASSET_PREFIX to this deployment's own public origin " +
-         "(e.g. https://landing.internal) — even when running landing " +
-         "standalone with no proxy in front, set it to landing's own URL. " +
-         "See apps/landing/.env.example."
-   );
-}
 
-// no inline <script> anywhere, so script-src stays 'self' in production;
-// next dev's webpack runtime needs eval, and without it the dev-only
-// anti-flicker style never lifts and the page stays hidden. style-src needs
-// 'unsafe-inline' for a few components' inline style={{}}. cdn-may.com is the
-// only cross-origin resource any page loads.
+// proxied behind apps/web: a path prefix keeps `/_next/*` on that app's domain
+// (it proxies `/landing-assets/*` back here), so landing needs no hostname of
+// its own. an absolute NEXT_PUBLIC_ASSET_PREFIX is for a deployment that
+// serves its own assets
+const assetPrefix = process.env.NEXT_PUBLIC_ASSET_PREFIX || "/landing-assets";
+const assetOrigin = assetPrefix.startsWith("/") ? undefined : assetPrefix;
+
+// this header replaces the web app's on the proxied page, so it must name the
+// asset origin when assets are cross-origin. next dev's webpack runtime needs
+// eval, and without it the dev-only anti-flicker style never lifts
+const asset = assetOrigin ? ` ${assetOrigin}` : "";
 const contentSecurityPolicy = [
    "default-src 'self'",
-   `script-src 'self'${isProduction ? "" : " 'unsafe-eval'"}`,
-   "style-src 'self' 'unsafe-inline'",
-   "img-src 'self' data: https://cdn-may.com",
-   "font-src 'self' data:",
-   "connect-src 'self'",
+   `script-src 'self'${asset}${isProduction ? "" : " 'unsafe-eval'"}`,
+   `style-src 'self' 'unsafe-inline'${asset}`,
+   `img-src 'self' data: https://cdn-may.com${asset}`,
+   `font-src 'self' data:${asset}`,
+   `connect-src 'self'${asset}`,
    "media-src 'self'",
    "frame-src 'none'",
    "object-src 'none'",
@@ -59,16 +50,15 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+   output: "standalone",
    reactStrictMode: true,
    poweredByHeader: false,
    transpilePackages: ["@s3-viewer/ui"],
-   ...(assetPrefix && {
-      assetPrefix,
-      images: { path: `${assetPrefix}/_next/image` },
-   }),
+   assetPrefix,
+   images: { path: `${assetPrefix}/_next/image` },
    headers: async () => [
       { source: "/(.*)", headers: securityHeaders },
-      ...(assetPrefix
+      ...(assetOrigin
          ? [
               {
                  source: "/_next/static/:path*",

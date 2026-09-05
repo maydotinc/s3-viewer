@@ -4,6 +4,7 @@ import {
    constants,
    createDecipheriv,
    createPrivateKey,
+   createPublicKey,
    privateDecrypt,
    type KeyObject,
 } from "node:crypto";
@@ -52,6 +53,17 @@ const assertPrivateKey = (): void => {
    }
 };
 
+let publicKeyPem: string | undefined;
+
+// the browser encrypts credentials with this half, and it is derived rather
+// than configured so an install only ever has to hold the private key
+const encryptionPublicKey = (): string => {
+   publicKeyPem ??= createPublicKey(loadPrivateKey())
+      .export({ type: "spki", format: "pem" })
+      .toString();
+   return publicKeyPem;
+};
+
 const fromBase64 = (value: string): Buffer => Buffer.from(value, "base64");
 
 const decryptCredentials = (blob: string): ServerCredentials => {
@@ -82,4 +94,4 @@ const decryptCredentials = (blob: string): ServerCredentials => {
    return credentialsSchema.parse(JSON.parse(plain.toString("utf8")));
 };
 
-export { assertPrivateKey, decryptCredentials };
+export { assertPrivateKey, decryptCredentials, encryptionPublicKey };

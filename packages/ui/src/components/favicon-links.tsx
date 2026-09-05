@@ -1,12 +1,7 @@
-// Icon <link>s shared by the web app and the landing site. Every file here is
-// generated into BOTH apps/web/public and apps/landing/public by
-// scripts/generate-favicons.ts (`pnpm favicons`), so the same root-relative
-// URLs resolve whether a landing page is served from its own origin or proxied
-// under the web app's domain by apps/web/middleware.ts.
-//
-// This is a fragment, not a component: next/head only hoists elements that
-// are direct children (or one Fragment deep), so render it as
-// `<Head>{FAVICON_LINKS}</Head>`.
+// every file is generated into both apps' public dirs by `pnpm favicons`, so
+// these root-relative urls resolve from either origin. a fragment, not a
+// component: next/head only hoists direct children, so render it as
+// `<Head>{FAVICON_LINKS}</Head>`
 const FAVICON_LINKS = (
    <>
       {/* Google wants a PNG that is a multiple of 48px with explicit sizes. */}

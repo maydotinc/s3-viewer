@@ -1,5 +1,3 @@
-// the reserved line under a field: the error when there is one, otherwise an
-// optional hint, so the form never grows when an error appears
 const FormError = ({
    id,
    hint,

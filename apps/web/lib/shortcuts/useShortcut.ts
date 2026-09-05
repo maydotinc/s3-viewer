@@ -2,12 +2,10 @@ import { useEffect, useRef } from "react";
 import { useShortcutsContext } from "./provider";
 import type { Shortcut } from "./registry";
 
-// pass a `when` predicate rather than calling this conditionally
 const useShortcut = (shortcut: Shortcut): void => {
    const { register } = useShortcutsContext();
    const entry = useRef(shortcut);
 
-   // keep the handler and its closed-over state fresh without re-registering
    useEffect(() => {
       entry.current = shortcut;
    });

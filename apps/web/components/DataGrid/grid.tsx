@@ -60,7 +60,6 @@ const viewerGridTheme = themeQuartz.withParams({
    selectedRowBackgroundColor:
       "color-mix(in srgb, var(--color-viewerblue) 5%, transparent)",
    spacing: 8,
-   // the card around the grid draws the outer border.
    wrapperBorder: false,
 });
 

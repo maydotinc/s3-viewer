@@ -8,8 +8,13 @@ import {
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
 import useUpdateCredentials from "@/lib/hooks/mutations/server/useUpdateCredentials";
+import useInstanceConfig, {
+   CONFIG_ERROR,
+   encryptionState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { encryptCredentials } from "@/lib/utils/encryption";
 import type { ServerInfo } from "@s3-viewer/types";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { FormEvent, useState } from "react";
 
 type UpdateCredentialsModalProps = {
@@ -26,6 +31,10 @@ const UpdateCredentialsModal = ({
    const [fields, setFields] = useState<CredentialFields>(EMPTY_CREDENTIALS);
    const [error, setError] = useState<string | null>(null);
    const update = useUpdateCredentials();
+   // the instance's public key does the encrypting, so the fields stay out of
+   // the way until it has arrived
+   const config = useInstanceConfig();
+   const keyState = encryptionState(config);
 
    const set = (key: keyof CredentialFields, value: string) => {
       setFields((prev) => ({ ...prev, [key]: value }));
@@ -42,7 +51,8 @@ const UpdateCredentialsModal = ({
       let encryptedCredentials: string;
       try {
          encryptedCredentials = await encryptCredentials(
-            toServerCredentials(fields)
+            toServerCredentials(fields),
+            config.data?.encryptionPublicKey ?? ""
          );
       } catch {
          setError("Couldn't encrypt the credentials in this browser");
@@ -77,14 +87,29 @@ const UpdateCredentialsModal = ({
          formAutoComplete="off"
          onSubmit={submit}
          submitLabel="Save"
+         submitDisabled={keyState !== "ready"}
       >
-         <CredentialsFields
-            fields={fields}
-            onChange={set}
-            idPrefix="update-credentials"
-            autoFocus
-         />
-         <FormError>{error}</FormError>
+         {keyState === "ready" ? (
+            <>
+               <CredentialsFields
+                  fields={fields}
+                  onChange={set}
+                  idPrefix="update-credentials"
+                  autoFocus
+               />
+               <FormError>{error}</FormError>
+            </>
+         ) : (
+            <div className="flex min-h-24 items-center justify-center">
+               {keyState === "loading" ? (
+                  <Spinner label="Loading instance settings" />
+               ) : (
+                  <p role="alert" className="text-sm text-viewertextred">
+                     {CONFIG_ERROR}
+                  </p>
+               )}
+            </div>
+         )}
       </FormDialog>
    );
 };

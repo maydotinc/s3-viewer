@@ -46,9 +46,7 @@ const ReceivedInvites = () => {
       ) {
          return (
             <div className="px-6 pt-4 pb-6">
-               <UnverifiedCallout>
-                  Verify your email address to see the invites sent to it.
-               </UnverifiedCallout>
+               <UnverifiedCallout action="see the invites sent to it" />
             </div>
          );
       }

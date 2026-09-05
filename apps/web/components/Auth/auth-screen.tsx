@@ -3,6 +3,9 @@ import SignInForm from "@/components/Auth/sign-in-form";
 import FullPageSpinner from "@/components/Session/full-page-spinner";
 import { signInWithGithub } from "@/lib/auth";
 import { afterLoginPath } from "@/lib/auth-redirect";
+import useInstanceConfig, {
+   emailState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { useSessionState } from "@/lib/hooks/useSessionState";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -13,8 +16,6 @@ type Mode = "login" | "signup";
 
 type AuthScreenProps = { mode: Mode };
 
-// both pages run one flow: a password signs in or, for a new address,
-// creates the account. The switch between them is the header's account nav
 const COPY = {
    login: {
       title: "Welcome back",
@@ -34,8 +35,9 @@ const NOTICES: Readonly<Record<string, string>> = {
 const AuthScreen = ({ mode }: AuthScreenProps) => {
    const router = useRouter();
    const sessionState = useSessionState();
+   const config = useInstanceConfig();
+   const transport = emailState(config);
    const [leavingForGithub, setLeavingForGithub] = useState(false);
-   const [githubError, setGithubError] = useState<string | null>(null);
    const redirected = useRef(false);
 
    const destination = afterLoginPath(router.query.next);
@@ -65,17 +67,24 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
       void router.replace(destination);
    }, [sessionState, destination, router]);
 
+   // a failure here happens before the form is shown again; a toast keeps it
+   // from inserting a line into the form when it comes back
    const github = async () => {
-      setGithubError(null);
       setLeavingForGithub(true);
       const { error } = await signInWithGithub();
       if (error) {
-         setGithubError(error);
+         toast.error("Couldn't open GitHub login", { description: error });
          setLeavingForGithub(false);
       }
    };
 
-   if (sessionState !== "signedOut") return <FullPageSpinner />;
+   // the form waits for the query string (the notice) and the instance config
+   // (the github button), so nothing appears inside it after it is shown.
+   // `isLoading` rather than `isPending`: a config fetch that is paused
+   // offline should not hold the page on a spinner
+   if (!router.isReady || sessionState !== "signedOut" || config.isLoading) {
+      return <FullPageSpinner />;
+   }
 
    return (
       <AuthLayout
@@ -90,13 +99,18 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
             <SignInForm
                mode={mode}
                notice={notice}
-               githubError={githubError}
                onGithub={() => void github()}
                onDone={async (created) => {
                   if (created) {
                      toast.success("Account created", {
+                        // no line at all beats promising an email that may
+                        // never come, or denying one that will
                         description:
-                           "We emailed you a link to verify your address.",
+                           transport === "loading"
+                              ? undefined
+                              : transport === "disabled"
+                                ? "This instance has no email configured, so your address stays unverified."
+                                : "We emailed you a link to verify your address.",
                      });
                   }
                   await finish();

@@ -6,6 +6,10 @@ import { PROVIDER_NAMES } from "@/lib/constants";
 import useCreateServer from "@/lib/hooks/mutations/server/useCreateServer";
 import useEstablishConnection from "@/lib/hooks/mutations/server/useEstablishConnection";
 import useValidateBuckets from "@/lib/hooks/mutations/server/useValidateBuckets";
+import useInstanceConfig, {
+   CONFIG_ERROR,
+   encryptionState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { encryptCredentials } from "@/lib/utils/encryption";
 import { pluralize } from "@/lib/utils/format";
 import { splitList } from "@/lib/utils/split-list";
@@ -26,6 +30,7 @@ import {
 } from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
+import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { Check, X } from "lucide-react";
 import { FormEvent, useState } from "react";
 import {
@@ -55,6 +60,10 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
    // instead of after the form is filled in
    const { data: session } = authClient.useSession();
    const unverified = session?.user.emailVerified === false;
+   // the public key that encrypts the credentials belongs to this instance,
+   // so the form cannot be filled in before it arrives
+   const config = useInstanceConfig();
+   const keyState = encryptionState(config);
    const [fields, setFields] = useState<Fields>(EMPTY);
    const [error, setError] = useState<string | null>(null);
    const [encrypted, setEncrypted] = useState<string | null>(null);
@@ -84,7 +93,10 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       }
       let payload: string;
       try {
-         payload = await encryptCredentials(toServerCredentials(fields));
+         payload = await encryptCredentials(
+            toServerCredentials(fields),
+            config.data?.encryptionPublicKey ?? ""
+         );
       } catch {
          setError("Couldn't encrypt the credentials in this browser");
          return;
@@ -180,9 +192,26 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                      </DialogDescription>
                   </DialogHeader>
                   <DialogBody className="pb-6">
-                     <UnverifiedCallout>
-                        Verify your email address to connect a server.
-                     </UnverifiedCallout>
+                     <UnverifiedCallout action="connect a server" />
+                  </DialogBody>
+               </>
+            ) : keyState !== "ready" ? (
+               <>
+                  <DialogHeader className="text-left">
+                     <DialogTitle>Connect a server</DialogTitle>
+                     <DialogDescription>
+                        Credentials are encrypted before they leave your
+                        browser.
+                     </DialogDescription>
+                  </DialogHeader>
+                  <DialogBody className="flex min-h-24 items-center justify-center pb-6">
+                     {keyState === "loading" ? (
+                        <Spinner label="Loading instance settings" />
+                     ) : (
+                        <p role="alert" className="text-sm text-viewertextred">
+                           {CONFIG_ERROR}
+                        </p>
+                     )}
                   </DialogBody>
                </>
             ) : detected ? (

@@ -28,7 +28,7 @@ type AccountDeletedEmailProps = {
 const DELETED = [
    "your account, including your name and email address",
    "every session and linked sign-in method",
-   "every server you owned and the credentials stored for it",
+   "the saved connection and stored credentials for every server you owned",
    "your access to servers other people shared with you",
    "invitations you sent and invitations waiting for you",
 ];
@@ -36,7 +36,7 @@ const DELETED = [
 const KEPT =
    'Audit entries for actions you took are kept so that other members\' history stays complete, with your email address replaced by "[deleted user]".';
 
-const UNTOUCHED = `${PRODUCT_NAME} only ever held the connection details, so the buckets and files in your storage were not touched.`;
+const UNTOUCHED = `Nothing in your S3 storage was touched. ${PRODUCT_NAME} only ever held the address and keys used to reach it, so every bucket, file and S3 server is exactly as it was.`;
 
 const contactLine = (supportEmail?: string): string =>
    supportEmail
@@ -54,8 +54,9 @@ const AccountDeletedEmail = ({
          <Container style={container}>
             <Heading style={h1}>Your account has been deleted</Heading>
             <Text style={text}>
-               Hi {name}, your {PRODUCT_NAME} account and the data we held for
-               it are gone. This email confirms what was removed.
+               Hi {name}, your {PRODUCT_NAME} account and the records we held
+               for it are gone. This email confirms what was removed from{" "}
+               {PRODUCT_NAME}.
             </Text>
             <ul style={list}>
                {DELETED.map((item) => (
@@ -98,7 +99,7 @@ const accountDeletedEmailText = ({
    [
       "Your account has been deleted",
       "",
-      `Hi ${name}, your ${PRODUCT_NAME} account and the data we held for it are gone. This email confirms what was removed:`,
+      `Hi ${name}, your ${PRODUCT_NAME} account and the records we held for it are gone. This email confirms what was removed from ${PRODUCT_NAME}:`,
       "",
       ...DELETED.map((item) => `- ${item}`),
       "",

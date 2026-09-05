@@ -5,7 +5,8 @@
    "license": "MIT",
    "type": "module",
    "exports": {
-      ".": "./src/index.ts"
+      ".": "./src/index.ts",
+      "./transport": "./src/transport.ts"
    },
    "scripts": {
       "lint": "eslint . --max-warnings 0",

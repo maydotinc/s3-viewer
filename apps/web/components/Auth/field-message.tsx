@@ -1,6 +1,3 @@
-// the line under an auth field: an error, or a hint while there is none. It
-// reserves its height only when it has something to hold or is asked to, so a
-// field with rare errors keeps the stack tight
 const FieldMessage = ({
    id,
    error,

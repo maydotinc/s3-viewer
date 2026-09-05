@@ -1,7 +1,11 @@
+import { logger } from "@/lib/logger";
+import { ensureDataDirSecrets } from "@/lib/utils/secrets";
+import { resolveEmailTransport } from "@s3-viewer/email/transport";
 import dotenv from "dotenv";
 import { z } from "zod";
 
 dotenv.config();
+ensureDataDirSecrets();
 
 const optionalString = z
    .string()
@@ -34,9 +38,9 @@ const schema = z
       ENCRYPTION_PRIVATE_KEY: z.string().min(1),
       NEXT_PUBLIC_SITE_URL: z.string().url(),
       NEXT_PUBLIC_API_URL: z.string().url(),
-      EMAIL_TRANSPORT: optionalString
-         .pipe(z.enum(["resend", "smtp"]).optional())
-         .transform((value) => value ?? "resend"),
+      EMAIL_TRANSPORT: optionalString.pipe(
+         z.enum(["none", "resend", "smtp"]).optional()
+      ),
       SMTP_URL: optionalString,
       RESEND_KEY: optionalString,
       EMAIL_FROM: optionalString,
@@ -71,23 +75,34 @@ const schema = z
       LOG_LEVEL: optionalString.pipe(
          z.enum(["debug", "info", "warn", "error"]).optional()
       ),
+      ALLOW_PRIVATE_ENDPOINTS: optionalString.transform(
+         (value) => value === "true"
+      ),
    })
    .superRefine((value, ctx) => {
-      if (value.EMAIL_TRANSPORT === "smtp") {
-         if (!value.SMTP_URL) {
-            ctx.addIssue({
-               code: z.ZodIssueCode.custom,
-               path: ["SMTP_URL"],
-               message: "required when EMAIL_TRANSPORT is `smtp`",
-            });
-         } else if (!isSmtpUrl(value.SMTP_URL)) {
-            ctx.addIssue({
-               code: z.ZodIssueCode.custom,
-               path: ["SMTP_URL"],
-               message:
-                  "must be an smtp:// or smtps:// URL, e.g. smtp://user:pass@mail.example.com:587",
-            });
-         }
+      // an unset transport is inferred from whichever credential is present,
+      // so only an explicit choice can name one it has nothing to connect with
+      if (value.EMAIL_TRANSPORT === "smtp" && !value.SMTP_URL) {
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["SMTP_URL"],
+            message: "required when EMAIL_TRANSPORT is `smtp`",
+         });
+      }
+      if (value.EMAIL_TRANSPORT === "resend" && !value.RESEND_KEY) {
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["RESEND_KEY"],
+            message: "required when EMAIL_TRANSPORT is `resend`",
+         });
+      }
+      if (value.SMTP_URL && !isSmtpUrl(value.SMTP_URL)) {
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["SMTP_URL"],
+            message:
+               "must be an smtp:// or smtps:// URL, e.g. smtp://user:pass@mail.example.com:587",
+         });
       }
       if (
          Boolean(value.GITHUB_CLIENT_ID) !== Boolean(value.GITHUB_CLIENT_SECRET)
@@ -109,7 +124,16 @@ if (!parsed.success) {
    throw new Error(`Invalid environment: ${problems}`);
 }
 
-const env = parsed.data;
+const env = {
+   ...parsed.data,
+   EMAIL_TRANSPORT: resolveEmailTransport(parsed.data),
+};
 const siteOrigin = new URL(env.NEXT_PUBLIC_SITE_URL).origin;
+
+if (env.ALLOW_PRIVATE_ENDPOINTS) {
+   logger.warn(
+      "[security] ALLOW_PRIVATE_ENDPOINTS=true: S3 endpoints on private networks are accepted; only enable this on a trusted network"
+   );
+}
 
 export { env, MAX_UPLOAD_PART_BYTES, siteOrigin };

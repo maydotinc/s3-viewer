@@ -11,8 +11,6 @@ import type { ReactNode } from "react";
 
 type Switch = { prompt: string; label: string; href: string };
 
-// the way to the other account screen sits on the logo's line: a prompt and
-// one text link. A `?next=` survives the switch
 const SWITCHES: Readonly<Record<string, Switch>> = {
    [SITE_PATHS.login]: {
       prompt: "Don\u2019t have an account?",

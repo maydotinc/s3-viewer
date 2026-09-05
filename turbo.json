@@ -30,7 +30,14 @@
             "NODE_ENV",
             "TRUST_PROXY",
             "EMAIL_FROM",
-            "LOG_LEVEL"
+            "LOG_LEVEL",
+            "DATA_DIR",
+            "EMAIL_TRANSPORT",
+            "SMTP_URL",
+            "SUPPORT_EMAIL",
+            "ALLOW_PRIVATE_ENDPOINTS",
+            "MAX_UPLOAD_BYTES",
+            "UPLOAD_PART_BYTES"
          ]
       },
       "dev": {
@@ -50,7 +57,14 @@
             "NODE_ENV",
             "TRUST_PROXY",
             "EMAIL_FROM",
-            "LOG_LEVEL"
+            "LOG_LEVEL",
+            "DATA_DIR",
+            "EMAIL_TRANSPORT",
+            "SMTP_URL",
+            "SUPPORT_EMAIL",
+            "ALLOW_PRIVATE_ENDPOINTS",
+            "MAX_UPLOAD_BYTES",
+            "UPLOAD_PART_BYTES"
          ]
       },
       "lint": {

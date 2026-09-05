@@ -20,20 +20,25 @@ const PasswordInput = ({
             className={cn("pr-10", className)}
             {...props}
          />
-         <SimpleTooltip label={label}>
-            <Button
-               type="button"
-               variant="ghost"
-               size="icon-sm"
-               aria-label={label}
-               aria-pressed={shown}
-               disabled={disabled}
-               onClick={() => setShown((value) => !value)}
-               className="absolute right-1 top-0.5 text-viewerlighttext"
-            >
-               {shown ? <EyeOff /> : <Eye />}
-            </Button>
-         </SimpleTooltip>
+         {/* the tooltip wraps a disabled trigger in an in-flow span, so the
+             positioning lives on a wrapper of its own and a disabled toggle
+             never adds a line under the input */}
+         <span className="absolute right-1 top-0.5 inline-flex">
+            <SimpleTooltip label={label}>
+               <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={label}
+                  aria-pressed={shown}
+                  disabled={disabled}
+                  onClick={() => setShown((value) => !value)}
+                  className="text-viewerlighttext"
+               >
+                  {shown ? <EyeOff /> : <Eye />}
+               </Button>
+            </SimpleTooltip>
+         </span>
       </div>
    );
 };

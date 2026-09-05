@@ -2,7 +2,6 @@ import * as React from "react";
 
 import { cn } from "@s3-viewer/ui/lib/utils";
 
-// wrap it in a card: the table only draws hairlines between rows
 function Table({ className, ...props }: React.ComponentProps<"table">) {
    return (
       <div data-slot="table-container" className="w-full overflow-x-auto">

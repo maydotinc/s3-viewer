@@ -4,6 +4,9 @@ import { TEXT_LINK } from "@/components/Auth/text-link";
 import { useStepHeight } from "@/components/Auth/use-step-height";
 import FullPageSpinner from "@/components/Session/full-page-spinner";
 import { requestPasswordReset } from "@/lib/auth";
+import useInstanceConfig, {
+   emailState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { useSessionState } from "@/lib/hooks/useSessionState";
 import { AUTH_LINK_TTL_HOURS, SITE_PATHS, emailSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -15,6 +18,8 @@ type Step = "email" | "sent";
 const ForgotPasswordScreen = () => {
    const router = useRouter();
    const sessionState = useSessionState();
+   const config = useInstanceConfig();
+   const transport = emailState(config);
    const [step, setStep] = useState<Step>("email");
    const [email, setEmail] = useState("");
    const [error, setError] = useState<string | null>(null);
@@ -28,7 +33,25 @@ const ForgotPasswordScreen = () => {
       void router.replace(SITE_PATHS.dashboard);
    }, [sessionState, router]);
 
-   if (sessionState !== "signedOut") return <FullPageSpinner />;
+   // the config decides whether the form is shown at all, so the page waits
+   // for it rather than showing the form and then swapping it out
+   if (sessionState !== "signedOut" || config.isLoading) {
+      return <FullPageSpinner />;
+   }
+
+   // no email transport means no reset link can ever arrive, so the form is
+   // replaced by the reason rather than left to fail
+   if (transport === "disabled") {
+      return (
+         <AuthLayout>
+            <StepHeader title="Password reset is unavailable">
+               This instance has no email configured, so a reset link can’t be
+               sent. Ask whoever runs it to set up email or to reset your
+               password for you.
+            </StepHeader>
+         </AuthLayout>
+      );
+   }
 
    const send = async (address: string) => {
       setPending(true);
@@ -82,6 +105,7 @@ const ForgotPasswordScreen = () => {
                         size="lg"
                         className="w-full"
                         loading={pending}
+                        disabled={transport === "loading"}
                      >
                         Send reset link
                      </Button>

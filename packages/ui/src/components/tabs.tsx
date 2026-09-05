@@ -11,7 +11,6 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 type Rect = { left: number; width: number };
 
 type TabListContextValue = {
-   // returns the matching unregister
    register: (element: HTMLElement, active: boolean) => () => void;
 };
 
@@ -202,7 +201,6 @@ const useTabItem = (active: boolean) => {
    return ref;
 };
 
-// wraps a link (`asChild` with next/link) so the route decides what is active
 function TabLink({
    active,
    count,

@@ -1,0 +1,36 @@
+# TLS edge for the `proxy` compose profile. Caddy fetches and renews the
+# certificates for SITE_HOSTNAME and API_HOSTNAME, then forwards to the web and
+# api containers over the compose network — that is why publishing their ports
+# on 127.0.0.1 stays harmless.
+#
+# The optional landing container deliberately has no block here: the web app
+# proxies both its pages and its /landing-assets/* files, so it needs no
+# hostname and no certificate of its own.
+#
+# Set SITE_HOSTNAME, API_HOSTNAME and ACME_EMAIL in the root .env before running
+#
+#   docker compose -f docker-compose.yml -f docker-compose.proxy.yml \
+#     --profile proxy up -d
+#
+# which is also what sets TRUST_PROXY=1 on the API. Exactly one hop is
+# trustworthy because reverse_proxy ignores the X-Forwarded-* headers on an
+# incoming request and writes X-Forwarded-For itself, so a client cannot forge a
+# rate-limit bucket. Adding a `trusted_proxies` global option undoes that: it
+# tells Caddy to keep incoming values, so only set it when something you control
+# (a CDN, a load balancer) really is in front, and raise TRUST_PROXY to match.
+#
+# Without those hostnames Caddy still starts, serving localhost with a
+# self-signed certificate instead of asking Let's Encrypt for one it could never
+# validate.
+
+{
+	email {$ACME_EMAIL:admin@localhost}
+}
+
+{$SITE_HOSTNAME:localhost} {
+	reverse_proxy web:3000
+}
+
+{$API_HOSTNAME:api.localhost} {
+	reverse_proxy api:5001
+}
