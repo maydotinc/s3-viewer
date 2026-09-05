@@ -35,16 +35,22 @@ here until the first release.
   published advisories, plus transitive updates that clear the remaining
   high-severity advisories.
 
+### Removed
+
+- One-time codes and magic links. Email now carries only verification and
+  password-reset links, and `POST /auth-flow/start` is gone.
+
 ### Added
 
-- Email and password sign-in, on by default next to the existing code/link
-  and GitHub methods. Every method is a flag (`EMAIL_LOGIN_ENABLED`,
-  `PASSWORD_LOGIN_ENABLED`, and the GitHub credentials; mirrored as
-  `NEXT_PUBLIC_*_LOGIN_ENABLED` in the web app), so a self-hosted deploy can
-  run password-only with no mail server. Includes forgot-password by emailed
-  code, a Password card in Settings to set or change one, email verification
-  after a password sign-up (and from Settings or the invite callouts), and
-  per-address throttles on password attempts and outbound codes.
+- Email and password sign-in. Sign-in and sign-up are one flow (a matching
+  password signs in, a new address is created with it). Forgot password
+  sends a one-hour link; Settings has a Password card to set or change one;
+  a verification link goes out on sign-up and can be resent from Settings or
+  the invite callouts. Per-address throttles cover password attempts and
+  outbound links, and account creation is capped per IP. Connecting a
+  server now needs a verified address, setting a first password needs a
+  session younger than 24 hours, and a production deploy without a mail
+  transport drops messages instead of logging their links.
 - An audit log of administrative and destructive actions. See "Data we store" in
   the README for its retention and erasure implications — it is never pruned
   automatically.

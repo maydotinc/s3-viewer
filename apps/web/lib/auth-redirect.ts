@@ -1,12 +1,5 @@
 import { SITE_PATHS } from "@s3-viewer/types";
 
-const MAGIC_LINK_ERRORS = new Set([
-   "INVALID_TOKEN",
-   "EXPIRED_TOKEN",
-   "failed_to_create_user",
-   "failed_to_create_session",
-]);
-
 const isSafeNextPath = (value: unknown): value is string =>
    typeof value === "string" &&
    value.startsWith("/") &&
@@ -17,23 +10,12 @@ const isSafeNextPath = (value: unknown): value is string =>
 const afterLoginPath = (next: string | string[] | undefined): string =>
    isSafeNextPath(next) ? next : SITE_PATHS.dashboard;
 
-// a callback failure better auth reports as `?error=<code>` on the login page
-const reasonForError = (error: string): "link" | "failed" =>
-   MAGIC_LINK_ERRORS.has(error) ? "link" : "failed";
-
 const loginPathFor = (asPath: string): string => {
    const url = new URL(asPath, "http://placeholder");
-   const error = url.searchParams.get("error");
-   const linkFailed = error !== null && reasonForError(error) === "link";
-   if (linkFailed) url.searchParams.delete("error");
-
-   const params = new URLSearchParams();
    const next = `${url.pathname}${url.search}`;
-   if (next !== "/") params.set("next", next);
-   if (linkFailed) params.set("reason", "link");
-
-   const query = params.toString();
-   return query ? `${SITE_PATHS.login}?${query}` : SITE_PATHS.login;
+   return next === "/"
+      ? SITE_PATHS.login
+      : `${SITE_PATHS.login}?${new URLSearchParams({ next })}`;
 };
 
-export { afterLoginPath, isSafeNextPath, loginPathFor, reasonForError };
+export { afterLoginPath, isSafeNextPath, loginPathFor };

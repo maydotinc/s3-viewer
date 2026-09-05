@@ -6,7 +6,7 @@ const SignUpPage = () => (
    <>
       <Seo
          title="Create your account"
-         description="Create an S3 Viewer account with your email and a password, or with a one-time code."
+         description="Create an S3 Viewer account with your email and a password, or with GitHub."
          canonical={SITE_PATHS.signup}
          noindex={false}
       />

@@ -106,7 +106,7 @@ export default createUseCasePage({
       {
          icon: Mail,
          title: "Invite by email",
-         body: "Click Share, type an address, pick a role, send. They sign in with a password, the code we email them, or GitHub, accept, and the server appears in their sidebar.",
+         body: "Click Share, type an address, pick a role, send. They sign in with an email and password, or with GitHub, accept, and the server appears in their sidebar.",
       },
       {
          icon: ShieldCheck,

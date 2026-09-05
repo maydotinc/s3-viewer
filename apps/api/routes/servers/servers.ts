@@ -1,7 +1,11 @@
 import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, asyncHandler, noContent } from "@/lib/http";
-import { getAuth, requireUser } from "@/lib/middleware/authorize";
+import {
+   getAuth,
+   requireUser,
+   requireVerifiedUser,
+} from "@/lib/middleware/authorize";
 import { serverRoute, validatedRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { invalidateS3Client } from "@/lib/s3/client-cache";
@@ -45,8 +49,10 @@ const listServers = async (req: Request, res: Response) => {
    res.json({ servers: rows.map((r) => toServerInfo(r.server, Role[r.role])) });
 };
 
+// a server's credentials belong to whoever can reset this account's
+// password, i.e. whoever owns the address: it must be proven first
 const createServer = async (req: Request, res: Response) => {
-   const user = requireUser(req);
+   const user = requireVerifiedUser(req);
    const { encryptedCredentials, serverName, bucketNames } =
       input<CreateServerInput>(res);
    const credentials = readCredentials(encryptedCredentials);

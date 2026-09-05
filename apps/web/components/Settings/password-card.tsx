@@ -1,11 +1,17 @@
 import PasswordInput from "@/components/Auth/password-input";
 import FormError from "@/components/Modals/form-error";
-import { changePassword, setPassword } from "@/lib/auth";
+import { authClient, changePassword, setPassword, signOut } from "@/lib/auth";
 import { errorMessage } from "@/lib/api";
 import { useHasPassword } from "@/lib/hooks/queries/user/useHasPassword";
 import { queryKeys } from "@/lib/queryKeys";
 import { useUserId } from "@/lib/stores/sessionStore";
-import { PASSWORD_MIN_LENGTH, passwordSchema } from "@s3-viewer/types";
+import {
+   HOUR_MS,
+   PASSWORD_MIN_LENGTH,
+   SESSION_FRESH_HOURS,
+   SITE_PATHS,
+   passwordSchema,
+} from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Label } from "@s3-viewer/ui/components/label";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
@@ -15,6 +21,33 @@ import { useState, type FormEvent } from "react";
 import SettingsCard from "./card";
 
 type Input = { current: string | null; next: string };
+
+const FRESH_SESSION_MS = SESSION_FRESH_HOURS * HOUR_MS;
+
+// a first password claims the account outright, so like account deletion
+// it needs a session younger than 24 hours; the api enforces the same
+const isStale = (createdAt: Date | string): boolean =>
+   Date.now() - new Date(createdAt).getTime() >= FRESH_SESSION_MS;
+
+const StaleSession = () => (
+   <div className="flex flex-col items-start gap-2 rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
+      <p>
+         For your security, setting a password needs a sign-in from the last 24
+         hours.
+      </p>
+      <Button
+         variant="outline"
+         size="sm"
+         onClick={() =>
+            void signOut(
+               `${SITE_PATHS.login}?${new URLSearchParams({ next: SITE_PATHS.settingsProfile })}`
+            )
+         }
+      >
+         Sign in again
+      </Button>
+   </div>
+);
 
 const PasswordForm = ({ hasPassword }: { hasPassword: boolean }) => {
    const userId = useUserId();
@@ -106,6 +139,10 @@ const PasswordForm = ({ hasPassword }: { hasPassword: boolean }) => {
 
 const PasswordCard = () => {
    const { data: hasPassword, isLoading, error } = useHasPassword();
+   const { data: session } = authClient.useSession();
+   const stale =
+      hasPassword === false &&
+      Boolean(session && isStale(session.session.createdAt));
    const description = hasPassword
       ? "Change the password you sign in with. Other devices are signed out when it changes."
       : "Add a password to sign in without waiting for an email.";
@@ -127,10 +164,14 @@ const PasswordCard = () => {
 
    return (
       <SettingsCard title="Password" description={description}>
-         <PasswordForm
-            key={String(hasPassword)}
-            hasPassword={Boolean(hasPassword)}
-         />
+         {stale ? (
+            <StaleSession />
+         ) : (
+            <PasswordForm
+               key={String(hasPassword)}
+               hasPassword={Boolean(hasPassword)}
+            />
+         )}
       </SettingsCard>
    );
 };

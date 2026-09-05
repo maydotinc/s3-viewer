@@ -1,13 +1,14 @@
 import { TEXT_LINK } from "@/components/Auth/text-link";
 import FormError from "@/components/Modals/form-error";
-import VerifyEmailDialog from "@/components/Settings/verify-email-dialog";
 import { authClient } from "@/lib/auth";
-import { publicEnv } from "@/lib/env";
+import useResendVerification from "@/lib/hooks/mutations/user/useResendVerification";
 import useUpdateProfile from "@/lib/hooks/mutations/user/useUpdateProfile";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { toast } from "@s3-viewer/ui/components/toast";
+import { useRouter } from "next/router";
 import { useEffect, useState, type FormEvent } from "react";
 import SettingsCard from "./card";
 
@@ -20,10 +21,21 @@ const ProfileCard = () => {
 
    const [name, setName] = useState(currentName);
    const [nameError, setNameError] = useState<string | null>(null);
-   const [verifying, setVerifying] = useState(false);
    const update = useUpdateProfile();
+   const resend = useResendVerification();
+   const router = useRouter();
 
    useEffect(() => setName(currentName), [currentName]);
+
+   // the emailed verification link lands here; a bad one arrives as ?error=
+   const linkError = typeof router.query.error === "string";
+   useEffect(() => {
+      if (!linkError) return;
+      toast.error("That verification link didn't work", {
+         description: "It may have expired. Send a new one below.",
+      });
+      void router.replace(router.pathname, undefined, { shallow: true });
+   }, [linkError, router]);
 
    if (!user) {
       return (
@@ -75,16 +87,17 @@ const ProfileCard = () => {
                <Input id="profile-email" value={user.email} disabled readOnly />
                <p className="text-xs text-viewertext">
                   Email can&rsquo;t be changed.
-                  {!user.emailVerified && publicEnv.emailLoginEnabled && (
+                  {!user.emailVerified && (
                      <>
                         {" "}
                         Not verified yet.{" "}
                         <button
                            type="button"
-                           onClick={() => setVerifying(true)}
+                           disabled={resend.isPending}
+                           onClick={() => resend.mutate(user.email)}
                            className={TEXT_LINK}
                         >
-                           Verify email
+                           Resend verification email
                         </button>
                      </>
                   )}
@@ -100,12 +113,6 @@ const ProfileCard = () => {
                </Button>
             </div>
          </form>
-         {verifying && (
-            <VerifyEmailDialog
-               email={user.email}
-               onClose={() => setVerifying(false)}
-            />
-         )}
       </SettingsCard>
    );
 };

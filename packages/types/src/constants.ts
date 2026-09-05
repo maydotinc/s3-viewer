@@ -8,8 +8,7 @@ export const DAY_MS = 24 * HOUR_MS;
 export const AUTH_BASE_PATH = "/auth";
 export const REQUEST_ID_HEADER = "X-Request-Id";
 export const API_CONTRACT_VERSION = 1;
-export const AUTH_CODE_LENGTH = 6;
-export const AUTH_CODE_TTL_MINUTES = 10;
+export const AUTH_LINK_TTL_HOURS = 1;
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_MAX_LENGTH = 128;
 export const SESSION_TTL_DAYS = 30;
@@ -23,8 +22,8 @@ export const SITE_PATHS = {
    dashboard: "/dashboard",
    login: "/login",
    signup: "/signup",
-   verify: "/verify",
    forgotPassword: "/forgot-password",
+   resetPassword: "/reset-password",
    settings: "/settings",
    settingsProfile: "/settings/profile",
    settingsInvites: "/settings/invites",
@@ -37,6 +36,7 @@ export const ErrorCode = {
    VALIDATION: "VALIDATION",
    RATE_LIMITED: "RATE_LIMITED",
    EMAIL_UNVERIFIED: "EMAIL_UNVERIFIED",
+   SESSION_STALE: "SESSION_STALE",
    ORIGIN: "ORIGIN",
    CREDENTIALS_UNREADABLE: "CREDENTIALS_UNREADABLE",
    CREDENTIALS_REJECTED: "CREDENTIALS_REJECTED",

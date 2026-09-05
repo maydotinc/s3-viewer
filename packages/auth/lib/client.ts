@@ -1,5 +1,4 @@
 import { AUTH_BASE_PATH, SITE_PATHS } from "@s3-viewer/types";
-import { emailOTPClient, magicLinkClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { authErrorMessage, type AuthClientError } from "./errors";
 import { localPart } from "./utils";
@@ -21,8 +20,9 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       baseURL: apiOrigin,
       basePath: AUTH_BASE_PATH,
       fetchOptions: { credentials: "include" },
-      plugins: [emailOTPClient(), magicLinkClient()],
    });
+
+   const siteUrl = (path: string) => `${siteOrigin}${path}`;
 
    const toResult = ({
       error,
@@ -32,9 +32,6 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       error
          ? { error: authErrorMessage(error), code: error.code }
          : { error: null };
-
-   const verifyOtp = (email: string, otp: string): Promise<AuthResult> =>
-      authClient.signIn.emailOtp({ email, otp }).then(toResult);
 
    const signInWithPassword = (
       email: string,
@@ -47,7 +44,13 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       password: string
    ): Promise<AuthResult> =>
       authClient.signUp
-         .email({ email, password, name: localPart(email) })
+         .email({
+            email,
+            password,
+            name: localPart(email),
+            // where the verification link sent at sign-up lands
+            callbackURL: siteUrl(SITE_PATHS.settingsProfile),
+         })
          .then(toResult);
 
    // sign-in and sign-up are one flow: a password that matches signs in, an
@@ -69,25 +72,30 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       return { ...created, created: !created.error };
    };
 
+   // the emailed link lands on /reset-password?token=… (or ?error=…)
    const requestPasswordReset = (email: string): Promise<AuthResult> =>
-      authClient.emailOtp.requestPasswordReset({ email }).then(toResult);
+      authClient
+         .requestPasswordReset({
+            email,
+            redirectTo: siteUrl(SITE_PATHS.resetPassword),
+         })
+         .then(toResult);
 
    const resetPassword = (
-      email: string,
-      otp: string,
-      password: string
+      token: string,
+      newPassword: string
    ): Promise<AuthResult> =>
-      authClient.emailOtp
-         .resetPassword({ email, otp, password })
-         .then(toResult);
+      authClient.resetPassword({ token, newPassword }).then(toResult);
 
-   const sendVerificationCode = (email: string): Promise<AuthResult> =>
-      authClient.emailOtp
-         .sendVerificationOtp({ email, type: "email-verification" })
+   // the emailed link lands on the profile page, which shows the address's
+   // status either way
+   const sendVerificationEmail = (email: string): Promise<AuthResult> =>
+      authClient
+         .sendVerificationEmail({
+            email,
+            callbackURL: siteUrl(SITE_PATHS.settingsProfile),
+         })
          .then(toResult);
-
-   const verifyEmail = (email: string, otp: string): Promise<AuthResult> =>
-      authClient.emailOtp.verifyEmail({ email, otp }).then(toResult);
 
    const changePassword = (
       currentPassword: string,
@@ -113,7 +121,7 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       authClient.signIn
          .social({
             provider: "github",
-            callbackURL: `${siteOrigin}${SITE_PATHS.dashboard}`,
+            callbackURL: siteUrl(SITE_PATHS.dashboard),
          })
          .then(toResult);
 
@@ -128,13 +136,11 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       hasPassword,
       requestPasswordReset,
       resetPassword,
-      sendVerificationCode,
+      sendVerificationEmail,
       signInWithGithub,
       signInWithPassword,
       signOut,
       signUpWithPassword,
-      verifyEmail,
-      verifyOtp,
    };
 };
 

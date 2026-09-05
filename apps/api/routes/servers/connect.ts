@@ -1,3 +1,4 @@
+import { requireVerifiedUser } from "@/lib/middleware/authorize";
 import { connectLimit } from "@/lib/middleware/rate-limit";
 import { validatedRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
@@ -22,7 +23,8 @@ const connectRouter: Router = Router();
 const VALIDATE_TIMEOUT_MS = 30_000;
 const VALIDATE_CONCURRENCY = 5;
 
-const establish = async (_req: Request, res: Response) => {
+const establish = async (req: Request, res: Response) => {
+   requireVerifiedUser(req);
    const { encryptedCredentials } = input<EstablishInput>(res);
    const credentials = readCredentials(encryptedCredentials);
    await assertPublicEndpoint(credentials.endpoint);
@@ -39,7 +41,8 @@ const establish = async (_req: Request, res: Response) => {
    res.json(result);
 };
 
-const validateBuckets = async (_req: Request, res: Response) => {
+const validateBuckets = async (req: Request, res: Response) => {
+   requireVerifiedUser(req);
    const { encryptedCredentials, bucketNames } =
       input<ValidateBucketsInput>(res);
    const credentials = readCredentials(encryptedCredentials);

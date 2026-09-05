@@ -29,7 +29,7 @@ const PasswordInput = ({
                aria-pressed={shown}
                disabled={disabled}
                onClick={() => setShown((value) => !value)}
-               className="absolute right-0.5 top-0.5 text-viewerlighttext"
+               className="absolute right-1 top-0.5 text-viewerlighttext"
             >
                {shown ? <EyeOff /> : <Eye />}
             </Button>

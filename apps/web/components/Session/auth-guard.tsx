@@ -9,8 +9,8 @@ import { useEffect, useRef, type ReactNode } from "react";
 const PUBLIC_PATHS = new Set([
    SITE_PATHS.login,
    SITE_PATHS.signup,
-   SITE_PATHS.verify,
    SITE_PATHS.forgotPassword,
+   SITE_PATHS.resetPassword,
    "/404",
    "/_error",
 ]);

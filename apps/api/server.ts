@@ -8,12 +8,12 @@ import {
    authRouteLimit,
    bucketIpLimit,
    globalIpLimit,
+   signUpLimit,
    userLimit,
 } from "@/lib/middleware/rate-limit";
 import { accountDeletionHooks } from "@/lib/services/account";
 import { assertPrivateKey } from "@/lib/utils/encryption";
 import { accountRouter } from "@/routes/account";
-import { authFlowRouter } from "@/routes/auth-flow";
 import { invitesRouter } from "@/routes/invites";
 import { s3Router } from "@/routes/s3";
 import { serversRouter } from "@/routes/servers";
@@ -80,14 +80,13 @@ app.use(originCheck);
 app.use(AUTH_BASE_PATH, (req, res, next) =>
    req.method === "GET" ? next() : authRouteLimit(req, res, next)
 );
+app.post(`${AUTH_BASE_PATH}/sign-up/email`, signUpLimit);
 app.all(`${AUTH_BASE_PATH}/{*any}`, toNodeHandler(auth));
 
 const json = express.json({ limit: "1mb" });
 app.use((req, res, next) =>
    isObjectUpload(req) ? next() : json(req, res, next)
 );
-
-if (env.EMAIL_LOGIN_ENABLED) app.use("/auth-flow", authFlowRouter);
 
 app.use(BUCKET_MOUNT, bucketIpLimit);
 app.use(authGuard);

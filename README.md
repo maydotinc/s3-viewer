@@ -98,11 +98,9 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 | `NODE_ENV`               |          | `development`             | `production`                            | Also gates whether a cleartext `http://` S3 endpoint is accepted (`development`/`test` only).                                                                                                                         |
 | `EMAIL_TRANSPORT`        |          | unset                     | unset                                   | `resend` or `smtp`. Unset ⇒ `resend`. Choose `smtp` to send auth and invite email through your own server instead of a third party.                                                                                   |
 | `SMTP_URL`               | if smtp  | unset                     | `smtp://user:pass@mail.example.com:587` | SMTP connection string (`smtp://` or `smtps://`). **Required in every environment when `EMAIL_TRANSPORT=smtp`**; ignored otherwise.                                                                                   |
-| `RESEND_KEY`             |   prod   | unset                     | `re_…`                                  | Resend API key. **Required in production** while `EMAIL_LOGIN_ENABLED` is on, unless `EMAIL_TRANSPORT=smtp` — the API refuses to start without it there. Unset otherwise ⇒ emails are printed to the API log.         |
-| `EMAIL_FROM`             |   prod   | unset                     | `S3 Viewer <hello@yourdomain.com>`      | Sender for auth and invite email. **Required in production** — there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc. Unset in development ⇒ a placeholder sender.         |
+| `RESEND_KEY`             |          | unset                     | `re_…`                                  | Resend API key; not needed with `EMAIL_TRANSPORT=smtp`. Unset (and no SMTP) ⇒ nothing is sent and every email is printed to the API log. Email only carries verification links, reset links and invite notices.       |
+| `EMAIL_FROM`             | if mail  | unset                     | `S3 Viewer <hello@yourdomain.com>`      | Sender for auth and invite email. **Required in production when a transport is configured** — there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc.                       |
 | `SUPPORT_EMAIL`          |          | unset                     | `support@yourdomain.com`                | Contact shown to admins who hit the server or pending-invite cap, and in the account-deletion confirmation email. Unset ⇒ omitted from the message; the email points at GitHub issues instead.                        |
-| `EMAIL_LOGIN_ENABLED`    |          | unset                     | unset                                   | Sign in with a one-time code / magic link; also powers email verification and password reset. On unless exactly `false`. Off ⇒ no mail transport needed, but addresses can never be verified, which invites require.  |
-| `PASSWORD_LOGIN_ENABLED` |          | unset                     | unset                                   | Sign in with email and password. On unless exactly `false`. At least one method (this, email, or GitHub) must stay on.                                                                                                |
 | `GITHUB_CLIENT_ID`       |          | unset                     | GitHub OAuth app id                     | Set together with the secret, or leave both unset.                                                                                                                                                                    |
 | `GITHUB_CLIENT_SECRET`   |          | unset                     | GitHub OAuth app secret                 | Set together with the id, or leave both unset.                                                                                                                                                                        |
 | `PORT`                   |          | `5001`                    | `5001`                                  | Port the API listens on.                                                                                                                                                                                              |
@@ -113,15 +111,13 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 
 `apps/web/.env`:
 
-| Variable                             | Required | Local value                 | Production value                    | What it does                                                               |
-| ------------------------------------ | :------: | --------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`               |    ✅    | `https://web.localhost`     | `https://s3-viewer.com`             | This app's own origin: auth redirects, canonical URLs and the sitemap.     |
-| `NEXT_PUBLIC_API_URL`                |    ✅    | `https://api.localhost`     | `https://api.s3-viewer.com`         | Where every request goes.                                                  |
-| `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY`  |    ✅    | `public_key.pem`            | `public_key.pem`                    | Public half of the RSA pair; encrypts S3 credentials in the browser.       |
-| `NEXT_PUBLIC_EMAIL_LOGIN_ENABLED`    |          | unset                       | unset                               | Mirrors `EMAIL_LOGIN_ENABLED`: on unless exactly `false`.                  |
-| `NEXT_PUBLIC_PASSWORD_LOGIN_ENABLED` |          | unset                       | unset                               | Mirrors `PASSWORD_LOGIN_ENABLED`: on unless exactly `false`.               |
-| `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`   |          | `false`                     | `true`                              | Exactly `true` shows the GitHub button.                                    |
-| `LANDING_ORIGIN`                     |          | `https://landing.localhost` | `https://<your-landing>.vercel.app` | Hidden landing deployment to proxy. Unset ⇒ `/` redirects to `/dashboard`. |
+| Variable                            | Required | Local value                 | Production value                    | What it does                                                               |
+| ----------------------------------- | :------: | --------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`              |    ✅    | `https://web.localhost`     | `https://s3-viewer.com`             | This app's own origin: auth redirects, canonical URLs and the sitemap.     |
+| `NEXT_PUBLIC_API_URL`               |    ✅    | `https://api.localhost`     | `https://api.s3-viewer.com`         | Where every request goes.                                                  |
+| `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` |    ✅    | `public_key.pem`            | `public_key.pem`                    | Public half of the RSA pair; encrypts S3 credentials in the browser.       |
+| `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`  |          | `false`                     | `true`                              | Exactly `true` shows the GitHub button.                                    |
+| `LANDING_ORIGIN`                    |          | `https://landing.localhost` | `https://<your-landing>.vercel.app` | Hidden landing deployment to proxy. Unset ⇒ `/` redirects to `/dashboard`. |
 
 `apps/landing/.env`:
 
@@ -177,19 +173,21 @@ pnpm dev
 
 ## 🔑 Auth
 
-Sign-in is handled by [Better Auth](https://better-auth.com). Every method is a flag, and all of them are on by default:
+Sign-in is handled by [Better Auth](https://better-auth.com):
 
-- **Email and password** — the simplest way to self-host: nothing to set up. `PASSWORD_LOGIN_ENABLED` / `NEXT_PUBLIC_PASSWORD_LOGIN_ENABLED`.
-- **Email OTP and magic link** — one email carrying a one-time code and a single-use sign-in link. `EMAIL_LOGIN_ENABLED` / `NEXT_PUBLIC_EMAIL_LOGIN_ENABLED`. Needs a mail transport in production.
-- **GitHub OAuth** — on once `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` are set and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`.
+- **Email and password** — always on, and the simplest way to self-host: nothing to set up.
+- **GitHub OAuth** — optional; on once `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` are set and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`.
 
-Set a flag to exactly `false` to turn a method off; at least one must stay on or the API refuses to start. The login page shows whatever is on: with both email methods it offers a password form plus "Forgot password?" and "Email me a code instead" links.
+Sign-in and sign-up are one flow. `/login` and `/signup` differ only in their words: a password that matches signs you in, and an address with no account is created with that password. (Sign-up already reveals whether an address has an account, so this leaks nothing new.) Passwords are 8–128 characters, hashed by Better Auth, and stored in the `account` row for the `credential` provider.
 
-Sign-in and sign-up are one flow. `/login` and `/signup` differ only in their words: a password that matches signs you in, an address with no account is created with that password, and a one-time code does the same either way. (Sign-up already reveals whether an address has an account, so this leaks nothing new.)
+Email is used for exactly two links, both valid for one hour:
 
-Passwords are 8–128 characters, hashed by Better Auth, and stored in the `account` row for the `credential` provider. A password sign-up starts signed in and is asked for a verification code right away (skippable); an unverified address can still use the app but cannot send or accept invites, since invites are matched by address. **Forgot password** sends a code by email and then takes a new password — this is also how an account that signed up by code or GitHub adds its first one — and **Settings → Profile** has a Password card to set or change it (changing it signs out other devices). Both need `EMAIL_LOGIN_ENABLED`, because that is what sends codes; a deployment with no mail transport is password-only and its addresses can never be verified.
+- **Verify your email.** Sent on sign-up, and again from Settings → Profile or from the callouts that need it. A new account is signed in straight away, but two things wait for the link: **connecting a server** (its credentials belong to whoever can reset the account's password, which is whoever owns the address, so the address is proven first) and **invites** (matched by address, so sending and accepting both refuse an unverified one). The link lands on Settings → Profile.
+- **Reset your password.** "Forgot password?" sends a link to `/reset-password`; choosing a new password signs out every other device. This is also how a GitHub-only account adds a password. Settings → Profile has a Password card to change one, or to set a first one, which (like deleting the account) needs a session younger than 24 hours so a stolen cookie is not enough to claim the account.
 
-Password sign-in is limited to 10 attempts per address per 10 minutes on top of the per-IP limit, and outbound verification or reset codes to 5 per address per 10 minutes.
+Without a mail transport, both links are printed to the API log in development. In production they are **dropped**, never logged (a reset link in a log file is an account takeover for anyone who can read logs), and the API warns at boot: sign-in still works, but nobody can recover a forgotten password, verify an address, connect a server or use invites until `RESEND_KEY` or `SMTP_URL` is set. Treat a transport as required for anything beyond a single-user box.
+
+Password sign-in is limited to 10 attempts per address per 10 minutes on top of the per-IP limit, account creation to 10 per IP per hour, and outbound verification or reset links to 5 per address per 10 minutes.
 
 Sessions are cookie-based. The web app and the API are different hostnames on the same site, so the cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` whenever `NEXT_PUBLIC_API_URL` is `https://` — which is why both origins need HTTPS. Locally the Portless certificates cover that. Sessions last 30 days and refresh at most once a day; IP address tracking is off.
 
@@ -197,11 +195,11 @@ Every non-`GET` request is additionally checked for an `Origin` matching `NEXT_P
 
 ## 📬 Email
 
-Transactional email (OTP codes, magic links, verification and reset codes, server invitations) goes through [Resend](https://resend.com) by default. Set `RESEND_KEY` and `EMAIL_FROM` in `apps/api/.env` — both are required in production while email login is on; the API refuses to start without `RESEND_KEY`, and sending mail throws without `EMAIL_FROM` (there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc.).
+Transactional email (verification links, password-reset links, server invitations, account-deletion notices) goes through [Resend](https://resend.com) by default. Set `RESEND_KEY` and `EMAIL_FROM` in `apps/api/.env`; sending mail throws in production without `EMAIL_FROM` (there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc.).
 
 To depend on no third party for mail, set `EMAIL_TRANSPORT=smtp` and point `SMTP_URL` at your own server (`smtp://user:pass@mail.example.com:587`, or `smtps://…` for implicit TLS). `SMTP_URL` is then required in every environment — selecting a transport with nowhere to connect is a misconfiguration, so it fails at boot rather than at first sign-in — and `RESEND_KEY` is not needed at all. `EMAIL_FROM` still applies.
 
-If neither is configured, no mail is sent — messages are logged to the API console instead, which is enough to copy an OTP code or an invite link during local development. In production that is only allowed with `EMAIL_LOGIN_ENABLED=false` (password and/or GitHub sign-in only), where the log would carry invite and account notices rather than sign-in codes.
+If neither is configured, no mail is sent. In development messages are logged to the API console instead, which is enough to copy a verification or reset link locally; in production only the recipient and subject are logged and the message is dropped, so links never land in a log file. The API warns about it once at boot.
 
 ## 👥 Permissions
 
@@ -233,7 +231,7 @@ Invitations carry the same shape: you pick a server role plus the buckets (and p
 Three deployments, two public hosts:
 
 - **Web** (`apps/web`) on `https://s3-viewer.com` with `NEXT_PUBLIC_SITE_URL=https://s3-viewer.com`, `NEXT_PUBLIC_API_URL=https://api.s3-viewer.com`, `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` and `LANDING_ORIGIN=<the landing's origin>`.
-- **API** (`apps/api`) on `https://api.s3-viewer.com` with the same two URLs plus `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_PRIVATE_KEY`, `RESEND_KEY` and `EMAIL_FROM` (the last two only while email login is on).
+- **API** (`apps/api`) on `https://api.s3-viewer.com` with the same two URLs plus `DATABASE_URL`, `BETTER_AUTH_SECRET`, `ENCRYPTION_PRIVATE_KEY`, and `RESEND_KEY` + `EMAIL_FROM` for mail.
 - **Landing** (`apps/landing`) as its own Vercel project on a hidden origin, with `NEXT_PUBLIC_SITE_URL=https://s3-viewer.com` and `NEXT_PUBLIC_ASSET_PREFIX=<its own origin>`, e.g. `https://s3-viewer-lp.vercel.app`. The web app proxies `/`, `/how-to`, `/use-cases`, `/legal`, `/about`, `/brand-kit` and `/landing/*` from it; its `robots.txt` disallows everything and every canonical points at `s3-viewer.com`.
 
 Then:
@@ -275,7 +273,7 @@ Then:
 ## 📈 Running in production
 
 - **Rate limiting is in-memory and per-instance.** `express-rate-limit` (`apps/api/lib/middleware/rate-limit.ts`) uses the default in-memory store — there is no shared Redis/store backing it. Every limit documented under [Security](#security) is enforced per API process: run N instances behind a load balancer and the effective limit is N× the documented number, and every counter resets whenever a process restarts or redeploys. Treat the numbers as a soft, best-effort ceiling, not a hard guarantee, until you put a shared store in front of it.
-- **A misconfigured `RESEND_KEY` fails silently to the client.** `POST /auth-flow/start` always returns `204` — including when sending the email throws — so that a broken mail provider can't be used to tell attackers which email addresses have accounts (an email-enumeration oracle). If sign-in email is broken in production, users see no error at all; the only signal is the error-level log line ("Auth flow email failed") the API writes on that path. Alert on that log line, not on client-visible errors.
+- **A broken mail provider fails silently to the client.** Verification and reset links are sent after the request has already succeeded, and the response never reveals whether an address has an account, so a mail failure surfaces only as an error-level log line (`[auth] verify email failed` / `[auth] reset email failed`). Alert on those lines, not on client-visible errors.
 - **SSRF guard checks DNS on every connection, not just once.** Server endpoints are checked up front when a server is connected, its credentials change, or its cached S3 client is (re)built: the hostname must be public and every DNS answer public at that moment (see [Security](#security)). That up-front check alone would leave a DNS-rebinding gap — a hostname whose DNS later repoints to a private address — but the same public/private rules also run as a custom `dns.lookup` on the shared http/https agents the S3 clients connect through (`apps/api/lib/s3/client-cache.ts`), so a rebound hostname is rejected when a socket actually connects, not just at the original check. Self-hosters should still restrict egress at the network layer (run the API in a network segment / security group that cannot reach internal services) as defense in depth — the app-level check protects against DNS-based SSRF, not against every route a misconfigured or malicious endpoint could reach.
 
 ## 🔒 Data we store
@@ -304,7 +302,7 @@ Report vulnerabilities privately per [SECURITY.md](./SECURITY.md). What is in pl
 
 - **Client-side hybrid encryption for S3 credentials.** The browser generates an AES-256-GCM key, encrypts the credentials with it, and wraps that key with RSA-OAEP (SHA-256) using `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY`. Only the API holds the private half. Credentials never come back to the browser and never appear in an API response.
 - **Cross-site request protection.** `SameSite=Lax`, `HttpOnly` session cookies, plus an `Origin` / `Sec-Fetch-Site` check on every non-`GET` request, which rejects anything that did not come from `NEXT_PUBLIC_SITE_URL` with a 403.
-- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, 5/minute per IP plus 5/10 minutes per email address on the sign-in email flow, 10/10 minutes per email address on password sign-in, and 5/10 minutes per address on verification and reset codes. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
+- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, 20/minute per IP on every non-GET auth route, 10/10 minutes per email address on password sign-in, 10 accounts created per IP per hour, and 5/10 minutes per address on verification and reset links. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
 - **SSRF guard on server endpoints.** An endpoint you add must be a public `https://` URL (`http://` is allowed outside production only); `localhost`, `*.localhost` and any hostname that resolves to a loopback, private, link-local or multicast address is rejected before a single request is signed.
 - **No IP logging.** Better Auth's IP tracking is switched off and the API logger never writes a client address.
 - **Authorization from validated input only.** Every route parses its input with a zod schema first, then checks the caller's server role and the effective bucket role; handlers never read `req.body` or `req.query` directly.

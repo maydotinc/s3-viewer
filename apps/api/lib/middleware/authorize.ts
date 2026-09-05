@@ -33,7 +33,7 @@ const requireVerifiedUser = (req: Request): SessionUser => {
    if (!user.emailVerified) {
       throw new ApiHttpError(
          403,
-         "Verify your email address to use invites",
+         "Verify your email address first",
          ErrorCode.EMAIL_UNVERIFIED
       );
    }

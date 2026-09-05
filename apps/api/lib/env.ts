@@ -9,11 +9,6 @@ const optionalString = z
    .optional()
    .transform((value) => value || undefined);
 
-// unset ⇒ on; only the literal `false` turns a sign-in method off
-const onByDefault = optionalString
-   .pipe(z.enum(["true", "false"]).optional())
-   .transform((value) => value !== "false");
-
 const isSmtpUrl = (value: string): boolean => {
    try {
       return ["smtp:", "smtps:"].includes(new URL(value).protocol);
@@ -46,8 +41,6 @@ const schema = z
       RESEND_KEY: optionalString,
       EMAIL_FROM: optionalString,
       SUPPORT_EMAIL: optionalString,
-      EMAIL_LOGIN_ENABLED: onByDefault,
-      PASSWORD_LOGIN_ENABLED: onByDefault,
       GITHUB_CLIENT_ID: optionalString,
       GITHUB_CLIENT_SECRET: optionalString,
       PORT: z.coerce.number().int().min(1).max(65535).default(5001),
@@ -80,21 +73,6 @@ const schema = z
       ),
    })
    .superRefine((value, ctx) => {
-      const github = Boolean(
-         value.GITHUB_CLIENT_ID && value.GITHUB_CLIENT_SECRET
-      );
-      if (
-         !value.EMAIL_LOGIN_ENABLED &&
-         !value.PASSWORD_LOGIN_ENABLED &&
-         !github
-      ) {
-         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["PASSWORD_LOGIN_ENABLED"],
-            message:
-               "every sign-in method is off; enable EMAIL_LOGIN_ENABLED, PASSWORD_LOGIN_ENABLED or configure GitHub",
-         });
-      }
       if (value.EMAIL_TRANSPORT === "smtp") {
          if (!value.SMTP_URL) {
             ctx.addIssue({
@@ -110,17 +88,6 @@ const schema = z
                   "must be an smtp:// or smtps:// URL, e.g. smtp://user:pass@mail.example.com:587",
             });
          }
-      } else if (
-         value.NODE_ENV === "production" &&
-         value.EMAIL_LOGIN_ENABLED &&
-         !value.RESEND_KEY
-      ) {
-         ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            path: ["RESEND_KEY"],
-            message:
-               "required in production while EMAIL_LOGIN_ENABLED (sign-in codes cannot be printed to the log); set it, use EMAIL_TRANSPORT=smtp, or set EMAIL_LOGIN_ENABLED=false",
-         });
       }
       if (
          Boolean(value.GITHUB_CLIENT_ID) !== Boolean(value.GITHUB_CLIENT_SECRET)

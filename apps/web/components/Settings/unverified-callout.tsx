@@ -1,37 +1,25 @@
-import VerifyEmailDialog from "@/components/Settings/verify-email-dialog";
 import { authClient } from "@/lib/auth";
-import { publicEnv } from "@/lib/env";
+import useResendVerification from "@/lib/hooks/mutations/user/useResendVerification";
 import { Button } from "@s3-viewer/ui/components/button";
-import { useState } from "react";
 
 // invites are refused until the address is verified; the callout says why
-// and, where a code can be sent, offers to do it on the spot
+// and resends the link on the spot
 const UnverifiedCallout = ({ children }: { children: string }) => {
    const { data: session } = authClient.useSession();
-   const [verifying, setVerifying] = useState(false);
+   const resend = useResendVerification();
    const email = session?.user.email;
-   const canVerify = publicEnv.emailLoginEnabled && Boolean(email);
    return (
       <div className="flex min-w-0 flex-col items-start gap-2 rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
-         <p>
-            {children}
-            {!canVerify &&
-               " This deployment sends no email, so addresses can't be verified."}
-         </p>
-         {canVerify && (
+         <p>{children}</p>
+         {email && (
             <Button
                variant="outline"
                size="sm"
-               onClick={() => setVerifying(true)}
+               loading={resend.isPending}
+               onClick={() => resend.mutate(email)}
             >
-               Verify email
+               Resend verification email
             </Button>
-         )}
-         {verifying && email && (
-            <VerifyEmailDialog
-               email={email}
-               onClose={() => setVerifying(false)}
-            />
          )}
       </div>
    );

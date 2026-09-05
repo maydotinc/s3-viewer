@@ -1,4 +1,6 @@
 import FormError from "@/components/Modals/form-error";
+import UnverifiedCallout from "@/components/Settings/unverified-callout";
+import { authClient } from "@/lib/auth";
 import { parseServerName } from "@/components/Modals/RenameModal";
 import { PROVIDER_NAMES } from "@/lib/constants";
 import useCreateServer from "@/lib/hooks/mutations/server/useCreateServer";
@@ -49,6 +51,10 @@ const validateFields = (f: Fields): string | null => {
 const parseBucketNames = (raw: string): string[] => splitList(raw, /[\s,]+/);
 
 const ConnectModal = ({ onClose }: ConnectModalProps) => {
+   // the api refuses credentials from an unverified address; say so up front
+   // instead of after the form is filled in
+   const { data: session } = authClient.useSession();
+   const unverified = session?.user.emailVerified === false;
    const [fields, setFields] = useState<Fields>(EMPTY);
    const [error, setError] = useState<string | null>(null);
    const [encrypted, setEncrypted] = useState<string | null>(null);
@@ -164,7 +170,22 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
    return (
       <Dialog open onOpenChange={(open) => !open && onClose()}>
          <DialogContent className="sm:max-w-md">
-            {detected ? (
+            {unverified ? (
+               <>
+                  <DialogHeader className="text-left">
+                     <DialogTitle>Connect a server</DialogTitle>
+                     <DialogDescription>
+                        Credentials stay with the address that owns this
+                        account.
+                     </DialogDescription>
+                  </DialogHeader>
+                  <DialogBody className="pb-6">
+                     <UnverifiedCallout>
+                        Verify your email address to connect a server.
+                     </UnverifiedCallout>
+                  </DialogBody>
+               </>
+            ) : detected ? (
                <>
                   <DialogHeader className="text-left">
                      <DialogTitle>Server found</DialogTitle>

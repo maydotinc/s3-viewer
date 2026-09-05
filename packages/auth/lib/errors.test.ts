@@ -7,6 +7,7 @@ describe("authErrorMessage", () => {
       expect(authErrorMessage({ code: "INVALID_EMAIL_OR_PASSWORD" })).toBe(
          "Wrong email or password."
       );
+      expect(authErrorMessage({ code: "INVALID_TOKEN" })).toMatch(/link/);
    });
 
    it("treats a 429 without a code as too many attempts", () => {

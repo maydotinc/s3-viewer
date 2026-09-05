@@ -343,27 +343,26 @@ characters `font-semibold text-viewerblue`.
   files). The user types their email to confirm. A session older than 24 h
   is sent to sign in again first. Success signs out, shows a toast and sends
   a confirmation email.
-- **Login / sign-up / forgot password** `/login`, `/signup`,
-  `/forgot-password`: `AuthLayout` = logo top-left (`left-6 top-6`, `sm:left-12
-sm:top-10`), a `max-w-sm` column centred in the left half, legal line
-  `mt-10`, brand panel on the right from `lg`. Step = `.text-title` + one
-  `text-sm` sentence, `mt-8` to the form. Fields stack `gap-4` with a reserved
-  `min-h-5` message line under each (error in red, otherwise a hint in
-  `viewerlighttext`). One `lg` full-width primary button; the alternatives
-  ("Forgot password? · Email me a code instead") are a centred `text-sm`
-  link row `gap-4` under it, never a second button and never inside a label
-  row, so every field keeps the same label / control / message rhythm.
-  GitHub is an outline button above an "or" hairline. The show/hide eye is
-  a ghost `icon-sm` inside the password field (`right-0.5 top-0.5`). Sign-in
-  and sign-up pages are the same screen with different words: a password
-  signs in or creates the account. Steps keep the first
-  step's height (`useStepHeight`) so nothing below them moves. Code steps:
-  `OtpInput`, primary "Verify", centred "Didn't get it? Resend code in 45s"
-  plus at most one text-link escape ("Skip for now").
+- **Login / sign-up / forgot password / reset password** `/login`,
+  `/signup`, `/forgot-password`, `/reset-password`: `AuthLayout` = logo
+  top-left (`left-6 top-6`, `sm:left-12 sm:top-10`), a `max-w-sm` column
+  centred in the left half, legal line `mt-10` ("Terms of Service",
+  "Privacy Policy"), brand panel on the right from `lg`. Screen =
+  `.text-title` + one `text-sm` sentence, `mt-8` to the form. Fields stack
+  `gap-4`; the message line under a field (`min-h-5`, error in red,
+  otherwise a hint in `viewerlighttext`) is reserved only under the field
+  the primary action depends on (the password), so email sits 16px above
+  the password label. One `lg` full-width primary button, then a centred
+  `text-sm` "Forgot password?" link. GitHub is an outline button above an
+  "or" hairline. The show/hide eye is a ghost `icon-sm` inside the password
+  field at `right-1 top-0.5`, so the icon sits on the 12px text inset.
+  Sign-in and sign-up are the same screen with different words: a password
+  signs in or creates the account. Multi-step screens keep the first step's
+  height (`useStepHeight`) so nothing below them moves.
 - **Settings → Profile** also has a **Password** card (current + new, or just
   new when the account has none; primary right-aligned, hint on the reserved
-  line) and, for an unverified address, "Not verified yet. Verify email" as a
-  text link in the email hint that opens a `FormDialog` with the `OtpInput`.
+  line) and, for an unverified address, "Not verified yet. Resend
+  verification email" as a text link in the email hint.
 - **Profile menu**: name/email header, Settings (`g s`), Support (opens
   `/contact`), separator, Sign out.
 - **Landing `/contact`**: hero + three cards (email, GitHub issues, built by

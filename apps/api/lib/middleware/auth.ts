@@ -4,12 +4,14 @@ import { DAY_MS, SESSION_ABSOLUTE_TTL_DAYS } from "@s3-viewer/types";
 import { fromNodeHeaders } from "better-auth/node";
 
 type SessionUser = typeof auth.$Infer.Session.user;
+type SessionRecord = typeof auth.$Infer.Session.session;
 
 declare global {
    // eslint-disable-next-line @typescript-eslint/no-namespace
    namespace Express {
       interface Request {
          user?: SessionUser;
+         session?: SessionRecord;
       }
    }
 }
@@ -30,8 +32,9 @@ const authGuard = asyncHandler(async (req, res, next) => {
       return;
    }
    req.user = session.user;
+   req.session = session.session;
    next();
 });
 
 export { authGuard };
-export type { SessionUser };
+export type { SessionRecord, SessionUser };

@@ -39,10 +39,7 @@ describe("loginPathFor", () => {
       expect(loginPathFor("/")).toBe("/login");
    });
 
-   it("turns a magic-link error into a reason and drops it from next", () => {
-      expect(loginPathFor("/dashboard?error=EXPIRED_TOKEN")).toBe(
-         "/login?next=%2Fdashboard&reason=link"
-      );
+   it("keeps a callback error inside next", () => {
       expect(loginPathFor("/dashboard?error=other")).toBe(
          "/login?next=%2Fdashboard%3Ferror%3Dother"
       );

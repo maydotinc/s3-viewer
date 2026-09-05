@@ -15,7 +15,6 @@ vi.mock("@s3-viewer/auth/client", () => ({
       authClient: {
          $store: { atoms: { session: { get: () => ({ refetch }) } } },
       },
-      verifyOtp: vi.fn(),
       signInWithGithub: vi.fn(),
       signOut: endSession,
    }),

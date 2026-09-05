@@ -1,5 +1,4 @@
-import { input } from "@/lib/middleware/validate";
-import { ErrorCode, MINUTE_MS } from "@s3-viewer/types";
+import { ErrorCode, HOUR_MS, MINUTE_MS } from "@s3-viewer/types";
 import type { Request, RequestHandler, Response } from "express";
 
 const BUCKET_MOUNT = "/servers/:serverId/buckets";
@@ -17,7 +16,8 @@ const limiter = (
    windowMs: number,
    limit: number,
    keyGenerator?: KeyGenerator,
-   skip?: (req: Request) => boolean
+   skip?: (req: Request) => boolean,
+   skipFailedRequests = false
 ): RequestHandler =>
    rateLimit({
       windowMs,
@@ -25,6 +25,7 @@ const limiter = (
       standardHeaders: "draft-7",
       legacyHeaders: false,
       message: RATE_LIMITED,
+      skipFailedRequests,
       ...(keyGenerator ? { keyGenerator } : {}),
       ...(skip ? { skip } : {}),
    });
@@ -43,26 +44,21 @@ const authRouteLimit = limiter(MINUTE_MS, 20);
 
 const userLimit = limiter(MINUTE_MS, 1800, byUser);
 
+// accounts actually created per ip; the login page's sign-up fallback for a
+// wrong password answers 422 and must not spend this budget
+const signUpLimit = limiter(HOUR_MS, 10, byIp, undefined, true);
+
 const connectLimit = limiter(MINUTE_MS, 30, byUser);
 
 const inviteLimit = limiter(MINUTE_MS, 20, byUser);
 
-const authFlowIpLimit = limiter(MINUTE_MS, 5);
-
-const authFlowEmailLimit = limiter(
-   10 * MINUTE_MS,
-   5,
-   (_req, res) => input<{ email: string }>(res).email
-);
-
 export {
    BUCKET_MOUNT,
-   authFlowEmailLimit,
-   authFlowIpLimit,
    authRouteLimit,
    bucketIpLimit,
    connectLimit,
    globalIpLimit,
    inviteLimit,
+   signUpLimit,
    userLimit,
 };

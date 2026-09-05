@@ -6,7 +6,7 @@ const ForgotPasswordPage = () => (
    <>
       <Seo
          title="Reset your password"
-         description="Reset your S3 Viewer password with a code sent to your email."
+         description="Reset your S3 Viewer password with a link sent to your email."
          canonical={SITE_PATHS.forgotPassword}
       />
       <ForgotPasswordScreen />

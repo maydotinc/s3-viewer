@@ -7,22 +7,21 @@ type AuthClientError = {
 };
 
 const TOO_MANY_ATTEMPTS = "Too many attempts. Try again in a few minutes.";
+const EXISTS = "An account with this email already exists. Sign in instead.";
 
 // better auth error codes the ui gives its own words to; anything else falls
 // back to the generic message so an internal detail never reaches the screen
 const MESSAGES: Readonly<Record<string, string>> = {
-   INVALID_OTP: "That code isn't right. Check it and try again.",
-   OTP_EXPIRED: "That code has expired. Request a new one.",
-   TOO_MANY_ATTEMPTS: "Too many attempts. Request a new code.",
    INVALID_EMAIL_OR_PASSWORD: "Wrong email or password.",
    INVALID_PASSWORD: "That isn't your current password.",
-   USER_ALREADY_EXISTS:
-      "An account with this email already exists. Sign in instead.",
-   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
-      "An account with this email already exists. Sign in instead.",
+   USER_ALREADY_EXISTS: EXISTS,
+   USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL: EXISTS,
    PASSWORD_TOO_SHORT: `Use at least ${PASSWORD_MIN_LENGTH} characters.`,
    PASSWORD_TOO_LONG: "That password is too long.",
    CREDENTIAL_ACCOUNT_NOT_FOUND: "This account has no password yet.",
+   INVALID_TOKEN: "That link is invalid or has expired. Request a new one.",
+   TOKEN_EXPIRED: "That link has expired. Request a new one.",
+   EMAIL_ALREADY_VERIFIED: "This email is already verified.",
    RATE_LIMITED: TOO_MANY_ATTEMPTS,
 };
 

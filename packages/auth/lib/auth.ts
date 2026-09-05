@@ -1,9 +1,8 @@
 import { prisma } from "@s3-viewer/db";
-import { sendAuthCodeEmail, sendAuthEmail } from "@s3-viewer/email";
+import { sendAuthLinkEmail } from "@s3-viewer/email";
 import {
    AUTH_BASE_PATH,
-   AUTH_CODE_LENGTH,
-   AUTH_CODE_TTL_MINUTES,
+   AUTH_LINK_TTL_HOURS,
    DAY_MS,
    HOUR_MS,
    MINUTE_MS,
@@ -17,8 +16,6 @@ import {
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { emailOTP, magicLink } from "better-auth/plugins";
-import { authFlowContext, type AuthFlowStore } from "./auth-flow-context";
 import { authEnv } from "./env";
 import { validateProfile } from "./profile";
 import { createThrottle, type Throttle } from "./throttle";
@@ -27,53 +24,10 @@ import { localPart, normalizeEmail } from "./utils";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
 const HOUR_SECONDS = HOUR_MS / SECOND_MS;
-const AUTH_CODE_TTL_SECONDS = AUTH_CODE_TTL_MINUTES * 60;
+const AUTH_LINK_TTL_SECONDS = AUTH_LINK_TTL_HOURS * HOUR_SECONDS;
 const SESSION_COOKIE_CACHE_SECONDS = 60;
 
-type AuthCredentials = { otp: string; magicLinkUrl: string };
-type HookBody = { email?: unknown; type?: unknown } | undefined;
-
-// everything the email-otp and magic-link plugins serve; hidden as one block
-// when sign-in by email is off, so a disabled method has no reachable route
-const EMAIL_LOGIN_PATHS =
-   /^\/(email-otp\/|magic-link\/|sign-in\/(email-otp|magic-link)$|forget-password\/)/;
-const PASSWORD_LOGIN_PATHS =
-   /^\/(sign-(in|up)\/email|change-password|email-otp\/(request-password-reset|reset-password))$/;
-
-// sign-in mail leaves only through `sendAuthFlowEmail` (one email carrying
-// both the code and the link, behind /auth-flow/start's limits); the plugins'
-// own single-channel senders would send half of it outside those limits
-const isSingleChannelSend = (path: string, body: HookBody): boolean =>
-   path === "/sign-in/magic-link" ||
-   path === "/forget-password/email-otp" ||
-   (path === "/email-otp/send-verification-otp" && body?.type === "sign-in");
-
-const isHidden = (path: string, body: HookBody): boolean =>
-   (!authEnv.emailLogin && EMAIL_LOGIN_PATHS.test(path)) ||
-   (!authEnv.passwordLogin && PASSWORD_LOGIN_PATHS.test(path)) ||
-   isSingleChannelSend(path, body);
-
-// per-address ceilings that the per-ip express limiter cannot give: a
-// password guess and an outbound code are each bounded per email too
-const mailThrottle = createThrottle(5, 10 * MINUTE_MS);
-const THROTTLES: Readonly<Record<string, Throttle>> = {
-   "/sign-in/email": createThrottle(10, 10 * MINUTE_MS),
-   "/email-otp/send-verification-otp": mailThrottle,
-   "/email-otp/request-password-reset": mailThrottle,
-};
-
-const bodyEmail = (body: HookBody): string =>
-   typeof body?.email === "string" ? normalizeEmail(body.email) : "";
-
-// email changes are not offered, so any type that is not a reset is a
-// verification code
-const sendCodeEmail = (email: string, otp: string, type: string) =>
-   sendAuthCodeEmail({
-      to: email,
-      intent: type === "forget-password" ? "reset" : "verify",
-      otp,
-      expiresInMinutes: AUTH_CODE_TTL_MINUTES,
-   });
+type HookBody = { email?: unknown } | undefined;
 
 // oauth tokens are never read back anywhere in the product, so they are dropped
 // rather than stored unencrypted next to envelope-encrypted s3 credentials
@@ -84,39 +38,35 @@ const withoutTokens = <T extends Record<string, unknown>>(account: T): T => ({
    idToken: null,
 });
 
-const sendAuthFlowEmail = async (
-   email: string,
-   headers: Headers,
-   seed: Partial<AuthCredentials> = {}
+// per-address ceilings that the per-ip express limiter cannot give: a
+// password guess and an outbound link are each bounded per email too
+const mailThrottle = createThrottle(5, 10 * MINUTE_MS);
+const THROTTLES: Readonly<Record<string, Throttle>> = {
+   "/sign-in/email": createThrottle(10, 10 * MINUTE_MS),
+   "/send-verification-email": mailThrottle,
+   "/request-password-reset": mailThrottle,
+};
+
+const bodyEmail = (body: HookBody): string =>
+   typeof body?.email === "string" ? normalizeEmail(body.email) : "";
+
+// a mail failure must never fail the sign-up or reset request that caused
+// it: the account already exists, and the response never reveals delivery
+const sendLink = async (
+   intent: "verify" | "reset",
+   to: string,
+   url: string
 ): Promise<void> => {
-   const store: AuthFlowStore = { email, ...seed };
-   await authFlowContext.run(store, async () => {
-      if (!store.otp) {
-         await auth.api.sendVerificationOTP({
-            body: { email, type: "sign-in" },
-            headers,
-         });
-      }
-      if (!store.magicLinkUrl) {
-         await auth.api.signInMagicLink({
-            body: {
-               email,
-               name: localPart(email),
-               callbackURL: `${authEnv.siteOrigin}${SITE_PATHS.dashboard}`,
-            },
-            headers,
-         });
-      }
-   });
-   if (!store.otp || !store.magicLinkUrl) {
-      throw new Error("Auth flow did not produce a code and a link");
+   try {
+      await sendAuthLinkEmail({
+         to,
+         intent,
+         url,
+         expiresInHours: AUTH_LINK_TTL_HOURS,
+      });
+   } catch (error) {
+      console.error(`[auth] ${intent} email failed`, error);
    }
-   await sendAuthEmail({
-      to: email,
-      otp: store.otp,
-      magicLinkUrl: store.magicLinkUrl,
-      expiresInMinutes: AUTH_CODE_TTL_MINUTES,
-   });
 };
 
 const auth = betterAuth({
@@ -125,7 +75,7 @@ const auth = betterAuth({
    secret: authEnv.secret,
    database: prismaAdapter(prisma, { provider: "postgresql" }),
    trustedOrigins: [authEnv.siteOrigin],
-   // a failed oauth or magic-link callback must land on the login page, not on
+   // a failed oauth callback must land on the login page, not on
    // better auth's default `/?error=` at the api origin (a 401 for the user)
    onAPIError: {
       errorURL: `${authEnv.siteOrigin}${SITE_PATHS.login}`,
@@ -149,22 +99,23 @@ const auth = betterAuth({
    },
    rateLimit: { enabled: false },
    emailAndPassword: {
-      enabled: authEnv.passwordLogin,
+      enabled: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       revokeSessionsOnPasswordReset: true,
+      resetPasswordTokenExpiresIn: AUTH_LINK_TTL_SECONDS,
+      sendResetPassword: ({ user, url }) => sendLink("reset", user.email, url),
+   },
+   emailVerification: {
+      sendOnSignUp: true,
+      expiresIn: AUTH_LINK_TTL_SECONDS,
+      sendVerificationEmail: ({ user, url }) =>
+         sendLink("verify", user.email, url),
    },
    hooks: {
-      // internal calls made by `sendAuthFlowEmail` run inside the flow context
-      // and are already limited by the route that started them
       before: createAuthMiddleware(async (ctx) => {
-         if (authFlowContext.getStore()) return;
-         const body = ctx.body as HookBody;
-         if (isHidden(ctx.path, body)) {
-            throw new APIError("NOT_FOUND", { message: "Not found" });
-         }
          const throttle = THROTTLES[ctx.path];
-         const email = bodyEmail(body);
+         const email = bodyEmail(ctx.body as HookBody);
          if (throttle && email && !throttle.allow(email)) {
             throw new APIError("TOO_MANY_REQUESTS", {
                message: "Too many attempts. Try again in a few minutes.",
@@ -184,7 +135,7 @@ const auth = betterAuth({
       },
       user: {
          create: {
-            // nothing fills `image`, and better auth's own otp/oauth endpoints
+            // nothing fills `image`, and better auth's own sign-up/oauth endpoints
             // bypass emailSchema, so this is the one place every stored email
             // is guaranteed lowercase
             before: async (user) => ({
@@ -224,49 +175,6 @@ const auth = betterAuth({
          },
       },
    },
-   plugins: [
-      emailOTP({
-         otpLength: AUTH_CODE_LENGTH,
-         expiresIn: AUTH_CODE_TTL_SECONDS,
-         allowedAttempts: 5,
-         // a password sign-up gets a verification code straight away, so the
-         // account can use invites without a second trip through sign-in
-         sendVerificationOnSignUp: true,
-         async sendVerificationOTP(
-            { email, otp, type },
-            request
-         ): Promise<void> {
-            const flow = authFlowContext.getStore();
-            if (flow) {
-               flow.otp = otp;
-               return;
-            }
-            if (!authEnv.emailLogin) return;
-            if (type === "sign-in") {
-               await sendAuthFlowEmail(
-                  email,
-                  request?.headers ?? new Headers(),
-                  { otp }
-               );
-               return;
-            }
-            await sendCodeEmail(email, otp, type);
-         },
-      }),
-      magicLink({
-         expiresIn: AUTH_CODE_TTL_SECONDS,
-         async sendMagicLink({ email, url }, request): Promise<void> {
-            const flow = authFlowContext.getStore();
-            if (flow) {
-               flow.magicLinkUrl = url;
-               return;
-            }
-            await sendAuthFlowEmail(email, request?.headers ?? new Headers(), {
-               magicLinkUrl: url,
-            });
-         },
-      }),
-   ],
    socialProviders: authEnv.github
       ? {
            github: {
@@ -279,5 +187,5 @@ const auth = betterAuth({
       : undefined,
 });
 
-export { auth, onUserDeletion, sendAuthFlowEmail };
+export { auth, onUserDeletion };
 export type { DeletedUser, UserDeletionHooks } from "./user-deletion";

@@ -7,16 +7,11 @@ import {
    type AccountDeletedEmailProps,
 } from "@s3-viewer/ui/emails/account-deleted";
 import {
-   AuthCodeEmail,
-   authCodeEmailSubject,
-   authCodeEmailText,
-   type AuthCodeEmailProps,
-} from "@s3-viewer/ui/emails/auth-code";
-import {
-   AuthOtpEmail,
-   authOtpEmailText,
-   type AuthOtpEmailProps,
-} from "@s3-viewer/ui/emails/auth-otp";
+   AuthLinkEmail,
+   authLinkEmailSubject,
+   authLinkEmailText,
+   type AuthLinkEmailProps,
+} from "@s3-viewer/ui/emails/auth-link";
 import {
    ServerInviteEmail,
    serverInviteEmailText,
@@ -28,7 +23,7 @@ import { Resend } from "resend";
 type Message = {
    to: string;
    subject: string;
-   html: ReturnType<typeof AuthOtpEmail>;
+   html: ReturnType<typeof AuthLinkEmail>;
    text: string;
 };
 
@@ -76,16 +71,24 @@ const smtpTransport = (url: string): Transport => {
    };
 };
 
-// no transport configured: mail is written to the log instead of sent. The
-// api refuses to start this way in production when a sign-in code would be
-// the thing being logged (see apps/api/lib/env.ts); otherwise only invite and
-// account notices land here, and the invite itself is still visible in-app
+// no transport configured. In development the whole message is written to
+// the log, which is how a verification or reset link is picked up locally. In
+// production the body is never logged — a reset link in a log file would be
+// an account takeover for anyone who can read logs — so the message is
+// dropped and only its envelope recorded
 const consoleTransport = (): Transport => {
+   const production = process.env.NODE_ENV === "production";
    console.warn(
-      "[email] No mail transport configured (RESEND_KEY or SMTP_URL); email will be written to the log instead of sent"
+      production
+         ? "[email] No mail transport configured (RESEND_KEY or SMTP_URL): verification and password-reset links cannot be delivered, so invites stay unavailable and forgotten passwords cannot be recovered. Configure a transport."
+         : "[email] No mail transport configured (RESEND_KEY or SMTP_URL); email will be written to the log instead of sent"
    );
    return async ({ to, subject, text }) => {
-      console.info(`[email] to=${to} subject="${subject}" (not sent)\n${text}`);
+      console.info(
+         production
+            ? `[email] to=${to} subject="${subject}" (no transport, dropped)`
+            : `[email] to=${to} subject="${subject}" (not sent)\n${text}`
+      );
    };
 };
 
@@ -99,31 +102,17 @@ const resolveTransport = (): Transport => {
 
 const send: Transport = resolveTransport();
 
-type SendAuthEmailInput = AuthOtpEmailProps & { to: string };
+type SendAuthLinkEmailInput = AuthLinkEmailProps & { to: string };
 
-const sendAuthEmail = async ({
+const sendAuthLinkEmail = async ({
    to,
    ...props
-}: SendAuthEmailInput): Promise<void> => {
+}: SendAuthLinkEmailInput): Promise<void> => {
    await send({
       to,
-      subject: `Sign in to ${PRODUCT_NAME}`,
-      html: AuthOtpEmail(props),
-      text: authOtpEmailText(props),
-   });
-};
-
-type SendAuthCodeEmailInput = AuthCodeEmailProps & { to: string };
-
-const sendAuthCodeEmail = async ({
-   to,
-   ...props
-}: SendAuthCodeEmailInput): Promise<void> => {
-   await send({
-      to,
-      subject: authCodeEmailSubject(props.intent),
-      html: AuthCodeEmail(props),
-      text: authCodeEmailText(props),
+      subject: authLinkEmailSubject(props.intent),
+      html: AuthLinkEmail(props),
+      text: authLinkEmailText(props),
    });
 };
 
@@ -180,10 +169,4 @@ const sendAccountDeletedEmail = async ({
    });
 };
 
-export {
-   sendAccountDeletedEmail,
-   sendAuthCodeEmail,
-   sendAuthEmail,
-   sendServerInviteEmail,
-};
-export type { AuthCodeIntent } from "@s3-viewer/ui/emails/auth-code";
+export { sendAccountDeletedEmail, sendAuthLinkEmail, sendServerInviteEmail };

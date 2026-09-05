@@ -1,9 +1,6 @@
 const fontStack =
    "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
-const monoStack =
-   "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace";
-
 const main = {
    backgroundColor: "#f7f7f7",
    fontFamily: fontStack,
@@ -76,25 +73,6 @@ const button = {
    textDecoration: "none",
 };
 
-const codeBlock = {
-   backgroundColor: "#f7f7f7",
-   border: "1px solid #e1e4ea",
-   borderRadius: "8px",
-   margin: "0 0 24px",
-   padding: "16px",
-};
-
-const codeText = {
-   color: "#0e121b",
-   fontFamily: monoStack,
-   fontSize: "28px",
-   fontWeight: 600,
-   letterSpacing: "0.16em",
-   lineHeight: "36px",
-   margin: "0",
-   textAlign: "center" as const,
-};
-
 const footerText = {
    ...text,
    color: "#99a0ae",
@@ -106,8 +84,6 @@ const footerText = {
 export {
    button,
    buttonWrapper,
-   codeBlock,
-   codeText,
    container,
    footerText,
    h1,
