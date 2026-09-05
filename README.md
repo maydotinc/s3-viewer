@@ -19,7 +19,6 @@ A web-based S3-compatible object storage browser that lets you manage multiple S
 - **Backend**: Express.js API (`apps/api`)
 - **Database**: PostgreSQL with Prisma ORM (`packages/db`)
 - **Authentication**: Better Auth (`packages/auth`)
-- **Local dev URLs**: [Portless](https://portless.sh)
 - **Monorepo**: Turborepo with pnpm workspaces
 - **Object data path**: uploads stream through the API so buckets need no CORS configuration; downloads use short-lived presigned URLs.
 
@@ -40,25 +39,15 @@ cd s3-viewer
 pnpm install
 ```
 
-### 2. Local HTTPS via Portless
+### 2. Local dev URLs
 
-Dev URLs are stable HTTPS hostnames via [Portless](https://portless.sh):
+Everything runs on plain `http://localhost`, one port per app:
 
-- Web → `https://web.localhost`
-- Landing → `https://landing.localhost`
-- API → `https://api.localhost`
+- Web → `http://localhost:3000`
+- Landing → `http://localhost:3001`
+- API → `http://localhost:5001`
 
-Run once on a fresh machine:
-
-```bash
-pnpm bootstrap
-```
-
-This installs `portless` globally, trusts its local CA, and starts the proxy on port 443 (one `sudo` prompt). Everything stays on `127.0.0.1`.
-
-If you can't / don't want to use sudo, run `portless proxy start --https` instead — it binds to `:1355`. You'll then need to append `:1355` to every URL in your `.env` files and to the GitHub OAuth callback.
-
-HTTPS is not optional in development: when `NEXT_PUBLIC_API_URL` is an `https://` URL the session cookie is issued with `Secure`, and the browser drops a `Secure` cookie sent over plain HTTP.
+The `.env.example` files already point at these, so nothing needs to be installed or trusted first. Because the three apps share the `localhost` host, the session cookie is same-site between the web app and the API and works without HTTPS; it is only issued with `Secure` when `NEXT_PUBLIC_API_URL` is an `https://` URL, which is the case in production.
 
 ### 3. Generate Encryption Keys
 
@@ -84,7 +73,7 @@ Prisma runs with `packages/db` as its working directory, so it reads `packages/d
 
 Users only ever see two hosts: the web app at `s3-viewer.com` and the API at `api.s3-viewer.com`.
 The landing site is deployed separately on a hidden origin (a `*.vercel.app` URL) and the web app proxies the marketing routes from it, so it never appears in a URL.
-Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localhost` and `landing.localhost`.
+Local dev mirrors this on `localhost`: the web app on `:3000`, the API on `:5001` and the landing site on `:3001`.
 
 `apps/api/.env` (validated on startup by `apps/api/lib/env.ts`):
 
@@ -93,8 +82,8 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 | `DATABASE_URL`           |    ✅    | `postgresql://…`          | `postgresql://…`                        | PostgreSQL connection string for Prisma.                                                                                                                                                                              |
 | `BETTER_AUTH_SECRET`     |    ✅    | `openssl rand -base64 32` | `openssl rand -base64 32`               | Signs sessions and tokens; at least 32 characters.                                                                                                                                                                    |
 | `ENCRYPTION_PRIVATE_KEY` |    ✅    | `private_key.pem`         | `private_key.pem`                       | RSA private key (2048 bits or more) that decrypts stored S3 credentials.                                                                                                                                              |
-| `NEXT_PUBLIC_SITE_URL`   |    ✅    | `https://web.localhost`   | `https://s3-viewer.com`                 | The web app's origin: CORS, the `Origin` check, trusted origins and email links.                                                                                                                                      |
-| `NEXT_PUBLIC_API_URL`    |    ✅    | `https://api.localhost`   | `https://api.s3-viewer.com`             | This API's own origin: Better Auth base URL, OAuth callbacks, `Secure` cookies.                                                                                                                                       |
+| `NEXT_PUBLIC_SITE_URL`   |    ✅    | `http://localhost:3000`   | `https://s3-viewer.com`                 | The web app's origin: CORS, the `Origin` check, trusted origins and email links.                                                                                                                                      |
+| `NEXT_PUBLIC_API_URL`    |    ✅    | `http://localhost:5001`   | `https://api.s3-viewer.com`             | This API's own origin: Better Auth base URL, OAuth callbacks, `Secure` cookies.                                                                                                                                       |
 | `NODE_ENV`               |          | `development`             | `production`                            | Also gates whether a cleartext `http://` S3 endpoint is accepted (`development`/`test` only).                                                                                                                         |
 | `EMAIL_TRANSPORT`        |          | unset                     | unset                                   | `resend` or `smtp`. Unset ⇒ `resend`. Choose `smtp` to send auth and invite email through your own server instead of a third party.                                                                                   |
 | `SMTP_URL`               | if smtp  | unset                     | `smtp://user:pass@mail.example.com:587` | SMTP connection string (`smtp://` or `smtps://`). **Required in every environment when `EMAIL_TRANSPORT=smtp`**; ignored otherwise.                                                                                   |
@@ -111,19 +100,19 @@ Local dev mirrors this with the Portless hostnames: `web.localhost`, `api.localh
 
 `apps/web/.env`:
 
-| Variable                            | Required | Local value                 | Production value                    | What it does                                                               |
-| ----------------------------------- | :------: | --------------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`              |    ✅    | `https://web.localhost`     | `https://s3-viewer.com`             | This app's own origin: auth redirects, canonical URLs and the sitemap.     |
-| `NEXT_PUBLIC_API_URL`               |    ✅    | `https://api.localhost`     | `https://api.s3-viewer.com`         | Where every request goes.                                                  |
-| `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` |    ✅    | `public_key.pem`            | `public_key.pem`                    | Public half of the RSA pair; encrypts S3 credentials in the browser.       |
-| `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`  |          | `false`                     | `true`                              | Exactly `true` shows the GitHub button.                                    |
-| `LANDING_ORIGIN`                    |          | `https://landing.localhost` | `https://<your-landing>.vercel.app` | Hidden landing deployment to proxy. Unset ⇒ `/` redirects to `/dashboard`. |
+| Variable                            | Required | Local value             | Production value                    | What it does                                                               |
+| ----------------------------------- | :------: | ----------------------- | ----------------------------------- | -------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_SITE_URL`              |    ✅    | `http://localhost:3000` | `https://s3-viewer.com`             | This app's own origin: auth redirects, canonical URLs and the sitemap.     |
+| `NEXT_PUBLIC_API_URL`               |    ✅    | `http://localhost:5001` | `https://api.s3-viewer.com`         | Where every request goes.                                                  |
+| `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` |    ✅    | `public_key.pem`        | `public_key.pem`                    | Public half of the RSA pair; encrypts S3 credentials in the browser.       |
+| `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`  |          | `false`                 | `true`                              | Exactly `true` shows the GitHub button.                                    |
+| `LANDING_ORIGIN`                    |          | `http://localhost:3001` | `https://<your-landing>.vercel.app` | Hidden landing deployment to proxy. Unset ⇒ `/` redirects to `/dashboard`. |
 
 `apps/landing/.env`:
 
 | Variable                   | Required | Local value             | Production value                    | What it does                                                                            |
 | -------------------------- | :------: | ----------------------- | ----------------------------------- | --------------------------------------------------------------------------------------- |
-| `NEXT_PUBLIC_SITE_URL`     |    ✅    | `https://web.localhost` | `https://s3-viewer.com`             | The public origin this site is proxied under: canonical, OG and absolute links.         |
+| `NEXT_PUBLIC_SITE_URL`     |    ✅    | `http://localhost:3000` | `https://s3-viewer.com`             | The public origin this site is proxied under: canonical, OG and absolute links.         |
 | `NEXT_PUBLIC_ASSET_PREFIX` |  build   | leave empty             | `https://<your-landing>.vercel.app` | This deployment's own origin, so `/_next/*` still resolves here when pages are proxied. |
 
 Every `NEXT_PUBLIC_*` value is inlined at build time, so it has to be present when you run `pnpm build`, not only at runtime.
@@ -134,7 +123,7 @@ GitHub login is optional. To enable it, register an OAuth app at https://github.
 https://api.s3-viewer.com/auth/callback/github
 ```
 
-(locally `https://api.localhost/auth/callback/github`), then set `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` in `apps/api/.env` and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true` in `apps/web/.env`.
+(locally `http://localhost:5001/auth/callback/github`), then set `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` in `apps/api/.env` and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true` in `apps/web/.env`.
 
 ### 5. Database Setup
 
@@ -191,7 +180,7 @@ Without a mail transport, both links are printed to the API log in development. 
 
 Password sign-in is limited to 10 attempts per address per 10 minutes on top of the per-IP limit, account creation to 10 per IP per hour, and outbound verification or reset links to 5 per address per 10 minutes.
 
-Sessions are cookie-based. The web app and the API are different hostnames on the same site, so the cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` whenever `NEXT_PUBLIC_API_URL` is `https://` — which is why both origins need HTTPS. Locally the Portless certificates cover that. Sessions last 30 days and refresh at most once a day; IP address tracking is off.
+Sessions are cookie-based. The web app and the API are different hostnames on the same site, so the cookie is `HttpOnly`, `SameSite=Lax`, and `Secure` whenever `NEXT_PUBLIC_API_URL` is `https://`, which is why both origins need HTTPS in production. Locally the apps share the `localhost` host over plain HTTP, so the cookie is still same-site and `Secure` is simply not set. Sessions last 30 days and refresh at most once a day; IP address tracking is off.
 
 Every non-`GET` request is additionally checked for an `Origin` matching `NEXT_PUBLIC_SITE_URL` (or a same-site `Sec-Fetch-Site`), so a `SameSite=Lax` cookie is not enough on its own to drive a state change from another site.
 

@@ -5,7 +5,7 @@
    "license": "MIT",
    "type": "module",
    "scripts": {
-      "dev": "portless web next dev",
+      "dev": "next dev",
       "build": "next build",
       "start": "next start",
       "lint": "eslint . --max-warnings 0",

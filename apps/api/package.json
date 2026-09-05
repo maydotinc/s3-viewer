@@ -5,7 +5,7 @@
    "license": "MIT",
    "type": "module",
    "scripts": {
-      "dev": "portless api tsx watch server.ts",
+      "dev": "tsx watch server.ts",
       "build": "tsup",
       "start": "pnpm --filter @s3-viewer/db db:generate && NODE_ENV=production node dist/server.js",
       "lint": "eslint . --max-warnings 0",

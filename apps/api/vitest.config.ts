@@ -13,8 +13,8 @@ export default defineConfig({
          DATABASE_URL: "postgresql://user:pass@localhost:5432/s3viewer",
          BETTER_AUTH_SECRET: "test-secret-at-least-thirty-two-chars",
          ENCRYPTION_PRIVATE_KEY: "test",
-         NEXT_PUBLIC_SITE_URL: "https://web.localhost",
-         NEXT_PUBLIC_API_URL: "https://api.localhost",
+         NEXT_PUBLIC_SITE_URL: "http://localhost:3000",
+         NEXT_PUBLIC_API_URL: "http://localhost:5001",
       },
    },
 });
