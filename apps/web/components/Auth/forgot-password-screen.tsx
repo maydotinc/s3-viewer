@@ -7,7 +7,6 @@ import { requestPasswordReset } from "@/lib/auth";
 import { useSessionState } from "@/lib/hooks/useSessionState";
 import { AUTH_LINK_TTL_HOURS, SITE_PATHS, emailSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
@@ -87,12 +86,6 @@ const ForgotPasswordScreen = () => {
                         Send reset link
                      </Button>
                   </form>
-                  <p className="mt-8 text-sm text-viewertext">
-                     Remembered it?{" "}
-                     <Link href={SITE_PATHS.login} className={TEXT_LINK}>
-                        Sign in
-                     </Link>
-                  </p>
                </>
             ) : (
                <>

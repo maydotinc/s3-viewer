@@ -7,6 +7,7 @@ import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { Send, X } from "lucide-react";
 import SettingsCard from "./card";
 import EmptyState from "./empty-state";
+import InvitePeople from "./invite-people";
 import {
    ExpiresCell,
    InviteTable,
@@ -87,6 +88,7 @@ const SentInvites = () => {
          flush
          title="Sent"
          description="Invites you've sent that haven't been accepted yet."
+         action={<InvitePeople />}
       >
          {body()}
       </SettingsCard>

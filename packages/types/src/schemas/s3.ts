@@ -5,6 +5,7 @@ import {
    bucketNameSchema,
    contentTypeSchema,
    idSchema,
+   isSafeKeyText,
    objectKeySchema,
 } from "./primitives";
 
@@ -26,7 +27,11 @@ const continuationTokenSchema = z
    .optional();
 
 export const listObjectsQuerySchema = bucketScope.extend({
-   prefix: z.string().max(MAX_PREFIX_LENGTH).default(""),
+   prefix: z
+      .string()
+      .max(MAX_PREFIX_LENGTH)
+      .refine(isSafeKeyText, "Invalid prefix")
+      .default(""),
    continuationToken: continuationTokenSchema,
    blockSize: z.coerce.number().int().min(1).max(MAX_LIST_BLOCK_SIZE),
 });

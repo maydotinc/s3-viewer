@@ -3,6 +3,7 @@ import { sendAuthLinkEmail } from "@s3-viewer/email";
 import {
    AUTH_BASE_PATH,
    AUTH_LINK_TTL_HOURS,
+   CLIENT_IP_HEADER,
    DAY_MS,
    HOUR_MS,
    MINUTE_MS,
@@ -18,7 +19,13 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { authEnv } from "./env";
 import { validateProfile } from "./profile";
-import { createThrottle, type Throttle } from "./throttle";
+import {
+   createThrottle,
+   perAddress,
+   perAddressAndIp,
+   type Throttle,
+   type ThrottleKey,
+} from "./throttle";
 import { onUserDeletion, userDeletionHooks } from "./user-deletion";
 import { localPart, normalizeEmail } from "./utils";
 
@@ -39,12 +46,23 @@ const withoutTokens = <T extends Record<string, unknown>>(account: T): T => ({
 });
 
 // per-address ceilings that the per-ip express limiter cannot give: a
-// password guess and an outbound link are each bounded per email too
+// password guess and an outbound link are each bounded per email too. sign-in
+// counts per ip and address so a single ip can't lock an address out, with a
+// far looser per-address backstop that still bounds distributed guessing
+type ThrottleRule = { throttle: Throttle; key: ThrottleKey };
+
 const mailThrottle = createThrottle(5, 10 * MINUTE_MS);
-const THROTTLES: Readonly<Record<string, Throttle>> = {
-   "/sign-in/email": createThrottle(10, 10 * MINUTE_MS),
-   "/send-verification-email": mailThrottle,
-   "/request-password-reset": mailThrottle,
+const byAddress = (throttle: Throttle): ThrottleRule => ({
+   throttle,
+   key: perAddress,
+});
+const THROTTLES: Readonly<Record<string, readonly ThrottleRule[]>> = {
+   "/sign-in/email": [
+      { throttle: createThrottle(10, 10 * MINUTE_MS), key: perAddressAndIp },
+      byAddress(createThrottle(60, 10 * MINUTE_MS)),
+   ],
+   "/send-verification-email": [byAddress(mailThrottle)],
+   "/request-password-reset": [byAddress(mailThrottle)],
 };
 
 const bodyEmail = (body: HookBody): string =>
@@ -114,14 +132,18 @@ const auth = betterAuth({
    },
    hooks: {
       before: createAuthMiddleware(async (ctx) => {
-         const throttle = THROTTLES[ctx.path];
+         const rules = THROTTLES[ctx.path];
          const email = bodyEmail(ctx.body as HookBody);
-         if (throttle && email && !throttle.allow(email)) {
-            throw new APIError("TOO_MANY_REQUESTS", {
-               message: "Too many attempts. Try again in a few minutes.",
-               code: "RATE_LIMITED",
-            });
-         }
+         if (!rules || !email) return;
+         // server-side auth.api calls carry no headers: they key on the
+         // address alone, like the mail throttles do
+         const ip = ctx.headers?.get(CLIENT_IP_HEADER) ?? "";
+         if (rules.every(({ throttle, key }) => throttle.allow(key(ip, email))))
+            return;
+         throw new APIError("TOO_MANY_REQUESTS", {
+            message: "Too many attempts. Try again in a few minutes.",
+            code: "RATE_LIMITED",
+         });
       }),
    },
    databaseHooks: {

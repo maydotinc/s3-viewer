@@ -16,7 +16,7 @@ Email [info@may.inc](mailto:info@may.inc?subject=S3%20Viewer%20security) with:
 - Acknowledgement within 3 business days.
 - A fix or a mitigation plan within 90 days of the report.
 - Coordinated disclosure: we ask that you keep the report private for up to
-  90 days, and we will credit you in the release notes unless you prefer otherwise.
+  90 days, and we will credit you in the fix unless you prefer otherwise.
 
 ## Known limitations
 

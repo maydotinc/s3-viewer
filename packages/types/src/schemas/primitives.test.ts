@@ -99,6 +99,17 @@ describe("objectKeySchema", () => {
       }
    });
 
+   it("rejects unpaired surrogates but keeps valid pairs", () => {
+      const high = String.fromCharCode(0xd800);
+      const low = String.fromCharCode(0xdc00);
+      for (const key of [high, `a/${high}b.txt`, `${low}.txt`, `pair${high}`]) {
+         expect(objectKeySchema.safeParse(key).success, key).toBe(false);
+      }
+      for (const key of ["emoji😀.txt", high + low]) {
+         expect(objectKeySchema.safeParse(key).success, key).toBe(true);
+      }
+   });
+
    it("still accepts printable characters next to the rejected range", () => {
       for (const key of ["space .txt", "tilde~.txt", "€uro.txt"]) {
          expect(objectKeySchema.safeParse(key).success, key).toBe(true);

@@ -2,15 +2,13 @@ import { env } from "@/lib/env";
 import { describeError, logger } from "@/lib/logger";
 import { invalidateS3Client } from "@/lib/s3/client-cache";
 import { recordAudit } from "@/lib/services/audit";
-import { addressedTo } from "@/lib/services/invites";
+import { addressedTo, liveInvite } from "@/lib/services/invites";
 import type { DeletedUser, UserDeletionHooks } from "@s3-viewer/auth";
 import { prisma } from "@s3-viewer/db";
 import { sendAccountDeletedEmail } from "@s3-viewer/email";
-import type { AccountSummary } from "@s3-viewer/types";
+import { MINUTE_MS, type AccountSummary } from "@s3-viewer/types";
 
 const DELETED_USER_TARGET = "[deleted user]";
-
-const liveInvite = () => ({ expiresAt: { gt: new Date() } });
 
 const accountSummary = async (
    user: Pick<DeletedUser, "id" | "email">
@@ -57,9 +55,23 @@ const accountSummary = async (
 // owned server ids are collected before the user row (and its cascade) is
 // gone, then their cached s3 clients are dropped only after the cascade, so a
 // request racing the deletion cannot refill the cache with credentials of a
-// server that no longer exists
-const ownedServersOf = new Map<string, string[]>();
+// server that no longer exists. a deleteUser that never reaches the second
+// hook would otherwise leave its entry behind for the life of the process
+const STASH_TTL_MS = 5 * MINUTE_MS;
+const ownedServersOf = new Map<string, { ids: string[]; at: number }>();
 
+const stashOwnedServers = (userId: string, ids: string[]): void => {
+   const now = Date.now();
+   for (const [key, stash] of ownedServersOf) {
+      if (now - stash.at > STASH_TTL_MS) ownedServersOf.delete(key);
+   }
+   ownedServersOf.set(userId, { ids, at: now });
+};
+
+// the address-matched erasure runs before the row goes because nothing can
+// retry it afterwards: a deletion that fails here leaves an account that is
+// merely missing its invites, one that failed after would leave its email in
+// the audit trail for good
 const eraseAccountData = async (user: DeletedUser): Promise<void> => {
    const ownedServerIds = await prisma.$transaction(async (tx) => {
       const owned = await tx.server.findMany({
@@ -75,11 +87,11 @@ const eraseAccountData = async (user: DeletedUser): Promise<void> => {
       });
       return owned.map((server) => server.id);
    });
-   ownedServersOf.set(user.id, ownedServerIds);
+   stashOwnedServers(user.id, ownedServerIds);
 };
 
 const finishAccountDeletion = async (user: DeletedUser): Promise<void> => {
-   const ownedServerIds = ownedServersOf.get(user.id) ?? [];
+   const ownedServerIds = ownedServersOf.get(user.id)?.ids ?? [];
    ownedServersOf.delete(user.id);
    for (const serverId of ownedServerIds) invalidateS3Client(serverId);
    await recordAudit({ action: "account.delete", actorId: user.id });

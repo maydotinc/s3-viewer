@@ -1,4 +1,5 @@
-import { ApiHttpError, noContent } from "@/lib/http";
+import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
+import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
 import { getAuth, type AuthContext } from "@/lib/middleware/authorize";
 import { serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
@@ -14,6 +15,7 @@ import { bucketGrantSelect } from "@/lib/services/members";
 import {
    assertBucketRemovable,
    isBucketAllowed,
+   isUniqueViolation,
    loadServerSettings,
    lockBucketScope,
 } from "@/lib/services/servers";
@@ -77,12 +79,17 @@ const assertBucketIsNew = async (
    if (exists) throw new ApiHttpError(409, `${bucketName} already exists`);
 };
 
-const listAllBuckets = async (client: S3Client): Promise<S3Bucket[]> => {
+const listAllBuckets = async (
+   client: S3Client,
+   signal: AbortSignal
+): Promise<S3Bucket[]> => {
    const buckets: S3Bucket[] = [];
    let token: string | undefined;
    for (let page = 0; page < MAX_BUCKET_PAGES; page++) {
       const out = await client
-         .send(new ListBucketsCommand({ ContinuationToken: token }))
+         .send(new ListBucketsCommand({ ContinuationToken: token }), {
+            abortSignal: signal,
+         })
          .catch(throwListBucketsError);
       for (const bucket of out.Buckets ?? []) {
          if (!bucket.Name) continue;
@@ -102,7 +109,8 @@ const listAllBuckets = async (client: S3Client): Promise<S3Bucket[]> => {
 
 const visibleBuckets = async (
    serverId: string,
-   { userId, serverRole }: AuthContext
+   { userId, serverRole }: AuthContext,
+   signal: AbortSignal
 ): Promise<S3Bucket[]> => {
    const scope = await loadServerSettings(serverId);
    if (serverRole !== Role.OWNER) {
@@ -118,14 +126,20 @@ const visibleBuckets = async (
    if (scope.restrictedBuckets) {
       return scope.allowedBuckets.map((name) => toBucket(name, Role.OWNER));
    }
-   return listAllBuckets(await getS3Client(serverId));
+   return listAllBuckets(await getS3Client(serverId), signal);
 };
 
 bucketsRouter.get(
    "/",
    ...serverRoute(Permission.LIST_BUCKETS, serverScope, async (req, res) => {
       const { serverId } = input<ServerScope>(res);
-      res.json({ buckets: await visibleBuckets(serverId, getAuth(res)) });
+      res.json({
+         buckets: await visibleBuckets(
+            serverId,
+            getAuth(res),
+            requestSignal(res, S3_ROUTE_TIMEOUT_MS)
+         ),
+      });
    })
 );
 
@@ -182,7 +196,11 @@ bucketsRouter.post(
             })
          );
       }
-      await prisma.$transaction(operations);
+      // the only unique row here is the creator's own grant, so losing that
+      // race to a twin request means the bucket and the grant both exist
+      await prisma.$transaction(operations).catch((err: unknown) => {
+         if (!isUniqueViolation(err)) throw err;
+      });
       await recordAudit({
          action: "bucket.create",
          actorId: userId,

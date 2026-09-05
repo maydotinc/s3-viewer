@@ -151,7 +151,7 @@ describe("existingKeys", () => {
 
    it("answers a whole batch from one listing under the common prefix", async () => {
       const { client, inputs } = fakeBucket(["up/a.txt", "up/c.txt", "other"]);
-      const result = await existingKeys(client, "b", [
+      const result = await existingKeys({ client, bucket: "b" }, [
          "up/c.txt",
          "up/a.txt",
          "up/b.txt",
@@ -165,7 +165,7 @@ describe("existingKeys", () => {
    it("never sends a prefix cut between the halves of a surrogate pair", async () => {
       const keys = ["\u{1F600}.txt", "\u{1F601}.txt"];
       const { client, inputs } = fakeBucket(keys);
-      const result = await existingKeys(client, "b", keys);
+      const result = await existingKeys({ client, bucket: "b" }, keys);
 
       const prefix = inputs[0]?.Prefix ?? "";
       expect(Buffer.from(prefix, "utf8").toString("utf8")).toBe(prefix);
@@ -175,7 +175,9 @@ describe("existingKeys", () => {
 
    it("reports nothing found without a single HeadObject", async () => {
       const { client, inputs } = fakeBucket(["other/a"]);
-      expect(await existingKeys(client, "b", ["up/a", "up/b"])).toEqual({
+      expect(
+         await existingKeys({ client, bucket: "b" }, ["up/a", "up/b"])
+      ).toEqual({
          existing: [],
          unresolved: [],
       });
@@ -187,7 +189,10 @@ describe("existingKeys", () => {
          ["a/1", "a/2", "a/3", "a/4", "a/5", "z/1"],
          3
       );
-      const result = await existingKeys(client, "b", ["a/1", "z/1"]);
+      const result = await existingKeys({ client, bucket: "b" }, [
+         "a/1",
+         "z/1",
+      ]);
       expect(result.existing.sort()).toEqual(["a/1", "z/1"]);
       expect(result.unresolved).toEqual([]);
       expect(inputs).toHaveLength(2);
@@ -198,7 +203,7 @@ describe("existingKeys", () => {
    it("never cuts a surrogate pair in half when it picks StartAfter", async () => {
       const key = "up/a\u{1F600}";
       const { client, inputs } = fakeBucket([key]);
-      const result = await existingKeys(client, "b", [key, "up/b"]);
+      const result = await existingKeys({ client, bucket: "b" }, [key, "up/b"]);
       expect(inputs[0]?.StartAfter).toBe("up/a");
       expect(result.existing).toEqual([key]);
    });
@@ -209,7 +214,7 @@ describe("existingKeys", () => {
          (_, i) => `k${String(i).padStart(2, "0")}`
       );
       const { client, inputs } = fakeBucket(keys, 1);
-      const result = await existingKeys(client, "b", keys);
+      const result = await existingKeys({ client, bucket: "b" }, keys);
       expect(inputs).toHaveLength(20);
       expect(result.existing).toHaveLength(20);
       expect(result.unresolved).toEqual(keys.slice(20));
@@ -225,7 +230,7 @@ describe("listKeysPage", () => {
             NextContinuationToken: "t1",
          },
       ]);
-      const page = await listKeysPage(client, "b", "f/", undefined);
+      const page = await listKeysPage({ client, bucket: "b" }, "f/", undefined);
       expect(inputs[0]).toMatchObject({ Prefix: "f/", MaxKeys: 1000 });
       expect(inputs[0]?.Delimiter).toBeUndefined();
       expect(page).toEqual({ keys: ["f/a", "f/b"], nextToken: "t1" });
@@ -236,11 +241,11 @@ describe("listKeysPage", () => {
          { Contents: [], IsTruncated: true, NextContinuationToken: "t1" },
          { Contents: [{ Key: "f/c" }], IsTruncated: false },
       ]);
-      expect(await listKeysPage(client, "b", "f/", "t1")).toEqual({
+      expect(await listKeysPage({ client, bucket: "b" }, "f/", "t1")).toEqual({
          keys: [],
          nextToken: null,
       });
-      expect(await listKeysPage(client, "b", "f/", "t1")).toEqual({
+      expect(await listKeysPage({ client, bucket: "b" }, "f/", "t1")).toEqual({
          keys: ["f/c"],
          nextToken: null,
       });

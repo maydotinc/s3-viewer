@@ -1,14 +1,11 @@
 import { AuthLayout, StepHeader } from "@/components/Auth/auth-layout";
 import SignInForm from "@/components/Auth/sign-in-form";
-import { TEXT_LINK } from "@/components/Auth/text-link";
 import FullPageSpinner from "@/components/Session/full-page-spinner";
 import { signInWithGithub } from "@/lib/auth";
 import { afterLoginPath } from "@/lib/auth-redirect";
 import { useSessionState } from "@/lib/hooks/useSessionState";
-import { SITE_PATHS } from "@s3-viewer/types";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { toast } from "@s3-viewer/ui/components/toast";
-import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 
@@ -17,27 +14,21 @@ type Mode = "login" | "signup";
 type AuthScreenProps = { mode: Mode };
 
 // both pages run one flow: a password signs in or, for a new address,
-// creates the account
+// creates the account. The switch between them is the header's account nav
 const COPY = {
    login: {
       title: "Welcome back",
       subtitle: "Enter your email and password.",
-      switchPrompt: "Don't have an account?",
-      switchLabel: "Create one",
-      switchHref: SITE_PATHS.signup,
    },
    signup: {
       title: "Create your account",
       subtitle: "Enter your email and pick a password.",
-      switchPrompt: "Already have an account?",
-      switchLabel: "Sign in",
-      switchHref: SITE_PATHS.login,
    },
 } as const;
 
 const NOTICES: Readonly<Record<string, string>> = {
-   reset: "Password updated. Sign in with your new password.",
-   failed: "Sign-in didn't complete. Try again.",
+   reset: "Password updated. Log in with your new password.",
+   failed: "Login didn't complete. Try again.",
 };
 
 const AuthScreen = ({ mode }: AuthScreenProps) => {
@@ -86,19 +77,11 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
 
    if (sessionState !== "signedOut") return <FullPageSpinner />;
 
-   const switchHref = {
-      pathname: copy.switchHref,
-      query:
-         destination === SITE_PATHS.dashboard
-            ? undefined
-            : { next: destination },
-   };
-
    return (
       <AuthLayout
          busy={
             leavingForGithub && (
-               <Spinner size="lg" label="Opening GitHub sign-in" />
+               <Spinner size="lg" label="Opening GitHub login" />
             )
          }
       >
@@ -120,12 +103,6 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
                }}
             />
          </div>
-         <p className="mt-8 text-sm text-viewertext">
-            {copy.switchPrompt}{" "}
-            <Link href={switchHref} className={TEXT_LINK}>
-               {copy.switchLabel}
-            </Link>
-         </p>
       </AuthLayout>
    );
 };

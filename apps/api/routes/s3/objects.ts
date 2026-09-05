@@ -1,15 +1,32 @@
+import {
+   MAX_EXISTS_HEADS,
+   OBJECT_EXISTS,
+   S3_ROUTE_TIMEOUT_MS,
+} from "@/lib/constants";
 import { env } from "@/lib/env";
-import { ApiHttpError, noContent } from "@/lib/http";
+import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
+import { logger } from "@/lib/logger";
 import { getAuth } from "@/lib/middleware/authorize";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
 import { deleteKeys } from "@/lib/s3/delete";
 import { isNotFound, throwHttpError, toHttpError } from "@/lib/s3/errors";
-import { contentDispositionFilename, encodeCopySource } from "@/lib/s3/keys";
-import { existingKeys, listKeysPage, listPage } from "@/lib/s3/listing";
+import {
+   contentDispositionFilename,
+   encodeCopySource,
+   inlineContentType,
+   inlineDisposition,
+} from "@/lib/s3/keys";
+import {
+   existingKeys,
+   listKeysPage,
+   listPage,
+   type S3Scope,
+} from "@/lib/s3/listing";
 import { presignedUrl } from "@/lib/s3/presign";
 import { recordAudit } from "@/lib/services/audit";
+import { loadServerSettings } from "@/lib/services/servers";
 import {
    declaredLength,
    exceedsLimit,
@@ -27,6 +44,7 @@ import {
    DeleteObjectCommand,
    GetObjectCommand,
    HeadObjectCommand,
+   type CopyObjectCommandInput,
    type HeadObjectCommandOutput,
    type S3Client,
 } from "@aws-sdk/client-s3";
@@ -34,6 +52,7 @@ import { Permission } from "@s3-viewer/permissions";
 import {
    DEFAULT_CONTENT_TYPE,
    MAX_RENAME_BYTES,
+   Provider,
    keysQuerySchema,
    listObjectsQuerySchema,
    mapLimit,
@@ -60,22 +79,29 @@ const EXISTS_LIST_THRESHOLD = 50;
 
 const objectsRouter = Router({ mergeParams: true });
 
-const headObject = (
+const routeScope = (
    client: S3Client,
    bucket: string,
+   res: Response
+): S3Scope => ({
+   client,
+   bucket,
+   signal: requestSignal(res, S3_ROUTE_TIMEOUT_MS),
+});
+
+const headObject = (
+   { client, bucket, signal }: S3Scope,
    key: string
 ): Promise<HeadObjectCommandOutput> =>
    client
-      .send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+      .send(new HeadObjectCommand({ Bucket: bucket, Key: key }), {
+         abortSignal: signal,
+      })
       .catch(throwHttpError);
 
-const objectExists = async (
-   client: S3Client,
-   bucket: string,
-   key: string
-): Promise<boolean> => {
+const objectExists = async (scope: S3Scope, key: string): Promise<boolean> => {
    try {
-      await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
+      await headObject(scope, key);
       return true;
    } catch (err) {
       if (isNotFound(err)) return false;
@@ -84,29 +110,43 @@ const objectExists = async (
 };
 
 const headExisting = (
-   client: S3Client,
-   bucket: string,
+   scope: S3Scope,
    keys: readonly string[]
 ): Promise<string[]> =>
-   mapLimit(keys, HEAD_CONCURRENCY, (key) =>
-      objectExists(client, bucket, key)
-   ).then((found) => keys.filter((_, i) => found[i]));
+   mapLimit(keys, HEAD_CONCURRENCY, (key) => objectExists(scope, key)).then(
+      (found) => keys.filter((_, i) => found[i])
+   );
 
 // one HeadObject per key bills the bucket owner for the whole batch, so past a
 // small batch the answer comes from listings and only the keys the page budget
-// couldn't reach fall back to heads
+// couldn't reach fall back to heads. past the head cap a key is reported as
+// existing: the client uses this to warn before overwriting, and a spare
+// "replace?" beats a silent overwrite
 const whichExist = async (
-   client: S3Client,
-   bucket: string,
+   scope: S3Scope,
    keys: string[]
 ): Promise<string[]> => {
-   if (keys.length <= EXISTS_LIST_THRESHOLD) {
-      return headExisting(client, bucket, keys);
-   }
-   const { existing, unresolved } = await existingKeys(client, bucket, keys);
-   if (unresolved.length === 0) return existing;
-   return [...existing, ...(await headExisting(client, bucket, unresolved))];
+   if (keys.length <= EXISTS_LIST_THRESHOLD) return headExisting(scope, keys);
+   const { existing, unresolved } = await existingKeys(scope, keys);
+   return [
+      ...existing,
+      ...(await headExisting(scope, unresolved.slice(0, MAX_EXISTS_HEADS))),
+      ...unresolved.slice(MAX_EXISTS_HEADS),
+   ];
 };
+
+const copyAttributes = (
+   head: HeadObjectCommandOutput
+): Partial<CopyObjectCommandInput> => ({
+   ...(head.StorageClass && { StorageClass: head.StorageClass }),
+   ...(head.ServerSideEncryption && {
+      ServerSideEncryption: head.ServerSideEncryption,
+   }),
+   ...(head.SSEKMSKeyId && { SSEKMSKeyId: head.SSEKMSKeyId }),
+   ...(head.BucketKeyEnabled !== undefined && {
+      BucketKeyEnabled: head.BucketKeyEnabled,
+   }),
+});
 
 const toMetadata = (head: HeadObjectCommandOutput): S3ObjectMetadata => ({
    contentType: head.ContentType ?? DEFAULT_CONTENT_TYPE,
@@ -131,8 +171,7 @@ objectsRouter.get(
          const client = await getS3Client(serverId);
          res.json(
             await listPage({
-               client,
-               bucket: bucketName,
+               ...routeScope(client, bucketName, res),
                prefix,
                continuationToken,
                blockSize,
@@ -152,7 +191,10 @@ objectsRouter.post(
             input<ObjectKeysInput>(res);
          const client = await getS3Client(serverId);
          const result: S3ObjectsExist = {
-            existing: await whichExist(client, bucketName, objectKeys),
+            existing: await whichExist(
+               routeScope(client, bucketName, res),
+               objectKeys
+            ),
          };
          res.json(result);
       }
@@ -179,13 +221,13 @@ objectsRouter.get(
       const { serverId, bucketName, objectKey } = input<ObjectScope>(res);
       const client = await getS3Client(serverId);
       const metadata = toMetadata(
-         await headObject(client, bucketName, objectKey)
+         await headObject({ client, bucket: bucketName }, objectKey)
       );
       const command = new GetObjectCommand({
          Bucket: bucketName,
          Key: objectKey,
-         ResponseContentType: metadata.contentType,
-         ResponseContentDisposition: "inline",
+         ResponseContentType: inlineContentType(metadata.contentType),
+         ResponseContentDisposition: inlineDisposition(metadata.contentType),
       });
       const preview: S3ObjectPreview & S3ObjectMetadata = {
          ...(await presignedUrl(client, command)),
@@ -273,7 +315,10 @@ objectsRouter.delete(
             input<ObjectKeysInput>(res);
          const { userId } = getAuth(res);
          const client = await getS3Client(serverId);
-         const result = await deleteKeys(client, bucketName, objectKeys);
+         const result = await deleteKeys(
+            routeScope(client, bucketName, res),
+            objectKeys
+         );
          await recordAudit({
             action: "object.delete",
             actorId: userId,
@@ -295,7 +340,11 @@ objectsRouter.get(
             input<KeysQuery>(res);
          const client = await getS3Client(serverId);
          res.json(
-            await listKeysPage(client, bucketName, prefix, continuationToken)
+            await listKeysPage(
+               routeScope(client, bucketName, res),
+               prefix,
+               continuationToken
+            )
          );
       }
    )
@@ -310,21 +359,20 @@ objectsRouter.post(
          const { serverId, bucketName, objectKey, newObjectKey } =
             input<RenameObjectInput>(res);
          const { userId } = getAuth(res);
-         const client = await getS3Client(serverId);
+         const [client, { provider }] = await Promise.all([
+            getS3Client(serverId),
+            loadServerSettings(serverId),
+         ]);
+         const scope: S3Scope = { client, bucket: bucketName };
 
          const [source, destinationExists] = await Promise.all([
-            headObject(client, bucketName, objectKey),
-            objectExists(client, bucketName, newObjectKey),
+            headObject(scope, objectKey),
+            objectExists(scope, newObjectKey),
          ]);
          if ((source.ContentLength ?? 0) > MAX_RENAME_BYTES) {
             throw new ApiHttpError(413, "Objects over 5 GB can't be renamed");
          }
-         if (destinationExists) {
-            throw new ApiHttpError(
-               409,
-               "An object with that name already exists"
-            );
-         }
+         if (destinationExists) throw new ApiHttpError(409, OBJECT_EXISTS);
 
          await client
             .send(
@@ -333,6 +381,12 @@ objectsRouter.post(
                   Key: newObjectKey,
                   CopySource: encodeCopySource(bucketName, objectKey),
                   MetadataDirective: "COPY",
+                  ...copyAttributes(source),
+                  // only s3 itself answers 412 instead of overwriting, so the
+                  // check-then-copy above stays the fallback everywhere else
+                  ...(Provider[provider] === Provider.S3 && {
+                     IfNoneMatch: "*",
+                  }),
                })
             )
             .catch(throwHttpError);
@@ -340,7 +394,31 @@ objectsRouter.post(
             .send(
                new DeleteObjectCommand({ Bucket: bucketName, Key: objectKey })
             )
-            .catch(throwHttpError);
+            .catch(async (err: unknown) => {
+               // a delete that timed out may still have landed, so the copy is
+               // only undone while the source is provably still there
+               const sourceRemains = await objectExists(scope, objectKey).catch(
+                  () => null
+               );
+               if (sourceRemains === false) return;
+               if (sourceRemains) {
+                  await client
+                     .send(
+                        new DeleteObjectCommand({
+                           Bucket: bucketName,
+                           Key: newObjectKey,
+                        })
+                     )
+                     .catch(() =>
+                        logger.warn("Rename left a copy behind", {
+                           bucket: bucketName,
+                           objectKey,
+                           newObjectKey,
+                        })
+                     );
+               }
+               return throwHttpError(err);
+            });
          await recordAudit({
             action: "object.rename",
             actorId: userId,

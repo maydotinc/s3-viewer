@@ -23,6 +23,33 @@ describe("listObjectsQuerySchema", () => {
       expect(parsed.continuationToken).toBeUndefined();
    });
 
+   it("rejects prefixes the SDK can't encode", () => {
+      for (const prefix of [
+         "/docs/",
+         `docs/${String.fromCharCode(0xd800)}`,
+         `docs/${String.fromCharCode(0x0a)}`,
+      ]) {
+         expect(
+            listObjectsQuerySchema.safeParse({
+               ...scope,
+               blockSize: "50",
+               prefix,
+            }).success,
+            prefix
+         ).toBe(false);
+      }
+      for (const prefix of ["", "docs/", "docs/😀/"]) {
+         expect(
+            listObjectsQuerySchema.safeParse({
+               ...scope,
+               blockSize: "50",
+               prefix,
+            }).success,
+            prefix
+         ).toBe(true);
+      }
+   });
+
    it("rejects out-of-range or non-integer blockSize", () => {
       expect(
          listObjectsQuerySchema.safeParse({ ...scope, blockSize: "0" }).success

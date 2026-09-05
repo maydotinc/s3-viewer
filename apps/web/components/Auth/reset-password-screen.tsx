@@ -1,7 +1,6 @@
 import { AuthLayout, StepHeader } from "@/components/Auth/auth-layout";
 import FieldMessage from "@/components/Auth/field-message";
 import PasswordInput from "@/components/Auth/password-input";
-import { TEXT_LINK } from "@/components/Auth/text-link";
 import { resetPassword } from "@/lib/auth";
 import {
    PASSWORD_MIN_LENGTH,
@@ -103,12 +102,6 @@ const ResetPasswordScreen = () => {
                Reset password
             </Button>
          </form>
-         <p className="mt-8 text-sm text-viewertext">
-            Remembered it?{" "}
-            <Link href={SITE_PATHS.login} className={TEXT_LINK}>
-               Sign in
-            </Link>
-         </p>
       </AuthLayout>
    );
 };

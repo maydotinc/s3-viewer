@@ -15,6 +15,10 @@ const CACHE_MAX_ENTRIES = 500;
 const CONNECTION_TIMEOUT_MS = 5000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 2;
+const AGENT_MAX_SOCKETS = 50;
+const AGENT_MAX_TOTAL_SOCKETS = 500;
+const AGENT_MAX_FREE_SOCKETS = 64;
+const AGENT_IDLE_TIMEOUT_MS = 60_000;
 
 type CacheEntry = { client: S3Client; expiresAt: number };
 const cache = new Map<string, CacheEntry>();
@@ -38,11 +42,19 @@ const endFill = (serverId: string): void => {
    generations.delete(serverId);
 };
 
-const httpAgent = new HttpAgent({ keepAlive: true, lookup: publicOnlyLookup });
-const httpsAgent = new HttpsAgent({
+// passing an agent makes the sdk keep it verbatim, so its socket caps are ours
+// to set
+const agentOptions = {
    keepAlive: true,
    lookup: publicOnlyLookup,
-});
+   maxSockets: AGENT_MAX_SOCKETS,
+   maxTotalSockets: AGENT_MAX_TOTAL_SOCKETS,
+   maxFreeSockets: AGENT_MAX_FREE_SOCKETS,
+   timeout: AGENT_IDLE_TIMEOUT_MS,
+};
+
+const httpAgent = new HttpAgent(agentOptions);
+const httpsAgent = new HttpsAgent(agentOptions);
 
 const buildClient = (
    credentials: ServerCredentials,

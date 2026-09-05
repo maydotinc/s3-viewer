@@ -1,4 +1,4 @@
-import { DeleteObjectsCommand, type S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import {
    S3_MAX_KEYS_PER_REQUEST,
    chunk,
@@ -6,10 +6,10 @@ import {
 } from "@s3-viewer/types";
 import { deleteFailureMessage } from "./classify";
 import { throwHttpError } from "./errors";
+import type { S3Scope } from "./listing";
 
 const deleteBatch = async (
-   client: S3Client,
-   bucket: string,
+   { client, bucket, signal }: S3Scope,
    keys: string[]
 ): Promise<S3DeleteResult> => {
    const out = await client
@@ -17,7 +17,8 @@ const deleteBatch = async (
          new DeleteObjectsCommand({
             Bucket: bucket,
             Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: false },
-         })
+         }),
+         { abortSignal: signal }
       )
       .catch(throwHttpError);
    return {
@@ -29,13 +30,12 @@ const deleteBatch = async (
 };
 
 const deleteKeys = async (
-   client: S3Client,
-   bucket: string,
+   scope: S3Scope,
    keys: readonly string[]
 ): Promise<S3DeleteResult> => {
    const result: S3DeleteResult = { deleted: [], failed: [] };
    for (const keyBatch of chunk(keys, S3_MAX_KEYS_PER_REQUEST)) {
-      const batch = await deleteBatch(client, bucket, keyBatch);
+      const batch = await deleteBatch(scope, keyBatch);
       result.deleted.push(...batch.deleted);
       result.failed.push(...batch.failed);
    }

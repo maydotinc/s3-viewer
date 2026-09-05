@@ -50,9 +50,12 @@ beforeEach(() => {
 });
 
 describe("eraseAccountData", () => {
-   it("runs the erasure inside one transaction", async () => {
+   it("collects the servers the user owns before the cascade", async () => {
       await eraseAccountData(user);
-      expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(tx.server.findMany).toHaveBeenCalledWith({
+         where: { ownerId: "user_1" },
+         select: { id: true },
+      });
    });
 
    it("deletes the invites addressed to the user's email", async () => {
@@ -102,6 +105,20 @@ describe("finishAccountDeletion", () => {
       await eraseAccountData(user);
       await finishAccountDeletion(user);
       expect(invalidateS3Client.mock.calls).toEqual([["srv_3"]]);
+   });
+
+   it("drops a stash whose deletion never came back", async () => {
+      vi.useFakeTimers();
+      try {
+         const ghost = { ...user, id: "user_ghost" };
+         await eraseAccountData(ghost);
+         vi.advanceTimersByTime(10 * 60 * 1000);
+         await eraseAccountData(user);
+         await finishAccountDeletion(ghost);
+         expect(invalidateS3Client).not.toHaveBeenCalled();
+      } finally {
+         vi.useRealTimers();
+      }
    });
 
    it("records the deletion against the user id with no target", async () => {

@@ -28,14 +28,9 @@ const sharePath = (serverId: string) =>
 
 const InvitePeople = () => {
    const router = useRouter();
-   const { servers, currentServer } = useServers();
+   const { servers, currentServer, isLoading } = useServers();
    const [open, setOpen] = useState(false);
    const [serverId, setServerId] = useState("");
-
-   const manageable = servers.filter((server) =>
-      hasPermission(server.userRole, Permission.MANAGE_MEMBERS)
-   );
-   if (manageable.length === 0) return null;
 
    const label = (
       <>
@@ -43,6 +38,21 @@ const InvitePeople = () => {
          Invite people
       </>
    );
+
+   // holds the button's place while the server list loads, so the card header
+   // does not gain a button after it renders
+   if (isLoading) {
+      return (
+         <Button className="invisible" aria-hidden="true" tabIndex={-1}>
+            {label}
+         </Button>
+      );
+   }
+
+   const manageable = servers.filter((server) =>
+      hasPermission(server.userRole, Permission.MANAGE_MEMBERS)
+   );
+   if (manageable.length === 0) return null;
 
    const only = manageable.length === 1 ? manageable[0] : undefined;
    if (only) {

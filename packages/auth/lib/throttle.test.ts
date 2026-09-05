@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createThrottle } from "./throttle";
+import { createThrottle, perAddress, perAddressAndIp } from "./throttle";
 
 describe("createThrottle", () => {
    it("allows up to the limit inside the window and refuses after", () => {
@@ -28,6 +28,20 @@ describe("createThrottle", () => {
       expect(throttle.allow("a", 0)).toBe(true);
       expect(throttle.allow("a", 900)).toBe(false);
       expect(throttle.allow("a", 1000)).toBe(true);
+   });
+
+   it("counts one address separately per client ip", () => {
+      const throttle = createThrottle(1, 1000);
+      const email = "ada@example.com";
+      expect(throttle.allow(perAddressAndIp("1.1.1.1", email), 0)).toBe(true);
+      expect(throttle.allow(perAddressAndIp("1.1.1.1", email), 0)).toBe(false);
+      expect(throttle.allow(perAddressAndIp("2.2.2.2", email), 0)).toBe(true);
+      expect(throttle.allow(perAddress("2.2.2.2", email), 0)).toBe(true);
+   });
+
+   it("still composes a key when no client ip is known", () => {
+      expect(perAddressAndIp("", "ada@example.com")).toBe(":ada@example.com");
+      expect(perAddress("", "ada@example.com")).toBe("ada@example.com");
    });
 
    it("sweeps expired keys so memory stays bounded", () => {

@@ -8,6 +8,9 @@ import {
    grantBucketRoles,
    grantServerRole,
    inviteSelect,
+   liveInvite,
+   senderCanStillGrant,
+   stillGrantable,
    toServerInvite,
 } from "@/lib/services/invites";
 import { bucketGrantSelect } from "@/lib/services/members";
@@ -27,11 +30,13 @@ const sameEmail = (a: string, b: string): boolean =>
 const listReceived = async (req: Request, res: Response) => {
    const user = requireVerifiedUser(req);
    const rows = await prisma.pendingInvitation.findMany({
-      where: { email: addressedTo(user.email), expiresAt: { gt: new Date() } },
+      where: { email: addressedTo(user.email), ...liveInvite() },
       select: inviteSelect,
       orderBy: { createdAt: "desc" },
    });
-   res.json({ invites: rows.map(toServerInvite) });
+   res.json({
+      invites: (await stillGrantable(prisma, rows)).map(toServerInvite),
+   });
 };
 
 // a sender who has since lost MANAGE_MEMBERS gets nothing to act on
@@ -44,6 +49,7 @@ const listSent = async (req: Request, res: Response) => {
    const rows = await prisma.pendingInvitation.findMany({
       where: {
          invitedById: user.id,
+         ...liveInvite(),
          server: {
             serverAccess: {
                some: { userId: user.id, role: { in: MANAGING_ROLES } },
@@ -67,6 +73,7 @@ const acceptInvite = async (req: Request, res: Response) => {
             role: true,
             expiresAt: true,
             serverId: true,
+            invitedById: true,
             server: { select: serverInfoSelect },
             bucketAccess: { select: bucketGrantSelect },
          },
@@ -74,7 +81,8 @@ const acceptInvite = async (req: Request, res: Response) => {
       if (
          !invite ||
          !sameEmail(invite.email, user.email) ||
-         invite.expiresAt <= new Date()
+         invite.expiresAt <= new Date() ||
+         !(await senderCanStillGrant(tx, invite))
       ) {
          throw new ApiHttpError(404, NOT_FOUND);
       }

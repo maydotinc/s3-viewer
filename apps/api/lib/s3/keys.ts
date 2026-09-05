@@ -24,4 +24,30 @@ const contentDispositionFilename = (objectKey: string): string => {
    return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeRfc5987(clean)}`;
 };
 
-export { contentDispositionFilename, encodeCopySource };
+// a presigned url is served from the storage origin, so markup that can carry
+// script must never render there: html and xml come back as plain text, and
+// svg (which <img> needs served as svg) comes back as a download when opened
+// directly, which <img> ignores
+const SCRIPTABLE_TEXT: ReadonlySet<string> = new Set([
+   "text/html",
+   "application/xhtml+xml",
+   "text/xml",
+   "application/xml",
+]);
+const SVG = "image/svg+xml";
+
+const mediaType = (stored: string): string =>
+   stored.split(";")[0]?.trim().toLowerCase() ?? "";
+
+const inlineContentType = (stored: string): string =>
+   SCRIPTABLE_TEXT.has(mediaType(stored)) ? "text/plain" : stored;
+
+const inlineDisposition = (stored: string): "inline" | "attachment" =>
+   mediaType(stored) === SVG ? "attachment" : "inline";
+
+export {
+   contentDispositionFilename,
+   encodeCopySource,
+   inlineContentType,
+   inlineDisposition,
+};

@@ -11,6 +11,7 @@ import {
    inviteExpiry,
    inviteSelect,
    invitesUrl,
+   liveInvite,
    toServerInvite,
 } from "@/lib/services/invites";
 import { assertBucketGrants, loadGrantingActor } from "@/lib/services/members";
@@ -38,7 +39,7 @@ const serverInvitesRouter: Router = Router();
 const getInvites = async (_req: Request, res: Response) => {
    const { serverId } = input<ServerScope>(res);
    const rows = await prisma.pendingInvitation.findMany({
-      where: { serverId },
+      where: { serverId, ...liveInvite() },
       select: inviteSelect,
       orderBy: { createdAt: "desc" },
    });
@@ -62,7 +63,7 @@ const assertCanReplaceInvites = async (
    actorRole: Role
 ): Promise<void> => {
    const existing = await prisma.pendingInvitation.findMany({
-      where: { serverId, email: { in: emails }, expiresAt: { gt: new Date() } },
+      where: { serverId, email: { in: emails }, ...liveInvite() },
       select: { email: true, role: true },
    });
    const blocked = existing.find(

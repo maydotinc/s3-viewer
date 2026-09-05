@@ -31,17 +31,22 @@ const values = [
    },
 ];
 
-type TeamMember = {
+export type TeamMember = {
    name: string;
+   /** Displayed on the page. */
    role: string;
    profile: string;
    github?: string;
    twitter?: string;
    linkedin?: string;
    website?: string;
+   /** Canonical schema.org @id when this person is defined elsewhere (e.g. may.inc). */
+   schemaId?: string;
+   /** schema.org jobTitle when it differs from the displayed role. */
+   jobTitle?: string;
 };
 
-const team: TeamMember[] = [
+export const team: TeamMember[] = [
    {
       name: "Michael Papadopoulos",
       role: "Engineering",
@@ -63,6 +68,8 @@ const team: TeamMember[] = [
       github: "https://github.com/aleemrehmtulla",
       twitter: "https://x.com/aleemrehmtulla",
       website: "https://aleemrehmtulla.com",
+      schemaId: "https://may.inc/aleem#person",
+      jobTitle: "Founder & Director of Technology",
    },
    {
       name: "Noah Gomes",

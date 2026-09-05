@@ -24,8 +24,11 @@ const beyondAbsoluteTtl = (createdAt: Date): boolean =>
    Date.now() - createdAt.getTime() > ABSOLUTE_TTL_MS;
 
 const authGuard = asyncHandler(async (req, res, next) => {
+   // the signed cookie cache would keep serving a revoked session until it
+   // expires (60 s), so every api request pays one read of the session row
    const session = await auth.api.getSession({
       headers: fromNodeHeaders(req.headers),
+      query: { disableCookieCache: true },
    });
    if (!session || beyondAbsoluteTtl(new Date(session.session.createdAt))) {
       fail(res, 401, "Sign in required");

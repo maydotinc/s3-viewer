@@ -14,6 +14,18 @@ import SettingsCard from "./card";
 
 const NAME_MAX = 80;
 
+// name and email share a row; each carries a reserved line underneath (the
+// name's error, the email's note), so the row never changes height
+const FIELDS = "grid gap-4 sm:grid-cols-2";
+
+const FieldSkeleton = () => (
+   <div className="flex flex-col gap-2">
+      <Skeleton className="h-3.5 w-12" />
+      <Skeleton className="h-9 w-full rounded-lg" />
+      <Skeleton className="h-5 w-40" />
+   </div>
+);
+
 const ProfileCard = () => {
    const { data: session } = authClient.useSession();
    const user = session?.user;
@@ -39,10 +51,18 @@ const ProfileCard = () => {
 
    if (!user) {
       return (
-         <SettingsCard title="Profile">
+         <SettingsCard
+            title="Profile"
+            description="How you appear to the people you share servers with."
+         >
             <div className="flex flex-col gap-4" aria-busy="true">
-               <Skeleton className="h-9 w-full rounded-lg" />
-               <Skeleton className="h-9 w-full rounded-lg" />
+               <div className={FIELDS}>
+                  <FieldSkeleton />
+                  <FieldSkeleton />
+               </div>
+               <div className="flex justify-end">
+                  <Skeleton className="h-9 w-16 rounded-lg" />
+               </div>
             </div>
          </SettingsCard>
       );
@@ -67,41 +87,53 @@ const ProfileCard = () => {
          description="How you appear to the people you share servers with."
       >
          <form onSubmit={submitName} className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-               <Label htmlFor="profile-name">Name</Label>
-               <Input
-                  id="profile-name"
-                  value={name}
-                  maxLength={NAME_MAX}
-                  autoComplete="name"
-                  aria-invalid={nameError ? true : undefined}
-                  onChange={(event) => {
-                     setName(event.target.value);
-                     if (nameError) setNameError(null);
-                  }}
-               />
-               <FormError>{nameError}</FormError>
-            </div>
-            <div className="flex flex-col gap-2">
-               <Label htmlFor="profile-email">Email</Label>
-               <Input id="profile-email" value={user.email} disabled readOnly />
-               <p className="text-xs text-viewertext">
-                  Email can&rsquo;t be changed.
-                  {!user.emailVerified && (
-                     <>
-                        {" "}
-                        Not verified yet.{" "}
-                        <button
-                           type="button"
-                           disabled={resend.isPending}
-                           onClick={() => resend.mutate(user.email)}
-                           className={TEXT_LINK}
-                        >
-                           Resend verification email
-                        </button>
-                     </>
-                  )}
-               </p>
+            <div className={FIELDS}>
+               <div className="flex flex-col gap-2">
+                  <Label htmlFor="profile-name">Name</Label>
+                  <Input
+                     id="profile-name"
+                     value={name}
+                     maxLength={NAME_MAX}
+                     autoComplete="name"
+                     aria-invalid={nameError ? true : undefined}
+                     aria-describedby="profile-name-message"
+                     onChange={(event) => {
+                        setName(event.target.value);
+                        if (nameError) setNameError(null);
+                     }}
+                  />
+                  <FormError id="profile-name-message">{nameError}</FormError>
+               </div>
+               <div className="flex flex-col gap-2">
+                  <Label htmlFor="profile-email">Email</Label>
+                  <Input
+                     id="profile-email"
+                     value={user.email}
+                     disabled
+                     readOnly
+                     aria-describedby="profile-email-message"
+                  />
+                  <p
+                     id="profile-email-message"
+                     className="min-h-5 text-xs leading-5 text-viewertext"
+                  >
+                     {user.emailVerified ? (
+                        "Email can’t be changed."
+                     ) : (
+                        <>
+                           Not verified yet.{" "}
+                           <button
+                              type="button"
+                              disabled={resend.isPending}
+                              onClick={() => resend.mutate(user.email)}
+                              className={TEXT_LINK}
+                           >
+                              Resend verification email
+                           </button>
+                        </>
+                     )}
+                  </p>
+               </div>
             </div>
             <div className="flex justify-end">
                <Button

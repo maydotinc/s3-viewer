@@ -24,6 +24,9 @@ type Input = { current: string | null; next: string };
 
 const FRESH_SESSION_MS = SESSION_FRESH_HOURS * HOUR_MS;
 
+// the same two-column field row as the profile card above it
+const FIELDS = "grid gap-4 sm:grid-cols-2";
+
 // a first password claims the account outright, so like account deletion
 // it needs a session younger than 24 hours; the api enforces the same
 const isStale = (createdAt: Date | string): boolean =>
@@ -94,39 +97,45 @@ const PasswordForm = ({ hasPassword }: { hasPassword: boolean }) => {
 
    return (
       <form onSubmit={submit} className="flex flex-col gap-4">
-         {hasPassword && (
+         <div className={FIELDS}>
+            {hasPassword && (
+               <div className="flex flex-col gap-2">
+                  <Label htmlFor="current-password">Current password</Label>
+                  <PasswordInput
+                     id="current-password"
+                     autoComplete="current-password"
+                     value={current}
+                     disabled={save.isPending}
+                     onChange={(event) => {
+                        setCurrent(event.target.value);
+                        if (error) setError(null);
+                     }}
+                  />
+               </div>
+            )}
             <div className="flex flex-col gap-2">
-               <Label htmlFor="current-password">Current password</Label>
+               <Label htmlFor="new-password">
+                  {hasPassword ? "New password" : "Password"}
+               </Label>
                <PasswordInput
-                  id="current-password"
-                  autoComplete="current-password"
-                  value={current}
+                  id="new-password"
+                  autoComplete="new-password"
+                  value={next}
                   disabled={save.isPending}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby="new-password-message"
                   onChange={(event) => {
-                     setCurrent(event.target.value);
+                     setNext(event.target.value);
                      if (error) setError(null);
                   }}
                />
+               <FormError
+                  id="new-password-message"
+                  hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+               >
+                  {error}
+               </FormError>
             </div>
-         )}
-         <div className="flex flex-col gap-2">
-            <Label htmlFor="new-password">
-               {hasPassword ? "New password" : "Password"}
-            </Label>
-            <PasswordInput
-               id="new-password"
-               autoComplete="new-password"
-               value={next}
-               disabled={save.isPending}
-               aria-invalid={error ? true : undefined}
-               onChange={(event) => {
-                  setNext(event.target.value);
-                  if (error) setError(null);
-               }}
-            />
-            <FormError hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}>
-               {error}
-            </FormError>
          </div>
          <div className="flex justify-end">
             <Button type="submit" loading={save.isPending} disabled={!ready}>
@@ -149,13 +158,21 @@ const PasswordCard = () => {
 
    if (isLoading || error) {
       return (
-         <SettingsCard title="Password">
+         <SettingsCard title="Password" description={description}>
             {error ? (
                <p className="text-sm text-viewertextred">{error.message}</p>
             ) : (
                <div className="flex flex-col gap-4" aria-busy="true">
-                  <Skeleton className="h-9 w-full rounded-lg" />
-                  <Skeleton className="h-9 w-full rounded-lg" />
+                  <div className={FIELDS}>
+                     <div className="flex flex-col gap-2">
+                        <Skeleton className="h-3.5 w-20" />
+                        <Skeleton className="h-9 w-full rounded-lg" />
+                        <Skeleton className="h-5 w-40" />
+                     </div>
+                  </div>
+                  <div className="flex justify-end">
+                     <Skeleton className="h-9 w-28 rounded-lg" />
+                  </div>
                </div>
             )}
          </SettingsCard>

@@ -38,5 +38,12 @@ const createThrottle = (limit: number, windowMs: number): Throttle => {
    };
 };
 
-export { createThrottle };
-export type { Throttle };
+// keying a sign-in throttle on the address alone lets anyone lock a victim
+// out from any ip; the address is still a key, just a much looser one
+type ThrottleKey = (ip: string, email: string) => string;
+
+const perAddress: ThrottleKey = (_ip, email) => email;
+const perAddressAndIp: ThrottleKey = (ip, email) => `${ip}:${email}`;
+
+export { createThrottle, perAddress, perAddressAndIp };
+export type { Throttle, ThrottleKey };

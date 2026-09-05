@@ -1,7 +1,29 @@
-import About from "@/components/About";
+import About, { team } from "@/components/About";
 import Layout from "@/components/Layout";
 import Seo from "@/components/Seo";
-import { SITE_URL } from "@/lib/site-config";
+import { MAY_URL, SITE_URL } from "@/lib/site-config";
+
+// Match the @ids used on may.inc so both sites describe the same entities.
+const ORGANIZATION_ID = `${MAY_URL}#organization`;
+
+const people = team.map((member) => ({
+   "@context": "https://schema.org",
+   "@type": "Person",
+   "@id": member.schemaId ?? `${SITE_URL}/about#${member.profile}`,
+   name: member.name,
+   jobTitle: member.jobTitle ?? member.role,
+   image: `${SITE_URL}/landing/profiles/${member.profile}.png`,
+   ...(member.website ? { url: member.website } : {}),
+   worksFor: { "@id": ORGANIZATION_ID },
+   sameAs: [
+      member.website,
+      member.github,
+      member.twitter,
+      member.linkedin,
+   ].filter(Boolean),
+}));
+
+const founder = team.find((member) => member.profile === "aleem");
 
 const AboutPage = () => {
    const jsonLd = [
@@ -16,13 +38,29 @@ const AboutPage = () => {
       {
          "@context": "https://schema.org",
          "@type": "Organization",
+         "@id": ORGANIZATION_ID,
          name: "May Inc.",
-         url: "https://may.inc",
+         url: MAY_URL,
          logo: "https://cdn-may.com/assets/may-square-512x512.png",
          description:
             "May Inc. is the studio behind S3 Viewer and other open-source developer tools.",
-         sameAs: ["https://github.com/maydotinc", "https://may.inc"],
+         sameAs: ["https://github.com/maydotinc", MAY_URL],
+         ...(founder
+            ? {
+                 founder: {
+                    "@type": "Person",
+                    "@id": founder.schemaId,
+                    name: founder.name,
+                 },
+              }
+            : {}),
+         member: people.map((person) => ({
+            "@type": "Person",
+            "@id": person["@id"],
+            name: person.name,
+         })),
       },
+      ...people,
    ];
 
    return (

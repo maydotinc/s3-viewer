@@ -35,8 +35,9 @@ tables), Linear (density and motion), Kytelink and Koala (general UI).
    Nothing else: no 20, 28 or 40.
 8. **One primary button per surface.** Right-aligned. No Cancel next to an X.
 9. **Tabs for siblings, pages for children.** Two or more peer collections on
-   one screen (members / pending invites, profile / invites) are tabs above a
-   single card, never stacked cards the user has to scroll past.
+   one screen (members / pending invites) are tabs above a single card, never
+   stacked cards the user has to scroll past. Settings sections are pages
+   behind a nav column, not tabs.
 10.   **Sentence case, plain words, no exclamation marks.**
 
 ## 1. Colour
@@ -177,17 +178,21 @@ tables and menus, never badges.
 
 ### Tabs (`src/components/tabs.tsx`)
 
-The switch between sibling collections and settings sections. A `TabList`
-row `h-10` on a full-width hairline (`border-b border-viewerborder`); items
-`h-10 px-3 text-sm font-medium`, inactive `text-viewertext` hover
-`text-viewerblack`, active `text-viewerblack`. Two sliding indicators, both
-`transition-[transform,width] duration-200 ease-out`: a `bg-viewergray
-rounded-md` hover pill (`inset-y-1.5`) that follows the pointer, and a 2px
-`bg-viewerblack` underline under the active item that overlaps the hairline
-(`-bottom-px`). Optional `count` renders as `text-viewerlighttext tabular-nums`
-after the label, and the underline follows the label when the count arrives
-(the list observes the active item). `TabLink` (routes, `aria-current="page"`,
-wrapped in a `nav`) and `TabButton` (`role="tab"`, `aria-selected`, with `id`
+The switch between sibling collections on one screen. A `TabList` row `h-10`
+on a full-width hairline (`border-b border-viewerborder`); each item fills the
+row's height and holds a `h-7 rounded-md px-3 text-sm font-medium` label,
+inactive `text-viewertext`, active `text-viewerblack`. Hover is a static fill
+on that label (`bg-viewergray`, `transition-colors`), nothing slides to meet
+the pointer. One sliding indicator, `transition-[transform,width] duration-200
+ease-out`: a 2px `bg-viewerblack` underline under the active item that
+overlaps the hairline (`-bottom-px`). It is measured before the first paint,
+so a freshly loaded page shows it in place with no fade or slide; it animates
+only afterwards, when the tab changes or a label resizes. Optional `count`
+renders as `text-viewerlighttext tabular-nums` after the label, and the
+underline follows the active label when any label's width changes (the list
+observes every item). `TabLink` (routes,
+`aria-current="page"`, wrapped in a `nav`) and `TabButton` (`role="tab"`,
+`aria-selected`, with `id`
 
 - `aria-controls` pointing at a `role="tabpanel"` that carries
   `aria-labelledby`; ←/→/Home/End move and activate) share the styling. Tabs
@@ -289,7 +294,7 @@ clip with an arbitrary `max-w-[Npx]`.
 | Dialogs and overlays         | None. Appear and disappear instantly.                         |
 | Menus, selects, tooltips     | `animate-fade-in` (120 ms, opacity + 2px rise); close instant |
 | Submenus                     | None (must be readable the instant the pointer arrives)       |
-| Tab hover pill and underline | `transition-[transform,width] duration-200 ease-out`          |
+| Tab underline                | `transition-[transform,width] duration-200 ease-out`          |
 | Hover fills                  | `transition-colors duration-150`                              |
 | Spinner, toast               | Their own                                                     |
 
@@ -329,14 +334,24 @@ characters `font-semibold text-viewerblue`.
   the field), Server role select, Bucket access list (hairline rows: checkbox
    - name + `sm` role select, "Select all" link in the section heading row),
      footer "Send invite" / "Send 3 invites".
-- **Settings** `/settings`: header "Settings" (+ action for the current tab),
-  tabs **Profile** / **Invites** (`TabLink`s to `/settings/profile` and
-  `/settings/invites`), content in a `max-w-3xl` column. Profile = one card
-  (name editable, email read-only) and the **Delete account** card
-  (`border-viewertextred/30`, description of what deletion means, one
-  destructive button). Invites = **Received** and **Sent** flush cards; the
-  one "Invite people" button lives in the page header. `/invites` redirects
-  here.
+- **Settings** `/settings`: header "Settings", then a section nav beside the
+  content (`gap-8`): a `w-48` column of sidebar-style rows (`h-9 rounded-lg
+  px-2 gap-2.5 text-sm`, icon `size-4`, active `bg-viewergray text-viewerblack
+  font-medium`, hover `bg-viewergray/70`, `gap-1` between rows) linking to
+  `/settings/profile` and `/settings/invites`; below `md` the rows become a
+  horizontal strip above the content. The active row is a fill, so a route
+  change needs no animation. Content in a `max-w-3xl` column that is the same
+  on every section, and the header never changes between sections. Profile =
+  the **Profile** card (name and read-only email side by side in a `sm:grid-
+  cols-2` row, each with a reserved `min-h-5` line under it: the name's error,
+  the email's note; an unverified address gets "Not verified yet. Resend
+  verification email" as a text link there), the **Password** card (same
+  two-column row: current + new, or just new when the account has none) and the
+  **Delete account** card (`border-viewertextred/30`, description of what
+  deletion means, one destructive button). Invites = **Received** and
+  **Sent** flush cards; the one "Invite people" button is the Sent card's
+  header action, held by an `invisible` placeholder while the server list
+  loads. `/invites` redirects here.
 - **Delete account**: the dialog lists exactly what will be deleted (owned
   servers by name with member counts, memberships left, invites revoked),
   what is kept (anonymised audit entries) and what is untouched (buckets and
@@ -344,9 +359,14 @@ characters `font-semibold text-viewerblue`.
   is sent to sign in again first. Success signs out, shows a toast and sends
   a confirmation email.
 - **Login / sign-up / forgot password / reset password** `/login`,
-  `/signup`, `/forgot-password`, `/reset-password`: `AuthLayout` = logo
-  top-left (`left-6 top-6`, `sm:left-12 sm:top-10`), a `max-w-sm` column
-  centred in the left half, legal line `mt-10` ("Terms of Service",
+  `/signup`, `/forgot-password`, `/reset-password`: `AuthLayout` = a header
+  row on the logo's line (`inset-x-6 top-6`, `sm:inset-x-12 sm:top-10`, `h-8`):
+  logo left, and right a `text-sm text-viewertext` prompt with one text link
+  (`TEXT_LINK`): "Don't have an account? Sign up" on login, "Already have an
+  account? Log in" on sign-up, "Remembered it? Log in" on the password
+  screens; the prompt hides below `sm` and a `?next=` survives the switch.
+  Nothing under the form repeats it: the header is the one switch. A `max-w-sm`
+  column centred in the left half, legal line `mt-10` ("Terms of Service",
   "Privacy Policy"), brand panel on the right from `lg`. Screen =
   `.text-title` + one `text-sm` sentence, `mt-8` to the form. Fields stack
   `gap-4`; the message line under a field (`min-h-5`, error in red,
@@ -359,10 +379,6 @@ characters `font-semibold text-viewerblue`.
   Sign-in and sign-up are the same screen with different words: a password
   signs in or creates the account. Multi-step screens keep the first step's
   height (`useStepHeight`) so nothing below them moves.
-- **Settings → Profile** also has a **Password** card (current + new, or just
-  new when the account has none; primary right-aligned, hint on the reserved
-  line) and, for an unverified address, "Not verified yet. Resend
-  verification email" as a text link in the email hint.
 - **Profile menu**: name/email header, Settings (`g s`), Support (opens
   `/contact`), separator, Sign out.
 - **Landing `/contact`**: hero + three cards (email, GitHub issues, built by

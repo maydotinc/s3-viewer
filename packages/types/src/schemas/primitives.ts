@@ -20,14 +20,21 @@ export const bucketNameSchema = z
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
+// a lone surrogate can't be utf-8 encoded, so encodeURIComponent throws on it
+const LONE_SURROGATE = /\p{Surrogate}/u;
+
+export const isSafeKeyText = (value: string): boolean =>
+   !value.startsWith("/") &&
+   !CONTROL_CHARS.test(value) &&
+   !LONE_SURROGATE.test(value);
+
 export const objectKeySchema = z
    .string()
    .min(1)
    .max(1024)
    .refine(
       (k) =>
-         !k.startsWith("/") &&
-         !CONTROL_CHARS.test(k) &&
+         isSafeKeyText(k) &&
          k.split("/").every((seg, i, arr) => {
             const last = i === arr.length - 1;
             if (seg === "") return last;

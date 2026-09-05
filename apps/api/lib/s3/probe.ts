@@ -48,7 +48,12 @@ const canHeadBucket = async (
          abortSignal,
       });
       return true;
-   } catch {
+   } catch (err) {
+      // only an answer from the storage service means "no access"; a dead host
+      // must fail the whole call instead of reporting every bucket unreachable
+      if (!(err instanceof S3ServiceException)) {
+         throw probeFailure(err, "Validate buckets", classifyBucketError);
+      }
       return false;
    }
 };

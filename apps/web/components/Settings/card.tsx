@@ -28,7 +28,7 @@ const SettingsCard = ({
    >
       <div
          className={cn(
-            "flex items-start justify-between gap-4",
+            "flex items-center justify-between gap-4",
             flush && "border-b border-viewerborder px-6 pt-5 pb-4"
          )}
       >

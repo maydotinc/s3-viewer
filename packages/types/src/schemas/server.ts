@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_VALIDATE_BUCKETS } from "../constants";
 import {
    bucketNameListSchema,
    encryptedCredentialsSchema,
@@ -13,7 +14,12 @@ export type EstablishInput = z.infer<typeof establishSchema>;
 
 export const validateBucketsSchema = z.object({
    encryptedCredentials: encryptedCredentialsSchema,
-   bucketNames: bucketNameListSchema.refine((v) => v.length > 0),
+   bucketNames: bucketNameListSchema
+      .refine((v) => v.length > 0)
+      .refine(
+         (v) => v.length <= MAX_VALIDATE_BUCKETS,
+         `Check at most ${MAX_VALIDATE_BUCKETS} buckets at a time`
+      ),
 });
 export type ValidateBucketsInput = z.infer<typeof validateBucketsSchema>;
 

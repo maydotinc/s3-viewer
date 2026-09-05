@@ -5,8 +5,8 @@ import { SITE_PATHS } from "@s3-viewer/types";
 const LoginPage = () => (
    <>
       <Seo
-         title="Sign in"
-         description="Sign in to S3 Viewer with your email and password, or with GitHub."
+         title="Log in"
+         description="Log in to S3 Viewer with your email and password, or with GitHub."
          canonical={SITE_PATHS.login}
          noindex={false}
       />

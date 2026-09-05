@@ -14,7 +14,7 @@ import {
    removeMembership,
    replaceBucketAccess,
 } from "@/lib/services/members";
-import { loadServerSettings } from "@/lib/services/servers";
+import { isMissingRow, loadServerSettings } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
 import { Permission, rankOf } from "@s3-viewer/permissions";
 import {
@@ -47,12 +47,19 @@ const updateRole = async (_req: Request, res: Response) => {
       assertBucketGrantChanges(actor, scope, current, bucketAccess);
    }
    const newRole = Role[role];
+   // a bucket grant may outrank the server role on purpose (the picker caps
+   // by the actor's rank, not the target's); only a demotion pulls them down
    const demoted = rankOf(newRole) < rankOf(targetRole);
    await prisma.$transaction(async (tx) => {
-      await tx.serverAccess.update({
-         where: { userId_serverId: { userId, serverId } },
-         data: { role },
-      });
+      try {
+         await tx.serverAccess.update({
+            where: { userId_serverId: { userId, serverId } },
+            data: { role },
+         });
+      } catch (err) {
+         if (isMissingRow(err)) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+         throw err;
+      }
       if (bucketAccess)
          await replaceBucketAccess(tx, userId, serverId, bucketAccess);
       if (demoted) await clampBucketAccess(tx, userId, serverId, newRole);

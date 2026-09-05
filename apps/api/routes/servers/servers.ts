@@ -57,28 +57,36 @@ const createServer = async (req: Request, res: Response) => {
       input<CreateServerInput>(res);
    const credentials = readCredentials(encryptedCredentials);
    await assertPublicEndpoint(credentials.endpoint);
-   const owned = await prisma.server.count({ where: { ownerId: user.id } });
-   if (exceedsServerCap(owned)) {
-      const contact = env.SUPPORT_EMAIL
-         ? ` Contact ${env.SUPPORT_EMAIL} for a higher limit.`
-         : "";
-      throw new ApiHttpError(
-         409,
-         `You can create at most ${MAX_SERVERS_PER_USER} servers. Delete one to add another.${contact}`
-      );
-   }
    try {
-      const server = await prisma.server.create({
-         data: {
-            name: serverName,
-            provider: detectProvider(credentials.endpoint),
-            credentials: encryptedCredentials,
-            allowedBuckets: bucketNames ?? [],
-            restrictedBuckets: (bucketNames?.length ?? 0) > 0,
-            ownerId: user.id,
-            serverAccess: { create: { userId: user.id, role: Role.OWNER } },
-         },
-         select: serverInfoSelect,
+      // count-then-create is only a cap if two creates for the same owner
+      // cannot interleave; the lock blocks rather than fails because a
+      // double-submit deserves the duplicate-name answer, not a retry prompt
+      const server = await prisma.$transaction(async (tx) => {
+         await tx.$executeRaw`
+            SELECT pg_advisory_xact_lock(hashtext(${user.id})::bigint)
+         `;
+         const owned = await tx.server.count({ where: { ownerId: user.id } });
+         if (exceedsServerCap(owned)) {
+            const contact = env.SUPPORT_EMAIL
+               ? ` Contact ${env.SUPPORT_EMAIL} for a higher limit.`
+               : "";
+            throw new ApiHttpError(
+               409,
+               `You can create at most ${MAX_SERVERS_PER_USER} servers. Delete one to add another.${contact}`
+            );
+         }
+         return tx.server.create({
+            data: {
+               name: serverName,
+               provider: detectProvider(credentials.endpoint),
+               credentials: encryptedCredentials,
+               allowedBuckets: bucketNames ?? [],
+               restrictedBuckets: (bucketNames?.length ?? 0) > 0,
+               ownerId: user.id,
+               serverAccess: { create: { userId: user.id, role: Role.OWNER } },
+            },
+            select: serverInfoSelect,
+         });
       });
       await recordAudit({
          action: "server.create",

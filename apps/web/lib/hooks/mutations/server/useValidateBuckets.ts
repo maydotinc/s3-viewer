@@ -1,16 +1,25 @@
 import { ApiError, api } from "@/lib/api";
-import { BucketCheck, ValidateBucketsInput } from "@s3-viewer/types";
+import {
+   BucketCheck,
+   MAX_VALIDATE_BUCKETS,
+   ValidateBucketsInput,
+   chunk,
+} from "@s3-viewer/types";
 import { useMutation } from "@tanstack/react-query";
 
 const useValidateBuckets = () =>
    useMutation<BucketCheck[], ApiError, ValidateBucketsInput>({
-      mutationFn: async (body) =>
-         (
-            await api.post<{ results: BucketCheck[] }>(
+      mutationFn: async ({ encryptedCredentials, bucketNames }) => {
+         const results: BucketCheck[] = [];
+         for (const names of chunk(bucketNames, MAX_VALIDATE_BUCKETS)) {
+            const page = await api.post<{ results: BucketCheck[] }>(
                "/servers/validate-buckets",
-               body
-            )
-         ).results,
+               { encryptedCredentials, bucketNames: names }
+            );
+            results.push(...page.results);
+         }
+         return results;
+      },
    });
 
 export default useValidateBuckets;

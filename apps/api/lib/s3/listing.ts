@@ -11,9 +11,9 @@ import { throwBucketError } from "./errors";
 const MAX_CALLS_PER_PAGE = 20;
 const MAX_EXISTS_PAGES = 20;
 
-type ListPageArgs = {
-   client: S3Client;
-   bucket: string;
+type S3Scope = { client: S3Client; bucket: string; signal?: AbortSignal };
+
+type ListPageArgs = S3Scope & {
    prefix: string;
    continuationToken?: string;
    blockSize: number;
@@ -42,6 +42,7 @@ const mergeByKey = (a: S3Object[], b: S3Object[]): S3Object[] => {
 const listPage = async ({
    client,
    bucket,
+   signal,
    prefix,
    continuationToken,
    blockSize,
@@ -65,7 +66,8 @@ const listPage = async ({
                   Math.min(S3_MAX_KEYS_PER_REQUEST, remaining)
                ),
                ContinuationToken: token,
-            })
+            }),
+            { abortSignal: signal }
          )
          .catch(throwBucketError);
 
@@ -106,8 +108,7 @@ const listPage = async ({
 };
 
 const listKeysPage = async (
-   client: S3Client,
-   bucket: string,
+   { client, bucket, signal }: S3Scope,
    prefix: string,
    continuationToken: string | undefined
 ): Promise<S3KeysPage> => {
@@ -118,7 +119,8 @@ const listKeysPage = async (
             Prefix: prefix,
             MaxKeys: S3_MAX_KEYS_PER_REQUEST,
             ContinuationToken: continuationToken,
-         })
+         }),
+         { abortSignal: signal }
       )
       .catch(throwBucketError);
    const nextToken = page.IsTruncated ? page.NextContinuationToken : undefined;
@@ -158,8 +160,7 @@ const justBefore = (key: string): string =>
 // and whatever the page budget doesn't reach comes back unresolved for the
 // caller to head individually
 const existingKeys = async (
-   client: S3Client,
-   bucket: string,
+   { client, bucket, signal }: S3Scope,
    keys: readonly string[]
 ): Promise<ExistingKeys> => {
    const wanted = new Set(keys);
@@ -182,7 +183,8 @@ const existingKeys = async (
                Prefix: prefix || undefined,
                MaxKeys: S3_MAX_KEYS_PER_REQUEST,
                StartAfter: startAfter || undefined,
-            })
+            }),
+            { abortSignal: signal }
          )
          .catch(throwBucketError);
 
@@ -205,3 +207,4 @@ const existingKeys = async (
 };
 
 export { existingKeys, listKeysPage, listPage };
+export type { S3Scope };

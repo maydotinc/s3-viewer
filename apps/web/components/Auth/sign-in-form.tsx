@@ -29,7 +29,7 @@ type SignInFormProps = {
 // the two pages run the same flow (a password signs in or creates the
 // account); only their words differ
 const SUBMIT_LABEL: Record<Mode, string> = {
-   login: "Sign in",
+   login: "Log in",
    signup: "Create account",
 };
 

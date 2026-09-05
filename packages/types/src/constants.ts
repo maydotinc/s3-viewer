@@ -7,6 +7,7 @@ export const DAY_MS = 24 * HOUR_MS;
 
 export const AUTH_BASE_PATH = "/auth";
 export const REQUEST_ID_HEADER = "X-Request-Id";
+export const CLIENT_IP_HEADER = "X-Client-Ip";
 export const API_CONTRACT_VERSION = 1;
 export const AUTH_LINK_TTL_HOURS = 1;
 export const PASSWORD_MIN_LENGTH = 8;
@@ -56,6 +57,7 @@ export const MAX_LIST_BLOCK_SIZE = S3_MAX_KEYS_PER_REQUEST;
 export const MAX_BATCH_KEYS = S3_MAX_KEYS_PER_REQUEST;
 export const MAX_BATCH_KEY_CHARS = 256 * 1024;
 export const MAX_RENAME_BYTES = 5 * 1024 ** 3;
+export const MAX_VALIDATE_BUCKETS = 20;
 
 export const MAX_SERVERS_PER_USER = 20;
 export const MAX_INVITE_EMAILS = 5;

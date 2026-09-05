@@ -171,6 +171,8 @@ pnpm --filter @s3-viewer/db db:generate
 pnpm dev
 ```
 
+Before opening a PR run `pnpm lint && pnpm check-types && pnpm test`, and `pnpm format` to apply Prettier (`pnpm format:check` runs in CI). Changes to API routes, rate limits, error codes or permissions must match [CONTRACTS.md](./CONTRACTS.md), the engineering agreement between the API, the web app, the landing site and the shared packages.
+
 ## 🔑 Auth
 
 Sign-in is handled by [Better Auth](https://better-auth.com):
@@ -302,7 +304,7 @@ Report vulnerabilities privately per [SECURITY.md](./SECURITY.md). What is in pl
 
 - **Client-side hybrid encryption for S3 credentials.** The browser generates an AES-256-GCM key, encrypts the credentials with it, and wraps that key with RSA-OAEP (SHA-256) using `NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY`. Only the API holds the private half. Credentials never come back to the browser and never appear in an API response.
 - **Cross-site request protection.** `SameSite=Lax`, `HttpOnly` session cookies, plus an `Origin` / `Sec-Fetch-Site` check on every non-`GET` request, which rejects anything that did not come from `NEXT_PUBLIC_SITE_URL` with a 403.
-- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, 20/minute per IP on every non-GET auth route, 10/10 minutes per email address on password sign-in, 10 accounts created per IP per hour, and 5/10 minutes per address on verification and reset links. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
+- **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, 20/minute per IP on every non-GET auth route, 10/10 minutes per IP and email address on password sign-in (60/10 minutes per address as a backstop), 10 accounts created per IP per hour, and 5/10 minutes per address on verification and reset links. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
 - **SSRF guard on server endpoints.** An endpoint you add must be a public `https://` URL (`http://` is allowed outside production only); `localhost`, `*.localhost` and any hostname that resolves to a loopback, private, link-local or multicast address is rejected before a single request is signed.
 - **No IP logging.** Better Auth's IP tracking is switched off and the API logger never writes a client address.
 - **Authorization from validated input only.** Every route parses its input with a zod schema first, then checks the caller's server role and the effective bucket role; handlers never read `req.body` or `req.query` directly.
@@ -322,9 +324,9 @@ Every favicon, touch icon, manifest icon and `site.webmanifest` is generated fro
 pnpm favicons
 ```
 
-## 🤝 Contributing
+## 🏞️ Landing image assets
 
-Issues and pull requests are welcome — see [CONTRIBUTING.md](./CONTRIBUTING.md) for setup, branch and commit conventions, and the checks to run before opening a PR (`pnpm lint && pnpm check-types && pnpm test`). Changes to API routes, rate limits, error codes or permissions should also match [CONTRACTS.md](./CONTRACTS.md), the engineering agreement between the API, the web app, the landing site and the shared packages. Please also read our [Code of Conduct](./CODE_OF_CONDUCT.md), and report security issues privately per [SECURITY.md](./SECURITY.md).
+`pnpm landing:assets` (`scripts/optimize-landing-assets.ts`) recompresses the raster images and Lottie file under `apps/landing/public/landing` and regenerates `apps/landing/components/Landing/image-placeholders.ts`, the blur placeholders `next/image` uses for those assets. Re-run it after adding or replacing any image in that directory: a missing placeholder degrades to `placeholder="empty"` (see `apps/landing/lib/blur-placeholder.ts`) rather than breaking the page, but the new image renders unblurred until you do. The script resolves `sharp` by hand out of `node_modules/.pnpm` because it isn't a declared dependency anywhere it runs from, and fails with a clear error if `pnpm install` hasn't hoisted it.
 
 ## 📄 License
 

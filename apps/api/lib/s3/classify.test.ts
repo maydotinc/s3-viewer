@@ -59,6 +59,27 @@ describe("classifyS3Error", () => {
       );
    });
 
+   it("maps an archived object to 409 before the generic 403", () => {
+      expect(classifyS3Error(s3Error("InvalidObjectState", 403))).toMatchObject(
+         {
+            status: 409,
+            message: "Object is archived and must be restored first",
+         }
+      );
+   });
+
+   it("maps a failed precondition to the same 409 as an existing target", () => {
+      expect(classifyS3Error(s3Error("PreconditionFailed", 412))).toMatchObject(
+         {
+            status: 409,
+            message: "An object with that name already exists",
+         }
+      );
+      expect(classifyS3Error(s3Error("Whatever", 412))).toMatchObject({
+         status: 502,
+      });
+   });
+
    it("maps size limits to 413 before the generic 400", () => {
       expect(classifyS3Error(s3Error("EntityTooLarge", 400))).toMatchObject({
          status: 413,

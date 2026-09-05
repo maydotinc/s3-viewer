@@ -1,5 +1,6 @@
 import { describeError, logger } from "@/lib/logger";
-import type { ErrorCode } from "@s3-viewer/types";
+import { GENERIC_ERROR_MESSAGE, type ErrorCode } from "@s3-viewer/types";
+import type { APIError } from "better-auth/api";
 import type {
    ErrorRequestHandler,
    NextFunction,
@@ -44,6 +45,27 @@ const asyncHandler =
       fn(req, res, next).catch(next);
    };
 
+// a fan-out must not outlive the caller, so every call it makes rides one
+// signal. a request whose body is already parsed closes the moment it is read,
+// so the disconnect comes from the response instead
+const requestSignal = (res: Response, timeoutMs: number): AbortSignal => {
+   const disconnected = new AbortController();
+   res.on("close", () => {
+      if (!res.writableEnded) disconnected.abort();
+   });
+   return AbortSignal.any([
+      disconnected.signal,
+      AbortSignal.timeout(timeoutMs),
+   ]);
+};
+
+// better-call's ValidationError shares APIError's name and shape but not its
+// prototype, so the shape is what identifies both
+const isAuthApiError = (err: unknown): err is APIError =>
+   err instanceof Error &&
+   err.name === "APIError" &&
+   typeof (err as { statusCode?: unknown }).statusCode === "number";
+
 const BODY_PARSER_ERRORS: Readonly<Record<string, [number, string]>> = {
    "entity.too.large": [413, "Request body is too large"],
    "entity.parse.failed": [400, "Request body is not valid JSON"],
@@ -65,6 +87,25 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
       fail(res, err.status, err.message, err.code);
       return;
    }
+   if (isAuthApiError(err)) {
+      const upstream = err.statusCode >= 500;
+      if (upstream) {
+         logger.error("Better Auth request error", {
+            method: req.method,
+            path: req.path,
+            requestId: res.locals.requestId as string | undefined,
+            error: describeError(err),
+         });
+      }
+      fail(
+         res,
+         err.statusCode,
+         upstream
+            ? GENERIC_ERROR_MESSAGE
+            : (err.body?.message ?? GENERIC_ERROR_MESSAGE)
+      );
+      return;
+   }
    const parsed = bodyParserError(err);
    if (parsed) {
       fail(res, parsed[0], parsed[1]);
@@ -79,4 +120,11 @@ const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
    fail(res, 500, "Something went wrong");
 };
 
-export { ApiHttpError, asyncHandler, errorHandler, fail, noContent };
+export {
+   ApiHttpError,
+   asyncHandler,
+   errorHandler,
+   fail,
+   noContent,
+   requestSignal,
+};

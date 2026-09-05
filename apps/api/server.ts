@@ -21,6 +21,7 @@ import { auth, onUserDeletion } from "@s3-viewer/auth";
 import {
    API_CONTRACT_VERSION,
    AUTH_BASE_PATH,
+   CLIENT_IP_HEADER,
    MINUTE_MS,
    REQUEST_ID_HEADER,
 } from "@s3-viewer/types";
@@ -35,7 +36,7 @@ import type { Socket } from "node:net";
 assertPrivateKey();
 onUserDeletion(accountDeletionHooks);
 
-const OBJECT_UPLOAD_PATH = /^\/servers\/[^/]+\/buckets\/[^/]+\/objects$/;
+const OBJECT_UPLOAD_PATH = /^\/servers\/[^/]+\/buckets\/[^/]+\/objects$/i;
 const isObjectUpload = (req: Request): boolean =>
    req.method === "PUT" && OBJECT_UPLOAD_PATH.test(req.path);
 
@@ -77,9 +78,12 @@ app.use(originCheck);
 
 // which `/auth/*` routes exist is decided inside better auth's own before
 // hook (packages/auth/lib/auth.ts), where the request body is available
-app.use(AUTH_BASE_PATH, (req, res, next) =>
-   req.method === "GET" ? next() : authRouteLimit(req, res, next)
-);
+app.use(AUTH_BASE_PATH, (req, res, next) => {
+   // better auth's hooks see headers only, and a client-sent value would let
+   // anyone pick the key its per-ip throttles count against
+   req.headers[CLIENT_IP_HEADER.toLowerCase()] = req.ip ?? "";
+   return req.method === "GET" ? next() : authRouteLimit(req, res, next);
+});
 app.post(`${AUTH_BASE_PATH}/sign-up/email`, signUpLimit);
 app.all(`${AUTH_BASE_PATH}/{*any}`, toNodeHandler(auth));
 

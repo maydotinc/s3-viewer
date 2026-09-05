@@ -15,6 +15,14 @@ the web app, the landing site and the shared packages. Keep it current.
   label and its width: pass `loading` to `Button`, which overlays a centred
   spinner on the still-mounted (but invisible) label. Never swap a label to
   "Saving…".
+- Icons come from `lucide-react` everywhere (`apps/web`, `packages/ui`).
+  `react-icons` is only for third-party brand marks (`FaGithub`,
+  `FaLinkedinIn`) in `apps/landing`.
+- Shared dependency versions live in the pnpm `catalog:` in
+  `pnpm-workspace.yaml`; packages reference them with `"<dep>": "catalog:"`.
+  Bump the version there, never in a package's `package.json`.
+- Commits follow Conventional Commits (`feat(web): …`, `fix(api): …`,
+  `chore(deps): …`). Schema changes commit the generated Prisma migration.
 
 ## Shared values (`@s3-viewer/types`)
 
@@ -57,7 +65,9 @@ the web app, the landing site and the shared packages. Keep it current.
   `validate(schema)` (`lib/middleware/validate.ts`) returns the first Zod
   issue's own message verbatim as `path: message`, with `code: "VALIDATION"`
   — those messages are written to be user-facing, unlike an AWS or Prisma
-  exception's. Codes the web branches on live in `ErrorCode`
+  exception's. Better Auth's `APIError` (thrown by `auth.api.*` calls such as
+  `setPassword`) is the other: `errorHandler` answers with its own status and
+  message, never a 500. Codes the web branches on live in `ErrorCode`
   (`@s3-viewer/types`): stored credentials that fail to decrypt or parse →
   409 `CREDENTIALS_UNREADABLE`; S3 rejecting the key pair
   (`InvalidAccessKeyId`, `SignatureDoesNotMatch`, expired tokens, or a 403 on
@@ -84,7 +94,10 @@ the web app, the landing site and the shared packages. Keep it current.
   `disableIpTracking`, so it is disabled) — this covers whatever Better Auth
   serves there (see "`/auth/*` routes" below); inside Better Auth's own `before`
   hook (`packages/auth/lib/throttle.ts`) password sign-in is 10/10min per
-  email and verification / reset links 5/10min per email; `POST
+  IP+email (the IP arrives in `CLIENT_IP_HEADER`, which `server.ts` overwrites
+  with `req.ip` on every `/auth/*` request so a client can't pick its own
+  key) with a 60/10min per-email backstop, and verification / reset links
+  5/10min per email; `POST
 /auth/sign-up/email` additionally 10/hour per IP counting only 2xx
   (`skipFailedRequests`, so the login page's sign-up fallback for a wrong
   password does not spend it); `establish`,
@@ -99,8 +112,11 @@ the web app, the landing site and the shared packages. Keep it current.
   methods GET/PUT/POST/PATCH/DELETE/OPTIONS; allowed headers reflect the
   preflight (cors default), which covers the upload's `Content-Type`.
 - S3 clients are cached per server (`lib/s3/client-cache.ts`, TTL 10 min, at
-  most 500 entries, keep-alive agent, connect/request timeouts 5s/30s,
-  `maxAttempts: 2`), invalidated on server delete and credential update.
+  most 500 entries, keep-alive agents shared by every client with explicit
+  caps — 50 sockets per host, 500 in total, 64 idle, 60 s socket idle
+  timeout — because an agent instance handed to the SDK replaces its own
+  50-socket default; connect/request timeouts 5s/30s, `maxAttempts: 2`),
+  invalidated on server delete and credential update.
   Credentials are decrypted once per cache fill. The only route that changes
   stored credentials is `PATCH /servers/:serverId/credentials` (owner): it
   decrypts the new blob, checks the endpoint, proves the keys work
@@ -134,9 +150,17 @@ the web app, the landing site and the shared packages. Keep it current.
   the JSON tree-view preview (`apps/web/lib/hooks/queries/s3/useObjectBody.ts`)
   does a cross-origin `fetch()` of the presigned URL to parse the body, which
   a bucket without CORS (or the app's own `connect-src` CSP, in production)
-  silently degrades to a plain-text preview instead of a tree. Object keys
-  are encoded with `encodeURIComponent` per path segment when building
-  `CopySource`.
+  silently degrades to a plain-text preview instead of a tree. The preview
+  presign forces `ResponseContentType: text/plain` for HTML, XHTML and XML
+  and `ResponseContentDisposition: attachment` for SVG (`inlineContentType`
+  / `inlineDisposition`, `lib/s3/keys.ts`) so markup that can carry script
+  never renders on the storage origin when the URL is opened directly —
+  `<img>` ignores the disposition, so the in-app SVG preview is unchanged;
+  the response's `contentType` field still reports the stored type. Object keys are encoded
+  with `encodeURIComponent` per path segment when building `CopySource`.
+  Every key and list prefix passes `isSafeKeyText` (`@s3-viewer/types`): no
+  leading `/`, no control characters, no lone UTF-16 surrogates (the SDK's
+  URI encoder throws on those).
 - Uploads stream through the API (`lib/s3/upload.ts`): `@aws-sdk/lib-storage`
   `Upload` with 4 parts in flight, `leavePartsOnError: false`; a client
   disconnect aborts the S3 upload. Part size defaults to 25 MiB, configurable
@@ -159,8 +183,8 @@ the web app, the landing site and the shared packages. Keep it current.
 POST   /account/password                 { password }         → 204 (sets a first password on the signed-in account)
 GET    /servers                                               → { servers: ServerInfo[] }
 POST   /servers/establish                establishSchema      → { listBucketsAllowed, bucketCount, provider }
-POST   /servers/validate-buckets         validateBucketsSchema→ { results: [{ bucketName, accessible }] }
-POST   /servers                          createServerSchema   → { server: ServerInfo }
+POST   /servers/validate-buckets         validateBucketsSchema→ { results: [{ bucketName, accessible }] } (≤ MAX_VALIDATE_BUCKETS = 20 per call, the web chunks; a host that can't be reached fails the call 502 instead of marking every bucket inaccessible)
+POST   /servers                          createServerSchema   → { server: ServerInfo } (cap check and insert under a blocking per-owner advisory lock)
 PATCH  /servers/:serverId                renameServerSchema   → { server: ServerInfo }
 PATCH  /servers/:serverId/credentials    updateCredentialsSchema (UPDATE_CREDENTIALS) → { server: ServerInfo }
 DELETE /servers/:serverId                (OWNER)              → 204
@@ -168,11 +192,11 @@ POST   /servers/:serverId/leave          (non-owner)          → 204
 GET    /servers/:serverId/members        (MANAGE_MEMBERS)     → { members: ServerUser[] }
 PATCH  /servers/:serverId/members/:userId updateRoleSchema    → { member: ServerUser }
 DELETE /servers/:serverId/members/:userId removeMemberSchema  → 204
-GET    /servers/:serverId/invites        (MANAGE_MEMBERS)     → { invites: ServerInvite[] }
+GET    /servers/:serverId/invites        (MANAGE_MEMBERS, unexpired) → { invites: ServerInvite[] }
 POST   /servers/:serverId/invites        sendInviteSchema     → { invites: ServerInvite[], alreadyMembers: string[] }
 DELETE /servers/:serverId/invites/:inviteId (MANAGE_MEMBERS, outrank invite role) → 204
 GET    /invites                          (received, unexpired)→ { invites: ServerInvite[] }
-GET    /invites/sent                      (sent by me, on servers where I still hold MANAGE_MEMBERS) → { invites: ServerInvite[] }
+GET    /invites/sent                      (sent by me, unexpired, on servers where I still hold MANAGE_MEMBERS) → { invites: ServerInvite[] }
 POST   /invites/:inviteId/accept                              → { server: ServerInfo }
 POST   /invites/:inviteId/reject                              → 204
 GET    /account/summary                  (what deleting the account removes) → AccountSummary
@@ -188,7 +212,14 @@ addressed to the caller's email. Expired invites are not counted.
 
 `/invites/*` require a verified email (403 `code: "EMAIL_UNVERIFIED"` otherwise):
 invites are addressed to an address, and an OAuth provider may hand us an
-unverified one. Accepting is atomic; a second concurrent accept gets 404.
+unverified one. Accepting is atomic; a second concurrent accept gets 404. An
+invite is only as good as its sender's current authority: `stillGrantable`
+(`lib/services/invites.ts`) keeps only invites whose sender is still a member
+who outranks the invited role and every bucket grant (`canManageRole`, which
+implies `MANAGE_MEMBERS`). `GET /invites` filters through it so the invitee
+never sees an invite they can't accept, and the accept transaction re-checks
+the one invite, answering 404 otherwise. Every invite listing uses the one
+`liveInvite()` filter, so expired rows never show.
 
 A server may have at most `MAX_PENDING_INVITES` (30, `@s3-viewer/types`)
 live (unaccepted, unrevoked, unexpired) invitations outstanding at once.
@@ -222,20 +253,28 @@ POST   /servers/:serverId/buckets        { bucketName }       → { bucket: S3Bu
 DELETE /servers/:serverId/buckets/:bucketName (DELETE_BUCKET; removes from server, DB only) → 204
 GET    /servers/:serverId/buckets/:bucketName/objects?prefix&continuationToken&blockSize → S3ObjectListPage
 GET    …/objects/metadata?objectKey                           → S3ObjectMetadata
-POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing }` (≤ 1000 keys, 16 HEADs in flight)
+POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing }` (≤ 1000 keys; listings first, then ≤ MAX_EXISTS_HEADS = 200 HEADs at 16 in flight — keys past that cap read as existing, so the web's "replace?" check errs toward warning; one AbortSignal per request, see Limits)
 GET    …/objects/download-url?objectKey                       → S3PresignedUrl
 GET    …/objects/preview-url?objectKey                        → S3ObjectPreview (content type from HeadObject)
 PUT    …/objects?objectKey&contentType   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (413 over MAX_UPLOAD_BYTES)
 DELETE …/objects                         { objectKeys[] }     → S3DeleteResult (207 if any failed)
 GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ keys, nextToken }` (recursive, one S3 page of ≤ 1000 keys; prefix is a folder key ending in "/", never "/" or the root)
-POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 if target exists, 413 if > 5 GB)
+POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 if target exists or the source is archived, 413 if > 5 GB)
 ```
 
 Removed on purpose: a general-purpose copy/move route (no UI for it) —
 `POST …/objects/rename` above is the one copy the API does, and only because
 S3 has no native rename: it is a same-bucket `CopyObject` immediately
 followed by a `DeleteObject` of the source, not a route for copying or
-moving objects anywhere else. Also removed: `does-user-exist`, session IP
+moving objects anywhere else. The copy carries the source's `StorageClass`
+and SSE settings from `HeadObject` (S3 would otherwise rewrite it as
+STANDARD under the bucket default), sends `IfNoneMatch: "*"` only when the
+provider is S3 (the one provider that answers 412 instead of overwriting;
+elsewhere the HeadObject pre-check stays the guard), maps `PreconditionFailed`
+and `InvalidObjectState` to 409, and when the source delete fails checks
+whether the source is still there: gone means the delete landed and the
+rename is reported done; present means the new key is deleted again so a
+transient error never leaves two copies; unknown means neither is touched. Also removed: `does-user-exist`, session IP
 validation, folder-less single delete (use `objectKeys` with one key), and
 presigned upload/multipart routes (uploads stream through the API instead,
 so no bucket CORS is required).
@@ -244,6 +283,12 @@ so no bucket CORS is required).
 
 - A listing page makes at most 20 `ListObjectsV2` calls; each follow-up call
   asks only for the rows still missing.
+- Every bucket and object route that can make more than one S3 call (bucket
+  listing, object listing, `keys`, `exists`, `DELETE …/objects`) passes one
+  `AbortSignal` per request (`requestSignal`, `lib/http.ts`: aborted when the
+  client disconnects or after `S3_ROUTE_TIMEOUT_MS` = 60 s) into every
+  `client.send`, so a fan-out never outlives its caller; an aborted call
+  surfaces as the classified 502.
 - Recursive folder delete is a client pipeline: `GET …/objects/keys` pages
   sequentially (S3 tokens are ordered) while up to 4 `DELETE …/objects` calls
   run concurrently. No request outlives a proxy timeout; closing the dialog
@@ -316,6 +361,9 @@ email failed`) and never fails the request that caused it: the account
   and `validateProfile` strips any `image` off an `/update-user` body.
 - Cookies: `sameSite: "lax"`, `secure` when `NEXT_PUBLIC_API_URL` is https, `httpOnly`.
   `advanced.ipAddress.disableIpTracking: true`. Session 30 days, refreshed daily.
+  The 60 s signed cookie cache only serves Better Auth's own `/get-session`;
+  `authGuard` passes `disableCookieCache: true`, so a revoked session is
+  rejected by the API on its very next request.
   Neither IP address nor user-agent is stored: `ipAddress` stays a column that
   is always null (Better Auth's own option), while `userAgent` has no column
   at all — nothing ever read it, so it's dropped by a
@@ -331,21 +379,26 @@ afterDelete })` and forwards Better Auth's `deleteUser` hooks to whatever is
   registered — `beforeDelete` throws when nothing is, so a user row can never
   vanish without the erasure below. `apps/api/server.ts` registers
   `lib/services/account.ts` at startup. `beforeDelete` runs one Prisma
-  transaction that collects the ids of the servers the user owns, deletes
+  transaction that collects the ids of the servers the user owns (stashed per
+  user id; stale stashes older than five minutes are dropped so a deletion
+  that dies between the hooks cannot accumulate them), deletes
   `PendingInvitation` rows addressed to their email (the cascade misses those:
   they are joined by address, not by id), rewrites every `AuditLog.target`
   equal to their email to `[deleted user]` (`actorId` is kept — it resolves to
   nobody once the row is gone, and the trail must stay intact for the other
-  members). Better Auth then deletes the user, which cascades sessions,
-  accounts, memberships, bucket grants, invitations they sent AND every server
-  they own (with all of its members' access and pending invites — a server's
-  credentials belong to its owner). `afterDelete` invalidates the cached S3
-  client of every collected server (after the cascade, so a racing request
-  cannot refill the cache), records `account.delete` with the user as actor
-  (only here, so a `deleteUser` that fails after `beforeDelete` leaves no
-  entry claiming a deletion happened) and sends `AccountDeletedEmail`; an
-  email failure is logged as `Account deletion email failed`, never thrown,
-  because the account is already gone.
+  members). That erasure runs before the row goes on purpose: nothing can
+  retry it afterwards, and a deletion that fails here leaves an account that
+  is merely missing its invites, where one failing after would leave the
+  email in the audit trail for good. Better Auth then deletes the user, which
+  cascades sessions, accounts, memberships, bucket grants, invitations they
+  sent AND every server they own (with all of its members' access and pending
+  invites — a server's credentials belong to its owner). `afterDelete`
+  invalidates the cached S3 client of every collected server (after the
+  cascade, so a racing request cannot refill the cache), records
+  `account.delete` with the user as actor (only here, so a `deleteUser` that
+  fails after `beforeDelete` leaves no entry claiming a deletion happened)
+  and sends `AccountDeletedEmail`; an email failure is logged as `Account
+  deletion email failed`, never thrown, because the account is already gone.
 - Sign-out clears the react-query cache and the session store.
 
 ### `/auth/*` routes

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { contentDispositionFilename, encodeCopySource } from "./keys";
+import {
+   contentDispositionFilename,
+   encodeCopySource,
+   inlineContentType,
+   inlineDisposition,
+} from "./keys";
 
 describe("encodeCopySource", () => {
    it("encodes each segment but keeps the slashes", () => {
@@ -10,6 +15,42 @@ describe("encodeCopySource", () => {
          "bkt/%C3%BCn%C3%AF/c%C3%B8d%C3%A9%3F.txt"
       );
       expect(encodeCopySource("bkt", "plain.txt")).toBe("bkt/plain.txt");
+   });
+});
+
+describe("inlineContentType", () => {
+   it("serves html as plain text, parameters and casing included", () => {
+      for (const stored of [
+         "text/html",
+         "TEXT/HTML",
+         "text/html; charset=utf-8",
+         "application/xhtml+xml",
+         "text/xml",
+         "application/xml; charset=utf-8",
+      ]) {
+         expect(inlineContentType(stored), stored).toBe("text/plain");
+      }
+   });
+
+   it("leaves every other stored type alone", () => {
+      for (const stored of [
+         "image/svg+xml",
+         "application/json",
+         "text/plain; charset=utf-8",
+         "video/mp4",
+      ]) {
+         expect(inlineContentType(stored), stored).toBe(stored);
+      }
+   });
+});
+
+describe("inlineDisposition", () => {
+   it("downloads svg when opened directly and shows everything else inline", () => {
+      expect(inlineDisposition("image/svg+xml; charset=utf-8")).toBe(
+         "attachment"
+      );
+      expect(inlineDisposition("image/png")).toBe("inline");
+      expect(inlineDisposition("text/html")).toBe("inline");
    });
 });
 

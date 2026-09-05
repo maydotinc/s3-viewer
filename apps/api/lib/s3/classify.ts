@@ -1,4 +1,5 @@
 import { ErrorCode } from "@s3-viewer/types";
+import { OBJECT_EXISTS } from "../constants";
 import { PRIVATE_ADDRESS_CODE } from "../utils/endpoint";
 
 type HttpFailure = { status: number; message: string; code?: ErrorCode };
@@ -63,6 +64,11 @@ const FORBIDDEN: HttpFailure = {
    status: 403,
    message: "The server credentials don't allow this",
 };
+const ARCHIVED: HttpFailure = {
+   status: 409,
+   message: "Object is archived and must be restored first",
+};
+const ALREADY_EXISTS: HttpFailure = { status: 409, message: OBJECT_EXISTS };
 const TOO_LARGE: HttpFailure = {
    status: 413,
    message: "Object is too large for this operation",
@@ -114,6 +120,9 @@ const classifyFailure = (
       return scope === "bucket" ? BUCKET_NOT_FOUND : OBJECT_NOT_FOUND;
    }
    if (REJECTED_CREDENTIAL_NAMES.has(name)) return CREDENTIALS_REJECTED;
+   if (name === "PreconditionFailed") return ALREADY_EXISTS;
+   // s3 answers 403 for an archived object, so this precedes the 403 mapping
+   if (name === "InvalidObjectState") return ARCHIVED;
    if (FORBIDDEN_NAMES.has(name) || httpStatus === 403) return FORBIDDEN;
    if (name === "EntityTooLarge" || isCopySourceTooLarge(failure))
       return TOO_LARGE;
