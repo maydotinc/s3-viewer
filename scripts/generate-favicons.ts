@@ -8,13 +8,10 @@ const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 
-// The brand kit's "App Icon" (filled mark on the Viewer Blue tile) is the
-// single source. Everything below is derived from it, so a brand change is
-// one SVG edit + `pnpm favicons`.
-const SOURCE_SVG = path.join(
-   REPO_ROOT,
-   "apps/landing/public/icons/viewerblue.svg"
-);
+// The brand mark (outline cube in Viewer Blue) is the single source. Every
+// favicon, touch icon and manifest icon is that one drawing centred on a
+// square canvas, so a brand change is one SVG edit + `pnpm favicons`.
+const SOURCE_SVG = path.join(REPO_ROOT, "apps/landing/public/logo.svg");
 
 // The landing site is reverse-proxied behind the web app in production, so
 // its pages are served from the web app's domain and every root-relative icon
@@ -51,72 +48,59 @@ const resolveSharp = (): typeof import("sharp") => {
 
 const sharp = resolveSharp();
 
-// Geometry of icons/viewerblue.svg: a 104×104 tile drawn at y=0.1875 inside a
-// 104×105 viewBox, corner radius 20, mark centred on the tile.
-const TILE = 104;
-const TILE_Y = 0.1875;
-// The <mask> repeats the same width/height, so anchor on the <svg> tag.
-const SOURCE_SVG_TAG = `<svg width="${TILE}" height="${TILE + 1}" viewBox="0 0 ${TILE} ${TILE + 1}"`;
-const squareSvgTag = (size: number) =>
-   `<svg width="${size}" height="${size}" viewBox="0 ${TILE_Y} ${TILE} ${TILE}"`;
-const ROUNDED_CORNER = ` rx="20"`;
-const MARK_GROUP = /<g mask="url\(#[^"]+\)">[\s\S]*?<\/g>/;
-const MARK_GROUP_OPEN = /<g mask="url\(#[^"]+\)">/;
-const SHEEN_MASK = /<mask [\s\S]*?<\/mask>\n?/;
-const SHEEN_GRADIENT =
-   /<linearGradient id="paint1_[\s\S]*?<\/linearGradient>\n?/;
-
 type Variant = {
-   // Rounded tile with transparent corners (tab icons, "any" launcher icons)
-   // vs. full-bleed square (iOS home screen and maskable icons — the platform
-   // applies its own mask, so the tile must fill the canvas).
-   fullBleed: boolean;
-   // Enlarge the mark around the tile centre. At 16–32px the brand asset's
-   // 48%-wide mark collapses into a blob; ~60% stays legible without touching
-   // the tile edge. Maskable icons must keep the mark inside the 80% safe zone.
-   markScale: number;
-   // The brand asset fades the mark with a diagonal sheen. It reads as depth
-   // at 48px+, but at tab sizes it just costs contrast, so drop it there.
-   sheen: boolean;
+   // How much of the canvas height the mark occupies. Tab icons fill it; the
+   // iOS and maskable icons keep the mark inside the platform's safe zone
+   // (a circle 80% of the canvas wide) because the OS crops the rest.
+   markHeight: number;
+   // iOS paints transparency black and launchers mask to the edge, so those
+   // variants sit on an opaque backdrop. Everything else stays transparent.
+   background: string | null;
 };
 
-const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const TAB: Variant = { markHeight: 0.92, background: null };
+const PADDED: Variant = { markHeight: 0.6, background: "#ffffff" };
 
-const replaceOnce = (svg: string, from: string | RegExp, to: string) => {
-   const pattern = new RegExp(
-      from instanceof RegExp ? from.source : escapeRegExp(from),
-      "g"
+// Arbitrary square user-space size the mark is placed into.
+const CANVAS = 64;
+
+type Mark = { width: number; height: number; body: string };
+
+const parseMark = (source: string): Mark => {
+   const match = source.match(
+      /<svg[^>]*viewBox="0 0 ([\d.]+) ([\d.]+)"[^>]*>([\s\S]*)<\/svg>/
    );
-   if ([...svg.matchAll(pattern)].length !== 1) {
+   if (!match) {
       throw new Error(
-         `Expected exactly one match for ${String(from)} in ${SOURCE_SVG} — the brand asset changed shape; update this script's geometry constants.`
+         `${SOURCE_SVG} must be a single <svg> with a viewBox starting at 0 0`
       );
    }
-   return svg.replace(from, to);
+   return {
+      width: Number(match[1]),
+      height: Number(match[2]),
+      body: match[3].trim(),
+   };
 };
+
+const round = (n: number) => Number(n.toFixed(3));
 
 const buildSvg = (
-   source: string,
-   { fullBleed, markScale, sheen }: Variant,
-   size?: number
+   mark: Mark,
+   { markHeight, background }: Variant,
+   size = CANVAS
 ) => {
-   let svg = replaceOnce(source, SOURCE_SVG_TAG, squareSvgTag(size ?? TILE));
-   if (fullBleed) svg = replaceOnce(svg, ROUNDED_CORNER, "");
-   if (markScale !== 1) {
-      const cx = TILE / 2;
-      const cy = TILE_Y + TILE / 2;
-      svg = replaceOnce(
-         svg,
-         MARK_GROUP,
-         `<g transform="translate(${cx} ${cy}) scale(${markScale}) translate(${-cx} ${-cy})">$&</g>`
-      );
-   }
-   if (!sheen) {
-      svg = replaceOnce(svg, MARK_GROUP_OPEN, "<g>");
-      svg = replaceOnce(svg, SHEEN_MASK, "");
-      svg = replaceOnce(svg, SHEEN_GRADIENT, "");
-   }
-   return svg;
+   const scale = (markHeight * CANVAS) / mark.height;
+   const tx = round((CANVAS - mark.width * scale) / 2);
+   const ty = round((CANVAS - mark.height * scale) / 2);
+   const backdrop = background
+      ? `<rect width="${CANVAS}" height="${CANVAS}" fill="${background}"/>\n`
+      : "";
+   return (
+      `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${CANVAS} ${CANVAS}" fill="none">\n` +
+      backdrop +
+      `<g transform="translate(${tx} ${ty}) scale(${round(scale)})">\n${mark.body}\n</g>\n` +
+      `</svg>\n`
+   );
 };
 
 const renderPng = (svg: string) =>
@@ -188,14 +172,6 @@ const buildIco = (entries: { size: number; data: Buffer }[]): Buffer => {
    return Buffer.concat([dir, ...dirEntries, ...entries.map((e) => e.data)]);
 };
 
-const ROUNDED: Variant = { fullBleed: false, markScale: 1, sheen: true };
-const ROUNDED_SMALL: Variant = {
-   fullBleed: false,
-   markScale: 1.25,
-   sheen: false,
-};
-const FULL_BLEED: Variant = { fullBleed: true, markScale: 1, sheen: true };
-
 const MANIFEST = {
    id: "/",
    name: "S3 Viewer",
@@ -236,12 +212,12 @@ const MANIFEST = {
 };
 
 const main = async () => {
-   const source = await readFile(SOURCE_SVG, "utf8");
+   const mark = parseMark(await readFile(SOURCE_SVG, "utf8"));
 
    const files = new Map<string, Buffer | string>();
 
    // Vector favicon: the browser rasterises it at whatever size the tab needs.
-   files.set("favicon.svg", buildSvg(source, ROUNDED_SMALL) + "\n");
+   files.set("favicon.svg", buildSvg(mark, TAB));
 
    // Legacy + crawler fallback fetched at /favicon.ico regardless of markup.
    // 48px satisfies Google's "multiple of 48px" rule; 16/32 are what tabs use.
@@ -249,7 +225,7 @@ const main = async () => {
       [16, 32, 48].map(async (size) => ({
          size,
          data: dibEntry(
-            await renderRgba(buildSvg(source, ROUNDED_SMALL, size), size),
+            await renderRgba(buildSvg(mark, TAB, size), size),
             size
          ),
       }))
@@ -257,26 +233,20 @@ const main = async () => {
    files.set("favicon.ico", buildIco(icoEntries));
 
    // Google's preferred explicit-size PNG (multiple of 48).
-   files.set(
-      "favicon-96x96.png",
-      await renderPng(buildSvg(source, ROUNDED, 96))
-   );
+   files.set("favicon-96x96.png", await renderPng(buildSvg(mark, TAB, 96)));
 
-   // iOS home screen: opaque, full-bleed, iOS rounds the corners itself.
+   // iOS home screen: opaque, iOS rounds the corners itself.
    files.set(
       "apple-touch-icon.png",
-      await renderPng(buildSvg(source, FULL_BLEED, 180))
+      await renderPng(buildSvg(mark, PADDED, 180))
    );
 
    // Web app manifest icons.
    for (const size of [192, 512]) {
-      files.set(
-         `icon-${size}.png`,
-         await renderPng(buildSvg(source, ROUNDED, size))
-      );
+      files.set(`icon-${size}.png`, await renderPng(buildSvg(mark, TAB, size)));
       files.set(
          `icon-maskable-${size}.png`,
-         await renderPng(buildSvg(source, FULL_BLEED, size))
+         await renderPng(buildSvg(mark, PADDED, size))
       );
    }
 

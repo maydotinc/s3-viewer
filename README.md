@@ -316,7 +316,7 @@ pnpm dlx shadcn@latest add [component]
 
 ## 🖼️ Favicons
 
-Every favicon, touch icon, manifest icon and `site.webmanifest` is generated from the brand kit's app icon (`apps/landing/public/icons/viewerblue.svg`) into **both** `apps/web/public` and `apps/landing/public`, because landing pages are proxied under the web app's domain and their root-relative icon URLs resolve against whichever app serves them. The shared `<link>` tags live in `packages/ui/src/components/favicon-links.tsx`. Never hand-edit the outputs — change the SVG and run:
+Every favicon, touch icon, manifest icon and `site.webmanifest` is generated from the brand mark (`apps/landing/public/logo.svg`) into **both** `apps/web/public` and `apps/landing/public`, because landing pages are proxied under the web app's domain and their root-relative icon URLs resolve against whichever app serves them. The shared `<link>` tags live in `packages/ui/src/components/favicon-links.tsx`. Never hand-edit the outputs — change the SVG and run:
 
 ```bash
 pnpm favicons
