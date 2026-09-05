@@ -9,6 +9,7 @@ import Router from "next/router";
 const {
    authClient,
    changePassword,
+   continueWithPassword,
    hasPassword,
    requestPasswordReset,
    resetPassword,
@@ -68,6 +69,7 @@ const signOut = async (
 export {
    authClient,
    changePassword,
+   continueWithPassword,
    hasPassword,
    isSigningOut,
    requestPasswordReset,

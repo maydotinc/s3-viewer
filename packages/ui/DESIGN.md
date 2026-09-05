@@ -349,11 +349,14 @@ sm:top-10`), a `max-w-sm` column centred in the left half, legal line
   `mt-10`, brand panel on the right from `lg`. Step = `.text-title` + one
   `text-sm` sentence, `mt-8` to the form. Fields stack `gap-4` with a reserved
   `min-h-5` message line under each (error in red, otherwise a hint in
-  `viewerlighttext`). Buttons are `lg` and full width: one primary, then an
-  outline "Email me a code instead" `gap-4` below it; GitHub is an outline
-  button above an "or" hairline. The password label row holds "Forgot
-  password?" right-aligned as a text link; the show/hide eye is a ghost
-  `icon-sm` inside the field (`right-0.5 top-0.5`). Steps keep the first
+  `viewerlighttext`). One `lg` full-width primary button; the alternatives
+  ("Forgot password? · Email me a code instead") are a centred `text-sm`
+  link row `gap-4` under it, never a second button and never inside a label
+  row, so every field keeps the same label / control / message rhythm.
+  GitHub is an outline button above an "or" hairline. The show/hide eye is
+  a ghost `icon-sm` inside the password field (`right-0.5 top-0.5`). Sign-in
+  and sign-up pages are the same screen with different words: a password
+  signs in or creates the account. Steps keep the first
   step's height (`useStepHeight`) so nothing below them moves. Code steps:
   `OtpInput`, primary "Verify", centred "Didn't get it? Resend code in 45s"
   plus at most one text-link escape ("Skip for now").

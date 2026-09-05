@@ -41,11 +41,11 @@ const AuthLayout = ({ busy, children }: AuthLayoutProps) => (
                <p className="text-meta mt-10">
                   By continuing you agree to the{" "}
                   <a href={TERMS_URL} className={LEGAL_LINK}>
-                     terms of service
+                     Terms of Service
                   </a>{" "}
                   and{" "}
                   <a href={PRIVACY_URL} className={LEGAL_LINK}>
-                     privacy policy
+                     Privacy Policy
                   </a>
                   .
                </p>

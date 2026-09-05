@@ -183,7 +183,9 @@ Sign-in is handled by [Better Auth](https://better-auth.com). Every method is a 
 - **Email OTP and magic link** — one email carrying a one-time code and a single-use sign-in link. `EMAIL_LOGIN_ENABLED` / `NEXT_PUBLIC_EMAIL_LOGIN_ENABLED`. Needs a mail transport in production.
 - **GitHub OAuth** — on once `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` are set and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED=true`.
 
-Set a flag to exactly `false` to turn a method off; at least one must stay on or the API refuses to start. The login page shows whatever is on: with both email methods it offers a password form plus "Email me a code instead", and the code flow still creates accounts the way it always did.
+Set a flag to exactly `false` to turn a method off; at least one must stay on or the API refuses to start. The login page shows whatever is on: with both email methods it offers a password form plus "Forgot password?" and "Email me a code instead" links.
+
+Sign-in and sign-up are one flow. `/login` and `/signup` differ only in their words: a password that matches signs you in, an address with no account is created with that password, and a one-time code does the same either way. (Sign-up already reveals whether an address has an account, so this leaks nothing new.)
 
 Passwords are 8–128 characters, hashed by Better Auth, and stored in the `account` row for the `credential` provider. A password sign-up starts signed in and is asked for a verification code right away (skippable); an unverified address can still use the app but cannot send or accept invites, since invites are matched by address. **Forgot password** sends a code by email and then takes a new password — this is also how an account that signed up by code or GitHub adds its first one — and **Settings → Profile** has a Password card to set or change it (changing it signs out other devices). Both need `EMAIL_LOGIN_ENABLED`, because that is what sends codes; a deployment with no mail transport is password-only and its addresses can never be verified.
 

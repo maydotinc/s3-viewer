@@ -2,12 +2,7 @@ import FieldMessage from "@/components/Auth/field-message";
 import GithubIcon from "@/components/Auth/github-icon";
 import PasswordInput from "@/components/Auth/password-input";
 import { TEXT_LINK } from "@/components/Auth/text-link";
-import {
-   requestSignInCode,
-   signInWithPassword,
-   signUpWithPassword,
-   type AuthResult,
-} from "@/lib/auth";
+import { continueWithPassword, requestSignInCode } from "@/lib/auth";
 import { publicEnv } from "@/lib/env";
 import {
    PASSWORD_MIN_LENGTH,
@@ -22,7 +17,6 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 type Mode = "login" | "signup";
-type Pending = "password" | "code" | null;
 
 type SignInFormProps = {
    mode: Mode;
@@ -38,6 +32,8 @@ type SignInFormProps = {
 const { emailLoginEnabled, passwordLoginEnabled, githubLoginEnabled } =
    publicEnv;
 
+// the two pages run the same flow (a password signs in or creates the
+// account); only their words differ
 const SUBMIT_LABEL: Record<Mode, string> = {
    login: "Sign in",
    signup: "Create account",
@@ -65,8 +61,7 @@ const SignInForm = ({
    const [password, setPassword] = useState("");
    const [emailError, setEmailError] = useState<string | null>(null);
    const [passwordError, setPasswordError] = useState<string | null>(null);
-   const [pending, setPending] = useState<Pending>(null);
-   const busy = pending !== null;
+   const [pending, setPending] = useState(false);
 
    const validEmail = (): string | null => {
       const parsed = emailSchema.safeParse(email);
@@ -78,11 +73,11 @@ const SignInForm = ({
    const sendCode = async () => {
       const address = validEmail();
       if (!address) return;
-      setPending("code");
+      setPending(true);
       const { error } = await requestSignInCode(address);
       if (error) {
          setEmailError(error);
-         setPending(null);
+         setPending(false);
          return;
       }
       onCodeSent(address);
@@ -91,33 +86,28 @@ const SignInForm = ({
    const submitPassword = async () => {
       const address = validEmail();
       const parsed = passwordSchema.safeParse(password);
-      if (mode === "signup" && !parsed.success) {
+      if (!parsed.success) {
          setPasswordError(
-            parsed.error.issues[0]?.message ?? "Enter a password."
+            password
+               ? (parsed.error.issues[0]?.message ?? "")
+               : "Enter your password."
          );
-      } else if (!password) {
-         setPasswordError("Enter your password.");
       }
-      if (!address || !password || (mode === "signup" && !parsed.success)) {
-         return;
-      }
-      setPending("password");
-      const result: AuthResult =
-         mode === "login"
-            ? await signInWithPassword(address, password)
-            : await signUpWithPassword(address, password);
+      if (!address || !parsed.success) return;
+      setPending(true);
+      const result = await continueWithPassword(address, parsed.data);
       if (result.error) {
          setPasswordError(result.error);
-         setPending(null);
+         setPending(false);
          return;
       }
-      if (mode === "login") await onSignedIn();
-      else await onSignedUp(address);
+      if (result.created) await onSignedUp(address);
+      else await onSignedIn();
    };
 
    const submit = (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
-      if (busy) return;
+      if (pending) return;
       void (passwordLoginEnabled ? submitPassword() : sendCode());
    };
 
@@ -131,6 +121,22 @@ const SignInForm = ({
          </p>
       );
    }
+
+   const codeLink = passwordLoginEnabled && emailLoginEnabled && (
+      <button
+         type="button"
+         disabled={pending}
+         onClick={() => void sendCode()}
+         className={TEXT_LINK}
+      >
+         Email me a code instead
+      </button>
+   );
+   const resetLink = passwordLoginEnabled && emailLoginEnabled && (
+      <Link href={SITE_PATHS.forgotPassword} className={TEXT_LINK}>
+         Forgot password?
+      </Link>
+   );
 
    return (
       <div className="flex flex-col gap-6">
@@ -150,7 +156,7 @@ const SignInForm = ({
                   variant="outline"
                   size="lg"
                   className="w-full"
-                  disabled={busy}
+                  disabled={pending}
                   onClick={onGithub}
                >
                   <GithubIcon className="size-4" />
@@ -179,7 +185,7 @@ const SignInForm = ({
                      required
                      placeholder="you@example.com"
                      value={email}
-                     disabled={busy}
+                     disabled={pending}
                      aria-invalid={emailError ? true : undefined}
                      aria-describedby="email-message"
                      onChange={(event) => {
@@ -192,17 +198,7 @@ const SignInForm = ({
 
                {passwordLoginEnabled && (
                   <div className="flex flex-col gap-1.5">
-                     <div className="flex h-4 items-center justify-between">
-                        <Label htmlFor="password">Password</Label>
-                        {mode === "login" && emailLoginEnabled && (
-                           <Link
-                              href={SITE_PATHS.forgotPassword}
-                              className={`${TEXT_LINK} text-sm leading-none`}
-                           >
-                              Forgot password?
-                           </Link>
-                        )}
-                     </div>
+                     <Label htmlFor="password">Password</Label>
                      <PasswordInput
                         id="password"
                         name="password"
@@ -213,7 +209,7 @@ const SignInForm = ({
                         }
                         required
                         value={password}
-                        disabled={busy}
+                        disabled={pending}
                         aria-invalid={passwordError ? true : undefined}
                         aria-describedby="password-message"
                         onChange={(event) => {
@@ -237,29 +233,24 @@ const SignInForm = ({
                   type="submit"
                   size="lg"
                   className="w-full"
-                  loading={
-                     pending === (passwordLoginEnabled ? "password" : "code")
-                  }
-                  disabled={
-                     busy &&
-                     pending !== (passwordLoginEnabled ? "password" : "code")
-                  }
+                  loading={pending}
                >
                   {passwordLoginEnabled ? SUBMIT_LABEL[mode] : "Continue"}
                </Button>
 
-               {passwordLoginEnabled && emailLoginEnabled && (
-                  <Button
-                     type="button"
-                     variant="outline"
-                     size="lg"
-                     className="w-full"
-                     loading={pending === "code"}
-                     disabled={pending === "password"}
-                     onClick={() => void sendCode()}
-                  >
-                     Email me a code instead
-                  </Button>
+               {(resetLink || codeLink) && (
+                  <p className="flex flex-wrap items-center justify-center gap-x-3 text-center text-sm text-viewertext">
+                     {resetLink}
+                     {resetLink && codeLink && (
+                        <span
+                           aria-hidden="true"
+                           className="text-viewerlighttext"
+                        >
+                           ·
+                        </span>
+                     )}
+                     {codeLink}
+                  </p>
                )}
             </form>
          )}

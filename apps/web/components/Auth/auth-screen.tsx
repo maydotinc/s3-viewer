@@ -31,16 +31,18 @@ type AuthScreenProps = {
 const { emailLoginEnabled, passwordLoginEnabled, githubLoginEnabled } =
    publicEnv;
 
+// both pages run one flow: a password signs in or, for a new address,
+// creates the account; a code does the same
 const subtitle = (mode: Mode): string => {
    if (passwordLoginEnabled && emailLoginEnabled) {
       return mode === "login"
-         ? "Use your password, or get a one-time code by email."
-         : "Choose a password, or get a one-time code by email.";
+         ? "Use your password, or a one-time code by email."
+         : "Pick a password, or use a one-time code by email.";
    }
    if (passwordLoginEnabled) {
       return mode === "login"
          ? "Enter your email and password."
-         : "Enter your email and choose a password.";
+         : "Enter your email and pick a password.";
    }
    if (emailLoginEnabled) {
       return "Enter your email and we'll send you a code and a sign-in link.";

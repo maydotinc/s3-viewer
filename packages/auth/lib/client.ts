@@ -6,9 +6,15 @@ import { localPart } from "./utils";
 
 type AuthClientOptions = { apiOrigin: string; siteOrigin: string };
 
-type AuthResult = { error: string | null };
+type AuthResult = { error: string | null; code?: string };
+type ContinueResult = AuthResult & { created: boolean };
 
 const PASSWORD_PROVIDER = "credential";
+const WRONG_CREDENTIALS = "INVALID_EMAIL_OR_PASSWORD";
+const ALREADY_EXISTS = new Set([
+   "USER_ALREADY_EXISTS",
+   "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+]);
 
 const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
    const authClient = createAuthClient({
@@ -22,7 +28,10 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       error,
    }: {
       error: AuthClientError | null;
-   }): AuthResult => ({ error: error ? authErrorMessage(error) : null });
+   }): AuthResult =>
+      error
+         ? { error: authErrorMessage(error), code: error.code }
+         : { error: null };
 
    const verifyOtp = (email: string, otp: string): Promise<AuthResult> =>
       authClient.signIn.emailOtp({ email, otp }).then(toResult);
@@ -40,6 +49,25 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       authClient.signUp
          .email({ email, password, name: localPart(email) })
          .then(toResult);
+
+   // sign-in and sign-up are one flow: a password that matches signs in, an
+   // address with no account is created with it, and anything else is a wrong
+   // password. Sign-up already reveals an existing address, so this leaks
+   // nothing new
+   const continueWithPassword = async (
+      email: string,
+      password: string
+   ): Promise<ContinueResult> => {
+      const signedIn = await signInWithPassword(email, password);
+      if (signedIn.code !== WRONG_CREDENTIALS) {
+         return { ...signedIn, created: false };
+      }
+      const created = await signUpWithPassword(email, password);
+      if (created.code && ALREADY_EXISTS.has(created.code)) {
+         return { ...signedIn, created: false };
+      }
+      return { ...created, created: !created.error };
+   };
 
    const requestPasswordReset = (email: string): Promise<AuthResult> =>
       authClient.emailOtp.requestPasswordReset({ email }).then(toResult);
@@ -96,6 +124,7 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
    return {
       authClient,
       changePassword,
+      continueWithPassword,
       hasPassword,
       requestPasswordReset,
       resetPassword,
@@ -110,4 +139,4 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
 };
 
 export { makeAuthClient };
-export type { AuthResult };
+export type { AuthResult, ContinueResult };

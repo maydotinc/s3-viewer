@@ -277,6 +277,12 @@ which is exact for listings up to 1000 entries and per-block above that.
 - Password flow: `emailAndPassword` with `PASSWORD_MIN_LENGTH` (8) /
   `PASSWORD_MAX_LENGTH` (128) from `@s3-viewer/types` (`passwordSchema`),
   `requireEmailVerification: false`, `revokeSessionsOnPasswordReset: true`.
+  The web never asks which page it is on: `continueWithPassword`
+  (`packages/auth/lib/client.ts`) tries `/sign-in/email`, and on
+  `INVALID_EMAIL_OR_PASSWORD` tries `/sign-up/email`; `USER_ALREADY_EXISTS`
+  there means a wrong password, anything else created the account. Passwords
+  are validated against `passwordSchema` before either request, so every
+  stored password meets it.
   Sign-up (`/sign-up/email`, name = local part) starts signed in and the
   emailOTP plugin's `sendVerificationOnSignUp` sends an `email-verification`
   code at once; the web shows a "Verify your email" step with "Skip for
@@ -417,9 +423,10 @@ longer pre-blocks any `/auth/*` path.
 - Login/signup page: one `AuthScreen` component inside `AuthLayout`; mobile
   = form only, desktop = split (form left, brand panel right on Viewer Dark
   Blue). `SignInForm` renders whatever `publicEnv` enables: GitHub button,
-  email field, password field with "Forgot password?", primary "Sign in" /
-  "Create account" (or "Continue" when only the code flow is on) and an
-  outline "Email me a code instead". Steps: `form` → `code` (OTP sign-in) or
+  email field, password field, primary "Sign in" / "Create account" (or
+  "Continue" when only the code flow is on) and one centred link row under
+  it: "Forgot password? · Email me a code instead". Both pages run the same
+  flow (see Auth). Steps: `form` → `code` (OTP sign-in) or
   `verify` (after a password sign-up; "Skip for now" goes to the
   destination). `/forgot-password` is `ForgotPasswordScreen`: email → code +
   new password on one step. `useStepHeight` keeps the first step's height so
