@@ -1,5 +1,4 @@
 import { api, cancelledError, objectsPath } from "@/lib/api";
-import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import {
    MAX_BATCH_KEYS,
    MAX_BATCH_KEY_CHARS,
@@ -55,15 +54,16 @@ const reportDeleteResult = ({
 
 const useDeleteObjects = () => {
    const queryClient = useQueryClient();
-   const userId = useUserId();
-   const serverId = useSessionStore((state) => state.serverId);
 
    return useMutation({
       mutationFn: async ({
+         serverId,
          bucketName,
          objectKeys,
          signal,
       }: {
+         userId: string;
+         serverId: string;
          bucketName: string;
          objectKeys: string[];
          signal?: AbortSignal;
@@ -87,8 +87,11 @@ const useDeleteObjects = () => {
          return summary;
       },
       onSuccess: reportDeleteResult,
-      onSettled: (_result, _error, { bucketName, objectKeys }) =>
-         forgetKeys(queryClient, userId, serverId, bucketName, objectKeys),
+      onSettled: (
+         _result,
+         _error,
+         { userId, serverId, bucketName, objectKeys }
+      ) => forgetKeys(queryClient, userId, serverId, bucketName, objectKeys),
    });
 };
 

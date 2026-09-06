@@ -1,32 +1,41 @@
 import { useBucketContext } from "@/components/Buckets/Context";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
-import { api, objectsPath } from "@/lib/api";
+import { isAborted } from "@/lib/api";
 import { forgetKeys } from "@/lib/hooks/mutations/object/invalidate";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import useUploadStore from "@/lib/stores/upload-store/uploadStore";
 import type { UploadFile } from "@/lib/utils/s3/dropEntries";
+import { checkUploadConflicts } from "@/lib/utils/s3/upload-preflight";
 import { toastError } from "@/lib/utils/toast";
-import {
-   MAX_BATCH_KEYS,
-   MAX_BATCH_KEY_CHARS,
-   chunkKeys,
-   type S3ObjectsExist,
-} from "@s3-viewer/types";
 import { useQueryClient } from "@tanstack/react-query";
 import {
    createContext,
    useCallback,
    useContext,
+   useEffect,
    useMemo,
+   useRef,
    useState,
 } from "react";
 
-type PendingReplace = {
-   files: UploadFile[];
-   existing: string[];
+type UploadTarget = {
+   userId: string;
+   serverId: string;
    bucketName: string;
    prefix: string;
 };
+type PendingReplace = UploadTarget & {
+   files: UploadFile[];
+   existing: string[];
+   eTags: Record<string, string>;
+};
+type Preflight = { target: UploadTarget; controller: AbortController };
+
+const sameTarget = (left: UploadTarget, right: UploadTarget): boolean =>
+   left.userId === right.userId &&
+   left.serverId === right.serverId &&
+   left.bucketName === right.bucketName &&
+   left.prefix === right.prefix;
 
 type UploaderValue = {
    upload: (files: UploadFile[]) => Promise<void>;
@@ -43,96 +52,162 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
    const enqueue = useUploadStore((state) => state.enqueue);
    const [pending, setPending] = useState<PendingReplace | null>(null);
    const [isChecking, setIsChecking] = useState(false);
+   const mounted = useRef(true);
+   const checking = useRef<Preflight | null>(null);
+   const currentTarget = useRef<UploadTarget>({
+      userId,
+      serverId,
+      bucketName,
+      prefix,
+   });
+   currentTarget.current = { userId, serverId, bucketName, prefix };
+
+   const isCurrent = useCallback((target: UploadTarget) => {
+      const session = useSessionStore.getState();
+      return (
+         mounted.current &&
+         sameTarget(target, currentTarget.current) &&
+         session.userId === target.userId &&
+         session.serverId === target.serverId
+      );
+   }, []);
+
+   useEffect(() => {
+      mounted.current = true;
+      return () => {
+         mounted.current = false;
+      };
+   }, []);
+
+   useEffect(() => {
+      const target = { userId, serverId, bucketName, prefix };
+      setPending((previous) =>
+         previous && sameTarget(previous, target) ? previous : null
+      );
+      setIsChecking(
+         Boolean(
+            checking.current && sameTarget(checking.current.target, target)
+         )
+      );
+      return () => {
+         if (checking.current && sameTarget(checking.current.target, target)) {
+            checking.current.controller.abort();
+            checking.current = null;
+         }
+      };
+   }, [userId, serverId, bucketName, prefix]);
 
    const start = useCallback(
-      (files: UploadFile[], target: { bucketName: string; prefix: string }) => {
+      (
+         files: UploadFile[],
+         target: UploadTarget,
+         eTags: Record<string, string>
+      ) => {
+         if (!isCurrent(target)) return;
          const keys = files.map(
             (file) => `${target.prefix}${file.relativePath}`
          );
          enqueue({
             files,
-            serverId,
-            ...target,
+            serverId: target.serverId,
+            bucketName: target.bucketName,
+            prefix: target.prefix,
+            eTags,
             onComplete: () => {
                forgetKeys(
                   queryClient,
-                  userId,
-                  serverId,
+                  target.userId,
+                  target.serverId,
                   target.bucketName,
                   keys
                );
-               refresh();
+               if (isCurrent(target)) refresh();
             },
          });
       },
-      [enqueue, queryClient, userId, serverId, refresh]
+      [enqueue, queryClient, isCurrent, refresh]
    );
 
    const upload = useCallback(
       async (files: UploadFile[]) => {
          if (files.length === 0) return;
-         const target = { bucketName, prefix };
+         const target = { userId, serverId, bucketName, prefix };
+         if (!userId || !serverId || !isCurrent(target)) return;
+         checking.current?.controller.abort();
+         const check = { target, controller: new AbortController() };
+         checking.current = check;
+         setPending(null);
          setIsChecking(true);
          try {
             const keys = files.map((file) => `${prefix}${file.relativePath}`);
-            const found = new Set<string>();
-            for (const batch of chunkKeys(
+            const result = await checkUploadConflicts({
+               serverId,
+               bucketName,
                keys,
-               MAX_BATCH_KEYS,
-               MAX_BATCH_KEY_CHARS
-            )) {
-               const page = await api.post<S3ObjectsExist>(
-                  `${objectsPath(serverId, bucketName)}/exists`,
-                  { objectKeys: batch }
-               );
-               for (const key of page.existing) found.add(key);
-            }
+               signal: check.controller.signal,
+            });
+            if (
+               check.controller.signal.aborted ||
+               checking.current !== check ||
+               !isCurrent(target)
+            )
+               return;
+            const found = new Set(result.existing);
             const existing = files
                .filter((file) => found.has(`${prefix}${file.relativePath}`))
                .map((file) => file.relativePath);
-            if (existing.length > 0) setPending({ files, existing, ...target });
-            else start(files, target);
+            if (existing.length > 0)
+               setPending({ files, existing, eTags: result.eTags, ...target });
+            else start(files, target, result.eTags);
          } catch (error) {
-            toastError("Couldn't start the upload")(error);
+            if (
+               !check.controller.signal.aborted &&
+               checking.current === check &&
+               isCurrent(target) &&
+               !isAborted(error)
+            )
+               toastError("Couldn't start the upload")(error);
          } finally {
-            setIsChecking(false);
+            if (checking.current === check) {
+               checking.current = null;
+               setIsChecking(false);
+            }
          }
       },
-      [serverId, bucketName, prefix, start]
+      [userId, serverId, bucketName, prefix, isCurrent, start]
    );
 
    const value = useMemo(() => ({ upload, isChecking }), [upload, isChecking]);
 
+   const visiblePending =
+      pending && sameTarget(pending, currentTarget.current) ? pending : null;
    const confirmReplace = () => {
-      if (!pending) return;
-      start(pending.files, {
-         bucketName: pending.bucketName,
-         prefix: pending.prefix,
-      });
+      if (!visiblePending) return;
+      start(visiblePending.files, visiblePending, visiblePending.eTags);
       setPending(null);
    };
 
-   const names = pending?.existing.slice(0, 3).join(", ") ?? "";
+   const names = visiblePending?.existing.slice(0, 3).join(", ") ?? "";
    const more =
-      pending && pending.existing.length > 3
-         ? ` and ${pending.existing.length - 3} more`
+      visiblePending && visiblePending.existing.length > 3
+         ? ` and ${visiblePending.existing.length - 3} more`
          : "";
 
    return (
       <UploaderContext.Provider value={value}>
          {children}
          <ConfirmDialog
-            open={pending !== null}
+            open={visiblePending !== null}
             onClose={() => setPending(null)}
             title={
-               pending?.existing.length === 1
+               visiblePending?.existing.length === 1
                   ? "Replace existing file?"
                   : "Replace existing files?"
             }
             description={
-               pending?.existing.length === 1
+               visiblePending?.existing.length === 1
                   ? `${names} already exists in this folder and will be overwritten.`
-                  : `${pending?.existing.length ?? 0} of the selected files already exist in this folder and will be overwritten: ${names}${more}.`
+                  : `${visiblePending?.existing.length ?? 0} of the selected files already exist in this folder and will be overwritten: ${names}${more}.`
             }
             descriptionClassName="break-all"
             confirmLabel="Replace"

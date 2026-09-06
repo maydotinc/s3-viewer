@@ -5,14 +5,20 @@ import { SECOND_MS, type S3ObjectListPage } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
 const SUGGESTION_BLOCK_SIZE = 50;
+type SuggestionScope = { userId: string; serverId: string };
 
 const useObjectKeys = (
    bucketName: string,
    prefix: string,
-   enabled: boolean
+   enabled: boolean,
+   scope?: SuggestionScope
 ) => {
-   const userId = useUserId();
-   const serverId = useSessionStore((state) => state.serverId);
+   const sessionUserId = useUserId();
+   const sessionServerId = useSessionStore((state) => state.serverId);
+   const { userId, serverId } = scope ?? {
+      userId: sessionUserId,
+      serverId: sessionServerId,
+   };
 
    const query = useQuery({
       queryKey: queryKeys.objects(userId, serverId, bucketName, prefix),
@@ -34,3 +40,4 @@ const useObjectKeys = (
 };
 
 export default useObjectKeys;
+export type { SuggestionScope };

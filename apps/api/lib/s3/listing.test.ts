@@ -179,6 +179,7 @@ describe("existingKeys", () => {
          await existingKeys({ client, bucket: "b" }, ["up/a", "up/b"])
       ).toEqual({
          existing: [],
+         eTags: {},
          unresolved: [],
       });
       expect(inputs).toHaveLength(1);

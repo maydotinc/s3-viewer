@@ -1,4 +1,4 @@
-import { MAX_EXISTS_HEADS, S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
+import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
 import { getAuth } from "@/lib/middleware/authorize";
@@ -6,18 +6,14 @@ import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
 import { deleteKeys } from "@/lib/s3/delete";
-import { isNotFound, throwHttpError, toHttpError } from "@/lib/s3/errors";
+import { throwHttpError } from "@/lib/s3/errors";
+import { whichExist } from "@/lib/s3/existence";
 import {
    contentDispositionFilename,
    inlineContentType,
    inlineDisposition,
 } from "@/lib/s3/keys";
-import {
-   existingKeys,
-   listKeysPage,
-   listPage,
-   type S3Scope,
-} from "@/lib/s3/listing";
+import { listKeysPage, listPage, type S3Scope } from "@/lib/s3/listing";
 import { renameObject } from "@/lib/s3/rename";
 import { presignedUrl } from "@/lib/s3/presign";
 import { recordAudit } from "@/lib/services/audit";
@@ -48,7 +44,6 @@ import {
    Provider,
    keysQuerySchema,
    listObjectsQuerySchema,
-   mapLimit,
    objectKeysBodySchema,
    objectScope,
    putObjectQuerySchema,
@@ -63,12 +58,8 @@ import {
    type S3ObjectMetadata,
    type S3ObjectPreview,
    type S3ObjectUploaded,
-   type S3ObjectsExist,
 } from "@s3-viewer/types";
 import { Router, type Response } from "express";
-
-const HEAD_CONCURRENCY = 16;
-const EXISTS_LIST_THRESHOLD = 50;
 
 const objectsRouter = Router({ mergeParams: true });
 const uploadBudget = createUploadBudget({
@@ -96,42 +87,6 @@ const headObject = (
          abortSignal: signal,
       })
       .catch(throwHttpError);
-
-const objectExists = async (scope: S3Scope, key: string): Promise<boolean> => {
-   try {
-      await headObject(scope, key);
-      return true;
-   } catch (err) {
-      if (isNotFound(err)) return false;
-      throw toHttpError(err);
-   }
-};
-
-const headExisting = (
-   scope: S3Scope,
-   keys: readonly string[]
-): Promise<string[]> =>
-   mapLimit(keys, HEAD_CONCURRENCY, (key) => objectExists(scope, key)).then(
-      (found) => keys.filter((_, i) => found[i])
-   );
-
-// one HeadObject per key bills the bucket owner for the whole batch, so past a
-// small batch the answer comes from listings and only the keys the page budget
-// couldn't reach fall back to heads. past the head cap a key is reported as
-// existing: the client uses this to warn before overwriting, and a spare
-// "replace?" beats a silent overwrite
-const whichExist = async (
-   scope: S3Scope,
-   keys: string[]
-): Promise<string[]> => {
-   if (keys.length <= EXISTS_LIST_THRESHOLD) return headExisting(scope, keys);
-   const { existing, unresolved } = await existingKeys(scope, keys);
-   return [
-      ...existing,
-      ...(await headExisting(scope, unresolved.slice(0, MAX_EXISTS_HEADS))),
-      ...unresolved.slice(MAX_EXISTS_HEADS),
-   ];
-};
 
 const toMetadata = (head: HeadObjectCommandOutput): S3ObjectMetadata => ({
    contentType: head.ContentType ?? DEFAULT_CONTENT_TYPE,
@@ -175,13 +130,9 @@ objectsRouter.post(
          const { serverId, bucketName, objectKeys } =
             input<ObjectKeysInput>(res);
          const client = await getS3Client(serverId);
-         const result: S3ObjectsExist = {
-            existing: await whichExist(
-               routeScope(client, bucketName, res),
-               objectKeys
-            ),
-         };
-         res.json(result);
+         res.json(
+            await whichExist(routeScope(client, bucketName, res), objectKeys)
+         );
       }
    )
 );
@@ -223,12 +174,14 @@ objectsRouter.get(
 );
 
 objectsRouter.put(
-   "/",
+   // The dedicated path makes a new web app fail closed against an old API
+   // during rolling deploys. The legacy path also enforces conditions here.
+   ["/", "/upload"],
    ...bucketRoute(
       Permission.UPLOAD_OBJECT,
       putObjectQuerySchema,
       async (req, res) => {
-         const { serverId, bucketName, objectKey, contentType } =
+         const { serverId, bucketName, objectKey, contentType, expectedETag } =
             input<PutObjectQuery>(res);
          const contentLength = declaredLength(req.headers["content-length"]);
          if (exceedsLimit(contentLength, env.MAX_UPLOAD_BYTES)) {
@@ -287,6 +240,7 @@ objectsRouter.put(
                bucket: bucketName,
                key: objectKey,
                contentType,
+               expectedETag,
                body: req,
                contentLength,
                partSize,

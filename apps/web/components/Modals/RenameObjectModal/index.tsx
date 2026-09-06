@@ -14,6 +14,7 @@ import { FormEvent, useId, useState } from "react";
 
 type RenameObjectModalProps = {
    onClose: () => void;
+   userId: string;
    serverId: string;
    bucketName: string;
    objectKey: string;
@@ -43,6 +44,8 @@ const requestFailure = (error: unknown): string =>
 
 const RenameObjectModal = ({
    onClose,
+   userId,
+   serverId,
    bucketName,
    objectKey,
    onRenameSuccess,
@@ -56,7 +59,10 @@ const RenameObjectModal = ({
 
    const newKey = value.trim();
    const validation = validate(newKey, objectKey);
-   const suggestion = usePathSuggestion(bucketName, newKey);
+   const suggestion = usePathSuggestion(bucketName, newKey, {
+      userId,
+      serverId,
+   });
    const error = requestError ?? (touched ? validation : null);
 
    const acceptSuggestion = () => {
@@ -72,7 +78,7 @@ const RenameObjectModal = ({
       if (rename.isPending || validation) return;
       setRequestError(null);
       rename.mutate(
-         { bucketName, objectKey, newObjectKey: newKey },
+         { userId, serverId, bucketName, objectKey, newObjectKey: newKey },
          {
             onSuccess: () => {
                toast.success("Object renamed.");

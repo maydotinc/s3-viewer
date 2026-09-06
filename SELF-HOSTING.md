@@ -613,6 +613,25 @@ key back as a block of real lines when you've got it right.
 
 ## 8. Production notes
 
+- **Conditional uploads.** AWS S3 uploads use conditional writes for new files
+  and confirmed replacements, including multipart completion. Cloudflare R2
+  uses a single streamed conditional PUT, requires Content-Length, and is
+  capped at 5 GiB minus 5 MiB (or `MAX_UPLOAD_BYTES`, if lower). R2 multipart
+  conditional publication is not enabled until its exact preconditions are
+  verified. Custom endpoints, including the demo MinIO, remain browsable but
+  reject uploads: a service that ignores conditional headers could otherwise
+  silently overwrite data. See [AWS conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html),
+  [R2 PutObject compatibility](https://developers.cloudflare.com/r2/api/s3/api/),
+  and [R2 request limits](https://developers.cloudflare.com/r2/platform/limits/).
+
+- **Creating buckets.** Existing buckets are never attached by reissuing
+  CreateBucket; that can reset ACLs in AWS us-east-1. Duplicate app requests
+  are serialized across replicas with a bounded PostgreSQL transaction (up
+  to 65 seconds per active creation). External console/CLI provisioning does
+  not participate in this lock. If credentials or permissions change during
+  creation, the new storage bucket is retained without granting fresh access;
+  an owner can inspect it at the provider. No automatic bucket deletion runs.
+
 - **Migrations run automatically, but plan around them anyway.** The Docker
   API image's entrypoint waits for Postgres to accept TCP connections, then
   runs `prisma migrate deploy` on every single boot, before starting the

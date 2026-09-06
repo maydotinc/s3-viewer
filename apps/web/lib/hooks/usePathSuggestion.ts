@@ -1,4 +1,6 @@
-import useObjectKeys from "@/lib/hooks/queries/s3/useObjectKeys";
+import useObjectKeys, {
+   type SuggestionScope,
+} from "@/lib/hooks/queries/s3/useObjectKeys";
 import { useEffect, useMemo, useState } from "react";
 
 const useDebouncedValue = <T>(value: T, delayMs: number) => {
@@ -22,12 +24,17 @@ const isAcceptSuggestionKey = (
    );
 };
 
-const usePathSuggestion = (bucketName: string, currentKey: string): string => {
+const usePathSuggestion = (
+   bucketName: string,
+   currentKey: string,
+   scope?: SuggestionScope
+): string => {
    const debouncedKey = useDebouncedValue(currentKey, 200);
    const keys = useObjectKeys(
       bucketName,
       debouncedKey,
-      debouncedKey.length > 0
+      debouncedKey.length > 0,
+      scope
    );
 
    return useMemo(() => {

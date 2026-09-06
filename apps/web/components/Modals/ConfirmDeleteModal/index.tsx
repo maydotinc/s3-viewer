@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 type ConfirmDeleteModalProps = {
    onClose: () => void;
+   userId: string;
    serverId: string;
    bucketName: string;
    objectKeys: string[];
@@ -17,6 +18,8 @@ type ConfirmDeleteModalProps = {
 
 const ConfirmDeleteModal = ({
    onClose,
+   userId,
+   serverId,
    bucketName,
    objectKeys,
    onDeleteSuccess,
@@ -62,8 +65,8 @@ const ConfirmDeleteModal = ({
       setError(null);
       const options = {
          onSuccess: (result: DeleteSummary) => {
-            if (result.deleted > 0) onDeleteSuccess?.();
             if (!mounted.current) return;
+            if (result.deleted > 0) onDeleteSuccess?.();
             setFailed(result.failed);
             setFailedTotal(result.failedTotal);
             if (result.failedTotal === 0) onClose();
@@ -80,6 +83,8 @@ const ConfirmDeleteModal = ({
          setProgress(0);
          deletePrefix.mutate(
             {
+               userId,
+               serverId,
                bucketName,
                prefix: folder,
                signal: abort.current.signal,
@@ -94,7 +99,13 @@ const ConfirmDeleteModal = ({
       const keys = failed.length > 0 ? failed.map((f) => f.key) : objectKeys;
       abort.current = new AbortController();
       deleteObjects.mutate(
-         { bucketName, objectKeys: keys, signal: abort.current.signal },
+         {
+            userId,
+            serverId,
+            bucketName,
+            objectKeys: keys,
+            signal: abort.current.signal,
+         },
          options
       );
    };

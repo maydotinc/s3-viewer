@@ -1,7 +1,14 @@
-import { AbortMultipartUploadCommand, type S3Client } from "@aws-sdk/client-s3";
+import {
+   AbortMultipartUploadCommand,
+   PutObjectCommand,
+   type S3Client,
+} from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { Provider } from "@s3-viewer/types";
 import { Transform, type Readable } from "node:stream";
+import { ApiHttpError } from "../http";
 import { logger } from "../logger";
+import { detectProvider } from "../utils/detect-provider";
 import { UPLOAD_QUEUE_SIZE } from "./upload-budget";
 
 const MAX_PARTS = 10_000;
@@ -9,6 +16,38 @@ const MIB = 1024 * 1024;
 const TIB = 1024 ** 4;
 const MAX_OBJECT_BYTES = 5 * TIB;
 const MAX_DERIVED_PART_BYTES = 64 * MIB;
+// R2's documented single-request limit is 5 GiB minus 5 MiB.
+const MAX_SINGLE_UPLOAD_BYTES = 5 * 1024 ** 3 - 5 * MIB;
+
+// Read the actual client's endpoint, so racing credential updates cannot
+// apply one provider's capabilities to a different cached connection.
+const uploadProvider = async (client: S3Client): Promise<Provider> => {
+   const endpoint = await client.config.endpoint?.();
+   const provider = detectProvider(
+      endpoint ? `${endpoint.protocol}//${endpoint.hostname}` : ""
+   );
+   if (provider === Provider.Other) {
+      throw new ApiHttpError(
+         409,
+         "Uploads are unavailable because this storage provider's overwrite protection has not been verified."
+      );
+   }
+   return provider;
+};
+
+const uploadConflict = (error: unknown): boolean => {
+   if (!error || typeof error !== "object") return false;
+   const failure = error as {
+      name?: string;
+      $metadata?: { httpStatusCode?: number };
+   };
+   return (
+      failure.name === "PreconditionFailed" ||
+      failure.name === "ConditionalRequestConflict" ||
+      failure.$metadata?.httpStatusCode === 412 ||
+      failure.$metadata?.httpStatusCode === 409
+   );
+};
 
 class UploadTooLargeError extends Error {
    readonly limit: number;
@@ -30,11 +69,14 @@ class UploadIdleError extends Error {
 const isUploadTooLargeError = (err: unknown): err is UploadTooLargeError =>
    err instanceof UploadTooLargeError;
 
-const limitBytes = (limit: number, onChunk: () => void): Transform => {
+const limitBytes = (
+   limit: number,
+   onChunk: (bytes: number) => void
+): Transform => {
    let total = 0;
    return new Transform({
       transform(chunk, _encoding, done) {
-         onChunk();
+         onChunk(chunk.length);
          total += chunk.length;
          if (total > limit) {
             done(new UploadTooLargeError(limit));
@@ -88,6 +130,7 @@ type StreamUploadParams = {
    bucket: string;
    key: string;
    contentType: string;
+   expectedETag?: string;
    body: Readable;
    contentLength: number | undefined;
    partSize: number;
@@ -103,6 +146,7 @@ const streamUpload = async ({
    bucket,
    key,
    contentType,
+   expectedETag,
    body,
    contentLength,
    partSize,
@@ -110,6 +154,29 @@ const streamUpload = async ({
    abortController,
    idleTimeoutMs = 120_000,
 }: StreamUploadParams): Promise<StreamUploadResult> => {
+   const provider = await uploadProvider(client);
+   // R2 documents conditional PutObject, but not conditional multipart
+   // completion. Stream one PUT instead of risking an unconditional commit.
+   if (provider === Provider.R2 && contentLength === undefined) {
+      throw new ApiHttpError(
+         411,
+         "A content length is required for uploads to Cloudflare R2."
+      );
+   }
+   if (
+      provider === Provider.R2 &&
+      contentLength !== undefined &&
+      contentLength > MAX_SINGLE_UPLOAD_BYTES
+   ) {
+      throw new ApiHttpError(
+         413,
+         "Safe uploads to Cloudflare R2 are limited to 5 GiB minus 5 MiB."
+      );
+   }
+   const condition =
+      expectedETag === undefined
+         ? { IfNoneMatch: "*" }
+         : { IfMatch: expectedETag };
    let idle: ReturnType<typeof setTimeout> | undefined;
    const clearIdle = () => clearTimeout(idle);
    const resetIdle = () => {
@@ -123,7 +190,11 @@ const streamUpload = async ({
       );
       idle.unref();
    };
-   const limiter = limitBytes(maxBytes, resetIdle);
+   let size = 0;
+   const limiter = limitBytes(maxBytes, (bytes) => {
+      size += bytes;
+      resetIdle();
+   });
    body.on("pause", clearIdle);
    body.on("resume", resetIdle);
    body.on("end", clearIdle);
@@ -158,37 +229,39 @@ const streamUpload = async ({
       return result;
    }) as S3Client["send"];
 
-   const upload = new Upload({
-      client: uploadClient,
-      params: {
-         Bucket: bucket,
-         Key: key,
-         Body: body.pipe(limiter),
-         ContentType: contentType,
-         ...(contentLength === undefined
-            ? {}
-            : { ContentLength: contentLength }),
-      },
-      partSize,
-      queueSize: UPLOAD_QUEUE_SIZE,
-      leavePartsOnError: false,
-   });
-
-   let size = 0;
-   upload.on("httpUploadProgress", ({ loaded }) => {
-      if (loaded !== undefined) size = loaded;
-   });
+   const params = {
+      Bucket: bucket,
+      Key: key,
+      Body: body.pipe(limiter),
+      ContentType: contentType,
+      ...condition,
+      ...(contentLength === undefined ? {} : { ContentLength: contentLength }),
+   };
+   const upload =
+      provider === Provider.S3
+         ? new Upload({
+              client: uploadClient,
+              params,
+              partSize,
+              queueSize: UPLOAD_QUEUE_SIZE,
+              leavePartsOnError: false,
+           })
+         : undefined;
 
    try {
       resetIdle();
       if (abortController.signal.aborted) onAbort();
-      const out = await upload.done();
+      const out = upload
+         ? await upload.done()
+         : await client.send(new PutObjectCommand(params), {
+              abortSignal: abortController.signal,
+           });
       return { size, eTag: out.ETag ?? null };
    } catch (err) {
       // lib-storage cleans up worker failures, but not failures/cancellation
       // during CompleteMultipartUpload. Finish that cleanup before admission
       // is released; it must work even after the request signal was aborted.
-      if (upload.uploadId !== undefined && !cleanupConfirmed) {
+      if (upload?.uploadId !== undefined && !cleanupConfirmed) {
          try {
             await client.send(
                new AbortMultipartUploadCommand({
@@ -218,6 +291,12 @@ const streamUpload = async ({
       if (isUploadTooLargeError(limiter.errored)) throw limiter.errored;
       if (abortController.signal.reason instanceof UploadIdleError)
          throw abortController.signal.reason;
+      if (uploadConflict(err)) {
+         throw new ApiHttpError(
+            409,
+            "The file changed or already exists. Refresh the folder and confirm the upload again."
+         );
+      }
       throw err;
    } finally {
       clearIdle();
@@ -245,4 +324,5 @@ export {
    streamUpload,
    UploadTooLargeError,
    UploadIdleError,
+   uploadProvider,
 };

@@ -10,7 +10,7 @@ A web-based S3-compatible object storage browser that lets you manage multiple S
 - Credentials encrypted in the browser before they ever reach the server
 - Server sharing and collaboration, with per-bucket access grants
 - Multi-user support with role-based permissions
-- File upload/download with progress tracking
+- File upload/download with progress tracking (uploads on AWS S3 and Cloudflare R2)
 
 ## 🧬 Architecture
 
@@ -170,6 +170,8 @@ Report vulnerabilities privately per [SECURITY.md](./SECURITY.md). What is in pl
 - **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, 20/minute per IP on every non-GET auth route, 10/10 minutes per IP and email address on password sign-in (60/10 minutes per address as a backstop), 10 accounts created per IP per hour, and 5/10 minutes per address on verification and reset links. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
 - **Bounded request bodies and uploads.** Auth bodies are capped at 64 KiB, including chunked requests; compressed auth bodies are rejected. Uploads default to 6 active per API process, 3 per user, a 256 MiB buffer reservation budget, and a two-minute inactivity timeout. See the self-hosting env reference to tune these independently of the maximum object size.
 - **Concurrent rename protection.** AWS S3 rename copies only an unchanged source into an absent destination, then deletes only a source with the same ETag. If deletion cannot be confirmed, both keys are preserved and the folder refreshes. Rename is disabled for other providers until they can enforce these conditions.
+- **Upload overwrite protection.** New uploads only create absent keys; replacements require the ETag observed before you confirmed. An intervening write causes a conflict instead of being silently overwritten, including during AWS multipart completion and network retries. R2 uses a single streamed conditional PUT up to 5 GiB minus 5 MiB. Uploads to other/custom endpoints, including MinIO, are unavailable until their conditional-write behavior is verified; browsing and downloads remain available.
+- **Bucket creation preserves existing access.** Existing bucket names are rejected for owners and members. Creation is not retried automatically, duplicate app requests are serialized, and the creator's permissions and credential target are checked again before new access is granted.
 - **SSRF guard on server endpoints.** An endpoint you add must be a public `https://` URL (`http://` is allowed outside production only, or with `ALLOW_PRIVATE_ENDPOINTS=true`); `localhost`, `*.localhost` and any hostname that resolves to a loopback, private, link-local or multicast address is rejected before a single request is signed, unless `ALLOW_PRIVATE_ENDPOINTS=true` (see [SELF-HOSTING.md](./SELF-HOSTING.md)).
 - **No IP logging.** Better Auth's IP tracking is switched off and the API logger never writes a client address.
 - **Authorization from validated input only.** Every route parses its input with a zod schema first, then checks the caller's server role and the effective bucket role; handlers never read `req.body` or `req.query` directly.

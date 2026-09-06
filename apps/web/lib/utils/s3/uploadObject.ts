@@ -42,6 +42,7 @@ type UploadParams = {
    objectKey: string;
    file: File;
    contentType: string;
+   expectedETag?: string;
    onProgress: (loadedBytes: number) => void;
 };
 
@@ -110,10 +111,11 @@ const uploadObject = ({
    objectKey,
    file,
    contentType,
+   expectedETag,
    onProgress,
 }: UploadParams): UploadHandle => {
    const url = apiUrl(
-      `${objectsPath(serverId, bucketName)}${qs({ objectKey, contentType })}`
+      `${objectsPath(serverId, bucketName)}/upload${qs({ objectKey, contentType, expectedETag })}`
    );
    const controller = new AbortController();
    let current: UploadHandle | null = null;

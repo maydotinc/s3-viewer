@@ -31,7 +31,8 @@ import {
 } from "@s3-viewer/types";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
-import express, { type Request } from "express";
+import express from "express";
+import { isObjectUpload } from "@/lib/middleware/upload-body";
 import helmet from "helmet";
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
@@ -39,10 +40,6 @@ import type { Socket } from "node:net";
 
 assertPrivateKey();
 onUserDeletion(accountDeletionHooks);
-
-const OBJECT_UPLOAD_PATH = /^\/servers\/[^/]+\/buckets\/[^/]+\/objects$/i;
-const isObjectUpload = (req: Request): boolean =>
-   req.method === "PUT" && OBJECT_UPLOAD_PATH.test(req.path);
 
 const HEADERS_TIMEOUT_MS = 60_000;
 const IDLE_TIMEOUT_MS = 2 * MINUTE_MS;

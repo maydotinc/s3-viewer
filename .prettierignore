@@ -3,6 +3,7 @@ dist
 build
 .next
 .turbo
+.claude
 coverage
 pnpm-lock.yaml
 packages/db/prisma/migrations

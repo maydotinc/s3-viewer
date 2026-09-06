@@ -106,7 +106,7 @@ the web app, the landing site and the shared packages. Keep it current.
 - Parsers: auth routes first consume a bounded text body (64 KiB, all content
   types, including chunked requests) before Better Auth's adapter parses it;
   compressed auth bodies are rejected (415), oversized bodies return 413.
-  Other routes use `express.json({ limit: "1mb" })`, skipped for `PUT …/objects`
+  Other routes use `express.json({ limit: "1mb" })`, skipped for `PUT …/objects/upload` and legacy `PUT …/objects`
   so the upload body reaches the handler as a raw stream. No urlencoded parser.
 - Cross-site protection: `sameSite: "lax"` cookies plus an `Origin`/`Sec-Fetch-Site`
   check on every non-GET request, `/auth/*` included (allow only the
@@ -164,8 +164,22 @@ the web app, the landing site and the shared packages. Keep it current.
   Every key and list prefix passes `isSafeKeyText` (`@s3-viewer/types`): no
   leading `/`, no control characters, no lone UTF-16 surrogates (the SDK's
   URI encoder throws on those).
-- Uploads stream through the API (`lib/s3/upload.ts`): `@aws-sdk/lib-storage`
-  `Upload` with 2 parts in flight, `leavePartsOnError: false`; a client
+- Uploads stream through the API (`lib/s3/upload.ts`). New keys use
+  `IfNoneMatch: "*"`; confirmed replacements carry the ETag observed before
+  confirmation as `expectedETag`, mapped to `IfMatch`. Wildcards, weak ETags
+  and ETag lists are rejected. Both AWS `PutObject` and
+  `CompleteMultipartUpload` enforce the condition; conflicts return 409 and
+  never fall back to an unconditional write. Network retries keep the same
+  condition, including after an uncertain successful response.
+  AWS S3 uses `@aws-sdk/lib-storage` `Upload` with 2 parts in flight,
+  `leavePartsOnError: false`. R2 uses a single streamed conditional
+  `PutObject` with `requestChecksumCalculation: "WHEN_REQUIRED"`, a required
+  Content-Length (411 when absent), and a maximum of 5 GiB minus 5 MiB (413
+  above that), because its multipart condition lifecycle is not verified.
+  Other endpoints return 409 before the body is read or any object written;
+  provider capability is derived from the actual client's endpoint, not a
+  separately loaded server row. R2 bodies are streamed without full-file
+  buffering and use the same admission budget and inactivity watchdog. A client
   disconnect aborts the input and S3 requests. Reservations are held until
   workers finish and multipart cleanup settles (cleanup has its own 10 s
   deadline). Part size defaults to 5 MiB, configurable
@@ -304,10 +318,10 @@ POST   /servers/:serverId/buckets        { bucketName }       → { bucket: S3Bu
 DELETE /servers/:serverId/buckets/:bucketName (DELETE_BUCKET; removes from server, DB only) → 204
 GET    /servers/:serverId/buckets/:bucketName/objects?prefix&continuationToken&blockSize → S3ObjectListPage
 GET    …/objects/metadata?objectKey                           → S3ObjectMetadata
-POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing }` (≤ 1000 keys; listings first, then ≤ MAX_EXISTS_HEADS = 200 HEADs at 16 in flight — keys past that cap read as existing, so the web's "replace?" check errs toward warning; one AbortSignal per request, see Limits)
+POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing, eTags }` (≤ 1000 keys; listings first, then ≤ MAX_EXISTS_HEADS = 200 HEADs at 16 in flight; keys past that cap read as existing without an ETag and cannot authorize replacement; one AbortSignal per request, see Limits)
 GET    …/objects/download-url?objectKey                       → S3PresignedUrl
 GET    …/objects/preview-url?objectKey                        → S3ObjectPreview (content type from HeadObject)
-PUT    …/objects?objectKey&contentType   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (413 over MAX_UPLOAD_BYTES)
+PUT    …/objects/upload?objectKey&contentType&expectedETag?   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (409 on upload conflict/unsupported provider; 413 over MAX_UPLOAD_BYTES/provider limit; 411 for R2 without Content-Length)
 DELETE …/objects                         { objectKeys[] }     → S3DeleteResult (207 if any failed)
 GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ keys, nextToken }` (recursive, one S3 page of ≤ 1000 keys; prefix is a folder key ending in "/", never "/" or the root)
 POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 on conflicts, partial copy, unsupported provider or archived source; 413 if > 5 GB)
@@ -328,6 +342,26 @@ are visible. Also removed: `does-user-exist`, session IP
 validation, folder-less single delete (use `objectKeys` with one key), and
 presigned upload/multipart routes (uploads stream through the API instead,
 so no bucket CORS is required).
+
+API contract version 2 adds `eTags` to existence responses and the dedicated
+`PUT …/objects/upload` path. The web refuses old existence responses, and an
+old API replica returns 404 for the new path rather than accepting an unsafe
+write during rolling deployments. The legacy `PUT …/objects` path remains
+available on the new API, enforcing the same create-only/ETag conditions.
+
+Bucket creation checks existence for every role, including owners. It never
+treats an existing bucket as newly created or retries an uncertain S3 create;
+AWS us-east-1 can reset an existing bucket's ACL on repeated `CreateBucket`.
+A per-bucket PostgreSQL advisory transaction lock serializes app requests
+across replicas and duplicate server connections. The transaction is bounded
+to 65 seconds and holds no server row lock while waiting on S3. Creation uses
+a fresh client built from one encrypted-credential/provider snapshot. After
+S3 returns, the transaction locks the server row, verifies the snapshot is
+unchanged, reloads the actor's current role, and grants access only if that
+role still permits creation. Existing grants are retained, never raised.
+A bucket created just before revocation or credential rotation remains in
+storage without new access grants; it is never automatically deleted. The
+advisory lock cannot coordinate external console/CLI bucket creators.
 
 ### Limits
 
@@ -512,13 +546,21 @@ calls alike and holds the per-email throttles (429 with code
   stops appearing.
 - Toasts only after the request resolves; never "success" for partial failures.
   Errors show `ApiError.message`.
+- Delete, folder-delete and rename mutation variables capture userId and
+  serverId when the dialog opens. Requests and cache invalidation use that
+  captured scope. Dialogs are hidden immediately on user/server changes;
+  stale object row callbacks cannot reopen them for another selection.
 - Loading states are spinners inside containers that already have the final size; skeletons only for large, known-shape areas. Toolbars never swap controls (disable instead).
-- Uploads: one `PUT …/objects` per file, streamed through the API into the
+- Uploads: one `PUT …/objects/upload` per file, streamed through the API into the
   bucket — no bucket configuration needed; `contentType` defaults to
   `application/octet-stream`; 3 files at a time; 2 retries on network errors
   only (never on a 4xx/5xx); cancel aborts the request; duplicate-key check
-  (`POST …/objects/exists`, 1000 keys per call) before upload; entries keyed
-  by `bucket/prefix/name`. Batched key requests (`exists`, `DELETE …/objects`)
+  (`POST …/objects/exists`, 1000 keys per call) captures ETags before the
+  replacement dialog. Missing ETags refuse replacement and ask for a smaller
+  batch. Confirmation never refreshes the snapshot silently. Pending checks
+  and replacement dialogs are discarded on user/server changes. Entries use
+  a JSON tuple of `[serverId, bucketName, objectKey]`, with independent outcomes
+  and completion callbacks across servers. Batched key requests (`exists`, `DELETE …/objects`)
   are split by `chunkKeys` (≤ 1000 keys and ≤ 256K characters per call) so a
   body never nears the 1 MB JSON limit. The grid datasource keeps one
   continuation token per 1000-row block and lets AG Grid own the row cache

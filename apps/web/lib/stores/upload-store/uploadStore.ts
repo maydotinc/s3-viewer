@@ -21,11 +21,12 @@ type Job = {
    bucketName: string;
    objectKey: string;
    contentType: string;
+   expectedETag?: string;
    abort: (() => void) | null;
 };
 
 const jobs = new Map<string, Job>();
-const batchCallbacks = new Set<() => void>();
+const batchCallbacks = new Map<() => void, Set<string>>();
 let enqueueGeneration = 0;
 let activeEnqueues = 0;
 
@@ -55,6 +56,7 @@ type UploadActions = {
       serverId: string;
       bucketName: string;
       prefix: string;
+      eTags?: Record<string, string>;
       onComplete?: () => void;
    }) => void;
    cancel: (id: string) => void;
@@ -64,8 +66,8 @@ type UploadActions = {
 
 type UploadStore = UploadState & UploadActions;
 
-const entryId = (bucketName: string, objectKey: string) =>
-   `${bucketName}/${objectKey}`;
+const entryId = (serverId: string, bucketName: string, objectKey: string) =>
+   JSON.stringify([serverId, bucketName, objectKey]);
 
 const useUploadStore = create<UploadStore>()(
    immer((set, get) => {
@@ -109,9 +111,14 @@ const useUploadStore = create<UploadStore>()(
                   : `${completed} files uploaded.`
             );
          }
-         const callbacks = [...batchCallbacks];
+         const entries = get().entries;
+         const callbacks = [...batchCallbacks]
+            .filter(([, ids]) =>
+               [...ids].some((id) => entries[id]?.status === "completed")
+            )
+            .map(([callback]) => callback);
          batchCallbacks.clear();
-         if (completed > 0) for (const callback of callbacks) callback();
+         for (const callback of callbacks) callback();
       };
 
       const runJob = async (id: string) => {
@@ -209,16 +216,31 @@ const useUploadStore = create<UploadStore>()(
          batch: null,
          isUploading: false,
 
-         enqueue: ({ files, serverId, bucketName, prefix, onComplete }) => {
+         enqueue: ({
+            files,
+            serverId,
+            bucketName,
+            prefix,
+            eTags,
+            onComplete,
+         }) => {
             if (files.length === 0) return;
-            if (onComplete) batchCallbacks.add(onComplete);
 
             const deduped = new Map<string, UploadFile>();
             let collisions = 0;
             for (const entry of files) {
-               const id = entryId(bucketName, `${prefix}${entry.relativePath}`);
+               const id = entryId(
+                  serverId,
+                  bucketName,
+                  `${prefix}${entry.relativePath}`
+               );
                if (deduped.has(id)) collisions++;
                deduped.set(id, entry);
+            }
+            if (onComplete) {
+               const ids = batchCallbacks.get(onComplete) ?? new Set<string>();
+               for (const id of deduped.keys()) ids.add(id);
+               batchCallbacks.set(onComplete, ids);
             }
             if (collisions > 0) {
                toast.error(
@@ -258,7 +280,7 @@ const useUploadStore = create<UploadStore>()(
                         state.isUploading = true;
                         for (const { file, relativePath } of slice) {
                            const objectKey = `${prefix}${relativePath}`;
-                           const id = entryId(bucketName, objectKey);
+                           const id = entryId(serverId, bucketName, objectKey);
                            const prev = state.entries[id];
                            if (prev && inBatch.has(id))
                               count(batch, prev.status, -1);
@@ -269,6 +291,10 @@ const useUploadStore = create<UploadStore>()(
                               bucketName,
                               objectKey,
                               contentType: file.type || DEFAULT_CONTENT_TYPE,
+                              expectedETag:
+                                 eTags && Object.hasOwn(eTags, objectKey)
+                                    ? eTags[objectKey]
+                                    : undefined,
                               abort: null,
                            });
                            state.entries[id] = {

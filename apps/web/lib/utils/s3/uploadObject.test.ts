@@ -75,13 +75,14 @@ const { uploadObject } = await import("./uploadObject");
 const body = { key: "k", size: 10, eTag: "e" };
 const makeFile = (size = 10) => new File(["x".repeat(size)], "a.txt");
 
-const upload = (overrides: { file?: File } = {}) =>
+const upload = (overrides: { file?: File; expectedETag?: string } = {}) =>
    uploadObject({
       serverId: "s",
       bucketName: "b",
       objectKey: "k",
       file: overrides.file ?? makeFile(),
       contentType: "text/plain",
+      expectedETag: overrides.expectedETag,
       onProgress: vi.fn(),
    });
 
@@ -95,6 +96,36 @@ afterEach(() => {
 });
 
 describe("uploadObject", () => {
+   it("keeps the original replacement ETag across network retries", async () => {
+      const handle = upload({ expectedETag: '"before-confirmation"' });
+      const firstUrl = FakeXHR.instances[0]?.url ?? "";
+      expect(new URL(firstUrl, "http://localhost").pathname).toBe(
+         "/servers/s/buckets/b/objects/upload"
+      );
+      expect(
+         new URL(firstUrl, "http://localhost").searchParams.get("expectedETag")
+      ).toBe('"before-confirmation"');
+      FakeXHR.instances[0]?.fail();
+      await vi.advanceTimersByTimeAsync(500);
+      expect(FakeXHR.instances[1]?.url).toBe(firstUrl);
+      FakeXHR.instances[1]?.respond(409, { message: "File changed" });
+      await expect(handle.done).rejects.toMatchObject({ status: 409 });
+      await vi.advanceTimersByTimeAsync(5000);
+      expect(FakeXHR.instances).toHaveLength(2);
+   });
+
+   it("does not send replacement authority for a new file", async () => {
+      const handle = upload();
+      expect(
+         new URL(
+            FakeXHR.instances[0]?.url ?? "",
+            "http://localhost"
+         ).searchParams.has("expectedETag")
+      ).toBe(false);
+      FakeXHR.instances[0]?.respond(201, body);
+      await expect(handle.done).resolves.toEqual(body);
+   });
+
    it("resolves with the parsed body and reports progress up to the full size", async () => {
       const onProgress = vi.fn();
       const handle = uploadObject({

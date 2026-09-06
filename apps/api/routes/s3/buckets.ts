@@ -1,13 +1,12 @@
-import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
+import { S3_ROUTE_TIMEOUT_MS, SERVER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
 import { getAuth, type AuthContext } from "@/lib/middleware/authorize";
 import { serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
-import { getS3Client } from "@/lib/s3/client-cache";
+import { createNewBucket } from "@/lib/s3/bucket-create";
+import { getS3Client, getS3ClientFromCredentials } from "@/lib/s3/client-cache";
 import {
-   isNotFound,
-   throwBucketError,
-   throwHttpError,
+   credentialsUnreadableError,
    throwListBucketsError,
 } from "@/lib/s3/errors";
 import { recordAudit } from "@/lib/services/audit";
@@ -16,21 +15,14 @@ import { bucketGrantSelect } from "@/lib/services/members";
 import {
    assertBucketRemovable,
    isBucketAllowed,
-   isUniqueViolation,
    loadServerSettings,
    lockBucketScope,
 } from "@/lib/services/servers";
-import {
-   CreateBucketCommand,
-   HeadBucketCommand,
-   ListBucketsCommand,
-   S3ServiceException,
-   type BucketLocationConstraint,
-   type S3Client,
-} from "@aws-sdk/client-s3";
-import type { Prisma } from "@prisma/client";
+import { assertPublicEndpoint } from "@/lib/utils/endpoint";
+import { decryptCredentials } from "@/lib/utils/encryption";
+import { ListBucketsCommand, type S3Client } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
-import { Permission, isAtLeast } from "@s3-viewer/permissions";
+import { Permission, hasPermission } from "@s3-viewer/permissions";
 import {
    Provider,
    Role,
@@ -38,6 +30,7 @@ import {
    serverScope,
    type BucketScope,
    type S3Bucket,
+   type ServerCredentials,
    type ServerScope,
 } from "@s3-viewer/types";
 import { Router } from "express";
@@ -51,34 +44,6 @@ const toBucket = (
    userRole: Role,
    creationDate: string | null = null
 ): S3Bucket => ({ name, creationDate, userRole });
-
-const createBucketConfiguration = async (
-   client: S3Client,
-   provider: Provider
-) => {
-   if (provider !== Provider.S3) return undefined;
-   const region = await client.config.region();
-   return region === "us-east-1"
-      ? undefined
-      : { LocationConstraint: region as BucketLocationConstraint };
-};
-
-const isBucketAlreadyOwnedByYou = (err: unknown): boolean =>
-   err instanceof S3ServiceException && err.name === "BucketAlreadyOwnedByYou";
-
-const assertBucketIsNew = async (
-   client: S3Client,
-   bucketName: string
-): Promise<void> => {
-   const exists = await client
-      .send(new HeadBucketCommand({ Bucket: bucketName }))
-      .then(() => true)
-      .catch((err: unknown) => {
-         if (isNotFound(err)) return false;
-         return throwBucketError(err);
-      });
-   if (exists) throw new ApiHttpError(409, `${bucketName} already exists`);
-};
 
 const listAllBuckets = async (
    client: S3Client,
@@ -148,60 +113,99 @@ bucketsRouter.post(
    "/",
    ...serverRoute(Permission.CREATE_BUCKET, bucketScope, async (req, res) => {
       const { serverId, bucketName } = input<BucketScope>(res);
-      const { userId, serverRole } = getAuth(res);
+      const { userId } = getAuth(res);
+      const signal = requestSignal(res, S3_ROUTE_TIMEOUT_MS);
 
-      const [client, { provider }] = await Promise.all([
-         getS3Client(serverId),
-         loadServerSettings(serverId),
-      ]);
-      if (serverRole !== Role.OWNER)
-         await assertBucketIsNew(client, bucketName);
-      await client
-         .send(
-            new CreateBucketCommand({
-               Bucket: bucketName,
-               CreateBucketConfiguration: await createBucketConfiguration(
-                  client,
-                  Provider[provider]
-               ),
-            })
-         )
-         .catch((err) => {
-            if (serverRole !== Role.OWNER || !isBucketAlreadyOwnedByYou(err)) {
-               throwHttpError(err);
-            }
-         });
-
-      let userRole: Role = Role.OWNER;
-      if (serverRole !== Role.OWNER) {
-         userRole = isAtLeast(serverRole, Role.ADMIN) ? Role.ADMIN : serverRole;
+      // A cached client and a separate server read can describe different
+      // storage accounts during credential rotation. Bind both the S3 work
+      // and the final grants to this one database snapshot instead.
+      const snapshot = await prisma.server.findUnique({
+         where: { id: serverId },
+         select: { credentials: true, provider: true },
+      });
+      if (!snapshot) throw new ApiHttpError(404, SERVER_NOT_FOUND);
+      let credentials: ServerCredentials;
+      try {
+         credentials = decryptCredentials(snapshot.credentials);
+      } catch {
+         throw credentialsUnreadableError();
       }
+      await assertPublicEndpoint(credentials.endpoint);
+      const client = getS3ClientFromCredentials(
+         credentials,
+         Provider[snapshot.provider]
+      );
+      const userRole = await prisma.$transaction(
+         async (tx) => {
+            // Pin a connection for this bounded operation so API replicas and
+            // duplicate server connections cannot both pass HeadBucket before
+            // creating the same bucket. No permission rows are locked during S3.
+            const lockKey = `bucket-create:${bucketName}`;
+            const [{ locked }] = await tx.$queryRaw<[{ locked: boolean }]>`
+               SELECT pg_try_advisory_xact_lock(hashtext(${lockKey})::bigint) AS locked
+            `;
+            if (!locked) {
+               throw new ApiHttpError(
+                  409,
+                  `${bucketName} is already being created. Wait for that request to finish.`
+               );
+            }
+            await createNewBucket(
+               client,
+               Provider[snapshot.provider],
+               bucketName,
+               signal
+            );
 
-      const operations: Prisma.PrismaPromise<unknown>[] = [
-         prisma.$executeRaw`
-            UPDATE "server"
-            SET "allowedBuckets" = array_append("allowedBuckets", ${bucketName})
-            WHERE "id" = ${serverId}
-              AND "restrictedBuckets"
-              AND NOT (${bucketName} = ANY("allowedBuckets"))
-         `,
-      ];
-      if (serverRole !== Role.OWNER) {
-         operations.push(
-            prisma.bucketAccess.upsert({
+            await lockBucketScope(tx, serverId);
+            const current = await tx.server.findUnique({
+               where: { id: serverId },
+               select: { credentials: true, provider: true },
+            });
+            if (
+               !current ||
+               current.credentials !== snapshot.credentials ||
+               current.provider !== snapshot.provider
+            ) {
+               throw new ApiHttpError(
+                  409,
+                  "Server credentials changed while the bucket was being created. No bucket access was added."
+               );
+            }
+            const access = await tx.serverAccess.findUnique({
+               where: { userId_serverId: { userId, serverId } },
+               select: { role: true },
+            });
+            const currentRole = access ? Role[access.role] : null;
+            if (
+               !currentRole ||
+               !hasPermission(currentRole, Permission.CREATE_BUCKET)
+            ) {
+               throw new ApiHttpError(
+                  403,
+                  "Your permission to create buckets changed. The bucket was created in storage, but no access was granted."
+               );
+            }
+            await tx.$executeRaw`
+               UPDATE "server"
+               SET "allowedBuckets" = array_append("allowedBuckets", ${bucketName})
+               WHERE "id" = ${serverId}
+                 AND "restrictedBuckets"
+                 AND NOT (${bucketName} = ANY("allowedBuckets"))
+            `;
+            if (currentRole === Role.OWNER) return Role.OWNER;
+            const grant = await tx.bucketAccess.upsert({
                where: {
                   userId_serverId_bucketName: { userId, serverId, bucketName },
                },
-               create: { userId, serverId, bucketName, role: userRole },
+               create: { userId, serverId, bucketName, role: currentRole },
                update: {},
-            })
-         );
-      }
-      // the only unique row here is the creator's own grant, so losing that
-      // race to a twin request means the bucket and the grant both exist
-      await prisma.$transaction(operations).catch((err: unknown) => {
-         if (!isUniqueViolation(err)) throw err;
-      });
+               select: { role: true },
+            });
+            return Role[grant.role];
+         },
+         { timeout: S3_ROUTE_TIMEOUT_MS + 5_000 }
+      );
       await recordAudit({
          action: "bucket.create",
          actorId: userId,

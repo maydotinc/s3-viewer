@@ -1,22 +1,39 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadCancelled } from "@/lib/utils/s3/upload-cancelled";
 
-type Settle = { resolve: () => void; reject: (error: unknown) => void };
+type Settle = {
+   resolve: () => void;
+   reject: (error: unknown) => void;
+   abort: ReturnType<typeof vi.fn>;
+   expectedETag?: string;
+};
 const inFlight = new Map<string, Settle>();
 const toast = { success: vi.fn(), error: vi.fn() };
 
 vi.mock("@s3-viewer/ui/components/toast", () => ({ toast }));
 vi.mock("@/lib/utils/s3/uploadObject", () => ({
-   uploadObject: ({ objectKey }: { objectKey: string }) => {
+   uploadObject: ({
+      serverId,
+      bucketName,
+      objectKey,
+      expectedETag,
+   }: {
+      serverId: string;
+      bucketName: string;
+      objectKey: string;
+      expectedETag?: string;
+   }) => {
       let settle: Settle | undefined;
+      const abort = vi.fn(() => settle?.reject(new UploadCancelled()));
       const done = new Promise<void>((resolve, reject) => {
-         settle = { resolve, reject };
+         settle = { resolve, reject, abort, expectedETag };
       });
-      if (settle) inFlight.set(objectKey, settle);
-      return {
-         done,
-         abort: () => inFlight.get(objectKey)?.reject(new UploadCancelled()),
-      };
+      if (settle)
+         inFlight.set(
+            JSON.stringify([serverId, bucketName, objectKey]),
+            settle
+         );
+      return { done, abort };
    },
 }));
 
@@ -34,14 +51,16 @@ const enqueue = (...names: string[]) =>
       bucketName: "b",
       prefix: "p/",
    });
-const status = (name: string) =>
-   useUploadStore.getState().entries[`b/p/${name}`]?.status;
-const finish = async (name: string) => {
-   inFlight.get(`p/${name}`)?.resolve();
+const uploadId = (name: string, serverId = "s") =>
+   JSON.stringify([serverId, "b", `p/${name}`]);
+const status = (name: string, serverId = "s") =>
+   useUploadStore.getState().entries[uploadId(name, serverId)]?.status;
+const finish = async (name: string, serverId = "s") => {
+   inFlight.get(uploadId(name, serverId))?.resolve();
    await flush();
 };
-const fail = async (name: string) => {
-   inFlight.get(`p/${name}`)?.reject(new Error("boom"));
+const fail = async (name: string, serverId = "s") => {
+   inFlight.get(uploadId(name, serverId))?.reject(new Error("boom"));
    await flush();
 };
 
@@ -55,12 +74,15 @@ beforeEach(() => {
 describe("uploadStore", () => {
    it("keeps three uploads active and settles the batch with exact counts", async () => {
       enqueue("a", "b", "c", "d", "e");
-      expect(["a", "b", "c"].map(status)).toEqual([
+      expect(["a", "b", "c"].map((name) => status(name))).toEqual([
          "active",
          "active",
          "active",
       ]);
-      expect(useUploadStore.getState().queue).toEqual(["b/p/d", "b/p/e"]);
+      expect(useUploadStore.getState().queue).toEqual([
+         uploadId("d"),
+         uploadId("e"),
+      ]);
 
       await finish("a");
       expect(status("d")).toBe("active");
@@ -69,7 +91,7 @@ describe("uploadStore", () => {
          failed: 0,
       });
 
-      useUploadStore.getState().cancel("b/p/e");
+      useUploadStore.getState().cancel(uploadId("e"));
       expect(status("e")).toBe("cancelled");
       expect(useUploadStore.getState().queue).toEqual([]);
 
@@ -105,7 +127,7 @@ describe("uploadStore", () => {
       expect(useUploadStore.getState().batch).toMatchObject({
          settled: true,
          completed: 1,
-         ids: ["b/p/a"],
+         ids: [uploadId("a")],
       });
    });
 
@@ -120,11 +142,11 @@ describe("uploadStore", () => {
          prefix: "p/",
       });
       await flush();
-      expect(useUploadStore.getState().order).toEqual(["b/p/dup.txt"]);
+      expect(useUploadStore.getState().order).toEqual([uploadId("dup.txt")]);
       expect(status("dup.txt")).toBe("active");
-      expect(useUploadStore.getState().entries["b/p/dup.txt"]).toMatchObject({
-         fileName: "second.txt",
-      });
+      expect(
+         useUploadStore.getState().entries[uploadId("dup.txt")]
+      ).toMatchObject({ fileName: "second.txt" });
       expect(toast.error).toHaveBeenCalledWith(
          expect.stringContaining("a name with another in this drop")
       );
@@ -133,7 +155,7 @@ describe("uploadStore", () => {
       expect(useUploadStore.getState().batch).toMatchObject({
          settled: true,
          completed: 1,
-         ids: ["b/p/dup.txt"],
+         ids: [uploadId("dup.txt")],
       });
    });
 
@@ -141,7 +163,7 @@ describe("uploadStore", () => {
       enqueue("a", "b", "c", "d");
       useUploadStore.getState().cancelAll();
       await flush();
-      expect(["a", "b", "c", "d"].map(status)).toEqual([
+      expect(["a", "b", "c", "d"].map((name) => status(name))).toEqual([
          "cancelled",
          "cancelled",
          "cancelled",
@@ -209,5 +231,101 @@ describe("uploadStore", () => {
       expect(entries).toEqual({});
       expect(queue).toEqual([]);
       expect(batch).toBeNull();
+   });
+
+   it("completes same-path uploads on different servers independently", async () => {
+      const firstComplete = vi.fn();
+      const secondComplete = vi.fn();
+      for (const [serverId, onComplete] of [
+         ["first", firstComplete],
+         ["second", secondComplete],
+      ] as const) {
+         useUploadStore.getState().enqueue({
+            files: [file("backup.sql")],
+            serverId,
+            bucketName: "b",
+            prefix: "p/",
+            onComplete,
+         });
+      }
+      expect(status("backup.sql", "first")).toBe("active");
+      expect(status("backup.sql", "second")).toBe("active");
+      expect(
+         inFlight.get(uploadId("backup.sql", "first"))?.abort
+      ).not.toHaveBeenCalled();
+      expect(useUploadStore.getState().order).toHaveLength(2);
+
+      await finish("backup.sql", "first");
+      expect(status("backup.sql", "first")).toBe("completed");
+      expect(status("backup.sql", "second")).toBe("active");
+      expect(useUploadStore.getState().batch?.settled).toBe(false);
+      await finish("backup.sql", "second");
+
+      expect(useUploadStore.getState().batch).toMatchObject({
+         settled: true,
+         completed: 2,
+         failed: 0,
+         ids: [
+            uploadId("backup.sql", "first"),
+            uploadId("backup.sql", "second"),
+         ],
+      });
+      expect(firstComplete).toHaveBeenCalledOnce();
+      expect(secondComplete).toHaveBeenCalledOnce();
+      expect(toast.success).toHaveBeenCalledWith("2 files uploaded.");
+      expect(toast.error).not.toHaveBeenCalled();
+   });
+
+   it("retains one server's failure without calling its completion callback for another server's success", async () => {
+      const firstComplete = vi.fn();
+      const secondComplete = vi.fn();
+      for (const [serverId, onComplete] of [
+         ["first", firstComplete],
+         ["second", secondComplete],
+      ] as const) {
+         useUploadStore.getState().enqueue({
+            files: [file("backup.sql")],
+            serverId,
+            bucketName: "b",
+            prefix: "p/",
+            onComplete,
+         });
+      }
+      await fail("backup.sql", "first");
+      await finish("backup.sql", "second");
+      expect(status("backup.sql", "first")).toBe("failed");
+      expect(status("backup.sql", "second")).toBe("completed");
+      expect(useUploadStore.getState().batch).toMatchObject({
+         settled: true,
+         completed: 1,
+         failed: 1,
+      });
+      expect(firstComplete).not.toHaveBeenCalled();
+      expect(secondComplete).toHaveBeenCalledOnce();
+      expect(toast.error).toHaveBeenCalledWith(
+         "1 of 2 files uploaded. 1 failed."
+      );
+   });
+
+   it("passes only each file's explicit full-key ETag to its upload", () => {
+      useUploadStore.getState().enqueue({
+         files: [file("replacement.txt"), file("new.txt"), file("constructor")],
+         serverId: "s",
+         bucketName: "b",
+         prefix: "p/",
+         eTags: Object.assign(
+            Object.create({ "p/constructor": '"inherited"' }),
+            {
+               "p/replacement.txt": '"observed-etag"',
+            }
+         ) as Record<string, string>,
+      });
+      expect(inFlight.get(uploadId("replacement.txt"))?.expectedETag).toBe(
+         '"observed-etag"'
+      );
+      expect(inFlight.get(uploadId("new.txt"))?.expectedETag).toBeUndefined();
+      expect(
+         inFlight.get(uploadId("constructor"))?.expectedETag
+      ).toBeUndefined();
    });
 });

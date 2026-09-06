@@ -69,6 +69,10 @@ const buildClient = (
       },
       forcePathStyle: provider !== Provider.S3,
       maxAttempts: MAX_ATTEMPTS,
+      // R2's conditional single PUT streams a known-length body. Avoid the
+      // SDK's optional aws-chunked checksum trailer encoding on that path.
+      requestChecksumCalculation:
+         provider === Provider.R2 ? "WHEN_REQUIRED" : "WHEN_SUPPORTED",
       requestHandler: {
          connectionTimeout: CONNECTION_TIMEOUT_MS,
          requestTimeout: REQUEST_TIMEOUT_MS,

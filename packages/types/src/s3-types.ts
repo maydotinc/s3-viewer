@@ -42,7 +42,7 @@ type S3DeleteResult = {
    failed: { key: string; message: string }[];
 };
 type S3KeysPage = { keys: string[]; nextToken: string | null };
-type S3ObjectsExist = { existing: string[] };
+type S3ObjectsExist = { existing: string[]; eTags: Record<string, string> };
 
 export type {
    S3Bucket,

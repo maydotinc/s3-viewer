@@ -1,4 +1,5 @@
 import { ServerInfo } from "@s3-viewer/types";
+import useSessionStore from "@/lib/stores/sessionStore";
 import {
    ReactNode,
    createContext,
@@ -13,6 +14,7 @@ type ModalPropsMap = {
    connect: Record<never, never>;
    createBucket: Record<never, never>;
    confirmDelete: {
+      userId: string;
       serverId: string;
       bucketName: string;
       objectKeys: string[];
@@ -20,6 +22,7 @@ type ModalPropsMap = {
    };
    rename: { server: ServerInfo };
    renameObject: {
+      userId: string;
       serverId: string;
       bucketName: string;
       objectKey: string;
@@ -32,14 +35,28 @@ type ModalPropsMap = {
 type ModalType = keyof ModalPropsMap;
 
 type OpenModals = { [K in ModalType]?: ModalPropsMap[K] };
+type ModalScope = { userId: string | null; serverId: string };
+type ScopedModals = { scope: ModalScope; modals: OpenModals };
+const NO_MODALS: OpenModals = {};
+
+const currentScope = (): ModalScope => {
+   const { userId, serverId } = useSessionStore.getState();
+   return { userId, serverId };
+};
+const sameScope = (left: ModalScope, right: ModalScope): boolean =>
+   left.userId === right.userId && left.serverId === right.serverId;
 
 type ModalActions = {
    closeModal: (type: ModalType) => void;
    openConnectModal: () => void;
    openCreateBucketModal: (props: ModalPropsMap["createBucket"]) => void;
-   openConfirmDeleteModal: (props: ModalPropsMap["confirmDelete"]) => void;
+   openConfirmDeleteModal: (
+      props: Omit<ModalPropsMap["confirmDelete"], "userId">
+   ) => void;
    openRenameModal: (props: ModalPropsMap["rename"]) => void;
-   openRenameObjectModal: (props: ModalPropsMap["renameObject"]) => void;
+   openRenameObjectModal: (
+      props: Omit<ModalPropsMap["renameObject"], "userId">
+   ) => void;
    openDisconnectModal: (props: ModalPropsMap["disconnect"]) => void;
    openUpdateCredentialsModal: (
       props: ModalPropsMap["updateCredentials"]
@@ -50,8 +67,26 @@ const ModalActionsContext = createContext<ModalActions | null>(null);
 const ModalStateContext = createContext<OpenModals | null>(null);
 
 const ModalProvider = ({ children }: { children: ReactNode }) => {
-   const [modals, setModals] = useState<OpenModals>({});
+   const userId = useSessionStore((state) => state.userId);
+   const serverId = useSessionStore((state) => state.serverId);
+   const [state, setState] = useState<ScopedModals>(() => ({
+      scope: currentScope(),
+      modals: NO_MODALS,
+   }));
+   // Hide stale dialogs in this render, before effects run. Their captured
+   // target must never follow a new selection or a different signed-in user.
+   const modals = sameScope(state.scope, { userId, serverId })
+      ? state.modals
+      : NO_MODALS;
    const anyOpen = Object.keys(modals).length > 0;
+
+   useEffect(() => {
+      setState((previous) =>
+         sameScope(previous.scope, { userId, serverId })
+            ? previous
+            : { scope: { userId, serverId }, modals: NO_MODALS }
+      );
+   }, [userId, serverId]);
 
    useEffect(() => {
       if (!anyOpen) return;
@@ -63,17 +98,29 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
    }, [anyOpen]);
 
    const open = useCallback(
-      <T extends ModalType>(type: T, props: ModalPropsMap[T]) =>
-         setModals((prev) => ({ ...prev, [type]: props })),
+      <T extends ModalType>(type: T, props: ModalPropsMap[T]) => {
+         const scope = currentScope();
+         setState((previous) => {
+            return {
+               scope,
+               modals: {
+                  ...(sameScope(previous.scope, scope)
+                     ? previous.modals
+                     : NO_MODALS),
+                  [type]: props,
+               },
+            };
+         });
+      },
       []
    );
 
    const closeModal = useCallback(
       (type: ModalType) =>
-         setModals((prev) => {
-            const next = { ...prev };
+         setState((previous) => {
+            const next = { ...previous.modals };
             delete next[type];
-            return next;
+            return { ...previous, modals: next };
          }),
       []
    );
@@ -84,9 +131,17 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
          closeModal,
          openConnectModal: () => open("connect", {}),
          openCreateBucketModal: (p) => open("createBucket", p),
-         openConfirmDeleteModal: (p) => open("confirmDelete", p),
+         openConfirmDeleteModal: (p) => {
+            const scope = currentScope();
+            if (!scope.userId || scope.serverId !== p.serverId) return;
+            open("confirmDelete", { ...p, userId: scope.userId });
+         },
          openRenameModal: (p) => open("rename", p),
-         openRenameObjectModal: (p) => open("renameObject", p),
+         openRenameObjectModal: (p) => {
+            const scope = currentScope();
+            if (!scope.userId || scope.serverId !== p.serverId) return;
+            open("renameObject", { ...p, userId: scope.userId });
+         },
          openDisconnectModal: (p) => open("disconnect", p),
          openUpdateCredentialsModal: (p) => open("updateCredentials", p),
       }),

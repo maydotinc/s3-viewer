@@ -130,7 +130,11 @@ const listKeysPage = async (
    };
 };
 
-type ExistingKeys = { existing: string[]; unresolved: string[] };
+type ExistingKeys = {
+   existing: string[];
+   eTags: Record<string, string>;
+   unresolved: string[];
+};
 
 // a cut between the halves of a surrogate pair leaves a lone unit that cannot be
 // utf-8 encoded, so s3 would receive u+fffd and match nothing
@@ -167,6 +171,7 @@ const existingKeys = async (
    const sorted = [...wanted].sort((a, b) => (utf8Before(a, b) ? -1 : 1));
    const prefix = commonPrefix(sorted);
    const existing: string[] = [];
+   const eTags: Record<string, string> = Object.create(null);
    let cursor = "";
    let i = 0;
 
@@ -192,7 +197,10 @@ const existingKeys = async (
       for (const object of page.Contents ?? []) {
          if (!object.Key) continue;
          last = object.Key;
-         if (wanted.has(object.Key)) existing.push(object.Key);
+         if (wanted.has(object.Key)) {
+            existing.push(object.Key);
+            if (object.ETag) eTags[object.Key] = object.ETag;
+         }
       }
       if (!page.IsTruncated) {
          i = sorted.length;
@@ -203,7 +211,7 @@ const existingKeys = async (
       while (i < sorted.length && !utf8Before(last, sorted[i] ?? last)) i++;
    }
 
-   return { existing, unresolved: sorted.slice(i) };
+   return { existing, eTags, unresolved: sorted.slice(i) };
 };
 
 export { existingKeys, listKeysPage, listPage };

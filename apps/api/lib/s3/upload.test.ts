@@ -24,7 +24,7 @@ const mockConfig = {
    requestHandler: {},
    endpoint: async () => ({
       protocol: "https:",
-      hostname: "s3.example.com",
+      hostname: "s3.us-east-1.amazonaws.com",
       path: "/",
    }),
    requestChecksumCalculation: async () => "WHEN_REQUIRED",

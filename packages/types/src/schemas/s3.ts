@@ -39,6 +39,12 @@ export type ListObjectsQuery = z.infer<typeof listObjectsQuerySchema>;
 
 export const putObjectQuerySchema = objectScope.extend({
    contentType: contentTypeSchema,
+   // One observed, strong ETag; wildcards/lists would authorize unseen data.
+   expectedETag: z
+      .string()
+      .max(256)
+      .regex(/^"[\x21\x23-\x7e]+"$/)
+      .optional(),
 });
 export type PutObjectQuery = z.infer<typeof putObjectQuerySchema>;
 

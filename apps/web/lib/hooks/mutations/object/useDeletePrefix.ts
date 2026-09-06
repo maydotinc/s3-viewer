@@ -1,5 +1,4 @@
 import { api, objectsPath, qs } from "@/lib/api";
-import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
 import {
    MAX_BATCH_KEYS,
    MAX_BATCH_KEY_CHARS,
@@ -19,6 +18,8 @@ import {
 const DELETE_CONCURRENCY = 4;
 
 type DeletePrefixInput = {
+   userId: string;
+   serverId: string;
    bucketName: string;
    prefix: string;
    signal?: AbortSignal;
@@ -27,10 +28,9 @@ type DeletePrefixInput = {
 
 const useDeletePrefix = () => {
    const queryClient = useQueryClient();
-   const userId = useUserId();
-   const serverId = useSessionStore((state) => state.serverId);
 
    const run = async ({
+      serverId,
       bucketName,
       prefix,
       signal,
@@ -89,7 +89,7 @@ const useDeletePrefix = () => {
    return useMutation({
       mutationFn: run,
       onSuccess: reportDeleteResult,
-      onSettled: (_result, _error, { bucketName, prefix }) =>
+      onSettled: (_result, _error, { userId, serverId, bucketName, prefix }) =>
          forgetObjects(queryClient, userId, serverId, bucketName, (key) =>
             key.startsWith(prefix)
          ),
