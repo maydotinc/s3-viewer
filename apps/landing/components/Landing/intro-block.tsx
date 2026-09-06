@@ -1,7 +1,6 @@
 import { GITHUB_URL } from "@/lib/site-config";
-import { blurProps } from "@/lib/blur-placeholder";
+import { AppHeroFigure } from "./figures/app-hero";
 import { Button } from "@s3-viewer/ui/components/button";
-import Image from "next/image";
 import Link from "next/link";
 import { FaGithub } from "react-icons/fa";
 
@@ -11,7 +10,7 @@ const IntroBlock = () => {
          <div className="mx-auto w-full max-w-6xl px-6 pt-24 pb-16">
             <div className="flex flex-col items-center text-center">
                <span className="inline-flex h-7 items-center rounded-full border border-viewerborder bg-viewergray px-3 text-xs font-medium text-viewertext">
-                  Open source · self-hostable
+                  Open source · Self-hostable
                </span>
 
                <h1 className="mt-6 max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance text-viewerblack sm:text-5xl md:text-6xl">
@@ -48,18 +47,7 @@ const IntroBlock = () => {
             </div>
 
             <div className="mx-auto mt-16 w-full max-w-5xl overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite shadow-sm">
-               <Image
-                  src="/landing/bucketview.png"
-                  alt="S3 Viewer dashboard showing buckets and the object browser"
-                  width={2160}
-                  height={1350}
-                  sizes="(max-width: 1024px) 100vw, 1024px"
-                  priority
-                  quality={100}
-                  {...blurProps("/landing/bucketview.png")}
-                  draggable={false}
-                  className="h-auto w-full select-none"
-               />
+               <AppHeroFigure />
             </div>
          </div>
       </section>

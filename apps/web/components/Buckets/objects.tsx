@@ -6,8 +6,6 @@ import { LazyGrid } from "@/components/DataGrid/lazy-grid";
 import { EmptyState } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
 import { Page, PageHeader } from "@/components/Layout/page";
-import SignInPrompt from "@/components/Session/sign-in-prompt";
-import { authClient } from "@/lib/auth";
 import usePreferencesStore from "@/lib/stores/preferencesStore";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
@@ -47,8 +45,6 @@ const NoObjectsOverlay = () => {
 };
 
 const Objects = () => {
-   const { data: session, isPending: isSessionPending } =
-      authClient.useSession();
    const serverId = useSessionStore((state) => state.serverId);
    const foldersFirst = usePreferencesStore((state) => state.foldersFirst);
    const {
@@ -125,9 +121,6 @@ const Objects = () => {
       () => ({ bucketName, prefix, commands }),
       [bucketName, prefix, commands]
    );
-
-   if (!session && !isSessionPending)
-      return <SignInPrompt>Sign in to view your objects.</SignInPrompt>;
 
    if (notFound)
       return (

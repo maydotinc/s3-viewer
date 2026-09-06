@@ -29,6 +29,12 @@ const write = (
    );
 };
 
+// The startup summary is the one thing a human reads in `docker compose logs`,
+// so it goes out as plain lines and ignores LOG_LEVEL (production's default is
+// `warn`, which would swallow it). Everything else stays structured.
+const banner = (lines: string[]) =>
+   process.stdout.write(`${lines.join("\n")}\n`);
+
 const describeError = (err: unknown): string =>
    err instanceof Error ? `${err.name}: ${err.message}` : String(err);
 
@@ -41,4 +47,4 @@ const logger = {
       write("error", m, meta),
 };
 
-export { describeError, logger };
+export { banner, describeError, logger };

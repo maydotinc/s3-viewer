@@ -101,7 +101,7 @@ const auth = betterAuth({
    advanced: {
       ipAddress: { disableIpTracking: true },
       defaultCookieAttributes: {
-         sameSite: "lax",
+         sameSite: authEnv.cookieSameSite,
          secure: authEnv.apiIsHttps,
          httpOnly: true,
       },

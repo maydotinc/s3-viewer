@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { runPrisma } from "./db.mjs";
 import {
    apiEnvPath,
+   detail,
    ensureDevInfra,
    landingEnvPath,
    loadEnv,
@@ -36,7 +37,7 @@ if (missing.length > 0) {
    process.stderr.write(
       [
          "",
-         `✗ apps/api/.env is missing: ${missing.join(", ")}`,
+         `❌ apps/api/.env is missing: ${missing.join(", ")}`,
          "",
          "  Fill them in by hand (apps/api/.env.example documents every variable),",
          "  or let the wizard regenerate the file:",
@@ -56,10 +57,10 @@ const landing =
 process.stdout.write(
    [
       "",
-      "Starting S3 Viewer:",
-      `  web      ${SITE_URL}`,
-      `  api      ${API_URL}`,
-      ...(landing ? [`  landing  ${LANDING_URL}`] : []),
+      "🪣 Starting S3 Viewer",
+      detail("🌐", "web", SITE_URL),
+      detail("🔌", "api", API_URL),
+      ...(landing ? [detail("🪧", "landing", LANDING_URL)] : []),
       "",
       "",
    ].join("\n")

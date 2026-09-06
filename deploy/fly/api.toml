@@ -1,0 +1,44 @@
+# S3 Viewer API on Fly. From the repo root:
+#   fly deploy -c deploy/fly/api.toml --dockerfile apps/api/Dockerfile --ha=false
+# One machine mounts /data, hence --ha=false. DATABASE_URL comes from
+# `fly mpg attach`; RESEND_KEY, SMTP_URL and GITHUB_CLIENT_SECRET belong in
+# `fly secrets set`. Runbook: SELF-HOSTING.md → Platform deploys → Fly.io.
+
+app = "s3-viewer-api"
+primary_region = "iad"
+
+[build]
+   dockerfile = "apps/api/Dockerfile"
+
+# Full origins; NEXT_PUBLIC_SITE_URL must equal what people type in the browser.
+[env]
+   DATA_DIR = "/data"
+   NEXT_PUBLIC_SITE_URL = "https://s3-viewer-web.fly.dev"
+   NEXT_PUBLIC_API_URL = "https://s3-viewer-api.fly.dev"
+   TRUST_PROXY = "1"
+   # fly.dev is a public suffix, so web and api are different sites.
+   COOKIE_SAMESITE = "none"
+   EMAIL_TRANSPORT = "none"
+
+[http_service]
+   internal_port = 5001
+   force_https = true
+   auto_stop_machines = "off"
+   auto_start_machines = true
+   min_machines_running = 1
+
+   [[http_service.checks]]
+      method = "GET"
+      path = "/health"
+      interval = "15s"
+      timeout = "5s"
+      grace_period = "20s"
+
+# Generated auth secret + RSA key live here; back it up.
+[mounts]
+   source = "s3_viewer_data"
+   destination = "/data"
+
+[[vm]]
+   size = "shared-cpu-1x"
+   memory = "512mb"

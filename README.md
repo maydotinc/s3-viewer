@@ -32,6 +32,8 @@ pnpm install
 pnpm dev
 ```
 
+No `pnpm` yet? `corepack enable` turns it on for Node 24 and older; Node 25 and newer ship without Corepack, so there it's `npm i -g pnpm`.
+
 That's it. If `apps/api/.env` doesn't exist yet, `pnpm dev` runs a short interactive setup wizard first (Postgres, a local mail inbox and a demo bucket are all optional and run in Docker for you), then starts the web app on `:3000`, the API on `:5001`, and the landing site on `:3001` if you chose it. Run the wizard on its own any time with `pnpm run setup`.
 
 Prefer Docker for a self-hosted instance instead of a dev setup?
@@ -40,7 +42,7 @@ Prefer Docker for a self-hosted instance instead of a dev setup?
 docker compose up -d
 ```
 
-serves a working install at `http://localhost:3000` with zero configuration. Add `--build` to build the images from this checkout instead of pulling from `ghcr.io/maydotinc`. (The optional landing site has no published image — it inlines your site URL when it is compiled, so the `landing` profile always builds it from the checkout.)
+then open `http://localhost:3000` — a working install with zero configuration. Add `--build` to build the images from this checkout instead of pulling from `ghcr.io/maydotinc`. (The optional landing site has no published image — it inlines your site URL when it is compiled, so the `landing` profile always builds it from the checkout.) Both containers report their own health (`/health` on the API, `/api/health` on the web app), so `docker compose ps` tells you when the stack is actually ready.
 
 Putting it on a real domain behind the bundled Caddy means one longer command, always with both files:
 
@@ -53,6 +55,20 @@ The overlay is what tells the API to trust Caddy for client IPs; without it ever
 Everything else, including every environment variable, per-service setup (email, GitHub OAuth, the demo bucket, the landing site, a Caddy reverse proxy), production notes and the capability matrix, is in **[SELF-HOSTING.md](./SELF-HOSTING.md)**.
 
 Before opening a PR run `pnpm lint && pnpm check-types && pnpm test`, and `pnpm format` to apply Prettier (`pnpm format:check` runs in CI). Changes to API routes, rate limits, error codes or permissions must match [CONTRACTS.md](./CONTRACTS.md), the engineering agreement between the API, the web app, the landing site and the shared packages.
+
+## ☁️ Deploy
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/maydotinc/s3-viewer)
+
+| Platform                | How                                                                                                  | Notes                                                                                                                                   |
+| ----------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| **Render**              | The button above, or **New → Blueprint** on [`render.yaml`](./render.yaml)                           | Managed Postgres and a 1 GB disk for the API's keys. Paste both public URLs when prompted. [Runbook](./SELF-HOSTING.md#render)          |
+| **Fly.io**              | `fly deploy -c deploy/fly/<app>.toml --dockerfile apps/<app>/Dockerfile`                             | Two apps, Managed Postgres, a volume on `/data`; add `--ha=false` on the API. [Runbook](./SELF-HOSTING.md#flyio)                        |
+| **Railway**             | Two services from this repo, configured in the dashboard                                             | Dockerfile builder, a volume on the API at `/data`, and domain vars that need `https://` prefixed. [Runbook](./SELF-HOSTING.md#railway) |
+| **Coolify / Portainer** | Point either at this repo's [`docker-compose.yml`](./docker-compose.yml)                             | Their own proxy terminates TLS, so set `TRUST_PROXY=1` and skip the `proxy` profile. [Runbook](./SELF-HOSTING.md#coolify--portainer)    |
+| **Docker Compose**      | `docker compose -f docker-compose.yml -f docker-compose.proxy.yml --profile proxy up -d` on your box | Bundled Caddy fetches your certificates. [Runbook](./SELF-HOSTING.md#reverse-proxy--caddy)                                              |
+
+All five want the same handful of values — `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_API_URL` as full origins, `DATABASE_URL`, and a persistent `/data` on the API — documented once in the [env reference](./SELF-HOSTING.md#7-full-env-reference).
 
 ## 🔑 Auth
 

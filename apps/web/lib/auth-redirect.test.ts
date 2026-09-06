@@ -39,6 +39,13 @@ describe("loginPathFor", () => {
       expect(loginPathFor("/")).toBe("/login");
    });
 
+   it("adds a reason for the login page to show", () => {
+      expect(loginPathFor("/dashboard", "expired")).toBe(
+         "/login?next=%2Fdashboard&reason=expired"
+      );
+      expect(loginPathFor("/", "expired")).toBe("/login?reason=expired");
+   });
+
    it("keeps a callback error inside next", () => {
       expect(loginPathFor("/dashboard?error=other")).toBe(
          "/login?next=%2Fdashboard%3Ferror%3Dother"

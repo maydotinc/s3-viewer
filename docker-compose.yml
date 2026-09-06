@@ -38,6 +38,7 @@ services:
          - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
          - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:5001}
          - TRUST_PROXY=${TRUST_PROXY:-loopback}
+         - COOKIE_SAMESITE
          # Unset ⇒ generated on first boot and kept in the /data volume. Set
          # either one in the root .env only when you are moving an existing
          # install onto this stack and have to keep its keys.
@@ -65,8 +66,12 @@ services:
          context: .
          dockerfile: apps/web/Dockerfile
       restart: unless-stopped
+      # both images carry their own HEALTHCHECK (see the Dockerfiles), so the
+      # condition works here and for anyone running the images without compose
       depends_on:
-         - api
+         api:
+            condition: service_healthy
+            required: false
       environment:
          - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
          - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:5001}

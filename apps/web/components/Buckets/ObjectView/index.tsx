@@ -1,7 +1,5 @@
 import BucketUnavailable from "@/components/Buckets/unavailable";
 import { Page } from "@/components/Layout/page";
-import SignInPrompt from "@/components/Session/sign-in-prompt";
-import { authClient } from "@/lib/auth";
 import useObjectPreview from "@/lib/hooks/queries/s3/useObjectPreview";
 import { baseName } from "@s3-viewer/types";
 import { useBucketContext } from "../Context";
@@ -10,14 +8,10 @@ import ObjectHeader from "./header";
 import { LazyPreview } from "./lazy-preview";
 
 const ObjectView = () => {
-   const { data: session, isPending } = authClient.useSession();
    const { bucketName, path, notFound } = useBucketContext();
    const objectKey = path.join("/");
 
    const preview = useObjectPreview(bucketName, objectKey);
-
-   if (!session && !isPending)
-      return <SignInPrompt>Sign in to view this object.</SignInPrompt>;
 
    if (notFound) return <BucketUnavailable bucketName={bucketName} />;
 

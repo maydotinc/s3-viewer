@@ -12,9 +12,7 @@ import {
 } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
 import { Page, PageHeader } from "@/components/Layout/page";
-import SignInPrompt from "@/components/Session/sign-in-prompt";
 import { ApiError } from "@/lib/api";
-import { authClient } from "@/lib/auth";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { usePermission } from "@/lib/hooks/usePermission";
@@ -109,7 +107,6 @@ const BucketsError = ({
 };
 
 const BucketsPanel = ({ filter }: { filter: string }) => {
-   const { data: session, isPending } = authClient.useSession();
    const serverId = useSessionStore((state) => state.serverId);
    const { isServerListLoading } = useServers();
    const { buckets, isBucketsLoading, bucketsError, isFetching, refetch } =
@@ -119,9 +116,6 @@ const BucketsPanel = ({ filter }: { filter: string }) => {
       () => ({ canRemove }),
       [canRemove]
    );
-
-   if (!session && !isPending)
-      return <SignInPrompt>Sign in to view your buckets.</SignInPrompt>;
 
    if (bucketsError && !isBucketsLoading) {
       return (
@@ -137,7 +131,7 @@ const BucketsPanel = ({ filter }: { filter: string }) => {
 
    return (
       <div className={GRID_CARD}>
-         {isPending || isServerListLoading || isBucketsLoading ? (
+         {isServerListLoading || isBucketsLoading ? (
             <GridSkeleton columns={bucketColumns} />
          ) : !serverId ? (
             <EmptyState

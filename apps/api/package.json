@@ -17,6 +17,8 @@
       "@aws-sdk/lib-storage": "^3.1127.0",
       "@aws-sdk/s3-request-presigner": "^3.1127.0",
       "@prisma/client": "catalog:",
+      "@react-email/components": "^0.5.1",
+      "@react-email/render": "^1.2.1",
       "@s3-viewer/auth": "workspace:*",
       "@s3-viewer/db": "workspace:*",
       "@s3-viewer/email": "workspace:*",
@@ -30,6 +32,8 @@
       "helmet": "^8.3.0",
       "nodemailer": "^10.0.0",
       "prisma": "catalog:",
+      "react": "catalog:",
+      "react-dom": "catalog:",
       "resend": "^6.0.1",
       "zod": "catalog:"
    },

@@ -99,7 +99,7 @@ const Footer = () => {
             Footer
          </h2>
 
-         <div className="mx-auto w-full max-w-6xl px-6 pt-14 pb-8">
+         <div className="mx-auto w-full max-w-6xl px-6 py-14">
             <div className="grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-3 lg:grid-cols-[1.5fr_1fr_1fr_1fr]">
                <div className="col-span-2 flex flex-col gap-4 sm:col-span-3 lg:col-span-1">
                   <Link
@@ -139,6 +139,9 @@ const Footer = () => {
                      />
                      <span>May Inc.</span>
                   </a>
+                  <span className="text-xs text-viewerlighttext">
+                     © {YEAR} S3 Viewer. Open source under MIT.
+                  </span>
                </div>
 
                {groups.map((group) => (
@@ -148,12 +151,6 @@ const Footer = () => {
                      links={group.links}
                   />
                ))}
-            </div>
-
-            <div className="mt-12 border-t border-viewerborder pt-6">
-               <span className="text-xs text-viewerlighttext">
-                  © {YEAR} S3 Viewer. Open source under MIT.
-               </span>
             </div>
          </div>
       </footer>

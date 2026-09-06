@@ -1,16 +1,14 @@
 import { AuthLayout, StepHeader } from "@/components/Auth/auth-layout";
 import SignInForm from "@/components/Auth/sign-in-form";
-import FullPageSpinner from "@/components/Session/full-page-spinner";
 import { signInWithGithub } from "@/lib/auth";
 import { afterLoginPath } from "@/lib/auth-redirect";
 import useInstanceConfig, {
    emailState,
 } from "@/lib/hooks/queries/useInstanceConfig";
-import { useSessionState } from "@/lib/hooks/useSessionState";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useRouter } from "next/router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 type Mode = "login" | "signup";
 
@@ -30,15 +28,14 @@ const COPY = {
 const NOTICES: Readonly<Record<string, string>> = {
    reset: "Password updated. Log in with your new password.",
    failed: "Login didn't complete. Try again.",
+   expired: "Your session has ended. Log in again to continue.",
 };
 
 const AuthScreen = ({ mode }: AuthScreenProps) => {
    const router = useRouter();
-   const sessionState = useSessionState();
    const config = useInstanceConfig();
    const transport = emailState(config);
    const [leavingForGithub, setLeavingForGithub] = useState(false);
-   const redirected = useRef(false);
 
    const destination = afterLoginPath(router.query.next);
    const copy = COPY[mode];
@@ -56,16 +53,11 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
       ? (NOTICES[reason] ?? null)
       : null;
 
+   // the guard sends a signed-in visitor on as well, but only once the session
+   // refetch lands; going now keeps the form in its pending state until then
    const finish = async () => {
-      redirected.current = true;
       await router.replace(destination);
    };
-
-   useEffect(() => {
-      if (sessionState !== "signedIn" || redirected.current) return;
-      redirected.current = true;
-      void router.replace(destination);
-   }, [sessionState, destination, router]);
 
    // a failure here happens before the form is shown again; a toast keeps it
    // from inserting a line into the form when it comes back
@@ -77,14 +69,6 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
          setLeavingForGithub(false);
       }
    };
-
-   // the form waits for the query string (the notice) and the instance config
-   // (the github button), so nothing appears inside it after it is shown.
-   // `isLoading` rather than `isPending`: a config fetch that is paused
-   // offline should not hold the page on a spinner
-   if (!router.isReady || sessionState !== "signedOut" || config.isLoading) {
-      return <FullPageSpinner />;
-   }
 
    return (
       <AuthLayout

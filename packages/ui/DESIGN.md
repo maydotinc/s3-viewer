@@ -124,11 +124,21 @@ title.
 ### Landing (`apps/landing`)
 
 Header `h-16` sticky, `max-w-6xl px-6`, logo `h-8 w-auto`, right cluster
-`gap-2` (ghost "GitHub" from `sm` up, primary "Open app"). Sections are
-`py-20` inside `max-w-6xl px-6`. Sub-page heroes are `bg-viewergray` with a
-`border-b`, `pt-16 pb-16`, a breadcrumb (`text-xs text-viewerlighttext`,
-`ChevronRight size-3`), the landing h1 and a `max-w-[620px]` lede. Footer:
-brand column + three link columns, `pt-14 pb-8`, MIT line under a hairline.
+`gap-2` (a bare `size-9` GitHub icon link with no label and no hover fill,
+then the primary "Open app"). Sections are `py-20` inside `max-w-6xl px-6`.
+Sub-page heroes are `bg-viewergray` with a `border-b`, `pt-16 pb-16`, a
+breadcrumb (`text-xs text-viewerlighttext`, `ChevronRight size-3`), the
+landing h1 and a `max-w-[620px]` lede. Footer: brand column + three link
+columns, `py-14`; the MIT line is the brand column's last caption, there is
+no second hairline or row under the grid.
+
+Product pictures on the landing are code, not images: `ScaledFrame`
+(`apps/landing/components/Landing/figures/frame.tsx`) renders a ui replica at
+a fixed base size and scales it to its container with css, so its box is
+aspect-ratio only and its content never reflows. Figures are labelled
+`role="group"` regions whose controls are `tabIndex={-1}`, motion is
+transform and opacity only, sequences autoplay only while in view and pause
+under a mouse pointer, and `prefers-reduced-motion` stops them.
 
 ## 4. Components
 

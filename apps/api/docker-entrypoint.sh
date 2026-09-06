@@ -20,12 +20,15 @@ stop() {
 trap stop TERM INT
 
 # Runs a command in the background and waits on it, which is what lets the trap
-# above fire while it is still running.
+# above fire while it is still running. The status is forwarded so this also
+# works as a loop condition.
 run() {
    "$@" &
    child=$!
    wait "$child"
+   status=$?
    child=""
+   return "$status"
 }
 
 # `new URL()` gives an IPv6 host back in brackets ("[::1]"), which nc rejects.
@@ -35,7 +38,7 @@ port=$(node -p 'new URL(process.env.DATABASE_URL).port || "5432"' 2>/dev/null ||
 if [ -n "$host" ]; then
    echo "Waiting for postgres at $host:$port ..."
    i=0
-   until nc -z "$host" "$port" 2>/dev/null; do
+   until run nc -z "$host" "$port" 2>/dev/null; do
       i=$((i + 1))
       if [ "$i" -ge 120 ]; then
          echo "Gave up waiting for postgres at $host:$port after 120s." >&2

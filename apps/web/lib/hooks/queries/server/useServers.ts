@@ -22,7 +22,10 @@ const useServers = () => {
       queryKey: queryKeys.servers(userId),
       queryFn: async () =>
          (await api.get<{ servers: ServerInfo[] }>("/servers")).servers,
-      enabled: Boolean(userId),
+      // the user id is persisted across loads, so on its own it may belong to
+      // a session that has since ended; the session manager reconciles it once
+      // the session request answers
+      enabled: Boolean(userId) && !isSessionPending,
    });
    const servers = data ?? NO_SERVERS;
 

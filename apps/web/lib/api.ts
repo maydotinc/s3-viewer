@@ -37,6 +37,16 @@ const isAborted = (error: unknown) =>
 const responseError = (status: number, data: ApiErrorBody | null) =>
    new ApiError(status, data?.message ?? GENERIC_ERROR_MESSAGE, data?.code);
 
+// the api can refuse a session the auth client still holds (past its absolute
+// age, revoked from another device). whoever owns the session registers what
+// to do then; registering rather than importing keeps lib/auth, which uses
+// this module, out of a cycle
+let onUnauthorized: () => void = () => {};
+
+const setUnauthorizedHandler = (handler: () => void): void => {
+   onUnauthorized = handler;
+};
+
 const request = async <T>(
    method: "GET" | "POST" | "PATCH" | "DELETE",
    path: string,
@@ -60,6 +70,7 @@ const request = async <T>(
    }
    if (!res.ok) {
       const data = (await res.json().catch(() => null)) as ApiErrorBody | null;
+      if (res.status === 401) onUnauthorized();
       throw responseError(res.status, data);
    }
    if (res.status === 204) return undefined as T;
@@ -129,4 +140,5 @@ export {
    responseError,
    serverInvitePath,
    serverPath,
+   setUnauthorizedHandler,
 };

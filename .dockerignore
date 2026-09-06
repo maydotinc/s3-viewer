@@ -19,3 +19,6 @@ docker-compose*.yml
 Dockerfile
 **/Dockerfile
 .dockerignore
+deploy
+render.yaml
+*.md

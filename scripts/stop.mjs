@@ -112,7 +112,7 @@ function main() {
    });
    if (result.status !== 0) {
       process.stderr.write(
-         "\n✗ Couldn't stop the docker services (is Docker running?). Dev servers were still stopped.\n"
+         "\n❌ Couldn't stop the docker services (is Docker running?). Dev servers were still stopped.\n"
       );
       process.exit(result.status ?? 1);
    }

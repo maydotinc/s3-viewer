@@ -28,12 +28,15 @@ const Header = () => {
             </Link>
 
             <div className="flex items-center gap-2">
-               <Button variant="ghost" asChild className="max-sm:hidden">
-                  <Link href={GITHUB_URL} target="_blank" rel="noreferrer">
-                     <FaGithub />
-                     GitHub
-                  </Link>
-               </Button>
+               <a
+                  href={GITHUB_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="GitHub"
+                  className="grid size-9 place-items-center text-viewerblack outline-none focus-visible:text-viewerblue"
+               >
+                  <FaGithub className="size-5" />
+               </a>
 
                <Button asChild>
                   <Link href="/dashboard">

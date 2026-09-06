@@ -10,6 +10,11 @@ export const apiEnvPath = join(root, "apps", "api", ".env");
 export const webEnvPath = join(root, "apps", "web", ".env");
 export const landingEnvPath = join(root, "apps", "landing", ".env");
 
+const LABEL_WIDTH = 9;
+export const DETAIL_INDENT = " ".repeat(6 + LABEL_WIDTH);
+export const detail = (emoji, label, value) =>
+   `   ${emoji} ${label.padEnd(LABEL_WIDTH)}${value}`;
+
 const VALUE = `"(?:[^"\\\\]|\\\\[\\s\\S])*"|'(?:[^'\\\\]|\\\\[\\s\\S])*'`;
 const ENTRY = new RegExp(
    `^[ \\t]*(?:export[ \\t]+)?([A-Za-z_][A-Za-z0-9_]*)[ \\t]*=[ \\t]*(${VALUE}|[^#\\r\\n]*)`,
@@ -95,7 +100,7 @@ export function must(command, args, extraEnv = {}) {
    });
    if (result.status !== 0) {
       process.stderr.write(
-         `\n✗ \`${command} ${args.join(" ")}\` failed (exit ${String(result.status)}).\n`
+         `\n❌ \`${command} ${args.join(" ")}\` failed (exit ${String(result.status)}).\n`
       );
       process.exit(result.status ?? 1);
    }
@@ -144,7 +149,7 @@ export async function waitForTcp(label, host, port, timeoutMs = 60000) {
       await new Promise((resolve) => setTimeout(resolve, 500));
    }
    process.stderr.write(
-      `✗ ${label} did not become reachable on ${host}:${String(port)} within ${String(timeoutMs / 1000)}s.\n`
+      `❌ ${label} did not become reachable on ${host}:${String(port)} within ${String(timeoutMs / 1000)}s.\n`
    );
    return false;
 }
@@ -156,7 +161,7 @@ export async function ensureDevInfra(env, { quiet = false } = {}) {
    const profiles = env.COMPOSE_PROFILES ?? "";
    if (profiles.length > 0) {
       if (!quiet)
-         process.stdout.write(`Starting docker services (${profiles})...\n`);
+         process.stdout.write(`🐳 Starting docker services (${profiles})...\n`);
       const result = spawnSync(
          "docker",
          ["compose", "-f", composeFile, "up", "-d"],
@@ -169,7 +174,7 @@ export async function ensureDevInfra(env, { quiet = false } = {}) {
       );
       if (result.status !== 0) {
          process.stderr.write(
-            "\n✗ `docker compose up -d` failed. Is Docker running? Start it and try again, or\n" +
+            "\n❌ `docker compose up -d` failed. Is Docker running? Start it and try again, or\n" +
                "  re-run `pnpm run setup --no-docker` and point DATABASE_URL at your own Postgres.\n"
          );
          return false;
@@ -182,8 +187,8 @@ export async function ensureDevInfra(env, { quiet = false } = {}) {
       return true;
    process.stderr.write(
       managed
-         ? `\n✗ Postgres isn't reachable. Check \`docker compose -f ${composeFile} ps\` and its logs.\n`
-         : "\n✗ Postgres isn't reachable. DATABASE_URL points at a database you manage —\n" +
+         ? `\n❌ Postgres isn't reachable. Check \`docker compose -f ${composeFile} ps\` and its logs.\n`
+         : "\n❌ Postgres isn't reachable. DATABASE_URL points at a database you manage —\n" +
               "  start it, or re-run `pnpm run setup` and let Docker manage it.\n"
    );
    return false;

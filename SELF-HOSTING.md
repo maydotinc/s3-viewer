@@ -37,9 +37,17 @@ automatically on every start.
 docker compose up -d --build
 ```
 
+Building needs BuildKit, the default builder since Docker 23
+(`DOCKER_BUILDKIT=0` will not work). The API image is about 390 MB: the
+compiled server, the Prisma migrations, a generated client with its query
+engine, the Prisma CLI that the entrypoint runs `migrate deploy` with on every
+boot, and the email stack (`react-dom/server` is CommonJS, so it stays
+unbundled). Everything else is pruned at build time, so pnpm and the Prisma CLI
+are present but the rest of the dependency tree is not.
+
 For a real deployment you'll want to set the two public URLs and, if you're
 putting Caddy in front, the hostnames; see [Reverse proxy / Caddy](#reverse-proxy--caddy)
-and the [env reference](#6-full-env-reference) below. Copy `.env.example` to
+and the [env reference](#7-full-env-reference) below. Copy `.env.example` to
 `.env` at the repo root to override any of it; every value has a working
 default, so an untouched `.env` behaves the same as none at all.
 
@@ -67,6 +75,13 @@ git clone https://github.com/maydotinc/s3-viewer && cd s3-viewer
 pnpm install
 pnpm dev
 ```
+
+`pnpm` is the only package manager this repo supports, and the version in
+`package.json`'s `packageManager` field is the one it expects. On Node 24 and
+older, `corepack enable` installs shims that fetch that pinned version on first
+use (`corepack up` if it complains about a signature or keyid); Node 25 and
+newer ship without Corepack, so there you install pnpm directly with
+`npm i -g pnpm`.
 
 If `apps/api/.env` doesn't exist yet, `pnpm dev` runs an interactive setup
 wizard first, then continues straight into starting the apps. You can also
@@ -159,7 +174,7 @@ Three backends, chosen by `EMAIL_TRANSPORT` in `apps/api/.env`:
 
 - **`none`**: nothing is sent. Sign-in still works; password reset, email
   verification and invites are unavailable, and the UI explains this
-  wherever it would otherwise offer them (see the [capability matrix](#5-capability-matrix)).
+  wherever it would otherwise offer them (see the [capability matrix](#6-capability-matrix)).
   In development the message is still printed to the API log so you can copy
   a link by hand; in production it's dropped.
 - **`smtp`**: point `SMTP_URL` at any SMTP server
@@ -230,7 +245,7 @@ to `/dashboard`; no landing container needed at all.
 
 To run it: in the pnpm path, answer yes to `pnpm run setup`'s landing
 question. In Docker, uncomment `LANDING_ORIGIN=http://landing:3001` in your
-root `.env` (see the [env reference](#6-full-env-reference)) so the web app
+root `.env` (see the [env reference](#7-full-env-reference)) so the web app
 knows to proxy the marketing routes from it, and add the `landing` profile:
 
 ```bash
@@ -282,7 +297,7 @@ itself, so a client cannot forge its own address. Adding a `trusted_proxies`
 global option to the Caddyfile reverses that — Caddy then keeps incoming
 values — so only add it when something you control really is in front, and
 raise `TRUST_PROXY` to match. See the
-[`TRUST_PROXY` warning](#7-production-notes) below.
+[`TRUST_PROXY` warning](#8-production-notes) below.
 
 Behind a proxy of your own instead of this profile, set `TRUST_PROXY`
 yourself in the root `.env`; the overlay only exists because compose has no
@@ -292,7 +307,163 @@ Any reverse proxy works, not just Caddy (nginx, Traefik and a cloud load
 balancer all qualify), as long as it terminates HTTPS for both hostnames and
 forwards to the `web` and `api` containers (or processes).
 
-## 5. Capability matrix
+### Health checks
+
+Both images carry their own `HEALTHCHECK` (node's built-in `fetch`, so no
+curl or wget in the runtime images), which is what `docker compose ps`,
+`docker run`, Coolify, Portainer and the platform templates below all read.
+
+| Service | Path          | Returns                        |
+| ------- | ------------- | ------------------------------ |
+| api     | `/health`     | `{"ok":true,"apiVersion":<n>}` |
+| web     | `/api/health` | `{"ok":true}`                  |
+
+Both are unauthenticated, uncached and cheap; the web one is a liveness check
+that never touches the API or the database. Probes follow a `PORT` override,
+run every 10s with 5 retries after a start period of 120s on the API (Postgres
+wait plus migrations) and 20s on the web app, and log the connection error to
+`docker inspect`'s health log when they fail, and `docker-compose.yml` makes `web` wait for a
+healthy `api`, so the first page load never races a migration still running.
+
+## 5. Platform deploys
+
+Templates for the four platforms people ask about live in this repo. They all
+run the same two images — `api` on `:5001` with `GET /health`, `web` on `:3000`
+with `GET /api/health` — against a managed Postgres, and they all need the same
+four things:
+
+- **Both public URLs, as full origins with a scheme.** `NEXT_PUBLIC_SITE_URL`
+  and `NEXT_PUBLIC_API_URL` are validated as URLs at boot, so a bare hostname
+  fails; and `NEXT_PUBLIC_SITE_URL` has to be exactly what people type in the
+  browser, because it is what the API allows through CORS and the `Origin`
+  check. Set both on **both** services.
+- **A persistent volume mounted at `/data` on the API**, with `DATA_DIR=/data`.
+  That is where it generates and keeps `BETTER_AUTH_SECRET` and the RSA key
+  that decrypts stored credentials; see [Backups](#8-production-notes).
+- **`TRUST_PROXY=1`.** All four put exactly one proxy in front of the API.
+- **`COOKIE_SAMESITE=none` on the API, on a platform's default hostname.**
+  `onrender.com`, `fly.dev` and `up.railway.app` are public suffixes, so
+  `s3-viewer-web.fly.dev` and `s3-viewer-api.fly.dev` are different _sites_,
+  not just different origins: the default `SameSite=Lax` session cookie is
+  never sent to the API and every sign-in bounces straight back to `/login`.
+  The templates already set it. Put both apps on one registrable domain
+  (`app.example.com` and `api.example.com`) and they are same-site again, so
+  drop back to `lax`. What keeps `none` safe is the `Origin` check the API runs
+  on every non-`GET` request: a cookie that travels cross-site still cannot
+  drive a state change from a page that is not `NEXT_PUBLIC_SITE_URL`.
+
+Everything else is optional and lives once in the
+[env reference](#7-full-env-reference). Migrations run in the API container's
+entrypoint, so none of these need a release or pre-deploy command. The landing
+site has no published image and is deliberately absent from all four.
+
+### Render
+
+[`render.yaml`](./render.yaml) is a Blueprint: the two Docker services, a
+managed Postgres and a 1 GB disk on the API.
+
+1. Use the **Deploy to Render** button in the README, or **New → Blueprint** in
+   the dashboard against your fork.
+2. Render prompts once for the two `sync: false` variables. Paste the origins
+   the services are about to get: `https://s3-viewer-web.onrender.com` for
+   `NEXT_PUBLIC_SITE_URL` and `https://s3-viewer-api.onrender.com` for
+   `NEXT_PUBLIC_API_URL`. Render's cross-service references only yield a host,
+   never a full origin, which is why these are typed rather than wired.
+3. If either service name was taken Render appends a suffix. Correct both
+   values on both services under **Environment** and redeploy — likewise when
+   you point a custom domain at the web service.
+4. `/data` is the disk on `s3-viewer-api`. Blueprint updates ignore
+   `sync: false` variables, so those two are only ever changed by hand.
+
+A disk needs a paid instance type, so the API cannot run on `free` and stays at
+one instance; the web service can drop to `plan: free` if you accept it
+spinning down when idle. **Update**: push to your fork's default branch, or
+**Manual Deploy** in the dashboard.
+
+### Fly.io
+
+Two apps plus Fly Managed Postgres. Run everything from the repo root so the
+build context is the whole monorepo:
+
+```bash
+fly apps create s3-viewer-api
+fly apps create s3-viewer-web
+fly mpg create                                  # note the cluster id it prints
+fly mpg attach <cluster-id> -a s3-viewer-api    # sets the DATABASE_URL secret
+fly volumes create s3_viewer_data -a s3-viewer-api -s 1 -r iad
+fly deploy -c deploy/fly/api.toml --dockerfile apps/api/Dockerfile --ha=false
+fly deploy -c deploy/fly/web.toml --dockerfile apps/web/Dockerfile
+```
+
+Edit `app` and `primary_region` in [`deploy/fly/api.toml`](./deploy/fly/api.toml)
+and [`deploy/fly/web.toml`](./deploy/fly/web.toml) first, then the two
+`NEXT_PUBLIC_*` values in the `[env]` block of both files, to the
+`https://<app>.fly.dev` origins Fly gave you or to your own domains. Credentials
+(`RESEND_KEY`, `SMTP_URL`, `GITHUB_CLIENT_SECRET`) belong in `fly secrets set`,
+not in `[env]`. `--ha=false` on the API matters: only one machine can mount the
+`/data` volume, and Fly otherwise creates a spare. **Update**: `fly deploy`
+again with the same flags.
+
+### Railway
+
+There is no Railway template id for S3 Viewer to click, and no config file in
+this repo either: Railway deprecated `railway.json` / `railway.toml` in favour
+of an `.railway/railway.ts` Infrastructure-as-Code file that needs its own npm
+package and CLI, and the old format stops being read on 2026-12-01. Six clicks
+per service is less to rot than either, so:
+
+1. **New Project → Deploy from GitHub repo**, then **+ New → Database →
+   PostgreSQL**.
+2. Add two services from the same repo. On both, leave **Root Directory** at
+   `/` — the Dockerfiles need the whole monorepo as their build context — and
+   under **Settings → Build** choose the **Dockerfile** builder with
+   `apps/api/Dockerfile` on one and `apps/web/Dockerfile` on the other.
+3. Under **Settings → Deploy**, set the health check path (`/health` for the
+   API, `/api/health` for the web app) and a restart policy of **On failure**.
+   Keep the API at one replica; it has a volume.
+4. Give both services a public domain under **Settings → Networking**.
+5. On the API service add a volume mounted at `/data`, and set
+   `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `DATA_DIR=/data`,
+   `TRUST_PROXY=1` and `COOKIE_SAMESITE=none`.
+6. Set the two URLs on **both** services. `RAILWAY_PUBLIC_DOMAIN` is a bare
+   hostname, so add the scheme yourself:
+
+   ```dotenv
+   NEXT_PUBLIC_SITE_URL=https://${{web.RAILWAY_PUBLIC_DOMAIN}}
+   NEXT_PUBLIC_API_URL=https://${{api.RAILWAY_PUBLIC_DOMAIN}}
+   ```
+
+   substituting whatever you actually named the services and the database.
+
+**Update**: push to the branch each service watches, or **Redeploy**.
+
+### Coolify / Portainer
+
+Neither needs a file of its own: [`docker-compose.yml`](./docker-compose.yml)
+_is_ the stack. Both run their own reverse proxy (Traefik, in Coolify's case)
+which reaches `web` and `api` over the stack's Docker network, so the
+`127.0.0.1:3000` / `127.0.0.1:5001` bindings in that file are already right —
+leave them, and do **not** enable the `proxy` profile, which would start a
+second TLS edge competing for `:443`.
+
+**Coolify**: create a resource from this repo with the **Docker Compose** build
+pack, leave **Base Directory** at `/` and set **Docker Compose Location** to
+`/docker-compose.yml`. Coolify lists the services once it parses the file;
+assign one domain to `web` and one to `api`, writing the container port in the
+domain (`https://app.example.com:3000`) so Traefik routes to something other
+than `:80`. **Update**: Redeploy, or turn on automatic deployments.
+
+**Portainer**: **Stacks → Add stack → Git Repository**, **Compose path**
+`docker-compose.yml`, and put the variables under **Environment variables**.
+Portainer has no certificate story of its own, so terminate TLS in a proxy in
+front of it. **Update**: _Pull and redeploy_, or enable **GitOps updates**.
+
+Both read the root `.env` variables, not the app ones, so the table to work
+from is [Root `.env`](#root-env-docker-compose-only): set `SITE_URL` and
+`API_URL` to the two public origins, `POSTGRES_PASSWORD` to something of your
+own, and `TRUST_PROXY=1`.
+
+## 6. Capability matrix
 
 | Missing                                                                                | Capability off                               | What the user sees                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | -------------------------------------------------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -306,32 +477,33 @@ A disabled capability always means the UI explains itself in place, rather
 than a button that silently does nothing or a request that fails with an
 opaque error.
 
-## 6. Full env reference
+## 7. Full env reference
 
 ### `apps/api/.env`
 
-| Variable                  |                  Required                   | Local value                                                             | Production value                                                         | What it does                                                                                                                                                                                                                                                                        |
-| ------------------------- | :-----------------------------------------: | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`            |                     ✅                      | `postgresql://…`                                                        | `postgresql://…`                                                         | PostgreSQL connection string for Prisma.                                                                                                                                                                                                                                            |
-| `BETTER_AUTH_SECRET`      |           only without `DATA_DIR`           | generated by the wizard                                                 | generated by the wizard, or set by hand                                  | Signs sessions and tokens; at least 32 characters. With `DATA_DIR` set, generated on first boot and persisted to `$DATA_DIR/auth-secret`.                                                                                                                                           |
-| `ENCRYPTION_PRIVATE_KEY`  |           only without `DATA_DIR`           | generated by the wizard                                                 | generated by the wizard, or set by hand                                  | RSA private key (2048 bits or more; 4096 is what's generated) that decrypts stored S3 credentials. The public half is derived from it at runtime and served on `GET /config`. With `DATA_DIR` set, generated on first boot and persisted to `$DATA_DIR/encryption-private-key.pem`. |
-| `DATA_DIR`                |                                             | unset                                                                   | `/data` (set by the Docker image)                                        | Writable directory where generated secrets are persisted, so a container comes back with the same keys across restarts.                                                                                                                                                             |
-| `NEXT_PUBLIC_SITE_URL`    |                     ✅                      | `http://localhost:3000`                                                 | `https://s3-viewer.example.com`                                          | The web app's origin: CORS, the `Origin` check, trusted origins and email links.                                                                                                                                                                                                    |
-| `NEXT_PUBLIC_API_URL`     |                     ✅                      | `http://localhost:5001`                                                 | `https://api.s3-viewer.example.com`                                      | This API's own origin: Better Auth base URL, OAuth callbacks, `Secure` cookies.                                                                                                                                                                                                     |
-| `NODE_ENV`                |                                             | `development`                                                           | `production`                                                             | Also gates whether a cleartext `http://` S3 endpoint is accepted outside of `ALLOW_PRIVATE_ENDPOINTS=true`.                                                                                                                                                                         |
-| `EMAIL_TRANSPORT`         |                                             | `smtp` (mailpit) or `none`, whichever the wizard's email question chose | `resend`, `smtp` or `none`                                               | Which mail transport sends auth and invite email. The wizard always writes one of the two explicitly rather than leaving it to inference. Unset ⇒ `resend` if `RESEND_KEY` is set, else `smtp` if `SMTP_URL` is set, else `none`. `none` is intentional and fully supported.        |
-| `SMTP_URL`                |          if `EMAIL_TRANSPORT=smtp`          | `smtp://localhost:1025` (mailpit)                                       | `smtp://user:pass@mail.example.com:587`                                  | SMTP connection string (`smtp://` or `smtps://`). Required in every environment when `EMAIL_TRANSPORT=smtp`; ignored otherwise.                                                                                                                                                     |
-| `RESEND_KEY`              |         if `EMAIL_TRANSPORT=resend`         | unset                                                                   | `re_…`                                                                   | Resend API key. Required when `EMAIL_TRANSPORT=resend`; ignored otherwise.                                                                                                                                                                                                          |
-| `EMAIL_FROM`              | if a transport is configured, in production | unset                                                                   | `S3 Viewer <hello@yourdomain.com>`                                       | Sender for auth and invite email. Required in production when `resend` or `smtp` is configured; there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc. Not needed with `EMAIL_TRANSPORT=none`.                                           |
-| `SUPPORT_EMAIL`           |                                             | unset                                                                   | `support@yourdomain.com`                                                 | Contact shown to admins who hit the pending-invite cap, and in the account-deletion confirmation email. Unset ⇒ omitted; the email points at GitHub issues instead.                                                                                                                 |
-| `GITHUB_CLIENT_ID`        |                                             | unset                                                                   | GitHub OAuth app id                                                      | Set together with the secret, or leave both unset. The only switch for GitHub login.                                                                                                                                                                                                |
-| `GITHUB_CLIENT_SECRET`    |                                             | unset                                                                   | GitHub OAuth app secret                                                  | Set together with the id, or leave both unset.                                                                                                                                                                                                                                      |
-| `ALLOW_PRIVATE_ENDPOINTS` |                                             | unset, or `true` if the wizard's demo-bucket question is yes            | unset                                                                    | Exactly `true` lets S3 endpoints resolve to private, loopback or link-local addresses (a MinIO on your LAN, the local demo bucket) and allows `http://` in production too. Default false, which is the SSRF-safe setting. Logs a loud boot warning when true.                       |
-| `PORT`                    |                                             | `5001`                                                                  | `5001`                                                                   | Port the API listens on.                                                                                                                                                                                                                                                            |
-| `TRUST_PROXY`             |                                             | `loopback`                                                              | `1` behind a single reverse proxy (`docker-compose.proxy.yml` sets this) | Express `trust proxy`; behind a load balancer use the hop count. See the [warning](#7-production-notes) below before changing this.                                                                                                                                                 |
-| `MAX_UPLOAD_BYTES`        |                                             | `5368709120`                                                            | `5368709120`                                                             | Largest upload body in bytes, enforced while streaming so a false `Content-Length` cannot bypass it. Unset ⇒ 5 GiB.                                                                                                                                                                 |
-| `UPLOAD_PART_BYTES`       |                                             | `26214400`                                                              | `26214400`                                                               | Multipart part size in bytes. Unset ⇒ 25 MiB. Min 5 MiB, max 5 GiB. A known `Content-Length` raises the part size when needed to stay under S3's 10,000-part cap.                                                                                                                   |
-| `LOG_LEVEL`               |                                             | `debug`                                                                 | `warn`                                                                   | `debug`, `info`, `warn` or `error`. Unset ⇒ `warn` in production, `debug` otherwise.                                                                                                                                                                                                |
+| Variable                  |                  Required                   | Local value                                                             | Production value                                                         | What it does                                                                                                                                                                                                                                                                                                                           |
+| ------------------------- | :-----------------------------------------: | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            |                     ✅                      | `postgresql://…`                                                        | `postgresql://…`                                                         | PostgreSQL connection string for Prisma.                                                                                                                                                                                                                                                                                               |
+| `BETTER_AUTH_SECRET`      |           only without `DATA_DIR`           | generated by the wizard                                                 | generated by the wizard, or set by hand                                  | Signs sessions and tokens; at least 32 characters. With `DATA_DIR` set, generated on first boot and persisted to `$DATA_DIR/auth-secret`.                                                                                                                                                                                              |
+| `ENCRYPTION_PRIVATE_KEY`  |           only without `DATA_DIR`           | generated by the wizard                                                 | generated by the wizard, or set by hand                                  | RSA private key (2048 bits or more; 4096 is what's generated) that decrypts stored S3 credentials. The public half is derived from it at runtime and served on `GET /config`. With `DATA_DIR` set, generated on first boot and persisted to `$DATA_DIR/encryption-private-key.pem`.                                                    |
+| `DATA_DIR`                |                                             | unset                                                                   | `/data` (set by the Docker image)                                        | Writable directory where generated secrets are persisted, so a container comes back with the same keys across restarts.                                                                                                                                                                                                                |
+| `NEXT_PUBLIC_SITE_URL`    |                     ✅                      | `http://localhost:3000`                                                 | `https://s3-viewer.example.com`                                          | The web app's origin: CORS, the `Origin` check, trusted origins and email links.                                                                                                                                                                                                                                                       |
+| `NEXT_PUBLIC_API_URL`     |                     ✅                      | `http://localhost:5001`                                                 | `https://api.s3-viewer.example.com`                                      | This API's own origin: Better Auth base URL, OAuth callbacks, `Secure` cookies.                                                                                                                                                                                                                                                        |
+| `NODE_ENV`                |                                             | `development`                                                           | `production`                                                             | Also gates whether a cleartext `http://` S3 endpoint is accepted outside of `ALLOW_PRIVATE_ENDPOINTS=true`.                                                                                                                                                                                                                            |
+| `EMAIL_TRANSPORT`         |                                             | `smtp` (mailpit) or `none`, whichever the wizard's email question chose | `resend`, `smtp` or `none`                                               | Which mail transport sends auth and invite email. The wizard always writes one of the two explicitly rather than leaving it to inference. Unset ⇒ `resend` if `RESEND_KEY` is set, else `smtp` if `SMTP_URL` is set, else `none`. `none` is intentional and fully supported.                                                           |
+| `SMTP_URL`                |          if `EMAIL_TRANSPORT=smtp`          | `smtp://localhost:1025` (mailpit)                                       | `smtp://user:pass@mail.example.com:587`                                  | SMTP connection string (`smtp://` or `smtps://`). Required in every environment when `EMAIL_TRANSPORT=smtp`; ignored otherwise.                                                                                                                                                                                                        |
+| `RESEND_KEY`              |         if `EMAIL_TRANSPORT=resend`         | unset                                                                   | `re_…`                                                                   | Resend API key. Required when `EMAIL_TRANSPORT=resend`; ignored otherwise.                                                                                                                                                                                                                                                             |
+| `EMAIL_FROM`              | if a transport is configured, in production | unset                                                                   | `S3 Viewer <hello@yourdomain.com>`                                       | Sender for auth and invite email. Required in production when `resend` or `smtp` is configured; there is no default sender, so a self-hosted deploy never sends mail claiming to be from May Inc. Not needed with `EMAIL_TRANSPORT=none`.                                                                                              |
+| `SUPPORT_EMAIL`           |                                             | unset                                                                   | `support@yourdomain.com`                                                 | Contact shown to admins who hit the pending-invite cap, and in the account-deletion confirmation email. Unset ⇒ omitted; the email points at GitHub issues instead.                                                                                                                                                                    |
+| `GITHUB_CLIENT_ID`        |                                             | unset                                                                   | GitHub OAuth app id                                                      | Set together with the secret, or leave both unset. The only switch for GitHub login.                                                                                                                                                                                                                                                   |
+| `GITHUB_CLIENT_SECRET`    |                                             | unset                                                                   | GitHub OAuth app secret                                                  | Set together with the id, or leave both unset.                                                                                                                                                                                                                                                                                         |
+| `ALLOW_PRIVATE_ENDPOINTS` |                                             | unset, or `true` if the wizard's demo-bucket question is yes            | unset                                                                    | Exactly `true` lets S3 endpoints resolve to private, loopback or link-local addresses (a MinIO on your LAN, the local demo bucket) and allows `http://` in production too. Default false, which is the SSRF-safe setting. Logs a loud boot warning when true.                                                                          |
+| `PORT`                    |                                             | `5001`                                                                  | `5001`                                                                   | Port the API listens on.                                                                                                                                                                                                                                                                                                               |
+| `TRUST_PROXY`             |                                             | `loopback`                                                              | `1` behind a single reverse proxy (`docker-compose.proxy.yml` sets this) | Express `trust proxy`; behind a load balancer use the hop count. See the [warning](#8-production-notes) below before changing this.                                                                                                                                                                                                    |
+| `COOKIE_SAMESITE`         |                                             | `lax`                                                                   | `lax`, or `none` on a platform's default hostnames                       | `SameSite` on the session cookie. Set `none` only when the web app and the API are different sites (`*.onrender.com`, `*.fly.dev`, `*.up.railway.app` are public suffixes), or sign-in never sticks; `none` requires an `https://` `NEXT_PUBLIC_API_URL` and is a boot error without one. See [Platform deploys](#5-platform-deploys). |
+| `MAX_UPLOAD_BYTES`        |                                             | `5368709120`                                                            | `5368709120`                                                             | Largest upload body in bytes, enforced while streaming so a false `Content-Length` cannot bypass it. Unset ⇒ 5 GiB.                                                                                                                                                                                                                    |
+| `UPLOAD_PART_BYTES`       |                                             | `26214400`                                                              | `26214400`                                                               | Multipart part size in bytes. Unset ⇒ 25 MiB. Min 5 MiB, max 5 GiB. A known `Content-Length` raises the part size when needed to stay under S3's 10,000-part cap.                                                                                                                                                                      |
+| `LOG_LEVEL`               |                                             | `debug`                                                                 | `warn`                                                                   | `debug`, `info`, `warn` or `error`. Unset ⇒ `warn` in production, `debug` otherwise.                                                                                                                                                                                                                                                   |
 
 ### `apps/web/.env`
 
@@ -359,29 +531,30 @@ this file. Every value has a working default, so `docker compose up -d`
 serves `http://localhost:3000` with no `.env` at all. Copy `.env.example` to
 `.env` at the repo root to override any of it.
 
-| Variable                  | Default                 | What it does                                                                                                                                 |
-| ------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SITE_URL`                | `http://localhost:3000` | Public origin of the web app: what people type in the browser.                                                                               |
-| `API_URL`                 | `http://localhost:5001` | Public origin of the API: must be reachable from the browser, not just from `web`.                                                           |
-| `POSTGRES_PASSWORD`       | `s3viewer`              | Password for the bundled Postgres container.                                                                                                 |
-| `TRUST_PROXY`             | unset (⇒ `loopback`)    | Passed through to the API; `docker-compose.proxy.yml` makes it `1`. Setting it here overrides both, for a proxy of your own or a second hop. |
-| `BETTER_AUTH_SECRET`      | unset (⇒ generated)     | Only for migrating an existing install: overrides the secret the API generates into its `/data` volume. Existing sessions survive.           |
-| `ENCRYPTION_PRIVATE_KEY`  | unset (⇒ generated)     | Only for migrating an existing install: the RSA key that decrypts already-stored S3 credentials. See the one-line PEM note below.            |
-| `LANDING_ORIGIN`          | unset                   | Origin of the landing container; set it to `http://landing:3001` with the `landing` profile. Leave commented out (not blank) otherwise.      |
-| `SITE_HOSTNAME`           | unset                   | Hostname Caddy serves the web app on (`proxy` profile).                                                                                      |
-| `API_HOSTNAME`            | unset                   | Hostname Caddy serves the API on (`proxy` profile).                                                                                          |
-| `ACME_EMAIL`              | unset                   | Address Let's Encrypt notifies about expiring certificates (`proxy` profile).                                                                |
-| `EMAIL_TRANSPORT`         | unset (⇒ inferred)      | `none`, `resend` or `smtp`; see the [`apps/api/.env` table](#appsapienv) above.                                                              |
-| `RESEND_KEY`              | unset                   | Resend API key; sending email switches on as soon as this is set.                                                                            |
-| `SMTP_URL`                | unset                   | SMTP connection string.                                                                                                                      |
-| `EMAIL_FROM`              | unset                   | From address on outgoing email.                                                                                                              |
-| `SUPPORT_EMAIL`           | unset                   | Contact shown to admins who hit the pending-invite cap.                                                                                      |
-| `GITHUB_CLIENT_ID`        | unset                   | GitHub OAuth app client id; set both id and secret or neither.                                                                               |
-| `GITHUB_CLIENT_SECRET`    | unset                   | GitHub OAuth app client secret.                                                                                                              |
-| `ALLOW_PRIVATE_ENDPOINTS` | unset                   | `true` allows S3 endpoints on private/loopback addresses (a LAN MinIO).                                                                      |
-| `MAX_UPLOAD_BYTES`        | unset (⇒ 5 GiB)         | Largest upload body in bytes.                                                                                                                |
-| `UPLOAD_PART_BYTES`       | unset (⇒ 25 MiB)        | Multipart part size in bytes. Min 5 MiB, max 5 GiB.                                                                                          |
-| `LOG_LEVEL`               | unset (⇒ `warn`)        | `debug`, `info`, `warn` or `error`.                                                                                                          |
+| Variable                  | Default                 | What it does                                                                                                                                        |
+| ------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_URL`                | `http://localhost:3000` | Public origin of the web app: what people type in the browser.                                                                                      |
+| `API_URL`                 | `http://localhost:5001` | Public origin of the API: must be reachable from the browser, not just from `web`.                                                                  |
+| `POSTGRES_PASSWORD`       | `s3viewer`              | Password for the bundled Postgres container.                                                                                                        |
+| `TRUST_PROXY`             | unset (⇒ `loopback`)    | Passed through to the API; `docker-compose.proxy.yml` makes it `1`. Setting it here overrides both, for a proxy of your own or a second hop.        |
+| `COOKIE_SAMESITE`         | unset (⇒ `lax`)         | Set `none` only when the web app and the API are different sites, which needs an `https://` `API_URL`. See [Platform deploys](#5-platform-deploys). |
+| `BETTER_AUTH_SECRET`      | unset (⇒ generated)     | Only for migrating an existing install: overrides the secret the API generates into its `/data` volume. Existing sessions survive.                  |
+| `ENCRYPTION_PRIVATE_KEY`  | unset (⇒ generated)     | Only for migrating an existing install: the RSA key that decrypts already-stored S3 credentials. See the one-line PEM note below.                   |
+| `LANDING_ORIGIN`          | unset                   | Origin of the landing container; set it to `http://landing:3001` with the `landing` profile. Leave commented out (not blank) otherwise.             |
+| `SITE_HOSTNAME`           | unset                   | Hostname Caddy serves the web app on (`proxy` profile).                                                                                             |
+| `API_HOSTNAME`            | unset                   | Hostname Caddy serves the API on (`proxy` profile).                                                                                                 |
+| `ACME_EMAIL`              | unset                   | Address Let's Encrypt notifies about expiring certificates (`proxy` profile).                                                                       |
+| `EMAIL_TRANSPORT`         | unset (⇒ inferred)      | `none`, `resend` or `smtp`; see the [`apps/api/.env` table](#appsapienv) above.                                                                     |
+| `RESEND_KEY`              | unset                   | Resend API key; sending email switches on as soon as this is set.                                                                                   |
+| `SMTP_URL`                | unset                   | SMTP connection string.                                                                                                                             |
+| `EMAIL_FROM`              | unset                   | From address on outgoing email.                                                                                                                     |
+| `SUPPORT_EMAIL`           | unset                   | Contact shown to admins who hit the pending-invite cap.                                                                                             |
+| `GITHUB_CLIENT_ID`        | unset                   | GitHub OAuth app client id; set both id and secret or neither.                                                                                      |
+| `GITHUB_CLIENT_SECRET`    | unset                   | GitHub OAuth app client secret.                                                                                                                     |
+| `ALLOW_PRIVATE_ENDPOINTS` | unset                   | `true` allows S3 endpoints on private/loopback addresses (a LAN MinIO).                                                                             |
+| `MAX_UPLOAD_BYTES`        | unset (⇒ 5 GiB)         | Largest upload body in bytes.                                                                                                                       |
+| `UPLOAD_PART_BYTES`       | unset (⇒ 25 MiB)        | Multipart part size in bytes. Min 5 MiB, max 5 GiB.                                                                                                 |
+| `LOG_LEVEL`               | unset (⇒ `warn`)        | `debug`, `info`, `warn` or `error`.                                                                                                                 |
 
 Leave an unwanted line commented out rather than setting it to an empty
 string; compose treats an empty value as a value, not as unset.
@@ -397,7 +570,7 @@ Compose expands `\n` inside double quotes and leaves it literal outside them,
 so the quotes are what makes this work. `docker compose config` prints the
 key back as a block of real lines when you've got it right.
 
-## 7. Production notes
+## 8. Production notes
 
 - **Migrations run automatically, but plan around them anyway.** The Docker
   API image's entrypoint waits for Postgres to accept TCP connections, then
@@ -490,7 +663,7 @@ failed` / `[auth] reset email failed`). Alert on those lines, not on
    DELETE FROM "audit_log" WHERE "createdAt" < now() - interval '1 year';
    ```
 
-## 8. Updating
+## 9. Updating
 
 Docker path:
 
@@ -526,7 +699,7 @@ config, none of them touch your data.
   The API now refuses to boot and says which value is missing. If that stops
   an upgrade, either supply the credential or set `EMAIL_TRANSPORT=none`,
   which is a supported mode rather than a failure (see the
-  [capability matrix](#5-capability-matrix)).
+  [capability matrix](#6-capability-matrix)).
 - **`NEXT_PUBLIC_ENCRYPTION_PUBLIC_KEY` and `NEXT_PUBLIC_GITHUB_LOGIN_ENABLED`
   are no longer read.** The web app gets the encryption public key and
   whether GitHub sign-in is available from the API's `GET /config` at

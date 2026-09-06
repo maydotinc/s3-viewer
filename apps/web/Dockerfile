@@ -32,4 +32,9 @@ COPY --from=builder --chown=node:node /app/apps/web/public ./apps/web/public
 
 USER node
 EXPOSE 3000
+
+# travels with the image, so `docker run`, Coolify and Portainer get the same
+# health signal compose does. node's fetch keeps curl/wget out of the runtime.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 CMD ["node", "-e", "fetch(`http://127.0.0.1:${process.env.PORT||3000}/api/health`).then(r=>process.exit(r.ok?0:1)).catch(e=>{console.error(e.message,e.cause?.message??\"\");process.exit(1)})"]
+
 CMD ["node", "apps/web/server.js"]

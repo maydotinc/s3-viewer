@@ -3,7 +3,7 @@
 import { env, siteOrigin } from "@/lib/env";
 import { publicConfig } from "@/lib/config";
 import { errorHandler, fail } from "@/lib/http";
-import { logger } from "@/lib/logger";
+import { banner, logger } from "@/lib/logger";
 import { authGuard } from "@/lib/middleware/auth";
 import { originCheck } from "@/lib/middleware/origin";
 import {
@@ -120,8 +120,20 @@ const server = createServer(
    app
 );
 
+const EMAIL_NOTE: Record<typeof env.EMAIL_TRANSPORT, string> = {
+   none: "none (password reset & invites off)",
+   smtp: "smtp",
+   resend: "resend",
+};
+
 server.listen(env.PORT, () => {
    logger.info("API listening", { port: env.PORT });
+   banner([
+      "🪣 S3 Viewer API is up",
+      `   🌐 web      ${env.NEXT_PUBLIC_SITE_URL}`,
+      `   🔌 api      ${env.NEXT_PUBLIC_API_URL}`,
+      `   📬 email    ${EMAIL_NOTE[env.EMAIL_TRANSPORT]}`,
+   ]);
 });
 
 const sockets = new Set<Socket>();

@@ -2,44 +2,27 @@ import { AuthLayout, StepHeader } from "@/components/Auth/auth-layout";
 import EmailField from "@/components/Auth/email-field";
 import { TEXT_LINK } from "@/components/Auth/text-link";
 import { useStepHeight } from "@/components/Auth/use-step-height";
-import FullPageSpinner from "@/components/Session/full-page-spinner";
 import { requestPasswordReset } from "@/lib/auth";
 import useInstanceConfig, {
    emailState,
 } from "@/lib/hooks/queries/useInstanceConfig";
-import { useSessionState } from "@/lib/hooks/useSessionState";
-import { AUTH_LINK_TTL_HOURS, SITE_PATHS, emailSchema } from "@s3-viewer/types";
+import { AUTH_LINK_TTL_HOURS, emailSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import { useRouter } from "next/router";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 
 type Step = "email" | "sent";
 
 const ForgotPasswordScreen = () => {
-   const router = useRouter();
-   const sessionState = useSessionState();
    const config = useInstanceConfig();
    const transport = emailState(config);
    const [step, setStep] = useState<Step>("email");
    const [email, setEmail] = useState("");
    const [error, setError] = useState<string | null>(null);
    const [pending, setPending] = useState(false);
-   const redirected = useRef(false);
    const stepHeight = useStepHeight(step === "email");
 
-   useEffect(() => {
-      if (sessionState !== "signedIn" || redirected.current) return;
-      redirected.current = true;
-      void router.replace(SITE_PATHS.dashboard);
-   }, [sessionState, router]);
-
-   // the config decides whether the form is shown at all, so the page waits
-   // for it rather than showing the form and then swapping it out
-   if (sessionState !== "signedOut" || config.isLoading) {
-      return <FullPageSpinner />;
-   }
-
-   // no email transport means no reset link can ever arrive, so the form is
+   // the guard holds the page on its spinner until the config is in, so the
+   // form is never shown and then swapped out. no email transport means no reset link can ever arrive, so the form is
    // replaced by the reason rather than left to fail
    if (transport === "disabled") {
       return (

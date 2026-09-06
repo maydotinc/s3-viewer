@@ -10,7 +10,9 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { runPrisma } from "./db.mjs";
 import {
+   DETAIL_INDENT,
    apiEnvPath,
+   detail,
    ensureDevInfra,
    landingEnvPath,
    parseEnvFile,
@@ -126,7 +128,7 @@ async function collectChoices({ interactive, noDocker }) {
    if (!interactive) {
       if (!defaults.databaseUrl) {
          process.stderr.write(
-            "\n✗ --no-docker needs a database: set DATABASE_URL in the environment and re-run.\n\n"
+            "\n❌ --no-docker needs a database: set DATABASE_URL in the environment and re-run.\n\n"
          );
          process.exit(1);
       }
@@ -137,7 +139,7 @@ async function collectChoices({ interactive, noDocker }) {
       [
          "",
          "🪣 S3 Viewer setup",
-         "==================",
+         "",
          "Postgres is the only thing S3 Viewer can't run without — everything else",
          "is optional. Press Enter to accept the default in brackets.",
          "",
@@ -161,7 +163,7 @@ async function collectChoices({ interactive, noDocker }) {
          );
          if (!choices.databaseUrl) {
             process.stderr.write(
-               "✗ S3 Viewer needs a database — nothing else to fall back to.\n"
+               "❌ S3 Viewer needs a database — nothing else to fall back to.\n"
             );
             process.exit(1);
          }
@@ -190,7 +192,7 @@ async function collectChoices({ interactive, noDocker }) {
 function backup(path) {
    const target = `${path}.bak-${Date.now()}`;
    copyFileSync(path, target);
-   process.stdout.write(`  backed up ${path} → ${target}\n`);
+   process.stdout.write(`   backed up ${path} → ${target}\n`);
    return target;
 }
 
@@ -201,7 +203,7 @@ export function removeStaleLanding(path = landingEnvPath) {
    const target = backup(path);
    rmSync(path);
    process.stdout.write(
-      `✓ Removed ${path} — the landing site wasn't selected, so \`pnpm dev\` won't start it\n`
+      `✅ Removed ${path} — the landing site wasn't selected, so \`pnpm dev\` won't start it\n`
    );
    return target;
 }
@@ -211,7 +213,7 @@ function writeEnvFiles(choices) {
    const write = (path, content) => {
       if (existsSync(path)) backup(path);
       writeFileSync(path, content);
-      process.stdout.write(`✓ Wrote ${path}\n`);
+      process.stdout.write(`✅ Wrote ${path}\n`);
    };
    const example = (path) => readFileSync(`${path}.example`, "utf8");
    write(apiEnvPath, buildApiEnv(example(apiEnvPath), choices, secrets));
@@ -235,19 +237,21 @@ function summarize(env) {
 function printDone(summary) {
    const lines = [
       "",
-      "✓ Setup complete.",
+      "✅ Setup complete.",
       "",
-      `  web       ${SITE_URL}`,
-      `  api       ${API_URL}`,
+      detail("🌐", "web", SITE_URL),
+      detail("🔌", "api", API_URL),
    ];
-   if (summary.landing) lines.push(`  landing   ${LANDING_URL}`);
-   if (summary.email) lines.push(`  inbox     ${MAILPIT_URL}  (mailpit)`);
+   if (summary.landing) lines.push(detail("🪧", "landing", LANDING_URL));
+   if (summary.email) {
+      lines.push(detail("📬", "inbox", `${MAILPIT_URL}  (mailpit)`));
+   }
    if (summary.demo) {
       lines.push(
-         `  MinIO     ${MINIO_CONSOLE}  (console)`,
-         `            ${MINIO_ENDPOINT}  (endpoint to connect from S3 Viewer)`,
-         `            ${MINIO_CREDENTIALS}  (access key / secret key)`,
-         `            bucket "${DEMO_BUCKET}"`
+         detail("🪣", "MinIO", `${MINIO_CONSOLE}  (console)`),
+         `${DETAIL_INDENT}${MINIO_ENDPOINT}  (endpoint to connect from S3 Viewer)`,
+         `${DETAIL_INDENT}${MINIO_CREDENTIALS}  (access key / secret key)`,
+         `${DETAIL_INDENT}bucket "${DEMO_BUCKET}"`
       );
    }
    lines.push("", "Start everything with: pnpm dev", "");
@@ -255,7 +259,7 @@ function printDone(summary) {
 }
 
 async function migrate(env) {
-   process.stdout.write("\nApplying database migrations...\n");
+   process.stdout.write("\n🗄️  Applying database migrations...\n");
    runPrisma("deploy", { DATABASE_URL: env.DATABASE_URL });
 }
 
@@ -279,7 +283,7 @@ export async function runSetup(argv = process.argv.slice(2)) {
          });
          try {
             process.stdout.write(
-               `\nFound existing env files:\n${existing.map((path) => `  ${path}`).join("\n")}\n`
+               `\nFound existing env files:\n${existing.map((path) => `   ${path}`).join("\n")}\n`
             );
             regenerate = !(await ask(
                rl,
@@ -301,7 +305,7 @@ export async function runSetup(argv = process.argv.slice(2)) {
 
    const choices = await collectChoices({ interactive, noDocker });
    process.stdout.write(
-      "\nGenerating secrets (4096-bit RSA, this takes a moment)...\n"
+      "\n🔐 Generating secrets (4096-bit RSA, this takes a moment)...\n"
    );
    writeEnvFiles(choices);
 
@@ -314,7 +318,7 @@ export async function runSetup(argv = process.argv.slice(2)) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
    runSetup().catch((error) => {
       process.stderr.write(
-         `\n✗ ${error instanceof Error ? error.message : String(error)}\n\n`
+         `\n❌ ${error instanceof Error ? error.message : String(error)}\n\n`
       );
       process.exit(1);
    });
