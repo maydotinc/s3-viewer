@@ -142,7 +142,7 @@ export default createHowToPage({
    useCases: getUseCaseRefs(["teams"]),
    related: getRelatedHowTos([
       "set-granular-s3-permissions",
+      "iam-user-read-only-one-s3-bucket",
       "share-s3-file-with-non-technical-user",
-      "switch-between-s3-buckets",
    ]),
 });

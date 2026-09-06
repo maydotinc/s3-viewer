@@ -8,9 +8,12 @@ export {
 } from "./use-cases";
 
 export {
+   AccessDeniedIllustration,
+   CreateFolderIllustration,
    DeleteIllustration,
    DownloadIllustration,
    InviteIllustration,
+   IamReadOnlyIllustration,
    PermissionsIllustration,
    RenameIllustration,
    SearchIllustration,

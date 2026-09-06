@@ -376,6 +376,10 @@ const ICONS = {
    mail: "M2 4h12v8H2ZM2 4l6 5 6-5",
    bucket:
       "M2.5 3.5h11l-1.2 9.5a1 1 0 0 1-1 .9H4.7a1 1 0 0 1-1-.9ZM2.5 3.5a5.5 2 0 0 1 11 0a5.5 2 0 0 1-11 0",
+   x: "M4.5 4.5l7 7M11.5 4.5l-7 7",
+   shield:
+      "M8 1.5l5.5 2v4.2c0 3.2-2.3 5.6-5.5 6.8-3.2-1.2-5.5-3.6-5.5-6.8V3.5Z",
+   alert: "M8 2.5l6 10.5H2ZM8 7v3M8 11.8v.01",
 } as const;
 
 export type IconName = keyof typeof ICONS;

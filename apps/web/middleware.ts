@@ -33,6 +33,11 @@ const route = (request: NextRequest): NextResponse => {
       return NextResponse.rewrite(new URL("/api/sitemap", request.url));
    }
 
+   // llms.txt describes the marketing pages, so the copy lives with them
+   if (landingOrigin && pathname === "/llms.txt") {
+      return NextResponse.rewrite(new URL("/api/llms", landingOrigin));
+   }
+
    const redirect = LEGACY_REDIRECTS[pathname];
    if (redirect) {
       return NextResponse.redirect(new URL(redirect, request.url), 301);

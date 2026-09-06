@@ -121,8 +121,8 @@ export default createHowToPage({
    faqs,
    useCases: getUseCaseRefs(["s3-browser", "multi-cloud"]),
    related: getRelatedHowTos([
+      "create-folder-in-s3",
       "switch-between-s3-buckets",
       "view-s3-and-r2-side-by-side",
-      "rename-s3-file",
    ]),
 });

@@ -171,8 +171,8 @@ export default createHowToPage({
    faqs,
    useCases: getUseCaseRefs(["s3-browser", "cloudflare-r2"]),
    related: getRelatedHowTos([
+      "create-folder-in-s3",
       "delete-file-from-s3",
       "upload-large-files-to-s3",
-      "download-file-from-s3",
    ]),
 });

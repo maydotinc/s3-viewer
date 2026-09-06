@@ -159,7 +159,7 @@ export default createHowToPage({
    useCases: getUseCaseRefs(["s3-browser", "cloudflare-r2"]),
    related: getRelatedHowTos([
       "download-file-from-s3",
-      "rename-s3-file",
+      "create-folder-in-s3",
       "delete-file-from-s3",
    ]),
 });

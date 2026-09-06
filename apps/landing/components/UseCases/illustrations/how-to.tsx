@@ -15,6 +15,7 @@ import {
    HeaderRow,
    Icon,
    IllustrationFrame,
+   MONO,
    Motion,
    ObjectRow,
    ProviderTile,
@@ -1205,6 +1206,552 @@ export const DeleteIllustration = () => (
                <Cursor x={344} y={264} />
             </g>
          </Motion>
+      </SVGRoot>
+   </IllustrationFrame>
+);
+
+const FLAT_KEYS: [string, string, boolean, boolean][] = [
+   // [prefix, rest, hot, placeholder]
+   ["reports/", "", false, true],
+   ["reports/2026/", "q3.pdf", true, false],
+   ["reports/2026/", "q4.pdf", true, false],
+   ["reports/2025/", "q4.pdf", false, false],
+   ["reports/", "index.csv", false, false],
+];
+
+export const CreateFolderIllustration = () => (
+   <IllustrationFrame>
+      <SVGRoot>
+         <FlowLine d="M256 112C266 112 266 133 276 133" />
+         <circle cx={256} cy={112} r={3} fill={C.blue} />
+         <circle cx={276} cy={133} r={3} fill={C.blue} />
+         <Card x={24} y={36} w={232} h={288}>
+            <Crumb x={16} y={20} path="media-archive / " current="reports /" />
+            <Btn x={160} y={8} w={64} h={24} label="Upload" />
+            <HR x={0} y={36} w={232} />
+            <HeaderRow
+               x={0}
+               y={36}
+               w={232}
+               cols={[
+                  { label: "Name", x: 34 },
+                  { label: "Size", x: 168 },
+               ]}
+            />
+            <ObjectRow
+               x={0}
+               y={60}
+               w={232}
+               name="2026/"
+               kind="folder"
+               size="—"
+               sizeX={168}
+               selected
+            />
+            <ObjectRow
+               x={0}
+               y={92}
+               w={232}
+               name="2025/"
+               kind="folder"
+               size="—"
+               sizeX={168}
+            />
+            <ObjectRow
+               x={0}
+               y={124}
+               w={232}
+               name="index.csv"
+               size="12 KB"
+               sizeX={168}
+            />
+            <g transform="translate(16 176)">
+               <rect
+                  width={200}
+                  height={84}
+                  rx={8}
+                  fill={C.white}
+                  stroke={C.blue}
+                  strokeWidth={1.25}
+                  strokeDasharray="4 4"
+                  opacity={0.7}
+               />
+               <Icon
+                  name="upload"
+                  x={92}
+                  y={22}
+                  size={16}
+                  color={C.blue}
+                  sw={1.4}
+               />
+               <Txt x={100} y={58} size={10.5} fill={C.text} anchor="middle">
+                  Drop a folder to create it
+               </Txt>
+            </g>
+            <Motion
+               still={
+                  <Chip
+                     x={72}
+                     y={66}
+                     w={88}
+                     label="q3.pdf"
+                     mono
+                     size={10}
+                     fill={C.white}
+                     color={C.black}
+                  />
+               }
+            >
+               <g>
+                  <Glide
+                     values="72 214;72 214;72 66;72 66"
+                     keyTimes="0;.15;.5;1"
+                     dur="5s"
+                  />
+                  <g>
+                     <Fade
+                        values="0;1;1;1;0"
+                        keyTimes="0;.1;.5;.9;1"
+                        dur="5s"
+                     />
+                     <rect
+                        width={88}
+                        height={20}
+                        rx={4}
+                        fill={C.white}
+                        stroke={C.border}
+                        strokeWidth={1.25}
+                     />
+                     <Icon
+                        name="file"
+                        x={6}
+                        y={2}
+                        size={14}
+                        color={C.light}
+                        sw={1.4}
+                     />
+                     <Txt x={24} y={14} size={10} fill={C.black} mono>
+                        q3.pdf
+                     </Txt>
+                  </g>
+               </g>
+            </Motion>
+            <Txt x={16} y={278} size={10.5} fill={C.light}>
+               Folders appear when a key needs them.
+            </Txt>
+         </Card>
+         <Card x={276} y={36} w={180} h={288}>
+            <Txt x={12} y={24} size={10} fill={C.light} caps>
+               WHAT S3 STORES
+            </Txt>
+            <Chip x={128} y={10} w={40} label="flat" mono size={10} />
+            <HR x={0} y={36} w={180} />
+            {FLAT_KEYS.map(([prefix, rest, hot, placeholder], i) => (
+               <g key={prefix + rest} transform={`translate(0 ${58 + i * 26})`}>
+                  {hot && (
+                     <rect
+                        x={6}
+                        y={-14}
+                        width={168}
+                        height={22}
+                        rx={4}
+                        fill={C.blue}
+                        opacity={0.08}
+                     />
+                  )}
+                  <text
+                     x={12}
+                     y={0}
+                     fontSize={10}
+                     fontWeight={500}
+                     fontFamily={MONO}
+                     fill={placeholder ? C.light : C.text}
+                  >
+                     <tspan
+                        fill={hot ? C.blue : placeholder ? C.light : C.text}
+                        fontWeight={hot ? 600 : 500}
+                     >
+                        {prefix}
+                     </tspan>
+                     <tspan fill={placeholder ? C.light : C.black}>
+                        {rest}
+                     </tspan>
+                  </text>
+                  {placeholder && (
+                     <Txt x={130} y={0} size={9.5} fill={C.light} mono>
+                        0 B
+                     </Txt>
+                  )}
+               </g>
+            ))}
+            <Motion
+               still={
+                  <g transform="translate(0 84)">
+                     <rect
+                        x={6}
+                        y={-14}
+                        width={168}
+                        height={22}
+                        rx={4}
+                        fill={C.blue}
+                        opacity={0.08}
+                     />
+                  </g>
+               }
+            >
+               <g transform="translate(0 84)">
+                  <Fade values="0;0;1;1;0" keyTimes="0;.5;.56;.9;1" dur="5s" />
+                  <rect
+                     x={6}
+                     y={-14}
+                     width={168}
+                     height={22}
+                     rx={4}
+                     fill="none"
+                     stroke={C.blue}
+                     strokeWidth={1.25}
+                  />
+               </g>
+            </Motion>
+            <HR x={0} y={200} w={180} />
+            <Txt x={12} y={222} size={10} fill={C.light} caps>
+               LIST WITH
+            </Txt>
+            <Txt x={12} y={242} size={10} fill={C.text} mono>
+               Prefix=&quot;reports/&quot;
+            </Txt>
+            <Txt x={12} y={258} size={10} fill={C.text} mono>
+               Delimiter=&quot;/&quot;
+            </Txt>
+            <Txt x={12} y={280} size={10.5} fill={C.light}>
+               → CommonPrefixes = folders
+            </Txt>
+         </Card>
+      </SVGRoot>
+   </IllustrationFrame>
+);
+
+const DENY_CHECKS: [string, string, "allow" | "deny" | "skip"][] = [
+   ["IAM identity policy", "s3:GetObject on bucket/*", "allow"],
+   ["Bucket policy", "Deny · aws:SourceIp", "deny"],
+   ["Block Public Access", "not a public request", "skip"],
+   ["KMS key policy", "kms:Decrypt granted", "allow"],
+   ["Object ownership", "bucket owner enforced", "allow"],
+   ["SCP / boundary", "no s3 restriction", "allow"],
+];
+
+const CheckRow = ({
+   y,
+   label,
+   detail,
+   state,
+   w,
+}: {
+   y: number;
+   label: string;
+   detail: string;
+   state: "allow" | "deny" | "skip";
+   w: number;
+}) => {
+   const deny = state === "deny";
+   const skip = state === "skip";
+   return (
+      <g transform={`translate(0 ${y})`}>
+         <g transform="translate(14 6)">
+            <circle
+               cx={8}
+               cy={8}
+               r={8}
+               fill={deny ? C.redBg : skip ? C.gray : C.blue}
+               opacity={deny || skip ? 1 : 0.12}
+            />
+            <Icon
+               name={deny ? "x" : skip ? "chevronRight" : "check"}
+               x={2}
+               y={2}
+               size={12}
+               color={deny ? C.red : skip ? C.light : C.blue}
+               sw={1.8}
+            />
+         </g>
+         <Txt
+            x={42}
+            y={18}
+            size={11.5}
+            weight={deny ? 600 : 500}
+            fill={skip ? C.light : C.black}
+         >
+            {label}
+         </Txt>
+         <Txt
+            x={w - 12}
+            y={18}
+            size={10}
+            fill={deny ? C.red : C.light}
+            mono
+            anchor="end"
+         >
+            {detail}
+         </Txt>
+         <HR x={0} y={28} w={w} />
+      </g>
+   );
+};
+
+export const AccessDeniedIllustration = () => (
+   <IllustrationFrame>
+      <SVGRoot>
+         <Card x={24} y={30} w={432} h={62} fill={C.redBg} stroke="#F8C9CD">
+            <g transform="translate(16 17)">
+               <circle cx={14} cy={14} r={14} fill={C.white} />
+               <Icon name="lock" x={6} y={6} size={16} color={C.red} sw={1.6} />
+            </g>
+            <Txt x={60} y={28} size={13} weight={600} fill={C.red} mono>
+               403 AccessDenied
+            </Txt>
+            <Txt x={60} y={46} size={10.5} fill={C.text} mono>
+               GetObject s3://media-archive/exports/q3.pdf
+            </Txt>
+            <Chip
+               x={332}
+               y={21}
+               w={84}
+               label="authenticated"
+               size={9.5}
+               fill={C.white}
+               color={C.text}
+            />
+         </Card>
+         <Card x={24} y={106} w={432} h={244}>
+            <Txt x={12} y={24} size={10} fill={C.light} caps>
+               WHERE THE DENY COMES FROM
+            </Txt>
+            <Txt x={420} y={24} size={10} fill={C.light} anchor="end">
+               evaluated together
+            </Txt>
+            <HR x={0} y={36} w={432} />
+            <Motion
+               still={
+                  <rect
+                     x={4}
+                     y={68}
+                     width={424}
+                     height={28}
+                     rx={5}
+                     fill={C.red}
+                     fillOpacity={0.06}
+                  />
+               }
+            >
+               <g>
+                  <Glide
+                     values="0 0;0 0;0 28;0 28;0 28;0 0"
+                     keyTimes="0;.22;.4;.9;.96;1"
+                     dur="5.5s"
+                  />
+                  <rect
+                     x={4}
+                     y={40}
+                     width={424}
+                     height={28}
+                     rx={5}
+                     fill={C.blue}
+                     fillOpacity={0.06}
+                  >
+                     <Fade
+                        values="1;1;0;0;0;1"
+                        keyTimes="0;.38;.42;.9;.96;1"
+                        dur="5.5s"
+                     />
+                  </rect>
+                  <rect
+                     x={4}
+                     y={40}
+                     width={424}
+                     height={28}
+                     rx={5}
+                     fill={C.red}
+                     fillOpacity={0.06}
+                  >
+                     <Fade
+                        values="0;0;1;1;0;0"
+                        keyTimes="0;.4;.44;.9;.96;1"
+                        dur="5.5s"
+                     />
+                  </rect>
+               </g>
+            </Motion>
+            {DENY_CHECKS.map(([label, detail, state], i) => (
+               <CheckRow
+                  key={label}
+                  y={40 + i * 28}
+                  w={432}
+                  label={label}
+                  detail={detail}
+                  state={state}
+               />
+            ))}
+            <Icon
+               name="info"
+               x={12}
+               y={220}
+               size={13}
+               color={C.light}
+               sw={1.3}
+            />
+            <Txt x={31} y={230} size={10.5} fill={C.light}>
+               One explicit Deny anywhere beats every Allow.
+            </Txt>
+         </Card>
+      </SVGRoot>
+   </IllustrationFrame>
+);
+
+const IAM_POLICY: [string, boolean][] = [
+   ['"Statement": [{', false],
+   ['  "Effect": "Allow",', false],
+   ['  "Action": [', false],
+   ['    "s3:ListBucket",', false],
+   ['    "s3:GetBucketLocation"', false],
+   ["  ],", false],
+   ['  "Resource":', false],
+   ['    "arn:aws:s3:::media-archive"', true],
+   ["}, {", false],
+   ['  "Effect": "Allow",', false],
+   ['  "Action": "s3:GetObject",', false],
+   ['  "Resource":', false],
+   ['    "arn:aws:s3:::media-archive/*"', true],
+   ["}]", false],
+];
+
+export const IamReadOnlyIllustration = () => (
+   <IllustrationFrame>
+      <SVGRoot>
+         <FlowLine d="M244 190C254 190 254 214 264 214" />
+         <circle cx={244} cy={190} r={3} fill={C.blue} />
+         <circle cx={264} cy={214} r={3} fill={C.blue} />
+         <Card x={24} y={30} w={220} h={300}>
+            <Icon name="shield" x={12} y={11} color={C.blue} sw={1.4} />
+            <Txt x={36} y={24} weight={600} fill={C.black}>
+               IAM policy
+            </Txt>
+            <Chip x={148} y={9} w={60} label="read-only" size={9.5} />
+            <HR x={0} y={36} w={220} />
+            {IAM_POLICY.map(([line, hot], i) => (
+               <g key={line + i} transform={`translate(0 ${56 + i * 16})`}>
+                  {hot && (
+                     <rect
+                        x={6}
+                        y={-12}
+                        width={208}
+                        height={16}
+                        rx={3}
+                        fill={C.blue}
+                        opacity={0.08}
+                     />
+                  )}
+                  <Txt
+                     x={12}
+                     y={0}
+                     size={9.5}
+                     fill={hot ? C.blue : C.text}
+                     weight={hot ? 600 : 500}
+                     mono
+                  >
+                     {line.replace(/^ +/, (m) => "\u00A0".repeat(m.length))}
+                  </Txt>
+               </g>
+            ))}
+            <Txt x={12} y={288} size={10.5} fill={C.light}>
+               Bucket ARN to list, /* to read objects.
+            </Txt>
+         </Card>
+         <Card x={264} y={30} w={192} h={300}>
+            <Txt x={12} y={24} weight={600} fill={C.black}>
+               Connect server
+            </Txt>
+            <HR x={0} y={36} w={192} />
+            <Txt x={12} y={56} size={10} fill={C.light}>
+               Endpoint
+            </Txt>
+            <Field x={12} y={62} w={168} h={26}>
+               <Txt x={8} y={17} size={9.5} fill={C.black} mono>
+                  s3.us-east-1.amazonaws.com
+               </Txt>
+            </Field>
+            <Txt x={12} y={106} size={10} fill={C.light}>
+               Access key ID
+            </Txt>
+            <Field x={12} y={112} w={168} h={26}>
+               <Txt x={8} y={17} size={9.5} fill={C.black} mono>
+                  AKIA••••••••••••
+               </Txt>
+            </Field>
+            <g transform="translate(12 150)">
+               <rect width={168} height={38} rx={6} fill={C.gray} />
+               <Icon
+                  name="info"
+                  x={8}
+                  y={12}
+                  size={13}
+                  color={C.light}
+                  sw={1.3}
+               />
+               <Txt x={26} y={16} size={9.5} fill={C.text}>
+                  Can&apos;t list buckets, so
+               </Txt>
+               <Txt x={26} y={29} size={9.5} fill={C.text}>
+                  name the ones it can read.
+               </Txt>
+            </g>
+            <Txt x={12} y={208} size={10} fill={C.light}>
+               Bucket names
+            </Txt>
+            <Field x={12} y={214} w={168} h={26} active>
+               <Txt x={8} y={17} size={10} fill={C.black} mono>
+                  media-archive
+               </Txt>
+               <Motion
+                  still={
+                     <Icon
+                        name="check"
+                        x={146}
+                        y={6}
+                        size={14}
+                        color={C.blue}
+                        sw={1.8}
+                     />
+                  }
+               >
+                  <g>
+                     <Fade values="0;0;1;1" keyTimes="0;.45;.55;1" dur="4s" />
+                     <Icon
+                        name="check"
+                        x={146}
+                        y={6}
+                        size={14}
+                        color={C.blue}
+                        sw={1.8}
+                     />
+                  </g>
+                  <g>
+                     <Fade values="1;1;0;0" keyTimes="0;.45;.55;1" dur="4s" />
+                     <Icon
+                        name="clock"
+                        x={146}
+                        y={6}
+                        size={14}
+                        color={C.light}
+                        sw={1.4}
+                     />
+                  </g>
+               </Motion>
+            </Field>
+            <Txt x={12} y={258} size={9.5} fill={C.light}>
+               Reachable with HeadBucket · Viewer access
+            </Txt>
+            <Btn x={12} y={272} w={168} h={28} label="Connect" />
+         </Card>
       </SVGRoot>
    </IllustrationFrame>
 );

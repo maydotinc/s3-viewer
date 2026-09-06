@@ -348,6 +348,9 @@ type CreateHowToPageConfig = {
    keyword: string;
    seoTitle: string;
    seoDescription: string;
+   /** ISO dates (YYYY-MM-DD). Emitted as datePublished/dateModified. */
+   published?: string;
+   modified?: string;
    visual: ReactNode;
    steps: HowToStep[];
    underTheHood?: ReactNode;
@@ -368,6 +371,8 @@ export const createHowToPage = (
          steps: config.steps,
          faqs: config.faqs,
          keyword: config.keyword,
+         datePublished: config.published,
+         dateModified: config.modified,
       });
 
       return (
@@ -376,6 +381,8 @@ export const createHowToPage = (
                title={config.seoTitle}
                description={config.seoDescription}
                canonical={`/how-to/${config.slug}`}
+               type="article"
+               modifiedTime={config.modified ?? config.published}
                jsonLd={jsonLd}
             />
             <HowToPage

@@ -24,6 +24,11 @@ const groups: LinkGroup[] = [
       title: "How to",
       links: [
          { label: "Rename an S3 file", href: "/how-to/rename-s3-file" },
+         { label: "Create a folder", href: "/how-to/create-folder-in-s3" },
+         {
+            label: "Fix Access Denied",
+            href: "/how-to/fix-s3-access-denied",
+         },
          {
             label: "Share an S3 file",
             href: "/how-to/share-s3-file-with-non-technical-user",

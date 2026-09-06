@@ -127,6 +127,33 @@ export const HOW_TOS: HowToEntry[] = [
       keyword: "bulk delete S3 files",
       category: "Files",
    },
+   {
+      slug: "create-folder-in-s3",
+      title: "How to create a folder in S3",
+      shortTitle: "Create a folder",
+      tagline:
+         "S3 has no folders — only key prefixes. How the console, the CLI and S3 Viewer create one, and why an empty folder can vanish.",
+      keyword: "create folder in S3",
+      category: "Files",
+   },
+   {
+      slug: "fix-s3-access-denied",
+      title: 'How to fix "Access Denied" (403) errors in S3',
+      shortTitle: "Fix Access Denied",
+      tagline:
+         "A nine-point checklist: IAM actions and ARNs, bucket policy denies, Block Public Access, KMS keys, object ownership, and the 403-that-is-really-a-404.",
+      keyword: "S3 access denied",
+      category: "Permissions",
+   },
+   {
+      slug: "iam-user-read-only-one-s3-bucket",
+      title: "How to create an IAM user with read-only access to one S3 bucket",
+      shortTitle: "Read-only IAM user",
+      tagline:
+         "The exact least-privilege policy JSON, the console and CLI steps, and how to connect the keys without s3:ListAllMyBuckets.",
+      keyword: "S3 read-only IAM policy",
+      category: "Permissions",
+   },
 ];
 
 export const getRelatedHowTos = (

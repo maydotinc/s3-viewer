@@ -123,8 +123,8 @@ export default createHowToPage({
    faqs,
    useCases: getUseCaseRefs(["s3-browser"]),
    related: getRelatedHowTos([
+      "fix-s3-access-denied",
       "share-s3-file-with-non-technical-user",
       "upload-large-files-to-s3",
-      "search-across-s3-buckets",
    ]),
 });

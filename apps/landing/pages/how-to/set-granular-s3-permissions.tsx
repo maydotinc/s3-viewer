@@ -165,8 +165,8 @@ export default createHowToPage({
    faqs,
    useCases: getUseCaseRefs(["security-and-audit", "teams"]),
    related: getRelatedHowTos([
+      "iam-user-read-only-one-s3-bucket",
+      "fix-s3-access-denied",
       "invite-teammate-to-s3-bucket",
-      "share-s3-file-with-non-technical-user",
-      "delete-file-from-s3",
    ]),
 });

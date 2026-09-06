@@ -3,8 +3,11 @@ import { publicEnv } from "@/lib/env";
 const HOW_TO_SLUGS = [
    "bulk-delete-s3-files",
    "copy-files-between-s3-and-r2",
+   "create-folder-in-s3",
    "delete-file-from-s3",
    "download-file-from-s3",
+   "fix-s3-access-denied",
+   "iam-user-read-only-one-s3-bucket",
    "invite-teammate-to-s3-bucket",
    "rename-s3-file",
    "search-across-s3-buckets",

@@ -8,6 +8,8 @@ type BuildArgs = {
    steps: HowToStep[];
    faqs: HowToFAQ[];
    keyword: string;
+   datePublished?: string;
+   dateModified?: string;
 };
 
 const stripJsx = (node: unknown): string => {
@@ -36,6 +38,8 @@ export const buildHowToJsonLd = ({
    steps,
    faqs,
    keyword,
+   datePublished,
+   dateModified,
 }: BuildArgs): Record<string, unknown>[] => {
    const url = `${siteUrl}/how-to/${slug}`;
 
@@ -47,11 +51,21 @@ export const buildHowToJsonLd = ({
       url,
       mainEntityOfPage: url,
       about: { "@type": "Thing", name: keyword },
+      inLanguage: "en",
+      author: {
+         "@type": "Organization",
+         name: "S3 Viewer",
+         url: siteUrl,
+      },
       publisher: {
          "@type": "Organization",
          name: "S3 Viewer",
          url: siteUrl,
       },
+      ...(datePublished && {
+         datePublished,
+         dateModified: dateModified ?? datePublished,
+      }),
    };
 
    const breadcrumb = {

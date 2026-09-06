@@ -526,7 +526,14 @@ Landing therefore needs no public origin of its own, and `NEXT_PUBLIC_SITE_URL`
 in landing always names the **web app's** origin. Anything landing serves at a
 root-relative path that has a file extension (`/logo.svg`, `/icons/*.svg`) is
 not rewritten and must exist in `apps/web/public` too — `pnpm favicons`
-mirrors that set.
+mirrors that set. The one exception is `/llms.txt`, which the web app rewrites
+to landing's `/api/llms` so the guide index is generated from `HOW_TOS` and
+`USE_CASES` rather than maintained by hand.
+
+Every how-to has a slug in three places: `HOW_TOS` in
+`apps/landing/components/HowTo/data.ts`, a page under
+`apps/landing/pages/how-to/`, and `HOW_TO_SLUGS` in `apps/web/lib/site-config.ts`
+(the proxy and sitemap). A guide missing from the last one 404s in production.
 
 Only describe what ships (see routes and web notes). No
 cross-provider copy, no versioning prompts, no bulk download, no audit log,
