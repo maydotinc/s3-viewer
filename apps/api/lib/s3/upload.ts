@@ -1,16 +1,22 @@
 import {
    AbortMultipartUploadCommand,
+   CompleteMultipartUploadCommand,
    CreateMultipartUploadCommand,
+   PutObjectCommand,
    type S3Client,
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
-import { Provider } from "@s3-viewer/types";
+import { Provider, backblazeRegion } from "@s3-viewer/types";
 import { Transform, type Readable } from "node:stream";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
 import { withoutRetries } from "./no-retry";
 import { clientProvider } from "./provider";
 import { UPLOAD_QUEUE_SIZE } from "./upload-budget";
+import {
+   assertReplacementUnchanged,
+   readReplacementSettings,
+} from "./replacement-settings";
 
 const MAX_PARTS = 10_000;
 const MIB = 1024 * 1024;
@@ -31,6 +37,12 @@ const uploadConflict = (error: unknown): boolean => {
       failure.$metadata?.httpStatusCode === 409
    );
 };
+
+const conflictError = () =>
+   new ApiHttpError(
+      409,
+      "The file changed or already exists. Refresh the folder and confirm the upload again."
+   );
 
 class UploadTooLargeError extends Error {
    readonly limit: number;
@@ -124,7 +136,7 @@ type StreamUploadParams = {
 
 type StreamUploadResult = { size: number; eTag: string | null };
 
-const streamUpload = async ({
+const runStreamUpload = async ({
    client,
    bucket,
    key,
@@ -140,6 +152,28 @@ const streamUpload = async ({
    const cleanupClient = client;
    client = withoutRetries(client);
    const provider = await clientProvider(client);
+   const endpoint = await client.config.endpoint?.();
+   if (
+      endpoint &&
+      backblazeRegion(`${endpoint.protocol}//${endpoint.hostname}`)
+   )
+      throw new ApiHttpError(
+         409,
+         "Uploads to Backblaze B2 are unavailable because conditional-write safety has not been verified. You can still browse and download files."
+      );
+   const scope = { client, bucket, signal: abortController.signal };
+   const settings =
+      expectedETag === undefined
+         ? undefined
+         : await readReplacementSettings(
+              scope,
+              provider,
+              key,
+              expectedETag
+           ).catch((error: unknown) => {
+              if (uploadConflict(error)) throw conflictError();
+              throw error;
+           });
    const condition =
       expectedETag === undefined
          ? { IfNoneMatch: "*" }
@@ -188,6 +222,17 @@ const streamUpload = async ({
    uploadClient.send = (async (command: Parameters<S3Client["send"]>[0]) => {
       const cleanup = command instanceof AbortMultipartUploadCommand;
       if (
+         settings &&
+         expectedETag !== undefined &&
+         (command instanceof PutObjectCommand ||
+            command instanceof CompleteMultipartUploadCommand)
+      ) {
+         assertReplacementUnchanged(
+            settings,
+            await readReplacementSettings(scope, provider, key, expectedETag)
+         );
+      }
+      if (
          command instanceof CreateMultipartUploadCommand &&
          provider !== Provider.S3
       ) {
@@ -218,6 +263,7 @@ const streamUpload = async ({
       Key: key,
       Body: body.pipe(limiter),
       ContentType: contentType,
+      ...settings?.attributes,
       ...condition,
       ...(contentLength === undefined ? {} : { ContentLength: contentLength }),
    };
@@ -269,10 +315,7 @@ const streamUpload = async ({
       if (abortController.signal.reason instanceof UploadIdleError)
          throw abortController.signal.reason;
       if (uploadConflict(err)) {
-         throw new ApiHttpError(
-            409,
-            "The file changed or already exists. Refresh the folder and confirm the upload again."
-         );
+         throw conflictError();
       }
       throw err;
    } finally {
@@ -284,6 +327,21 @@ const streamUpload = async ({
       body.off("error", onBodyError);
       abortController.signal.removeEventListener("abort", onAbort);
       limiter.destroy();
+   }
+};
+
+const streamUpload = async (
+   params: StreamUploadParams
+): Promise<StreamUploadResult> => {
+   // Replacement preflight performs network reads before piping the body.
+   // Listen throughout that window too: a disconnected incoming request can
+   // emit an error before the limiter's own handlers have been installed.
+   const onInputError = (error: Error) => params.abortController.abort(error);
+   params.body.on("error", onInputError);
+   try {
+      return await runStreamUpload(params);
+   } finally {
+      params.body.off("error", onInputError);
    }
 };
 

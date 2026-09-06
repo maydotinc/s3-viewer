@@ -34,7 +34,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Click Share, invite by email, pick a role",
-      body: "Four roles, each one adding to the last: Viewer, Editor, Admin, Owner. A bucket can override a member's server role, so a teammate can be an Editor on one bucket and a Viewer on another. Off-boarding is one click and zero key rotation.",
+      body: "Four roles, each one adding to the last: Viewer, Editor, Admin, Owner. Available actions also depend on the storage provider; object rename and deletion are AWS S3 only. A bucket can override a member's server role, so a teammate can be an Editor on one bucket and a Viewer on another. Off-boarding is one click and zero key rotation.",
    },
 ];
 
@@ -48,7 +48,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "What roles are available?",
       answer:
-         "Four, cumulative: Viewer (browse and download), Editor (also upload, rename, delete and create buckets), Admin (also manage members, rename the server and remove buckets), and Owner (also delete the server). Owner belongs to whoever created the server and is not assignable. A bucket can override a member's server role, so a teammate can be an Editor on one bucket and a Viewer on another.",
+         "Four, cumulative: Viewer (browse and download), Editor (also upload, rename, delete and create buckets where supported), Admin (also manage members, rename the server and remove buckets), and Owner (also delete the server). Owner belongs to whoever created the server and is not assignable. Available actions also depend on the storage provider; object rename and deletion are AWS S3 only. A bucket can override a member's server role, so a teammate can be an Editor on one bucket and a Viewer on another.",
    },
    {
       question: "Can I limit a teammate to one bucket out of many?",
@@ -63,7 +63,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "How does this compare to IAM Identity Center or per-user IAM?",
       answer:
-         "AWS IAM and Identity Center excel at federated identity into the AWS console — the right choice for many enterprise scenarios. S3 Viewer is built specifically for human collaboration on object storage: a simpler permission model (four cumulative roles, with per-bucket overrides), a clean file browser for non-technical teammates, and one UI that works the same on Cloudflare R2, MinIO, or any S3-compatible provider.",
+         "AWS IAM and Identity Center support federated access to the AWS console. S3 Viewer focuses on team file access: four roles with per-bucket overrides and a browser for connected S3-compatible storage. Available uploads and changes also depend on the provider; object rename and deletion are AWS S3 only.",
    },
    {
       question: "Does this work with Cloudflare R2 buckets too?",

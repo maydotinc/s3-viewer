@@ -138,6 +138,7 @@ describe("destructive object mutations keep the confirmed target", () => {
          ...target,
          objectKey,
          newObjectKey: "folder/renamed.txt",
+         expectedETag: '"reviewed"',
       };
       for (const scope of scopes)
          h.client?.setQueryData(
@@ -155,7 +156,9 @@ describe("destructive object mutations keep the confirmed target", () => {
          expectedUserId: target.userId,
          objectKey,
          newObjectKey: input.newObjectKey,
+         expectedETag: '"reviewed"',
       });
+      expect(h.get).not.toHaveBeenCalled();
       expectOnlyOriginalCacheChanged();
       expect(
          h.client?.getQueryData(previewKey(target, input.newObjectKey))

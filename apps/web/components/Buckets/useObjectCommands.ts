@@ -7,6 +7,7 @@ import { Permission, hasPermission } from "@s3-viewer/permissions";
 import {
    PRESIGN_EXPIRY_SECONDS,
    baseName,
+   observedETagSchema,
    type S3DeleteTarget,
 } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -25,6 +26,7 @@ type ObjectCommands = {
    copyLink: (objectKey: string) => Promise<void>;
    rename: (
       objectKey: string,
+      expectedETag: string | null,
       onSuccess?: (newObjectKey: string) => void
    ) => void;
    remove: (objects: S3DeleteTarget[], onSuccess?: () => void) => void;
@@ -76,16 +78,27 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
    );
 
    const rename = useCallback(
-      (objectKey: string, onSuccess?: (newObjectKey: string) => void) =>
+      (
+         objectKey: string,
+         expectedETag: string | null,
+         onSuccess?: (newObjectKey: string) => void
+      ) => {
+         const reviewed = observedETagSchema.safeParse(expectedETag);
+         if (!reviewed.success) {
+            toast.error("Refresh and review the object before renaming it.");
+            return;
+         }
          openRenameObjectModal({
             serverId,
             bucketName,
             objectKey,
+            expectedETag: reviewed.data,
             onRenameSuccess: (newObjectKey) => {
                refresh();
                onSuccess?.(newObjectKey);
             },
-         }),
+         });
+      },
       [openRenameObjectModal, serverId, bucketName, refresh]
    );
 

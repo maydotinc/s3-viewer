@@ -34,7 +34,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Switch, browse, filter",
-      body: "Pick a server in the sidebar and its buckets load underneath; one is active at a time, so you always know which cloud you're in. Inside a folder, the “Filter by prefix” box filters the rows by prefix. Uploads stream through S3 Viewer into the bucket with nothing to configure; downloads use 15-minute links straight from the bucket.",
+      body: "Pick a server to browse its buckets, filter a folder, preview files, or download them. Uploads work on AWS S3 and R2; other endpoints must support the same overwrite protections. B2 uploads and object rename/deletion outside AWS S3 are currently blocked.",
    },
 ];
 
@@ -52,13 +52,18 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Which S3-compatible providers does S3 Viewer support?",
       answer:
-         "Anything that implements the S3 API: AWS S3, Cloudflare R2, Backblaze B2, MinIO, Wasabi, DigitalOcean Spaces, Tigris, SeaweedFS, Ceph RGW, and self-hosted S3 gateways. You enter the region and endpoint when you add the server, and S3 Viewer signs against it.",
+         "Connect AWS S3, Cloudflare R2, Backblaze B2, MinIO, and other S3-compatible endpoints to browse and download. Available changes differ: AWS S3 and R2 support protected uploads; other endpoints must enforce the same protections. B2 uploads are blocked, and object rename and deletion are AWS S3 only. Live cloud validation is still pending.",
    },
    {
       question:
          "How is this different from the AWS console or the Cloudflare R2 dashboard?",
       answer:
-         "Each provider's native console handles accounts, IAM, billing, and bucket configuration. S3 Viewer provides the daily browsing and collaboration tools: browse, filter, upload, rename, delete, share a link, and invite teammates by email. These actions are available on AWS S3, Cloudflare R2, and MinIO, subject to the permissions on your storage credentials.",
+         "Each provider's native console handles accounts, permissions, billing, and bucket configuration. S3 Viewer brings browsing, previews, downloads, links, and team invitations into one place. Uploads and destructive actions depend on the provider's safety support; object rename and deletion are currently limited to AWS S3.",
+   },
+   {
+      question: "Can I replace existing files on every provider?",
+      answer:
+         "No. Replacements need confirmation and must preserve the original permissions and settings. AWS S3 and R2 support this with restrictions. Other endpoints also need reliable overwrite protection and readable settings. Some MinIO setups do not expose the original owner and permissions, so replacement is blocked. B2 uploads are blocked; use a new filename on supported providers when replacement is unavailable.",
    },
    {
       question: "Can I copy or move files between S3 and R2?",
@@ -107,8 +112,8 @@ export default createUseCasePage({
       },
       {
          icon: Layers,
-         title: "The same operations everywhere",
-         body: "Upload, download, Copy link, rename, and delete use the same controls on AWS S3, Cloudflare R2, and MinIO. The app adapts requests to each provider's S3 API.",
+         title: "Clear limits for each provider",
+         body: "Browse and download across connected providers. Upload on AWS S3 and R2; other endpoints need verified overwrite protection. B2 uploads are blocked. Object rename and deletion are AWS S3 only.",
       },
       {
          icon: Command,

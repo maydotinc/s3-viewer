@@ -349,7 +349,7 @@ export const InviteIllustration = () => (
                <Icon name="chevronDown" x={192} y={6} color={C.light} />
             </Field>
             <Txt x={20} y={186} size={10} fill={C.light}>
-               Can upload, rename and delete objects
+               File editing where supported
             </Txt>
             <Btn x={140} y={212} w={96} label="Send invite" />
          </Card>

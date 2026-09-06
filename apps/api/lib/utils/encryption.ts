@@ -29,6 +29,7 @@ const credentialsSchema = z.object({
    region: z.string().min(1),
    accessKey: z.string().min(1),
    secretKey: z.string().min(1),
+   sessionToken: z.string().min(1).optional(),
 });
 
 let privateKey: KeyObject | undefined;

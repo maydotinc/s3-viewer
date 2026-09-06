@@ -5,9 +5,7 @@ import {
    GetObjectAclCommand,
    GetObjectTaggingCommand,
    HeadObjectCommand,
-   S3ServiceException,
    type CopyObjectCommandInput,
-   type GetObjectAclCommandOutput,
    type HeadObjectCommandOutput,
 } from "@aws-sdk/client-s3";
 import {
@@ -20,55 +18,9 @@ import { clientProvider } from "./provider";
 import { isNotFound, throwHttpError } from "./errors";
 import type { S3Scope } from "./listing";
 import { withoutRetries } from "./no-retry";
+import { aclAttributes } from "./object-acl";
+import { readObjectLockSnapshot } from "./object-lock";
 import { copyForRename, copiedMetadata } from "./rename-copy";
-
-const grantFields = {
-   FULL_CONTROL: "GrantFullControl",
-   READ: "GrantRead",
-   READ_ACP: "GrantReadACP",
-   WRITE_ACP: "GrantWriteACP",
-} as const;
-
-const aclAttributes = (
-   acl: GetObjectAclCommandOutput
-): Partial<CopyObjectCommandInput> => {
-   if (
-      !acl.Owner?.ID ||
-      !/^[a-f\d]{64}$/i.test(acl.Owner.ID) ||
-      !acl.Grants?.length
-   )
-      throw new ApiHttpError(409, "The object's owner could not be preserved.");
-   const fields: Record<string, Set<string>> = {
-      GrantFullControl: new Set([`id="${acl.Owner.ID}"`]),
-   };
-   for (const { Grantee: grantee, Permission: permission } of acl.Grants ??
-      []) {
-      const field =
-         permission && grantFields[permission as keyof typeof grantFields];
-      const value =
-         grantee?.Type === "CanonicalUser" &&
-         /^[a-f\d]{64}$/i.test(grantee.ID ?? "")
-            ? `id="${grantee.ID}"`
-            : grantee?.Type === "Group" &&
-                /^https?:\/\/acs\.amazonaws\.com\/groups\/[a-z\d/_-]+$/i.test(
-                   grantee.URI ?? ""
-                )
-              ? `uri="${grantee.URI}"`
-              : null;
-      if (!field || !value)
-         throw new ApiHttpError(
-            409,
-            "The object's access permissions could not be preserved."
-         );
-      (fields[field] ??= new Set()).add(value);
-   }
-   return Object.fromEntries(
-      Object.entries(fields).map(([field, values]) => [
-         field,
-         [...values].sort().join(", "),
-      ])
-   );
-};
 
 const sourceState = ({ $metadata, ...head }: HeadObjectCommandOutput) => {
    void $metadata;
@@ -78,11 +30,22 @@ const sourceState = ({ $metadata, ...head }: HeadObjectCommandOutput) => {
 const renameObject = async (
    { client, bucket, signal }: S3Scope,
    objectKey: string,
-   newObjectKey: string
+   newObjectKey: string,
+   expectedETag: string
 ): Promise<void> => {
+   if (!observedETagSchema.safeParse(expectedETag).success)
+      throw new ApiHttpError(
+         409,
+         "Refresh and review the object before renaming it."
+      );
    if (objectKey === newObjectKey)
       throw new ApiHttpError(409, "The destination already exists.");
    const provider = await clientProvider(client);
+   if (provider !== Provider.S3)
+      throw new ApiHttpError(
+         409,
+         "Rename is unavailable because this provider cannot safely remove the original if it changes during the operation. No objects were changed."
+      );
    const options = { abortSignal: signal };
    const source = await client
       .send(new HeadObjectCommand({ Bucket: bucket, Key: objectKey }), options)
@@ -96,11 +59,28 @@ const renameObject = async (
          409,
          "The object has no ETag, so it can't be safely renamed"
       );
+   if (source.ETag !== expectedETag)
+      throw new ApiHttpError(
+         409,
+         "The object changed since you reviewed it. Refresh and review it before renaming."
+      );
+   if (
+      source.SSECustomerAlgorithm ||
+      (source.ServerSideEncryption && source.ServerSideEncryption !== "AES256")
+   )
+      throw new ApiHttpError(
+         409,
+         "Rename is unavailable because this object's encryption settings cannot be fully read and preserved. No objects were changed."
+      );
    const sourceIdentity = {
       Bucket: bucket,
       Key: objectKey,
       ...(source.VersionId && { VersionId: source.VersionId }),
    };
+   const lock = await readObjectLockSnapshot(
+      { client, bucket, signal },
+      sourceIdentity
+   );
    let acl: Partial<CopyObjectCommandInput> | undefined;
    if (provider === Provider.S3) {
       const ownership = await client
@@ -121,31 +101,22 @@ const renameObject = async (
          );
       }
    }
-   const tagging =
-      provider === Provider.Other
-         ? await client
-              .send(new GetObjectTaggingCommand(sourceIdentity), options)
-              .catch((error: unknown) => {
-                 if (
-                    !source.TagCount &&
-                    error instanceof S3ServiceException &&
-                    ["NotImplemented", "MethodNotAllowed"].includes(
-                       error.name
-                    ) &&
-                    [405, 501].includes(error.$metadata.httpStatusCode ?? 0)
-                 )
-                    return null;
-                 return throwHttpError(error);
-              })
-         : undefined;
-   if (tagging && !Array.isArray(tagging.TagSet))
+   const tagging = await client
+      .send(new GetObjectTaggingCommand(sourceIdentity), options)
+      .catch(throwHttpError);
+   if (!Array.isArray(tagging.TagSet))
       throw new ApiHttpError(502, "The object's tags could not be verified.");
-   const tags = tagging?.TagSet;
+   const tags = tagging.TagSet;
    const once = withoutRetries(client);
    const copied = await copyForRename(
       { client, bucket, signal },
       provider,
-      source,
+      {
+         ...source,
+         ObjectLockMode: lock.attributes.ObjectLockMode,
+         ObjectLockRetainUntilDate: lock.attributes.ObjectLockRetainUntilDate,
+         ObjectLockLegalHoldStatus: lock.attributes.ObjectLockLegalHoldStatus,
+      },
       objectKey,
       newObjectKey,
       acl,
@@ -185,22 +156,35 @@ const renameObject = async (
          if (!isDeepStrictEqual(acl, aclAttributes(currentAcl)))
             throw new Error("Source permissions changed");
       }
-      if (tags) {
+      const normalizeTags = (values: typeof tags) =>
+         [...values].sort((a, b) => (a.Key ?? "").localeCompare(b.Key ?? ""));
+      for (const key of [newObjectKey, objectKey]) {
          const currentTags = await client.send(
-            new GetObjectTaggingCommand({ Bucket: bucket, Key: objectKey }),
+            new GetObjectTaggingCommand({ Bucket: bucket, Key: key }),
             options
          );
-         const normalize = (values: typeof tags) =>
-            [...values].sort((a, b) =>
-               (a.Key ?? "").localeCompare(b.Key ?? "")
-            );
          if (
+            !Array.isArray(currentTags.TagSet) ||
             !isDeepStrictEqual(
-               normalize(tags),
-               normalize(currentTags.TagSet ?? [])
+               normalizeTags(tags),
+               normalizeTags(currentTags.TagSet)
             )
          )
-            throw new Error("Source tags changed");
+            throw new Error("Object tags changed");
+      }
+      for (const identity of [
+         {
+            Key: newObjectKey,
+            ...(copied.VersionId && { VersionId: copied.VersionId }),
+         },
+         sourceIdentity,
+      ]) {
+         const currentLock = await readObjectLockSnapshot(
+            { client, bucket, signal },
+            identity
+         );
+         if (!isDeepStrictEqual(lock, currentLock))
+            throw new Error("Object retention or legal hold changed");
       }
       const current = await client.send(
          new HeadObjectCommand({ Bucket: bucket, Key: objectKey }),
@@ -213,7 +197,7 @@ const renameObject = async (
          new DeleteObjectCommand({
             Bucket: bucket,
             Key: objectKey,
-            ...(provider === Provider.S3 && { IfMatch: source.ETag }),
+            IfMatch: source.ETag,
          }),
          options
       );

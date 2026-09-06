@@ -82,12 +82,13 @@ const steps: HowToStep[] = [
             least-privilege credential and give each member a role:{" "}
             <strong>Viewer</strong> (browse and download),{" "}
             <strong>Editor</strong> (also upload, rename, delete and create
-            buckets) or <strong>Admin</strong> (also manage members, rename the
-            server and remove buckets from it). <strong>Owner</strong> is not
-            assignable — it stays with whoever created the server, and only an
-            Owner can delete it. A bucket can override a member&apos;s server
-            role. S3 Viewer enforces those roles on the server; for finer
-            per-prefix scoping within a bucket, layer in IAM as above.
+            buckets where supported) or <strong>Admin</strong> (also manage
+            members, rename the server and remove buckets from it).{" "}
+            <strong>Owner</strong> is not assignable — it stays with whoever
+            created the server, and only an Owner can delete it. A bucket can
+            override a member&apos;s server role. S3 Viewer enforces those roles
+            on the server; for finer per-prefix scoping within a bucket, layer
+            in IAM as above.
          </>
       ),
    },

@@ -100,6 +100,7 @@ const ObjectHeader = ({
                onClick={() =>
                   commands.rename(
                      objectKey,
+                     eTag,
                      (newObjectKey) =>
                         void router.replace(
                            objectHref(bucketName, newObjectKey)

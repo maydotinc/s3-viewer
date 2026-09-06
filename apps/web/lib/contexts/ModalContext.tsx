@@ -26,6 +26,7 @@ type ModalPropsMap = {
       serverId: string;
       bucketName: string;
       objectKey: string;
+      expectedETag: string;
       onRenameSuccess?: (newObjectKey: string) => void;
    };
    disconnect: { server: ServerInfo };

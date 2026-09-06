@@ -58,10 +58,10 @@ const steps: HowToStep[] = [
             to open the members dialog. Type the recipient&apos;s email and
             choose <strong>Viewer</strong> (browse and download),{" "}
             <strong>Editor</strong> (also upload, rename, delete and create
-            buckets) or <strong>Admin</strong> (also manage members, rename the
-            server and remove buckets). They sign in with the code and sign-in
-            link we email them — or with GitHub, if it is enabled — and see the
-            buckets on that server.
+            buckets where supported) or <strong>Admin</strong> (also manage
+            members, rename the server and remove buckets). They sign in with
+            the code and sign-in link we email them — or with GitHub, if it is
+            enabled — and see the buckets on that server.
          </>
       ),
    },

@@ -11,22 +11,22 @@ const SLUG = "delete-file-from-s3";
 const TITLE = "How to delete a file from S3 safely";
 const KEYWORD = "delete file from S3";
 const TLDR =
-   "Run aws s3 rm s3://bucket/key, or on AWS S3, R2, or MinIO open the ⋮ menu on the row in S3 Viewer and choose Delete. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For several objects at once, tick the checkboxes in S3 Viewer and hit Delete: the selection goes out as one DeleteObjects call. If MFA Delete is enabled, you'll need an MFA token.";
+   "On AWS S3, open the file menu in S3 Viewer and choose Delete, or select several files and confirm Delete. Each object must still match the one you reviewed. R2, B2, MinIO, and other endpoints do not execute object deletion through the app. Versioned AWS buckets keep prior versions behind a delete marker; unversioned deletion can be permanent. S3 Viewer does not purge historical versions.";
 
 const steps: HowToStep[] = [
    {
       title: "In S3 Viewer: ⋮ → Delete",
       body: (
          <>
-            Open the ⋮ menu on the object&apos;s row and choose{" "}
+            On AWS S3, open the ⋮ menu on the object&apos;s row and choose{" "}
             <strong>Delete</strong>. To clear several at once, tick their
             checkboxes and use the <strong>Delete</strong> button in the toolbar
-            — the selection goes out as a single <code>DeleteObjects</code> call
-            (the S3 API takes up to 1,000 keys per request). The confirmation
-            shows how many objects you are about to delete. AWS S3, R2, and
-            MinIO are supported. Versioning is optional. Uncertain deletion
-            requests are never automatically replayed; refresh and review them
-            before another attempt.
+            — the selection is sent in batches of up to 1,000 keys. The
+            confirmation shows how many objects you are about to delete. Each
+            must still match the file you reviewed. R2, B2, MinIO, and other
+            providers stop before deleting objects. Uncertain deletion requests
+            are never automatically replayed; refresh and review them before
+            another attempt.
          </>
       ),
    },
@@ -78,7 +78,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I delete a file from S3?",
       answer:
-         "From the AWS CLI: aws s3 rm s3://bucket/key. From a tool: open the ⋮ menu on the row in S3 Viewer and choose Delete, or tick several checkboxes and use the Delete button to send them as one DeleteObjects call. For prefixes from the CLI: aws s3 rm s3://bucket/prefix --recursive. If the bucket has versioning enabled, this only adds a delete marker — see below for permanent deletion.",
+         "On AWS S3, open the file menu in S3 Viewer and choose Delete, or select several reviewed files and confirm Delete. The app rejects files that changed since review and blocks object deletion on other providers. The AWS CLI also supports aws s3 rm s3://bucket/key. On versioned buckets, ordinary deletion keeps prior versions behind a delete marker.",
    },
    {
       question: "Why does my deleted S3 file still appear?",
@@ -98,7 +98,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I bulk-delete multiple S3 files?",
       answer:
-         "The S3 API supports DeleteObjects (plural) — up to 1,000 keys per request. S3 Viewer wraps it in checkbox multi-select, so ticking the rows and hitting Delete clears the lot in one round trip. From the CLI, aws s3 rm --recursive with a prefix does the same thing.",
+         "On AWS S3, tick the rows in S3 Viewer and confirm Delete. The app sends batches of up to 1,000 reviewed files and reports per-file failures. Files that changed are not deleted. From the AWS CLI, aws s3 rm --recursive deletes a prefix; it is a separate workflow from the app's review checks.",
    },
    {
       question: "What is MFA Delete in S3?",
@@ -108,7 +108,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Does this work with Cloudflare R2?",
       answer:
-         "Yes. S3 Viewer supports deleting individual files, selections, and folders on R2. It reports per-object errors and does not require AWS versioning or ownership settings.",
+         "No. S3 Viewer currently blocks object, selection, and folder deletion on R2 because it cannot safely protect a file changed by another writer. R2 browsing, previews, downloads, uploads, and sharing remain available.",
    },
 ];
 
@@ -131,9 +131,10 @@ export default createHowToPage({
          (and still billed). To actually purge a key, you delete each version
          explicitly via <code>delete-object --version-id</code>. S3 Viewer does
          not purge specific historical versions. Deletion can be permanent on an
-         unversioned bucket. For several objects at once, S3 Viewer wraps the{" "}
-         <code>DeleteObjects</code> API (up to 1,000 keys per call) — tick the
-         checkboxes and clear them in one round trip.
+         unversioned bucket. For several objects at once, S3 Viewer uses the{" "}
+         <code>DeleteObjects</code> API in batches on AWS S3 and checks that
+         each file matches the one reviewed. Other providers do not execute
+         object deletion through the app.
       </p>
    ),
    faqs,

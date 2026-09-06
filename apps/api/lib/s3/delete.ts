@@ -3,6 +3,7 @@ import {
    Provider,
    S3_MAX_KEYS_PER_REQUEST,
    chunk,
+   observedETagSchema,
    type DeleteObjectsInput,
    type S3DeleteResult,
 } from "@s3-viewer/types";
@@ -14,8 +15,7 @@ import { withoutRetries } from "./no-retry";
 
 const deleteBatch = async (
    { client, bucket, signal }: S3Scope,
-   objects: DeleteObjectsInput["objects"],
-   provider: Provider
+   objects: { key: string; expectedETag: string }[]
 ): Promise<S3DeleteResult> => {
    const out = await client
       .send(
@@ -24,10 +24,7 @@ const deleteBatch = async (
             Delete: {
                Objects: objects.map(({ key, expectedETag }) => ({
                   Key: key,
-                  ...(provider === Provider.S3 &&
-                     expectedETag !== null && {
-                        ETag: expectedETag.slice(1, -1),
-                     }),
+                  ETag: expectedETag.slice(1, -1),
                })),
                Quiet: false,
             },
@@ -70,10 +67,35 @@ const deleteKeys = async (
    objects: DeleteObjectsInput["objects"]
 ): Promise<S3DeleteResult> => {
    const provider = await clientProvider(scope.client);
-   const once = { ...scope, client: withoutRetries(scope.client) };
    const result: S3DeleteResult = { deleted: [], failed: [] };
-   for (const batch of chunk(objects, S3_MAX_KEYS_PER_REQUEST)) {
-      const deleted = await deleteBatch(once, batch, provider);
+   if (provider !== Provider.S3) {
+      result.failed = objects.map(({ key }) => ({
+         key,
+         message:
+            "Deletion is unavailable because this provider cannot verify that the object is still the version you reviewed. No objects were deleted.",
+         retryable: false,
+      }));
+      return result;
+   }
+   const reviewed: { key: string; expectedETag: string }[] = [];
+   for (const { key, expectedETag } of objects) {
+      if (
+         expectedETag !== null &&
+         observedETagSchema.safeParse(expectedETag).success
+      ) {
+         reviewed.push({ key, expectedETag });
+      } else {
+         result.failed.push({
+            key,
+            message:
+               "The object has no valid reviewed ETag. Refresh and review it before deleting.",
+            retryable: false,
+         });
+      }
+   }
+   const once = { ...scope, client: withoutRetries(scope.client) };
+   for (const batch of chunk(reviewed, S3_MAX_KEYS_PER_REQUEST)) {
+      const deleted = await deleteBatch(once, batch);
       result.deleted.push(...deleted.deleted);
       result.failed.push(...deleted.failed);
    }

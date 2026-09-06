@@ -1,6 +1,6 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { deleteKeys } from "./delete";
 
 const target = { key: "report.csv", expectedETag: '"original"' };
@@ -10,12 +10,19 @@ const providers = [
       endpoint: "https://s3.us-east-1.amazonaws.com",
       conditional: true,
    },
+] as const;
+const unsupportedProviders = [
    {
       name: "Cloudflare R2",
       endpoint: "https://abc.r2.cloudflarestorage.com",
       conditional: false,
    },
    { name: "MinIO", endpoint: "https://minio.example.com", conditional: false },
+   {
+      name: "Backblaze B2",
+      endpoint: "https://s3.us-west-004.backblazeb2.com",
+      conditional: false,
+   },
 ] as const;
 
 type Request = { method: string; body: unknown };
@@ -41,9 +48,9 @@ const clientFor = (
 const success =
    '<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Deleted><Key>report.csv</Key></Deleted></DeleteResult>';
 
-describe("compatible deletion without SDK replay", () => {
+describe("conditional deletion without SDK replay", () => {
    it.each(providers)(
-      "supports $name without versioning or object-read permissions",
+      "requires the reviewed ETag on $name",
       async ({ endpoint, conditional }) => {
          const requests: Request[] = [];
          const client = clientFor(endpoint, async (request) => {
@@ -105,24 +112,81 @@ describe("compatible deletion without SDK replay", () => {
       }
    );
 
-   it.each(providers)(
-      "permits a missing ETag for ordinary one-shot deletion on $name",
-      async ({ endpoint }) => {
-         const client = clientFor(endpoint, async (request) => {
-            expect(String(request.body)).not.toContain("ETag");
-            return response(success);
-         });
+   it.each([null, "*", '"*"', "unquoted"])(
+      "refuses an absent or invalid reviewed ETag %s without sending a delete",
+      async (expectedETag) => {
+         const handle = vi.fn(async () => response(success));
+         const client = clientFor(providers[0].endpoint, handle);
          try {
             expect(
                await deleteKeys({ client, bucket: "bucket" }, [
-                  { ...target, expectedETag: null },
+                  { ...target, expectedETag },
                ])
-            ).toEqual({ deleted: [target.key], failed: [] });
+            ).toEqual({
+               deleted: [],
+               failed: [
+                  {
+                     key: target.key,
+                     message: expect.stringContaining("valid reviewed ETag"),
+                     retryable: false,
+                  },
+               ],
+            });
+            expect(handle).not.toHaveBeenCalled();
          } finally {
             client.destroy();
          }
       }
    );
+
+   it.each(unsupportedProviders)(
+      "does not attempt unconditional deletion on $name",
+      async ({ endpoint }) => {
+         const handle = vi.fn(async () => response(success));
+         const client = clientFor(endpoint, handle);
+         try {
+            expect(
+               await deleteKeys({ client, bucket: "bucket" }, [target])
+            ).toEqual({
+               deleted: [],
+               failed: [
+                  {
+                     key: target.key,
+                     message: expect.stringContaining(
+                        "Deletion is unavailable"
+                     ),
+                     retryable: false,
+                  },
+               ],
+            });
+            expect(handle).not.toHaveBeenCalled();
+         } finally {
+            client.destroy();
+         }
+      }
+   );
+
+   it("deletes only reviewed entries from a mixed AWS batch", async () => {
+      const client = clientFor(providers[0].endpoint, async (request) => {
+         expect(String(request.body)).toContain("<Key>report.csv</Key>");
+         expect(String(request.body)).toContain("<ETag>original</ETag>");
+         expect(String(request.body)).not.toContain("unreviewed");
+         return response(success);
+      });
+      try {
+         expect(
+            await deleteKeys({ client, bucket: "bucket" }, [
+               target,
+               { key: "unreviewed", expectedETag: null },
+            ])
+         ).toMatchObject({
+            deleted: [target.key],
+            failed: [{ key: "unreviewed", retryable: false }],
+         });
+      } finally {
+         client.destroy();
+      }
+   });
 
    it("retains AWS preconditions and requires review after a content change", async () => {
       const client = clientFor(providers[0].endpoint, async (request) => {
@@ -152,7 +216,7 @@ describe("compatible deletion without SDK replay", () => {
    });
 
    it("accounts for every key and permits retry only for confirmed provider failures", async () => {
-      const client = clientFor(providers[1].endpoint, async () =>
+      const client = clientFor(providers[0].endpoint, async () =>
          response(
             '<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Deleted><Key>ok</Key></Deleted><Deleted><Key>both</Key></Deleted><Deleted><Key>unsolicited</Key></Deleted><Error><Key>both</Key><Code>AccessDenied</Code></Error><Error><Key>denied</Key><Code>AccessDenied</Code></Error></DeleteResult>'
          )

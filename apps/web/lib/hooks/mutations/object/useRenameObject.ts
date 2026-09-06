@@ -13,12 +13,14 @@ const useRenameObject = () => {
          bucketName,
          objectKey,
          newObjectKey,
+         expectedETag,
       }: {
          userId: string;
          serverId: string;
          bucketName: string;
          objectKey: string;
          newObjectKey: string;
+         expectedETag: string;
       }) =>
          api.post<void>(
             `${objectsPath(serverId, bucketName)}${OBJECT_MUTATION_PATH}/rename`,
@@ -26,6 +28,7 @@ const useRenameObject = () => {
                expectedUserId: userId,
                objectKey,
                newObjectKey,
+               expectedETag,
             }
          ),
       onSettled: (

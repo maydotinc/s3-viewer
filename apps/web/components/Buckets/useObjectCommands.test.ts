@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
    rename: vi.fn(),
    remove: vi.fn(),
    refresh: vi.fn(),
+   error: vi.fn(),
 }));
 
 vi.mock("react", () => ({
@@ -39,7 +40,7 @@ vi.mock("@/lib/utils/s3/presign", () => ({
 }));
 vi.mock("@/lib/utils/toast", () => ({ toastError: vi.fn() }));
 vi.mock("@s3-viewer/ui/components/toast", () => ({
-   toast: { success: vi.fn() },
+   toast: { success: vi.fn(), error: h.error },
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -56,13 +57,14 @@ describe.each([Provider.S3, Provider.R2, Provider.Other])(
             rename: true,
             delete: true,
          });
-         commands.rename("old.txt");
+         commands.rename("old.txt", '"reviewed"');
          commands.remove([{ key: "old.txt", expectedETag: '"reviewed"' }]);
          expect(h.rename).toHaveBeenCalledWith(
             expect.objectContaining({
                serverId: "connected-server",
                bucketName: "backups",
                objectKey: "old.txt",
+               expectedETag: '"reviewed"',
             })
          );
          expect(h.remove).toHaveBeenCalledWith(
@@ -82,5 +84,18 @@ describe.each([Provider.S3, Provider.R2, Provider.Other])(
             delete: false,
          });
       });
+
+      it.each([null, "*", '"*"', 'W/"old"', ""])(
+         "does not open a rename dialog without a valid observed ETag: %s",
+         (expectedETag) => {
+            h.provider = provider;
+            h.role = Role.EDITOR;
+            useObjectCommands("backups").rename("old.txt", expectedETag);
+            expect(h.rename).not.toHaveBeenCalled();
+            expect(h.error).toHaveBeenCalledWith(
+               expect.stringContaining("Refresh and review")
+            );
+         }
+      );
    }
 );

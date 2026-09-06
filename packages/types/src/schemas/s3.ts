@@ -81,7 +81,11 @@ export const keysQuerySchema = bucketScope.extend({
 export type KeysQuery = z.infer<typeof keysQuerySchema>;
 
 export const renameObjectBodySchema = objectScope
-   .extend({ newObjectKey: objectKeySchema, expectedUserId: idSchema })
+   .extend({
+      newObjectKey: objectKeySchema,
+      expectedUserId: idSchema,
+      expectedETag: observedETagSchema,
+   })
    .refine(
       ({ objectKey, newObjectKey }) =>
          !isFolderKey(objectKey) && !isFolderKey(newObjectKey),

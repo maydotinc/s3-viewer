@@ -1,3 +1,5 @@
+import { backblazeRegion } from "@s3-viewer/types";
+
 const REGIONS = [
    "auto",
    "us-east-1",
@@ -24,7 +26,18 @@ const REGIONS = [
    "sa-east-1",
 ] as const;
 
-type Region = (typeof REGIONS)[number];
+const defaultRegion = (endpoint: string): string => {
+   const backblaze = backblazeRegion(endpoint);
+   if (backblaze) return backblaze;
+   let hostname: string;
+   try {
+      hostname = new URL(endpoint.trim()).hostname.replace(/\.$/, "");
+   } catch {
+      return "us-east-1";
+   }
+   return /(?:^|\.)r2\.cloudflarestorage\.com$/.test(hostname)
+      ? "auto"
+      : "us-east-1";
+};
 
-export { REGIONS };
-export type { Region };
+export { defaultRegion, REGIONS };

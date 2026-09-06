@@ -3,6 +3,7 @@ import {
    DeleteBucketCommand,
    DeleteObjectsCommand,
    GetObjectCommand,
+   GetObjectAclCommand,
    GetObjectTaggingCommand,
    HeadObjectCommand,
    ListMultipartUploadsCommand,
@@ -10,7 +11,7 @@ import {
    PutObjectCommand,
    S3Client,
 } from "@aws-sdk/client-s3";
-import { Provider } from "@s3-viewer/types";
+import { Provider, backblazeRegion } from "@s3-viewer/types";
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -24,6 +25,7 @@ import { renameObject } from "./rename";
 import { streamUpload } from "./upload";
 
 const endpoint = process.env.S3_INTEGRATION_ENDPOINT;
+const isB2 = !!backblazeRegion(endpoint ?? "");
 const bucket = `s3-viewer-integration-${randomUUID()}`;
 const MIB = 1024 * 1024;
 
@@ -46,6 +48,13 @@ describe.skipIf(!endpoint)(
             new GetObjectCommand({ Bucket: bucket, Key: key })
          );
          return Buffer.from(await out.Body!.transformToByteArray());
+      };
+      const renameReviewed = async (key: string, destination: string) => {
+         const reviewed = await client.send(
+            new HeadObjectCommand({ Bucket: bucket, Key: key })
+         );
+         expect(reviewed.ETag).toBeTruthy();
+         return renameObject(scope(), key, destination, reviewed.ETag!);
       };
       const upload = (
          key: string,
@@ -78,7 +87,11 @@ describe.skipIf(!endpoint)(
             endpoint,
             region: process.env.S3_INTEGRATION_REGION ?? "us-east-1",
             forcePathStyle: true,
-            credentials: { accessKeyId, secretAccessKey },
+            credentials: {
+               accessKeyId,
+               secretAccessKey,
+               sessionToken: process.env.S3_INTEGRATION_SESSION_TOKEN,
+            },
             requestChecksumCalculation:
                detectProvider(endpoint) === Provider.R2
                   ? "WHEN_REQUIRED"
@@ -155,6 +168,16 @@ describe.skipIf(!endpoint)(
          async (size) => {
             const data = Buffer.alloc(size, 41);
             const key = `uploads/${size}`;
+            if (isB2) {
+               await expect(upload(key, data)).rejects.toMatchObject({
+                  status: 409,
+                  message: expect.stringContaining("Backblaze B2"),
+               });
+               await expect(read(key)).rejects.toMatchObject({
+                  name: "NoSuchKey",
+               });
+               return;
+            }
             const result = await upload(key, data);
             expect(result.size).toBe(size);
             expect(result.eTag).toBeTruthy();
@@ -166,6 +189,18 @@ describe.skipIf(!endpoint)(
 
       it("uploads an unknown-length multipart stream", async () => {
          const data = Buffer.alloc(6 * MIB, 71);
+         if (isB2) {
+            await expect(
+               upload("unknown-length", data, undefined, true)
+            ).rejects.toMatchObject({
+               status: 409,
+               message: expect.stringContaining("Backblaze B2"),
+            });
+            await expect(read("unknown-length")).rejects.toMatchObject({
+               name: "NoSuchKey",
+            });
+            return;
+         }
          expect(
             await upload("unknown-length", data, undefined, true)
          ).toMatchObject({ size: data.length });
@@ -190,6 +225,33 @@ describe.skipIf(!endpoint)(
             const current = await client.send(
                new HeadObjectCommand({ Bucket: bucket, Key: key })
             );
+            if (isB2) {
+               await expect(
+                  upload(key, data, current.ETag)
+               ).rejects.toMatchObject({
+                  status: 409,
+                  message: expect.stringContaining("Backblaze B2"),
+               });
+               expect((await read(key)).toString()).toBe("another-writer");
+               return;
+            }
+            if (detectProvider(endpoint!) === Provider.Other) {
+               const acl = await client.send(
+                  new GetObjectAclCommand({ Bucket: bucket, Key: key })
+               );
+               // Community MinIO returns a dummy ACL with no owner identity.
+               // Refusal must leave the object intact, rather than resetting grants.
+               if (!acl.Owner?.ID) {
+                  await expect(
+                     upload(key, data, current.ETag)
+                  ).rejects.toMatchObject({
+                     status: 409,
+                     message: "The object's owner could not be preserved.",
+                  });
+                  expect((await read(key)).toString()).toBe("another-writer");
+                  return;
+               }
+            }
             await upload(key, data, current.ETag);
             expect(await read(key)).toEqual(data);
          },
@@ -198,7 +260,6 @@ describe.skipIf(!endpoint)(
 
       it("checks multipart conditions again after an intervening write during UploadPart", async () => {
          const key = "intervening-multipart";
-         const original = await put(key, "original");
          let changed = false;
          const handler = client.config.requestHandler;
          const isolated = new S3Client({
@@ -221,7 +282,6 @@ describe.skipIf(!endpoint)(
                client: isolated,
                bucket,
                key,
-               expectedETag: original.ETag,
                body: Readable.from([Buffer.alloc(6 * MIB)]),
                contentType: "application/octet-stream",
                contentLength: 6 * MIB,
@@ -230,6 +290,13 @@ describe.skipIf(!endpoint)(
                abortController: new AbortController(),
             })
          ).rejects.toMatchObject({ status: 409 });
+         if (isB2) {
+            expect(changed).toBe(false);
+            await expect(read(key)).rejects.toMatchObject({
+               name: "NoSuchKey",
+            });
+            return;
+         }
          expect(changed).toBe(true);
          expect((await read(key)).toString()).toBe(
             "external-change-during-upload"
@@ -282,12 +349,24 @@ describe.skipIf(!endpoint)(
                CacheControl: "max-age=3600",
                ContentDisposition: "attachment",
                Metadata: { purpose: "provider-integration" },
-               ...(detectProvider(endpoint!) === Provider.R2
+               ...(detectProvider(endpoint!) === Provider.R2 || isB2
                   ? {}
                   : { Tagging: "test=preserve" }),
             })
          );
-         await renameObject(scope(), "rename/source.txt", "rename/result.txt");
+         if (detectProvider(endpoint!) !== Provider.S3) {
+            await expect(
+               renameReviewed("rename/source.txt", "rename/result.txt")
+            ).rejects.toMatchObject({ status: 409 });
+            expect((await read("rename/source.txt")).toString()).toBe(
+               "rename-body"
+            );
+            await expect(read("rename/result.txt")).rejects.toMatchObject({
+               name: "NoSuchKey",
+            });
+            return;
+         }
+         await renameReviewed("rename/source.txt", "rename/result.txt");
          expect((await read("rename/result.txt")).toString()).toBe(
             "rename-body"
          );
@@ -314,7 +393,7 @@ describe.skipIf(!endpoint)(
          }
          await put("rename/occupied.txt", "keep-destination");
          await expect(
-            renameObject(scope(), "rename/result.txt", "rename/occupied.txt")
+            renameReviewed("rename/result.txt", "rename/occupied.txt")
          ).rejects.toMatchObject({ status: 409 });
          expect((await read("rename/occupied.txt")).toString()).toBe(
             "keep-destination"
@@ -328,13 +407,23 @@ describe.skipIf(!endpoint)(
          await put("empty/source", "");
          await put("empty/occupied", "keep-destination");
          await expect(
-            renameObject(scope(), "empty/source", "empty/occupied")
+            renameReviewed("empty/source", "empty/occupied")
          ).rejects.toMatchObject({ status: 409 });
          expect((await read("empty/occupied")).toString()).toBe(
             "keep-destination"
          );
          expect(await read("empty/source")).toHaveLength(0);
-         await renameObject(scope(), "empty/source", "empty/result");
+         if (detectProvider(endpoint!) !== Provider.S3) {
+            await expect(
+               renameReviewed("empty/source", "empty/result")
+            ).rejects.toMatchObject({ status: 409 });
+            expect(await read("empty/source")).toHaveLength(0);
+            await expect(read("empty/result")).rejects.toMatchObject({
+               name: "NoSuchKey",
+            });
+            return;
+         }
+         await renameReviewed("empty/source", "empty/result");
          expect(await read("empty/result")).toHaveLength(0);
          await expect(read("empty/source")).rejects.toMatchObject({
             name: "NoSuchKey",
@@ -346,6 +435,16 @@ describe.skipIf(!endpoint)(
          await put("deletion/deep/two", "two");
          const keys = await listKeysPage(scope(), "deletion/", undefined);
          const result = await deleteKeys(scope(), keys.objects);
+         if (detectProvider(endpoint!) !== Provider.S3) {
+            expect(result.deleted).toEqual([]);
+            expect(result.failed).toHaveLength(keys.objects.length);
+            expect(result.failed.every(({ retryable }) => !retryable)).toBe(
+               true
+            );
+            expect((await read("deletion/one")).toString()).toBe("one");
+            expect((await read("deletion/deep/two")).toString()).toBe("two");
+            return;
+         }
          expect(result.failed).toEqual([]);
          expect(result.deleted.sort()).toEqual([
             "deletion/deep/two",

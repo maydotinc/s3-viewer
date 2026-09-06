@@ -18,6 +18,7 @@ type RenameObjectModalProps = {
    serverId: string;
    bucketName: string;
    objectKey: string;
+   expectedETag: string;
    onRenameSuccess?: (newObjectKey: string) => void;
 };
 
@@ -43,6 +44,7 @@ const RenameObjectModal = ({
    serverId,
    bucketName,
    objectKey,
+   expectedETag,
    onRenameSuccess,
 }: RenameObjectModalProps) => {
    const rename = useRenameObject();
@@ -73,7 +75,14 @@ const RenameObjectModal = ({
       if (rename.isPending || validation) return;
       setRequestError(null);
       rename.mutate(
-         { userId, serverId, bucketName, objectKey, newObjectKey: newKey },
+         {
+            userId,
+            serverId,
+            bucketName,
+            objectKey,
+            newObjectKey: newKey,
+            expectedETag,
+         },
          {
             onSuccess: () => {
                toast.success("Object renamed.");

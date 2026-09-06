@@ -1,5 +1,18 @@
 export const isFolderKey = (key: string): boolean => key.endsWith("/");
 
+export const backblazeRegion = (endpoint: string): string | undefined => {
+   let url: URL;
+   try {
+      url = new URL(endpoint.trim());
+   } catch {
+      return undefined;
+   }
+   if (url.protocol !== "https:") return undefined;
+   return /^(?:[a-z0-9][a-z0-9.-]*\.)?s3\.([a-z0-9-]+)\.backblazeb2\.com$/.exec(
+      url.hostname.replace(/\.$/, "")
+   )?.[1];
+};
+
 export const baseName = (objectKey: string): string => {
    const trimmed = isFolderKey(objectKey) ? objectKey.slice(0, -1) : objectKey;
    return trimmed.slice(trimmed.lastIndexOf("/") + 1) || objectKey;

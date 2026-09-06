@@ -20,8 +20,13 @@ const REJECTED_CREDENTIAL_NAMES: ReadonlySet<string> = new Set([
    "InvalidClientTokenId",
    "SignatureDoesNotMatch",
    "AuthorizationHeaderMalformed",
-   "ExpiredToken",
+   "InvalidToken",
    "UnrecognizedClientException",
+]);
+const EXPIRED_CREDENTIAL_NAMES: ReadonlySet<string> = new Set([
+   "ExpiredToken",
+   "ExpiredTokenException",
+   "TokenRefreshRequired",
 ]);
 const FORBIDDEN_NAMES: ReadonlySet<string> = new Set([
    "AccessDenied",
@@ -58,6 +63,12 @@ const BUCKET_NOT_FOUND: HttpFailure = {
 const CREDENTIALS_REJECTED: HttpFailure = {
    status: 502,
    message: "The server rejected these credentials",
+   code: ErrorCode.CREDENTIALS_REJECTED,
+};
+const CREDENTIALS_EXPIRED: HttpFailure = {
+   status: 502,
+   message:
+      "The temporary credentials expired. Update the access key, secret key and session token.",
    code: ErrorCode.CREDENTIALS_REJECTED,
 };
 const FORBIDDEN: HttpFailure = {
@@ -119,6 +130,7 @@ const classifyFailure = (
       // knows whether a bucket or an object was addressed
       return scope === "bucket" ? BUCKET_NOT_FOUND : OBJECT_NOT_FOUND;
    }
+   if (EXPIRED_CREDENTIAL_NAMES.has(name)) return CREDENTIALS_EXPIRED;
    if (REJECTED_CREDENTIAL_NAMES.has(name)) return CREDENTIALS_REJECTED;
    if (name === "PreconditionFailed") return ALREADY_EXISTS;
    // s3 answers 403 for an archived object, so this precedes the 403 mapping

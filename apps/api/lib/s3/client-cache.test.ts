@@ -97,6 +97,24 @@ describe("S3 client credential authority", () => {
       expect(first.config.forcePathStyle).toBe(true);
    });
 
+   it("replaces a cached session token even when endpoint and key pair stay the same", async () => {
+      state.decrypt.mockImplementation((blob: string) => ({
+         endpoint: "https://s3.amazonaws.com",
+         region: "us-east-1",
+         accessKey: "access-key",
+         secretKey: "secret-key",
+         sessionToken: blob,
+      }));
+      const original = await getS3Client(serverId);
+      expect((await original.config.credentials()).sessionToken).toBe("old");
+      rotate("new-token");
+      const updated = await getS3Client(serverId);
+      expect(updated).not.toBe(original);
+      expect((await updated.config.credentials()).sessionToken).toBe(
+         "new-token"
+      );
+   });
+
    it("expires the cached endpoint validation", async () => {
       vi.useFakeTimers();
       const first = await getS3Client(serverId);

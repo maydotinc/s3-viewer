@@ -1,7 +1,24 @@
 import { describe, expect, it } from "vitest";
-import { chunkKeys, mapLimit } from "./utils";
+import { backblazeRegion, chunkKeys, mapLimit } from "./utils";
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 1));
+
+describe("backblazeRegion", () => {
+   it.each([
+      ["https://s3.us-west-004.backblazeb2.com", "us-west-004"],
+      ["https://bucket.s3.eu-central-003.backblazeb2.com", "eu-central-003"],
+      ["https://S3.US-EAST-005.BACKBLAZEB2.COM", "us-east-005"],
+      ["https://s3.us-west-004.backblazeb2.com.", "us-west-004"],
+      ["https://s3.us-west-004.backblazeb2.com.example.org", undefined],
+      ["https://s3.us-west-004.backblazeb2.com@example.org", undefined],
+      ["https://example.org/s3.us-west-004.backblazeb2.com", undefined],
+      ["http://s3.us-west-004.backblazeb2.com", undefined],
+      ["https://s3.amazonaws.com", undefined],
+      ["invalid", undefined],
+   ])("recognizes only B2 HTTPS hosts: %s", (endpoint, expected) => {
+      expect(backblazeRegion(endpoint)).toBe(expected);
+   });
+});
 
 describe("chunkKeys", () => {
    it("splits by key count and by total characters, never leaving a batch empty", () => {

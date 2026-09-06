@@ -1,8 +1,9 @@
-import { S3Client, type Grant } from "@aws-sdk/client-s3";
+import { HeadObjectCommand, S3Client, type Grant } from "@aws-sdk/client-s3";
 import { Provider } from "@s3-viewer/types";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { renameObject } from "./rename";
+import { copyForRename } from "./rename-copy";
 
 type Request = {
    method: string;
@@ -155,6 +156,22 @@ const fixture = (
             ? response("", 200, object.headers)
             : failure("NotFound", 404);
       }
+      if ("object-lock" in request.query) {
+         return headers["x-amz-object-lock-mode"] ||
+            headers["x-amz-object-lock-legal-hold"]
+            ? response(
+                 "<ObjectLockConfiguration><ObjectLockEnabled>Enabled</ObjectLockEnabled></ObjectLockConfiguration>"
+              )
+            : failure("ObjectLockConfigurationNotFoundError", 404);
+      }
+      if ("retention" in request.query)
+         return response(
+            `<Retention>${headers["x-amz-object-lock-mode"] ? `<Mode>${headers["x-amz-object-lock-mode"]}</Mode><RetainUntilDate>${headers["x-amz-object-lock-retain-until-date"]}</RetainUntilDate>` : ""}</Retention>`
+         );
+      if ("legal-hold" in request.query)
+         return response(
+            `<LegalHold><Status>${headers["x-amz-object-lock-legal-hold"] ?? "OFF"}</Status></LegalHold>`
+         );
       if ("ownershipControls" in request.query) {
          if (options.ownershipError) return failure("AccessDenied", 403);
          return response(
@@ -263,17 +280,76 @@ const fixture = (
       maxAttempts: 3,
       requestHandler: { handle },
    });
-   const run = () =>
-      renameObject({ client, bucket: "bucket" }, "old.txt", "new.txt");
+   const run = (expectedETag = '"original"') =>
+      renameObject(
+         { client, bucket: "bucket" },
+         "old.txt",
+         "new.txt",
+         expectedETag
+      );
+   // Exercise copy transport helpers independently; non-AWS rename is gated
+   // before this helper until conditional source deletion is supported.
+   const copy = async () =>
+      copyForRename(
+         { client, bucket: "bucket" },
+         provider,
+         await client.send(
+            new HeadObjectCommand({ Bucket: "bucket", Key: "old.txt" })
+         ),
+         "old.txt",
+         "new.txt",
+         undefined,
+         [{ Key: "team name", Value: "A&B" }]
+      );
    const writes = () =>
       requests.filter((r) => r.method === "PUT" || r.method === "POST");
    const deletes = () =>
       requests.filter((r) => r.method === "DELETE" && !("uploadId" in r.query));
-   return { objects, requests, run, writes, deletes, client };
+   return { objects, requests, run, copy, writes, deletes, client };
 };
 
-describe("provider-compatible rename", () => {
-   it.each([Provider.S3, Provider.R2, Provider.Other])(
+describe("safe object rename", () => {
+   it("retains a new source written while the rename dialog was open", async () => {
+      const f = fixture();
+      const reviewedETag = f.objects.get("old.txt")!.headers.etag!;
+      f.objects.set("old.txt", {
+         data: "new body",
+         headers: {
+            ...f.objects.get("old.txt")!.headers,
+            etag: '"new-source"',
+         },
+      });
+      await expect(f.run(reviewedETag)).rejects.toMatchObject({
+         status: 409,
+         message: expect.stringContaining("since you reviewed"),
+      });
+      expect(f.objects.get("old.txt")?.data).toBe("new body");
+      expect(f.objects.has("new.txt")).toBe(false);
+      expect(f.writes()).toHaveLength(0);
+      expect(f.deletes()).toHaveLength(0);
+   });
+   it.each(["", "*", '"*"', 'W/"original"'])(
+      "rejects an unsafe reviewed ETag %s before any storage request",
+      async (expectedETag) => {
+         const f = fixture();
+         await expect(f.run(expectedETag)).rejects.toMatchObject({
+            status: 409,
+         });
+         expect(f.requests).toHaveLength(0);
+      }
+   );
+   it.each([Provider.R2, Provider.Other])(
+      "refuses rename without verified conditional deletion on %s",
+      async (provider) => {
+         const f = fixture({ provider });
+         await expect(f.run()).rejects.toMatchObject({ status: 409 });
+         expect(f.objects.get("old.txt")?.data).toBe("original");
+         expect(f.objects.has("new.txt")).toBe(false);
+         expect(f.writes()).toHaveLength(0);
+         expect(f.deletes()).toHaveLength(0);
+      }
+   );
+   it.each([Provider.S3])(
       "renames an unversioned object on %s",
       async (provider) => {
          const f = fixture({ provider });
@@ -294,7 +370,7 @@ describe("provider-compatible rename", () => {
          provider: Provider.R2,
          sourceHeaders: { "x-amz-server-side-encryption": "AES256" },
       });
-      await f.run();
+      await f.copy();
       const copy = f.writes()[0]!;
       expect(copy.headers["cf-copy-destination-if-none-match"]).toBe("*");
       expect(copy.headers.authorization).toContain(
@@ -317,7 +393,7 @@ describe("provider-compatible rename", () => {
             "content-disposition": "attachment",
          },
       });
-      await f.run();
+      await f.copy();
       expect(f.writes()).toHaveLength(3);
       const [create, part, complete] = f.writes();
       expect(create?.headers).toMatchObject({
@@ -334,7 +410,7 @@ describe("provider-compatible rename", () => {
          provider: Provider.Other,
          sourceHeaders: { "content-length": "0" },
       });
-      await f.run();
+      await f.copy();
       expect(f.writes()).toHaveLength(1);
       expect(f.writes()[0]?.headers["if-none-match"]).toBe("*");
       expect(f.objects.get("new.txt")?.data).toBe("");
@@ -354,9 +430,7 @@ describe("provider-compatible rename", () => {
          sourceHeaders: {
             "x-amz-website-redirect-location": "/landing",
             "x-amz-storage-class": "STANDARD_IA",
-            "x-amz-server-side-encryption": "aws:kms",
-            "x-amz-server-side-encryption-aws-kms-key-id": "key-id",
-            "x-amz-server-side-encryption-bucket-key-enabled": "false",
+            "x-amz-server-side-encryption": "AES256",
             "x-amz-object-lock-legal-hold": "ON",
          },
       });
@@ -364,9 +438,7 @@ describe("provider-compatible rename", () => {
       expect(f.writes()[0]?.headers).toMatchObject({
          "x-amz-website-redirect-location": "/landing",
          "x-amz-storage-class": "STANDARD_IA",
-         "x-amz-server-side-encryption": "aws:kms",
-         "x-amz-server-side-encryption-aws-kms-key-id": "key-id",
-         "x-amz-server-side-encryption-bucket-key-enabled": "false",
+         "x-amz-server-side-encryption": "AES256",
          "x-amz-object-lock-legal-hold": "ON",
       });
    });
@@ -473,7 +545,7 @@ describe("provider-compatible rename", () => {
       await expect(f.run()).rejects.toMatchObject({ status: 409 });
       expect(f.deletes()).toHaveLength(0);
    });
-   it.each([Provider.S3, Provider.R2, Provider.Other])(
+   it.each([Provider.S3])(
       "does not overwrite a concurrent destination on %s",
       async (provider) => {
          const f = fixture({
@@ -500,12 +572,12 @@ describe("provider-compatible rename", () => {
          expect(f.objects.size).toBe(2);
       }
    );
-   it("preserves the original if MinIO tags change after the copy", async () => {
-      const f = fixture({ provider: Provider.Other, changedTags: true });
+   it("preserves the original if AWS tags change after the copy", async () => {
+      const f = fixture({ changedTags: true });
       await expect(f.run()).rejects.toMatchObject({ status: 409 });
       expect(f.deletes()).toHaveLength(0);
    });
-   it.each([Provider.S3, Provider.R2, Provider.Other])(
+   it.each([Provider.S3])(
       "does not retry an ambiguous copy on %s",
       async (provider) => {
          const f = fixture({ provider, timeoutAfterCopy: true });
@@ -520,7 +592,7 @@ describe("provider-compatible rename", () => {
       await expect(f.run()).rejects.toMatchObject({ status: 502 });
       expect(f.writes()).toHaveLength(1);
    });
-   it.each([Provider.S3, Provider.R2, Provider.Other])(
+   it.each([Provider.S3])(
       "does not replay an ambiguous delete against a replacement on %s",
       async (provider) => {
          const f = fixture({ provider, timeoutAfterDelete: "replacement" });
@@ -546,7 +618,7 @@ describe("provider-compatible rename", () => {
    });
    it("aborts an incomplete multipart copy whose response has no ETag", async () => {
       const f = fixture({ provider: Provider.Other, partMissingETag: true });
-      await expect(f.run()).rejects.toMatchObject({ status: 502 });
+      await expect(f.copy()).rejects.toMatchObject({ status: 502 });
       expect(
          f.requests.some(
             (r) => r.method === "DELETE" && r.query.uploadId === "upload-1"
@@ -559,24 +631,23 @@ describe("provider-compatible rename", () => {
          provider: Provider.Other,
          sourceHeaders: { "x-amz-missing-meta": "1" },
       });
-      await expect(f.run()).rejects.toMatchObject({ status: 409 });
+      await expect(f.copy()).rejects.toMatchObject({ status: 409 });
       expect(f.writes()).toHaveLength(0);
    });
    it.each([
       { code: "NotImplemented", status: 501 },
       { code: "MethodNotAllowed", status: 405 },
    ])(
-      "supports a compatible provider without a tagging API: $code",
+      "refuses rename when AWS tags cannot be verified: $code",
       async (taggingError) => {
-         const f = fixture({ provider: Provider.Other, taggingError });
-         await f.run();
-         expect(f.objects.has("old.txt")).toBe(false);
-         expect(f.writes()[0]?.headers).not.toHaveProperty("x-amz-tagging");
+         const f = fixture({ taggingError });
+         await expect(f.run()).rejects.toBeDefined();
+         expect(f.objects.has("old.txt")).toBe(true);
+         expect(f.writes()).toHaveLength(0);
       }
    );
    it("does not treat a tagging permission error as unsupported tags", async () => {
       const f = fixture({
-         provider: Provider.Other,
          taggingError: { code: "AccessDenied", status: 403 },
       });
       await expect(f.run()).rejects.toMatchObject({ status: 403 });
@@ -584,7 +655,6 @@ describe("provider-compatible rename", () => {
    });
    it("does not discard reported tags when their API is unavailable", async () => {
       const f = fixture({
-         provider: Provider.Other,
          sourceHeaders: { "x-amz-tagging-count": "1" },
          taggingError: { code: "NotImplemented", status: 501 },
       });
@@ -592,11 +662,11 @@ describe("provider-compatible rename", () => {
       expect(f.writes()).toHaveLength(0);
    });
    it("does not silently treat malformed tag responses as empty tags", async () => {
-      const f = fixture({ provider: Provider.Other, missingTagSet: true });
+      const f = fixture({ missingTagSet: true });
       await expect(f.run()).rejects.toMatchObject({ status: 502 });
       expect(f.writes()).toHaveLength(0);
    });
-   it.each([Provider.S3, Provider.R2, Provider.Other])(
+   it.each([Provider.S3])(
       "refuses a source changed before copy selection on %s",
       async (provider) => {
          const f = fixture({

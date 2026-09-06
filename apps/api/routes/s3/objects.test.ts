@@ -113,7 +113,11 @@ const requests = [
    {
       method: "POST",
       path: "/v3/rename",
-      input: { objectKey: "report.json", newObjectKey: "renamed.json" },
+      input: {
+         objectKey: "report.json",
+         newObjectKey: "renamed.json",
+         expectedETag: '"reviewed"',
+      },
    },
 ] as const;
 
@@ -143,6 +147,23 @@ const expectNoStorage = () => {
 };
 
 describe("versioned object mutation boundaries", () => {
+   it.each([undefined, null, "*", '"*"', 'W/"old"', ""])(
+      "requires a reviewed ETag for rename: %s",
+      async (expectedETag) => {
+         const response = await fetch(`${base}/v3/rename`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+               expectedUserId: state.actor,
+               objectKey: "report.json",
+               newObjectKey: "renamed.json",
+               expectedETag,
+            }),
+         });
+         expect(response.status).toBe(400);
+         expectNoStorage();
+      }
+   );
    it.each(["*", '"*"'])(
       "rejects wildcard deletion %s before storage work",
       async (expectedETag) => {
@@ -217,7 +238,15 @@ describe("versioned object mutation boundaries", () => {
             expect(state.remove.mock.calls[0]?.[1]).toEqual(
                request.input.objects
             );
-         } else expect(state.rename).toHaveBeenCalledOnce();
+         } else {
+            expect(state.rename).toHaveBeenCalledOnce();
+            expect(state.rename).toHaveBeenCalledWith(
+               expect.objectContaining({ bucket: "backups" }),
+               "report.json",
+               "renamed.json",
+               '"reviewed"'
+            );
+         }
       }
    );
 

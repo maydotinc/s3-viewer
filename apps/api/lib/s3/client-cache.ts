@@ -75,6 +75,9 @@ const buildClient = (
       credentials: {
          accessKeyId: credentials.accessKey,
          secretAccessKey: credentials.secretKey,
+         ...(credentials.sessionToken && {
+            sessionToken: credentials.sessionToken,
+         }),
       },
       forcePathStyle: provider !== Provider.S3,
       maxAttempts: MAX_ATTEMPTS,

@@ -341,13 +341,15 @@ objectsRouter.post(
             objectKey,
             newObjectKey,
             expectedUserId,
+            expectedETag,
          } = input<RenameObjectInput>(res);
          const userId = requireExpectedUser(res, expectedUserId);
          const client = await getS3Client(serverId);
          await renameObject(
             routeScope(client, bucketName, res),
             objectKey,
-            newObjectKey
+            newObjectKey,
+            expectedETag
          );
          await recordAudit({
             action: "object.rename",

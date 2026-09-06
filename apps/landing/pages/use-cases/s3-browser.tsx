@@ -12,9 +12,9 @@ const SLUG = "s3-browser";
 const TITLE = "An S3 browser built for browsing.";
 const KEYWORD = "S3 browser";
 const META_DESCRIPTION =
-   "A browser-based S3 client for daily work: one-step rename, a prefix filter, multi-select delete, inline previews, and every provider in one sidebar.";
+   "Browse, filter, preview, and download across S3-compatible providers, with guarded rename and multi-select deletion on AWS S3.";
 const DESCRIPTION =
-   "S3 Viewer is a browser-based S3 client focused on the daily browsing-and-collaboration workflow: one-step rename, a prefix filter on the folder you're in, multi-select delete, inline previews, and every connected provider in one sidebar. Free, open-source, MIT-licensed.";
+   "S3 Viewer brings connected providers into one browser for filtering, previews, downloads, and team sharing. AWS S3 also supports guarded rename and multi-select deletion. Upload availability depends on the provider. Free, open-source, MIT-licensed.";
 
 const steps: UseCaseStep[] = [
    {
@@ -27,7 +27,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Open the ⋮ menu for the daily-use operations",
-      body: "Download, Copy link (a 15-minute presigned URL), Rename (the S3 API has no rename — we wrap copy + delete, and refuse to overwrite an existing key) and Delete. Tick checkboxes to delete several at once, or use Delete folder on a folder row to clear a whole prefix.",
+      body: "Download a file or copy a temporary link. On AWS S3, you can also rename a reviewed object, delete a selection, or delete a folder's contents. Those actions reject files that changed since review; object rename and deletion are blocked on R2, B2, and other endpoints.",
    },
 ];
 
@@ -35,7 +35,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "What is the best web-based S3 browser?",
       answer:
-         "S3 Viewer is built for browsing — one-step rename (Amazon S3 has no rename API, so we wrap copy + delete), a prefix filter on the folder you're in, checkbox multi-select delete, inline previews for images, video, audio, PDF and text formats, and every connected provider in one sidebar: AWS S3, Cloudflare R2, MinIO, Backblaze B2, Wasabi, and more.",
+         "S3 Viewer provides a folder prefix filter, inline previews, downloads, and team sharing across connected S3-compatible providers. AWS S3 also supports guarded rename and multi-select deletion. R2 and AWS S3 uploads protect existing files; B2 uploads are currently blocked, and other endpoints need compatible overwrite protection.",
    },
    {
       question: "How does this compare to the AWS S3 console?",
@@ -51,7 +51,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Can I rename a file in S3?",
       answer:
-         "Not natively — Amazon S3 has no rename API and keys are immutable once written. The standard pattern is to copy the object to the new key and delete the old one. S3 Viewer wraps that pattern behind ⋮ → Rename: metadata carries over, the source is only deleted once the copy succeeds, and it refuses to overwrite an existing key. Objects above 5 GB need a multipart copy, so use the CLI for those.",
+         "On AWS S3, use ⋮ → Rename for an object up to 5 GB. S3 Viewer checks the file you reviewed, preserves readable permissions and settings, and refuses an occupied destination. Unreadable encryption settings block the action. Rename is currently unavailable on R2, B2, MinIO, and other endpoints.",
    },
    {
       question:
@@ -67,7 +67,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Does it work with MinIO, Backblaze B2, and self-hosted S3?",
       answer:
-         "Yes. Point a server at any S3-compatible endpoint, including private MinIO clusters inside your VPC. The same browser UI handles every provider that speaks the S3 API.",
+         "You can connect compatible endpoints to browse, preview, download, and share files. B2 uploads and object rename/deletion outside AWS S3 are blocked. Other uploads require verified overwrite protection; replacement also needs readable original settings, which some MinIO setups cannot provide. Private endpoints require a trusted self-hosted installation configured to allow them.",
    },
    {
       question: "Is S3 Viewer free?",
@@ -86,7 +86,7 @@ export default createUseCasePage({
    eyebrow: "Better S3 browser",
    tagline: "A browsing layer on top of every S3-compatible provider.",
    bullets: [
-      "One-step rename — wrapping the S3 copy + delete pattern, metadata preserved",
+      "Guarded rename and multi-select deletion on AWS S3",
       "Inline previews for images, video, audio, PDF and text formats",
       "Every connected provider in one sidebar, one click apart",
    ],
@@ -94,8 +94,8 @@ export default createUseCasePage({
    features: [
       {
          icon: PencilLine,
-         title: "One-step rename",
-         body: "Amazon S3 has no rename API — keys are immutable. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the original is deleted only after the new key writes, and an existing key is never silently overwritten. Objects over 5 GB need a multipart copy from the CLI.",
+         title: "Guarded AWS S3 rename",
+         body: "Rename an AWS S3 object up to 5 GB after reviewing it. The app checks for changes, preserves readable settings, and refuses an occupied destination. Unsupported encryption or unreadable permissions stop the action before copying.",
       },
       {
          icon: Search,
@@ -109,8 +109,8 @@ export default createUseCasePage({
       },
       {
          icon: Trash2,
-         title: "Multi-select delete",
-         body: "Tick the checkboxes and hit Delete — the selection goes out as a single DeleteObjects call, up to 1,000 keys per request. Delete folder on a folder row clears the whole prefix recursively.",
+         title: "AWS S3 multi-select delete",
+         body: "Select reviewed AWS S3 objects and confirm Delete, or delete a folder's contents. Changed files and uncertain results require fresh review. R2 and other providers do not execute object deletion.",
       },
       {
          icon: Command,

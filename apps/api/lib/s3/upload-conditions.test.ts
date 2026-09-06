@@ -12,6 +12,12 @@ import { describe, expect, it, vi } from "vitest";
 import { getS3ClientFromCredentials } from "./client-cache";
 import { streamUpload } from "./upload";
 vi.mock("./no-retry", () => ({ withoutRetries: (client: S3Client) => client }));
+// These tests isolate publication conditions. Full preservation reads and
+// their failures are exercised through the real SDK in replacement-settings.test.
+vi.mock("./replacement-settings", () => ({
+   readReplacementSettings: async () => ({ attributes: {} }),
+   assertReplacementUnchanged: () => undefined,
+}));
 
 const MIB = 1024 * 1024;
 const config = {
@@ -45,6 +51,34 @@ const params = (client: S3Client, size: number, expectedETag?: string) => ({
 });
 
 describe("conditional uploads", () => {
+   it.each([8, 6 * MIB])(
+      "blocks unverified B2 writes before reading %i bytes",
+      async (size) => {
+         const handle = vi.fn();
+         const client = new S3Client({
+            endpoint: "https://s3.us-west-004.backblazeb2.com",
+            region: "us-west-004",
+            credentials: { accessKeyId: "test", secretAccessKey: "test" },
+            requestHandler: { handle },
+         });
+         const input = params(client, size);
+         const read = vi.fn();
+         input.body.on("data", read);
+         input.body.pause();
+         try {
+            await expect(streamUpload(input)).rejects.toMatchObject({
+               status: 409,
+               message: expect.stringContaining("Backblaze B2"),
+            });
+            expect(handle).not.toHaveBeenCalled();
+            expect(read).not.toHaveBeenCalled();
+         } finally {
+            input.body.destroy();
+            client.destroy();
+         }
+      }
+   );
+
    it.each(
       [
          { size: 8, expectedETag: undefined },

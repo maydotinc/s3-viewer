@@ -73,7 +73,7 @@ const RowActionsMenu = ({
                      )}
                      {can.rename && (
                         <DropdownMenuItem
-                           onSelect={() => commands.rename(data.key)}
+                           onSelect={() => commands.rename(data.key, data.eTag)}
                         >
                            <FilePen aria-hidden="true" />
                            Rename

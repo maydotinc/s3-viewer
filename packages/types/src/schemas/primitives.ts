@@ -53,7 +53,8 @@ export const contentTypeSchema = z
    .pipe(z.string().regex(MEDIA_TYPE, "Invalid content type"));
 
 export const serverNameSchema = z.string().trim().min(1).max(64);
-export const encryptedCredentialsSchema = z.string().min(1).max(8192);
+// Temporary session tokens can be substantially longer than a key pair.
+export const encryptedCredentialsSchema = z.string().min(1).max(65_536);
 export const emailSchema = z.string().trim().toLowerCase().email().max(254);
 export const passwordSchema = z
    .string()

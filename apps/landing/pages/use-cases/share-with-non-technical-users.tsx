@@ -30,7 +30,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Invite by email",
-      body: "Open the server's bucket list, click Share to open the members dialog, type the recipient's email and choose a role: Viewer (browse and download), Editor (also upload, rename, delete and create buckets) or Admin (also manage members, rename the server and remove buckets). They get an emailed invite.",
+      body: "Open the server's bucket list, click Share to open the members dialog, type the recipient's email and choose a role: Viewer (browse and download), Editor (also upload, rename, delete and create buckets where supported) or Admin (also manage members, rename the server and remove buckets). They get an emailed invite.",
    },
    {
       title: "They open it in any browser",
@@ -53,7 +53,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Can I let someone view files but not delete or upload?",
       answer:
-         "Yes. The Viewer role can browse and download but cannot upload, rename, or delete. Editors can upload, rename, delete and create buckets; Admins can also manage members, rename the server and remove buckets from it; the Owner can also delete the server. A bucket can override a member's server role, so the same person can be a Viewer on one bucket and an Editor on another.",
+         "Yes. The Viewer role can browse and download but cannot upload, rename, or delete. Editors can upload, rename, delete and create buckets where supported; Admins can also manage members, rename the server and remove buckets from it; the Owner can also delete the server. Available actions also depend on the storage provider; object rename and deletion are AWS S3 only. A bucket can override a member's server role, so the same person can be a Viewer on one bucket and an Editor on another.",
    },
    {
       question: "Can the recipient see other buckets on my server?",

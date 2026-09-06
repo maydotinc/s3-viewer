@@ -6,14 +6,7 @@ import {
    type UseCaseFAQ,
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
-import {
-   Eye,
-   Layers,
-   PencilLine,
-   Search,
-   Upload,
-   UserPlus,
-} from "lucide-react";
+import { Eye, Layers, Download, Search, Upload, UserPlus } from "lucide-react";
 
 const SLUG = "cloudflare-r2";
 const TITLE = "A daily-use dashboard for Cloudflare R2.";
@@ -21,7 +14,7 @@ const KEYWORD = "Cloudflare R2 dashboard";
 const META_DESCRIPTION =
    "A daily-use dashboard for Cloudflare R2: inline previews, streamed uploads with no bucket setup, email invites, and your AWS buckets in the same sidebar.";
 const DESCRIPTION =
-   "Cloudflare R2's S3-compatible API is excellent — it's what lets any S3 client talk to R2 the same way it talks to AWS S3. The Cloudflare dashboard is built around configuration; S3 Viewer is the layer for daily browsing on top: inline previews, streamed uploads that need no CORS policy on the bucket, email invites, and R2 in the same sidebar as your AWS buckets.";
+   "S3 Viewer connects to Cloudflare R2 through its S3-compatible API for daily file browsing: inline previews, streamed uploads that need no CORS policy on the bucket, email invites, and R2 in the same sidebar as your AWS buckets.";
 
 const steps: UseCaseStep[] = [
    {
@@ -33,7 +26,7 @@ const steps: UseCaseStep[] = [
       body: "Click Add server, paste the key and secret, and enter the endpoint with auto as the region. No SDK config, no wrangler, no AWS CLI.",
    },
    {
-      title: "Use R2 the way you'd use any bucket",
+      title: "Browse, upload, and share R2 files",
       body: "Filter a folder by prefix. Upload multi-GB files — they stream through S3 Viewer into R2 as a multipart upload, with no CORS policy to set on the bucket. Invite teammates by email — they don't need a Cloudflare account.",
    },
 ];
@@ -47,7 +40,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "How do I rename a file in Cloudflare R2?",
       answer:
-         "Use the Rename action in the file menu. S3 Viewer copies the object within R2, protects against replacing an existing destination, checks the copy and original, and then removes the original. If the operation cannot be confirmed, it asks you to check both names before proceeding.",
+         "S3 Viewer currently blocks rename and deletion on R2. It cannot safely remove the original if another writer changes it during the operation. Browsing, previews, downloads, uploads, and sharing remain available.",
    },
    {
       question: "How do I search a Cloudflare R2 bucket?",
@@ -58,12 +51,12 @@ const faqs: UseCaseFAQ[] = [
       question:
          "Can I share a Cloudflare R2 bucket with someone who doesn't have a Cloudflare account?",
       answer:
-         "Yes. Click Share, invite them by email and give them a role — Viewer (browse and download), Editor (also upload, delete and create buckets) or Admin (also manage members, rename the server and remove buckets). They sign in to S3 Viewer in a browser and see the bucket, with no Cloudflare account or API token of their own.",
+         "Yes. Click Share and invite them by email. Viewers can browse and download; Editors can also upload and create buckets where the storage token allows it; Admins can manage members and server settings. R2 object rename and deletion remain blocked for every role. Recipients need no Cloudflare account or API token.",
    },
    {
       question: "Are large uploads to R2 reliable?",
       answer:
-         "Yes. Your browser streams the file to S3 Viewer, which writes it to R2 through the S3-compatible multipart upload API in 25 MB parts, several at a time. A network error between your browser and S3 Viewer re-sends the file up to two more times, and an upload that stops early is aborted in R2 so no orphaned parts are billed. Nothing needs to be configured on the bucket — no CORS policy, no exposed headers.",
+         "Large files stream through S3 Viewer in parts, without a bucket CORS policy. New uploads can retry network failures while protecting existing files. Replacements require confirmation, preserve readable object settings, and stop if the reviewed file changes. An uncertain replacement needs fresh review; failed uploads attempt to clean up unfinished parts.",
    },
    {
       question: "Can I view AWS S3 and Cloudflare R2 in the same window?",
@@ -73,7 +66,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Why use S3 Viewer alongside the Cloudflare dashboard?",
       answer:
-         "Use the Cloudflare dashboard for what it's built for: buckets, tokens, custom domains, jurisdictional placement, billing. Use S3 Viewer for what it's built for: daily browsing — opening and previewing files, renaming, uploading big ones reliably, and sharing with teammates who don't have a Cloudflare account. They're complementary tools.",
+         "Use the Cloudflare dashboard for buckets, tokens, custom domains, placement, and billing. Use S3 Viewer to browse, preview, download, upload, and share files with teammates who don't have a Cloudflare account. R2 object rename and deletion are currently unavailable in S3 Viewer.",
    },
 ];
 
@@ -94,9 +87,9 @@ export default createUseCasePage({
    visual: <CloudflareR2Illustration />,
    features: [
       {
-         icon: PencilLine,
-         title: "Preview R2 files",
-         body: "Open supported images, PDFs, text and other files directly in the browser. Rename R2 files from the file menu without downloading and re-uploading them.",
+         icon: Download,
+         title: "Download R2 files",
+         body: "Download original files or copy a temporary download link. Rename and deletion are currently blocked on R2 to protect objects changed by another writer.",
       },
       {
          icon: Search,
@@ -111,7 +104,7 @@ export default createUseCasePage({
       {
          icon: Upload,
          title: "Uploads with no bucket setup",
-         body: "Files stream through S3 Viewer into R2 as a multipart upload — 25 MB parts, several at a time — so there is no CORS policy or exposed header to configure on the bucket, and a dropped connection is retried.",
+         body: "Files stream through S3 Viewer into R2 with no bucket CORS setup. Existing files need confirmation before replacement; unreadable settings or a changed file stop the upload.",
       },
       {
          icon: UserPlus,

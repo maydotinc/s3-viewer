@@ -182,9 +182,23 @@ the web app, the landing site and the shared packages. Keep it current.
   AWS S3, R2, and compatible endpoints use `@aws-sdk/lib-storage` `Upload`
   with 2 parts in flight and `leavePartsOnError: false`. R2 also receives
   its documented initiation conditions for multipart uploads. There is no
-  provider allowlist or R2-specific single-request size cap. The actual
+  R2-specific single-request size cap. Canonical Backblaze B2 endpoints refuse
+  uploads before reading the body because conditional writes have not been
+  verified there. The actual
   client's endpoint determines protocol adaptations, without loading a
-  separate server snapshot. All providers use the same admission budget,
+  separate server snapshot. Replacements first read `HeadObject` with the reviewed
+  ETag, read ACL grants (unless AWS ownership is enforced) and tags where
+  supported, and preserve metadata, content type, cache/disposition/language,
+  storage class and AES256 encryption. Lock protection is read explicitly via
+  bucket Object Lock configuration and, when enabled, GetObjectRetention and
+  GetObjectLegalHold; missing HEAD fields never imply absent protection. These
+  reads require permission and fail closed on unknown/denied state. They re-read the
+  same snapshot before PUT or multipart publication. Missing permissions never
+  fall back to defaults. Opaque KMS/SSE-C settings, missing metadata and content
+  encodings that cannot safely describe new local bytes block replacement before
+  writing. Use a new name for these objects. R2 skips its unsupported ACL/tag APIs.
+  These reads do not atomically protect mutable metadata against external writers.
+  All providers use the same admission budget,
   bounded buffers, and inactivity watchdog. A client
   disconnect aborts the input and S3 requests. Reservations are held until
   workers finish and multipart cleanup settles (cleanup has its own 10 s
@@ -212,6 +226,17 @@ the web app, the landing site and the shared packages. Keep it current.
 - Credential encryption is hybrid: AES-256-GCM payload, key wrapped with
   RSA-OAEP(SHA-256). Wire format (base64 JSON): `{ v: 1, k, iv, ct }`. The
   private key must be at least 2048 bits (checked at startup).
+  The encrypted payload contains endpoint, region, access key, secret key,
+  and an optional session token for temporary AWS/R2 credentials. Tokens
+  are passed to the SDK for both API requests and presigned URLs; they are
+  never renewed automatically. A presigned URL can stop working when its
+  temporary token expires, earlier than the URL's signature expiry.
+  Expiration returns 502 `CREDENTIALS_REJECTED`
+  with a message to update all three credential values. Key-pair-only
+  envelopes remain valid. The envelope is bounded at 64 KiB to accommodate
+  longer session tokens. Both credential forms accept any region string;
+  an empty region uses the B2 region from its endpoint, `auto` for R2, or
+  `us-east-1` otherwise. An explicit region always wins.
   `BETTER_AUTH_SECRET` and `ENCRYPTION_PRIVATE_KEY` are required, except when
   `DATA_DIR` is set: they are then read from `$DATA_DIR/auth-secret` and
   `$DATA_DIR/encryption-private-key.pem`, generated (32 random bytes base64; RSA
@@ -330,34 +355,34 @@ GET    …/objects/preview-url?objectKey                        → S3ObjectPrev
 PUT    …/objects/v3/upload?expectedUserId&objectKey&contentType&expectedETag?   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (409 on upload conflict; 413 over MAX_UPLOAD_BYTES/object limit)
 DELETE …/objects/v3                      { expectedUserId, objects: [{ key, expectedETag }] }     → S3DeleteResult `{ deleted, failed: [{ key, message, retryable }] }` (207 if any failed; expectedETag may be null)
 GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ objects: [{ key, expectedETag }], nextToken }` (recursive, one S3 page of ≤ 1000 keys; prefix is a folder key ending in "/", never "/" or the root)
-POST   …/objects/v3/rename               { expectedUserId, objectKey, newObjectKey } → 204 (409 on conflicts, partial copy, archived source or required object permission failure; 413 if > 5 GB)
+POST   …/objects/v3/rename               { expectedUserId, objectKey, newObjectKey, expectedETag } → 204 (409 on stale reviewed object, conflicts, partial copy, archived source or required object permission failure; 413 if > 5 GB)
 ```
 
-Object deletion works on AWS S3, R2, and compatible endpoints without requiring
-versioning or additional bucket settings reads. Every destructive request uses
-`withoutRetries`, an SDK client sharing the configured transport with one
-attempt. AWS uses the reviewed ETag when supplied (bare XML ETag); R2 and
-compatible endpoints use ordinary `DeleteObjects` without unsupported fields.
-A null ETag permits ordinary deletion. Both wildcard forms are rejected.
-Confirmed per-key failures can be retried, except stale preconditions. Missing,
-contradictory, and uncertain results are nonretryable and require refresh and
-review. The UI retains them visibly, including after other retries succeed.
-The app never supplies VersionId to purge historical versions. Unversioned
-deletes can be permanent; versioning is an optional provider recovery feature.
+Object deletion executes only on recognized AWS S3 endpoints, with a valid,
+non-null reviewed ETag on every submitted object. Null/invalid tags produce
+nonretryable per-key failures; valid entries in a mixed batch can proceed.
+R2 and other compatible endpoints return nonretryable failures without issuing
+DELETE because conditional deletion is not verified. Every destructive request
+uses `withoutRetries` (one SDK attempt). Confirmed per-key failures can be retried,
+except stale preconditions. Missing, contradictory and uncertain results require
+refresh and review. The app never supplies VersionId to purge historical versions.
+Unversioned AWS deletes can be permanent; ETags identify content, not all mutable
+metadata. Versioning/recovery remains relevant even with conditional deletion.
 
-`POST …/objects/v3/rename` is the only copy operation. It supports AWS S3,
-Cloudflare R2, and compatible endpoints without mandatory versioning or
-bucket owner enforced ownership. AWS uses conditional `CopyObject`; R2 uses
-`cf-copy-destination-if-none-match` with source copy conditions; MinIO and
-other compatible endpoints use server-side multipart copy with conditional
-completion. Source metadata, tags and supported storage attributes are retained.
-AWS ACL-enabled objects preserve their grants instead of resetting to private.
-The app checks the copied destination and rechecks the source before a
-single-attempt source delete. It never removes the destination as rollback.
-The web refreshes both names after success or failure. Copy and delete cannot
-be atomic across two keys or coordinate unrelated console, SDK, or CLI writers.
-See [provider compatibility](./PROVIDER-COMPATIBILITY.md) for provider-specific
-permissions, protocol evidence, and live-test scope.
+`POST …/objects/v3/rename` requires the ETag captured when the user opened the
+rename dialog. Only recognized AWS S3 endpoints execute rename; all other
+providers fail before any copy/delete. The source must still match the reviewed
+ETag before conditional `CopyObject`. Source metadata, readable tags, ACL grants
+and supported storage attributes are retained. KMS/SSE-C objects are rejected
+because their full encryption context/key cannot be retrieved for preservation.
+AWS rename explicitly reads and rechecks bucket/object retention and legal hold
+state; lock-read permission failures stop mutation rather than dropping protection.
+The app verifies the destination, source state, ACLs and source/destination tags
+before conditional, single-attempt source deletion. It never removes the
+destination as rollback. The web refreshes both names after success or failure.
+Copy and delete cannot be atomic across two keys or coordinate unrelated console,
+SDK or CLI writers; ETags also do not version mutable tags/ACLs. See
+[provider compatibility](./PROVIDER-COMPATIBILITY.md) for permissions and test scope.
 
 Removed on purpose: general copy/move, `does-user-exist`, session IP validation,
 separate single-object delete, and presigned upload/multipart routes. Uploads
@@ -585,6 +610,9 @@ calls alike and holds the per-email throttles (429 with code
   serverId when the dialog opens. Requests and cache invalidation use that
   captured scope; the API verifies the captured user against the current cookie. Dialogs are hidden immediately on user/server changes;
   stale object row callbacks cannot reopen them for another selection.
+  Rename also captures the row or preview's observed ETag when the dialog opens;
+  missing or invalid ETags refuse the action. Submission never refreshes that ETag,
+  and the API rejects a changed source before copying or deleting anything.
 - Loading states are spinners inside containers that already have the final size; skeletons only for large, known-shape areas. Toolbars never swap controls (disable instead).
 - Uploads: one `PUT …/objects/v3/upload` per file, streamed through the API into the
   bucket — no bucket configuration needed; `contentType` defaults to
@@ -643,8 +671,10 @@ Every how-to has a slug in three places: `HOW_TOS` in
 
 Only describe what ships (see routes and web notes). No
 cross-provider copy, no version browsing, no bulk download, no audit log,
-no side-by-side. Rename supports AWS S3, R2, and MinIO, requests an absent
-destination, and is limited to 5 GB. Search
+no side-by-side. Rename and object deletion execute only on recognized AWS S3
+endpoints with reviewed ETags; R2/other endpoints refuse those mutations. Rename
+requests an absent destination and is limited to 5 GB. B2 uploads are blocked
+pending verified conditional-write support. Search
 is a prefix filter inside the current folder. Share link = 15-minute presigned
 URL from the object's "Copy link" action. Uploads stream through the S3 Viewer
 server to the bucket (nothing to configure on the bucket); new files retry on

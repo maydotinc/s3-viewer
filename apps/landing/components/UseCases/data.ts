@@ -31,14 +31,14 @@ export const USE_CASES: UseCaseEntry[] = [
       slug: "s3-browser",
       title: "Better S3 browser",
       tagline:
-         "Rename, prefix search, multi-select delete and inline previews — focused on the daily browsing layer.",
+         "Browse and preview across providers, with guarded rename and multi-select deletion on AWS S3.",
       keyword: "S3 browser",
    },
    {
       slug: "cloudflare-r2",
       title: "Cloudflare R2",
       tagline:
-         "Rename, filter, upload, and team sharing on top of Cloudflare R2's S3-compatible API.",
+         "Browse, preview, download, upload, and share Cloudflare R2 files with your team.",
       keyword: "Cloudflare R2 dashboard",
    },
    {

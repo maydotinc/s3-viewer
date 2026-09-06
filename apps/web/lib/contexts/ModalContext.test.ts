@@ -69,6 +69,7 @@ const openObjects = () => {
       serverId: "server-a",
       bucketName: "backups",
       objectKey: "important.txt",
+      expectedETag: '"original"',
    });
    return render();
 };
@@ -92,6 +93,7 @@ describe("modal lifetime follows its opening session and server", () => {
       expect(modals.renameObject).toMatchObject({
          userId: "user-a",
          serverId: "server-a",
+         expectedETag: '"original"',
       });
    });
 
@@ -123,6 +125,7 @@ describe("modal lifetime follows its opening session and server", () => {
          serverId: "server-a",
          bucketName: "backups",
          objectKey: "important.txt",
+         expectedETag: '"original"',
       });
       expect(render().modals).toEqual({});
    });

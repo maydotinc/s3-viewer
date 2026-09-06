@@ -46,7 +46,7 @@ describe("classifyS3Error", () => {
          "InvalidAccessKeyId",
          "SignatureDoesNotMatch",
          "InvalidClientTokenId",
-         "ExpiredToken",
+         "InvalidToken",
       ]) {
          expect(classifyS3Error(s3Error(name, 403)), name).toMatchObject({
             status: 502,
@@ -58,6 +58,20 @@ describe("classifyS3Error", () => {
          undefined
       );
    });
+
+   it.each(["ExpiredToken", "ExpiredTokenException", "TokenRefreshRequired"])(
+      "asks for replacement temporary credentials on %s without leaking provider detail",
+      (name) => {
+         expect(
+            classifyS3Error(s3Error(name, 403, "secret token detail"))
+         ).toMatchObject({
+            status: 502,
+            message:
+               "The temporary credentials expired. Update the access key, secret key and session token.",
+            code: ErrorCode.CREDENTIALS_REJECTED,
+         });
+      }
+   );
 
    it("maps an archived object to 409 before the generic 403", () => {
       expect(classifyS3Error(s3Error("InvalidObjectState", 403))).toMatchObject(

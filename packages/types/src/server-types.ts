@@ -18,6 +18,7 @@ type ServerCredentials = {
    region: string;
    accessKey: string;
    secretKey: string;
+   sessionToken?: string;
 };
 
 type ServerInfo = {

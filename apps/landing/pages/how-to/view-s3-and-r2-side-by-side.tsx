@@ -92,7 +92,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How does R2 work with the S3 API?",
       answer:
-         "Cloudflare R2 exposes an S3-compatible endpoint at <account>.r2.cloudflarestorage.com. Any S3 client (the AWS SDKs, the AWS CLI with --endpoint-url, or S3 Viewer) can list, get, put and delete objects against R2 the same way it does against AWS S3. Cloudflare's investment in S3 compatibility is what makes a tool like S3 Viewer possible at all.",
+         "Cloudflare R2 exposes an S3-compatible endpoint at <account>.r2.cloudflarestorage.com. S3 Viewer uses it to browse, preview, download, upload, and share files. Provider safety features differ: object rename and deletion are currently AWS S3 only and are blocked on R2.",
    },
    {
       question: "Do I need separate credentials for each cloud?",
@@ -102,7 +102,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Can S3 Viewer copy a file from S3 to R2?",
       answer:
-         "No. Cross-provider copy isn't something S3 Viewer does — S3's CopyObject requires the source and destination to share an endpoint, and we don't proxy object bytes. Use rclone or the AWS CLI for the transfer and S3 Viewer to browse and verify both buckets.",
+         "No. S3 Viewer does not transfer files between providers. Use rclone or the AWS CLI for the transfer, then browse both buckets in S3 Viewer to review the result.",
    },
    {
       question: "Can I see both providers on screen at the same time?",
@@ -128,17 +128,14 @@ export default createHowToPage({
    steps,
    underTheHood: (
       <p>
-         R2, B2, MinIO and Wasabi all implement the S3 API, which is why a
-         single client can talk to all of them — the only differences are the
-         endpoint, the region string and a few signing nuances, which is why S3
-         Viewer asks you for the region and endpoint when you add a server
-         rather than guessing. Each server keeps its own credential and its own
-         signer, so nothing crosses over between providers. You browse one
-         server at a time and switch from the sidebar. What S3 Viewer
-         deliberately does not do is move bytes between providers:{" "}
-         <code>CopyObject</code> only works within one endpoint, and proxying
-         object data through our servers is not something we want to be in the
-         path of. Transfers belong to <code>rclone</code> or the AWS CLI.
+         R2, B2, MinIO, and other compatible endpoints can share a file browser,
+         but their safety features differ. AWS S3 and R2 support protected
+         uploads; other endpoints need compatible overwrite protection. B2
+         uploads are blocked, and object rename and deletion are AWS S3 only.
+         Replacements also need readable original permissions and settings. Each
+         connection keeps its own credentials, and you switch servers in the
+         sidebar. Transfers between providers belong to <code>rclone</code> or
+         the AWS CLI.
       </p>
    ),
    faqs,

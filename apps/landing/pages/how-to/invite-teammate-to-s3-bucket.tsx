@@ -44,12 +44,12 @@ const steps: HowToStep[] = [
             open the members dialog, type your teammate&apos;s email and pick a
             role: <strong>Viewer</strong> (browse and download),{" "}
             <strong>Editor</strong> (also upload, rename, delete, and create
-            buckets) or <strong>Admin</strong> (also manage members, rename the
-            server and remove buckets). <strong>Owner</strong> is not in the
-            picker — it belongs to whoever created the server, and only an Owner
-            can delete it. A bucket can give someone a different role than they
-            have on the server, so the same person can be an Editor on one
-            bucket and a Viewer on another.
+            buckets where supported) or <strong>Admin</strong> (also manage
+            members, rename the server and remove buckets).{" "}
+            <strong>Owner</strong> is not in the picker — it belongs to whoever
+            created the server, and only an Owner can delete it. A bucket can
+            give someone a different role than they have on the server, so the
+            same person can be an Editor on one bucket and a Viewer on another.
          </>
       ),
    },

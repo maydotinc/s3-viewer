@@ -11,21 +11,23 @@ const SLUG = "rename-s3-file";
 const TITLE = "How to rename a file in S3 (and why it's tricky)";
 const KEYWORD = "rename file in S3";
 const TLDR =
-   "Amazon S3 has no rename API — keys are immutable, by design. Cloudflare R2 follows the same S3 API and inherits the same constraint. To rename, you copy the object to the new key and delete the original. The AWS CLI does it with aws s3 mv; the SDKs do it with copyObject + deleteObject; S3 Viewer supports rename on AWS S3, Cloudflare R2, and MinIO: it conditionally copies an unchanged object with its metadata into an absent destination, then checks the copied destination and original before deleting the source without automatic retries. It refuses to overwrite an existing key and is limited to objects up to 5 GB.";
+   "Renaming an S3 object requires copying it to a new key and removing the original. S3 Viewer supports this on AWS S3 for objects up to 5 GB: it checks the file you reviewed, preserves readable permissions and settings, and refuses an occupied destination. Unsupported encryption blocks rename. R2, B2, MinIO, and other endpoints stop before changing either object.";
 
 const steps: HowToStep[] = [
    {
       title: "In S3 Viewer: open the ⋮ menu and choose Rename",
       body: (
          <>
-            Open the ⋮ menu on the object&apos;s row and choose{" "}
+            On AWS S3, open the ⋮ menu on the object&apos;s row and choose{" "}
             <strong>Rename</strong>, then type the new key. S3 Viewer issues a
             server-side <code>CopyObject</code>, which preserves the
             object&apos;s metadata, then issues <code>DeleteObject</code> on the
             source — only confirming the rename once both succeed. If an object
             already exists at the new key the rename is refused rather than
-            overwriting it. Versioning is optional. AWS object ACLs and MinIO
-            tags are retained using the permissions required by those providers.
+            overwriting it. The file must still match the one you reviewed.
+            Permissions, tags, and readable settings are preserved; unsupported
+            encryption or unreadable settings stop the action. R2 and other
+            providers currently cannot rename objects through S3 Viewer.
          </>
       ),
    },
@@ -109,12 +111,12 @@ const faqs: HowToFAQ[] = [
    {
       question: "What happens to metadata and tags when I rename an S3 object?",
       answer:
-         "They carry over. CopyObject defaults MetadataDirective and TaggingDirective to COPY, so content-type, cache-control headers and object tags are preserved unless you explicitly pass REPLACE. S3 Viewer preserves metadata, tags, and supported storage attributes. It explicitly preserves AWS website redirects and existing object ACL grants. R2 does not use AWS object ACLs.",
+         "S3 Viewer preserves readable metadata, tags, permissions, and supported storage settings during AWS S3 rename. It refuses the action if required settings cannot be read, or encryption settings cannot be fully preserved. Object rename is currently blocked on R2, B2, MinIO, and other endpoints.",
    },
    {
       question: "Can I rename a file in Cloudflare R2?",
       answer:
-         "Yes. S3 Viewer supports R2 rename through server-side CopyObject using Cloudflare's destination conditions, then checks both objects before deleting the source. Versioning is not required.",
+         "Not through S3 Viewer at present. R2 rename is blocked because the app cannot safely delete an original changed by another writer. Browsing, downloads, uploads, and sharing remain available.",
    },
    {
       question: "How do I rename a folder in S3?",
@@ -164,10 +166,11 @@ export default createHowToPage({
             deleting it, refuses the rename when something already exists at the
             target key (you get a conflict error rather than a silent
             overwrite), and rejects objects over 5 GB — use the CLI or an SDK
-            for those. AWS S3, R2, and MinIO are supported without requiring
-            versioning. Copy and delete are separate operations; external
-            writers can still race them, and partial failures leave the copy for
-            review.
+            for those. This action is AWS S3 only and requires the file identity
+            captured when you opened the dialog. R2, B2, MinIO, and other
+            endpoints stop before copying or deleting. Copy and delete are
+            separate operations; external writers can still race them, and
+            partial failures leave the copy for review.
          </p>
       </>
    ),

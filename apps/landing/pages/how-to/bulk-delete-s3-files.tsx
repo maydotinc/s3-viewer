@@ -11,7 +11,7 @@ const SLUG = "bulk-delete-s3-files";
 const TITLE = "How to bulk-delete S3 files";
 const KEYWORD = "bulk delete S3 files";
 const TLDR =
-   "Use the DeleteObjects API (plural) — up to 1,000 keys per request. From the AWS CLI: aws s3 rm --recursive against a prefix. In S3 Viewer on AWS S3, R2, or MinIO: tick the checkboxes in S3 Viewer and hit Delete, which sends the selection as one batch. If the bucket has versioning on, each delete only adds a delete marker — you'll need to delete every version explicitly to actually purge.";
+   "On AWS S3, select the files in S3 Viewer and confirm Delete. Each file must still match the one you reviewed; changed files and uncertain results require fresh review. The app blocks object deletion on R2, B2, MinIO, and other endpoints. On versioned AWS buckets, ordinary deletion adds delete markers and keeps prior versions. Unversioned deletion can be permanent.";
 
 const steps: HowToStep[] = [
    {
@@ -21,13 +21,12 @@ const steps: HowToStep[] = [
             Each row in the file list has a checkbox. The{" "}
             <strong>Delete</strong> button in the toolbar is disabled until you
             tick something, then shows the count — <strong>Delete (12)</strong>.
-            S3 Viewer sends the whole selection as one{" "}
-            <code>DeleteObjects</code> call — up to 1,000 keys per request, the
-            way the API was designed. If some keys fail, the result tells you
-            which. AWS S3, R2, and MinIO are supported without requiring
-            versioning. Confirmed failures remain available for retry; uncertain
-            results require refresh and review and are never automatically
-            replayed.
+            On AWS S3, S3 Viewer sends batches of up to 1,000 keys, checking
+            each file against the one you reviewed. If some keys fail, the
+            result tells you which. Object deletion is blocked on R2, B2, MinIO,
+            and other endpoints. Confirmed failures remain available for retry;
+            uncertain results require refresh and review and are never
+            automatically replayed.
          </>
       ),
    },
@@ -90,7 +89,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I bulk-delete files from S3?",
       answer:
-         "Use the DeleteObjects API (plural) — up to 1,000 keys per request. The simplest invocations: aws s3 rm s3://bucket/prefix --recursive from the CLI, or tick the checkboxes in S3 Viewer and click Delete. For programmatic deletes, use the SDK's DeleteObjectsCommand in batches of 1,000. The AWS S3 console handles single-key delete; for many keys at once, use the CLI, an SDK, or a tool like S3 Viewer that wraps the bulk API.",
+         "On AWS S3, select files in S3 Viewer and confirm Delete. The app checks each reviewed file and reports changes or failures. From the AWS CLI, aws s3 rm s3://bucket/prefix --recursive deletes a prefix; programmatic bulk deletion uses DeleteObjects in batches of up to 1,000. S3 Viewer does not execute object deletion on R2 or other providers.",
    },
    {
       question: "How many objects can I delete in one S3 API call?",
@@ -115,7 +114,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Does Cloudflare R2 support bulk delete?",
       answer:
-         "Yes. Yes. S3 Viewer supports single, bulk, and recursive folder deletion on R2 using its S3-compatible API. It reports per-object failures and never automatically retries an uncertain destructive request.",
+         "R2 has deletion APIs, but S3 Viewer currently blocks single, bulk, and folder deletion on R2. It cannot verify that each object is still the one reviewed when deletion happens. Browsing, downloads, uploads, and sharing remain available.",
    },
 ];
 
@@ -135,14 +134,15 @@ export default createHowToPage({
          request and returns a per-key result list — successes and failures
          together. For larger deletes you batch by 1,000 and reissue any failed
          keys. The AWS CLI&apos;s <code>rm --recursive</code> handles the
-         listing and batching for you under the hood. S3 Viewer supports AWS S3,
-         R2, and MinIO in a checkbox multi-select: tick the rows, hit Delete,
-         one round trip — and deleting a folder walks the prefix and deletes
-         everything under it recursively. On versioned buckets, every
-         &ldquo;delete&rdquo; is really a soft delete (it writes a delete
-         marker); to actually purge, you have to enumerate versions and delete
-         each one with its <code>VersionId</code>, which S3 Viewer does not do.
-         For predictable cleanup, lifecycle rules are the right long-term tool.
+         listing and batching for you under the hood. S3 Viewer supports
+         checkbox multi-select and folder deletion on AWS S3, checking each
+         object against its reviewed identity. Missing identities, changes, and
+         uncertain results require fresh review. Other providers stop before
+         deleting objects. On versioned AWS buckets, every &ldquo;delete&rdquo;
+         is really a soft delete (it writes a delete marker); to actually purge,
+         you have to enumerate versions and delete each one with its{" "}
+         <code>VersionId</code>, which S3 Viewer does not do. For predictable
+         cleanup, lifecycle rules are the right long-term tool.
       </p>
    ),
    faqs,

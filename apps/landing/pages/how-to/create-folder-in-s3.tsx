@@ -166,7 +166,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "How do I move files into a folder in S3?",
       answer:
-         "Copy each object to its new key under the folder prefix and delete the original; S3 has no move or rename operation. aws s3 mv does both steps for you, and S3 Viewer's Rename action does the same for a single object, preserving metadata and tags.",
+         "Copy each object to its new key under the folder prefix and delete the original; S3 has no move or rename operation. aws s3 mv does both steps for you. On AWS S3, S3 Viewer's Rename action moves one reviewed object while preserving readable settings. Rename is blocked on R2, B2, MinIO, and other endpoints.",
    },
 ];
 

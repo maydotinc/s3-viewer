@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { putObjectQuerySchema } from "./s3";
+import { putObjectQuerySchema, renameObjectBodySchema } from "./s3";
 
 const input = {
    serverId: "server123",
@@ -40,6 +40,27 @@ describe("upload preconditions", () => {
 });
 
 describe("destructive object request validation", () => {
+   it.each([undefined, null, "*", '"*"', 'W/"old"', ""])(
+      "rejects rename without a valid observed ETag: %s",
+      (expectedETag) => {
+         expect(
+            renameObjectBodySchema.safeParse({
+               ...input,
+               newObjectKey: "renamed.sql",
+               expectedETag,
+            }).success
+         ).toBe(false);
+      }
+   );
+   it("keeps the original observed ETag on rename", () => {
+      expect(
+         renameObjectBodySchema.parse({
+            ...input,
+            newObjectKey: "renamed.sql",
+            expectedETag: '"reviewed-2"',
+         }).expectedETag
+      ).toBe('"reviewed-2"');
+   });
    it.each([undefined, "*", '"*"', 'W/"abc"', '"abc", "other"', ""])(
       "rejects deletion with a missing or unsafe ETag field: %s",
       async (expectedETag) => {
@@ -90,6 +111,7 @@ describe("destructive object request validation", () => {
          renameObjectBodySchema.safeParse({
             ...legacy,
             newObjectKey: "renamed.sql",
+            expectedETag: '"original"',
          }).success
       ).toBe(false);
    });
