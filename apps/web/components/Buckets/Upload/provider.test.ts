@@ -16,6 +16,8 @@ const h = vi.hoisted(() => ({
    toastError: vi.fn(),
    refresh: vi.fn(),
    queryClient: {},
+   canUpload: true,
+   canReplace: true,
 }));
 
 // Run the component's event handlers with controlled hook state/effect timing.
@@ -74,6 +76,16 @@ vi.mock("@/components/Buckets/Context", () => ({
       refresh: h.refresh,
    }),
 }));
+vi.mock("@/lib/hooks/useStorageCapabilities", () => ({
+   useStorageCapabilities: () => ({
+      upload: h.canUpload,
+      replace: h.canReplace,
+      rename: false,
+      delete: false,
+      notice: null,
+   }),
+}));
+vi.mock("@/lib/hooks/usePermission", () => ({ usePermission: () => true }));
 vi.mock("@/components/Modals/confirm-dialog", () => ({
    ConfirmDialog: () => null,
 }));
@@ -129,6 +141,8 @@ const original: S3ObjectsExist = {
 };
 
 beforeEach(() => {
+   h.canUpload = true;
+   h.canReplace = true;
    h.session = { userId: "user-a", serverId: "server-a" };
    h.slots = [];
    h.effects.clear();
@@ -144,6 +158,50 @@ afterEach(() => {
 });
 
 describe("upload preflight and confirmation keep the reviewed target", () => {
+   it("rejects existing files before confirmation when replacements are unavailable", async () => {
+      h.canReplace = false;
+      await mount().uploader.upload(files);
+      expect(h.enqueue).not.toHaveBeenCalled();
+      expect(render().dialog.open).toBe(false);
+      expect(h.toastError).toHaveBeenCalledWith(
+         expect.objectContaining({
+            message: expect.stringContaining("new filenames"),
+         })
+      );
+   });
+
+   it("still starts absent-key uploads when replacements are unavailable", async () => {
+      h.canReplace = false;
+      h.post.mockResolvedValue({ existing: [], eTags: {} });
+      await mount().uploader.upload(files);
+      expect(h.enqueue).toHaveBeenCalledWith(
+         expect.objectContaining({ eTags: {} })
+      );
+   });
+
+   it("refuses a pending replacement after replacement capability is removed", async () => {
+      await mount().uploader.upload(files);
+      const oldDialog = render().dialog;
+      h.canReplace = false;
+      expect(render().dialog.open).toBe(false);
+      oldDialog.onConfirm();
+      expect(h.enqueue).not.toHaveBeenCalled();
+   });
+   it("does not preflight or enqueue files when provider uploads are unavailable", async () => {
+      h.canUpload = false;
+      await mount().uploader.upload(files);
+      expect(h.post).not.toHaveBeenCalled();
+      expect(h.enqueue).not.toHaveBeenCalled();
+   });
+
+   it("refuses a pending replacement after upload capability is removed", async () => {
+      await mount().uploader.upload(files);
+      const oldDialog = render().dialog;
+      h.canUpload = false;
+      expect(render().dialog.open).toBe(false);
+      oldDialog.onConfirm();
+      expect(h.enqueue).not.toHaveBeenCalled();
+   });
    it("confirms only the originally observed ETag without a new preflight and invalidates the original target", async () => {
       const { uploader } = mount();
       await uploader.upload(files);

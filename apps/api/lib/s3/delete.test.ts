@@ -12,11 +12,6 @@ const providers = [
    },
 ] as const;
 const unsupportedProviders = [
-   {
-      name: "Cloudflare R2",
-      endpoint: "https://abc.r2.cloudflarestorage.com",
-      conditional: false,
-   },
    { name: "MinIO", endpoint: "https://minio.example.com", conditional: false },
    {
       name: "Backblaze B2",

@@ -161,6 +161,14 @@ const runStreamUpload = async ({
          409,
          "Uploads to Backblaze B2 are unavailable because conditional-write safety has not been verified. You can still browse and download files."
       );
+   // Replaying ACLs or tags can reopen access revoked after our final read.
+   // Empty/dropped tags are not safe either: policies can deny access by tag.
+   // R2 does not implement either object ACLs or object tags in its S3 API.
+   if (expectedETag !== undefined && provider !== Provider.R2)
+      throw new ApiHttpError(
+         409,
+         "Replacement is unavailable because concurrent permission changes cannot be safely preserved. Upload under a new filename instead. No objects were changed."
+      );
    const scope = { client, bucket, signal: abortController.signal };
    const settings =
       expectedETag === undefined

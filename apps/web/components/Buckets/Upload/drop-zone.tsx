@@ -1,7 +1,5 @@
 import { useBucketContext } from "@/components/Buckets/Context";
-import { usePermission } from "@/lib/hooks/usePermission";
 import { filesFromDrop } from "@/lib/utils/s3/dropEntries";
-import { Permission } from "@s3-viewer/permissions";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Upload } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
@@ -18,15 +16,15 @@ const DropZone = ({
    children: React.ReactNode;
 }) => {
    const { bucketName, prefix } = useBucketContext();
-   const canUpload = usePermission(Permission.UPLOAD_OBJECT, bucketName);
-   const { upload } = useUploader();
+   const { upload, canUpload } = useUploader();
    const [dragging, setDragging] = useState(false);
    const depth = useRef(0);
 
    const onDragEnter = useCallback(
       (event: React.DragEvent) => {
-         if (!canUpload || !hasFiles(event)) return;
+         if (!hasFiles(event)) return;
          event.preventDefault();
+         if (!canUpload) return;
          depth.current += 1;
          setDragging(true);
       },
@@ -35,9 +33,9 @@ const DropZone = ({
 
    const onDragOver = useCallback(
       (event: React.DragEvent) => {
-         if (!canUpload || !hasFiles(event)) return;
+         if (!hasFiles(event)) return;
          event.preventDefault();
-         event.dataTransfer.dropEffect = "copy";
+         event.dataTransfer.dropEffect = canUpload ? "copy" : "none";
       },
       [canUpload]
    );
@@ -51,8 +49,9 @@ const DropZone = ({
       (event: React.DragEvent) => {
          depth.current = 0;
          setDragging(false);
-         if (!canUpload || !hasFiles(event)) return;
+         if (!hasFiles(event)) return;
          event.preventDefault();
+         if (!canUpload) return;
          void filesFromDrop(event.dataTransfer).then(upload);
       },
       [canUpload, upload]
@@ -67,7 +66,7 @@ const DropZone = ({
          onDrop={onDrop}
       >
          {children}
-         {dragging && (
+         {dragging && canUpload && (
             <div
                className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-viewerblue bg-viewerwhite/90"
                aria-live="polite"

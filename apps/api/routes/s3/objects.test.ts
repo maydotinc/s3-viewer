@@ -1,6 +1,8 @@
 import express from "express";
+import { S3Client } from "@aws-sdk/client-s3";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import { Readable } from "node:stream";
 import {
    afterAll,
    beforeAll,
@@ -20,7 +22,6 @@ const state = vi.hoisted(() => ({
    getClient: vi.fn(),
    upload: vi.fn(),
    remove: vi.fn(),
-   rename: vi.fn(),
    audit: vi.fn(),
 }));
 
@@ -47,7 +48,6 @@ vi.mock("@/lib/s3/upload", async (original) => ({
    streamUpload: state.upload,
 }));
 vi.mock("@/lib/s3/delete", () => ({ deleteKeys: state.remove }));
-vi.mock("@/lib/s3/rename", () => ({ renameObject: state.rename }));
 vi.mock("@/lib/services/audit", () => ({ recordAudit: state.audit }));
 
 let server: ReturnType<typeof createServer>;
@@ -88,7 +88,6 @@ beforeEach(() => {
    state.role = "OWNER";
    state.getClient.mockReset().mockResolvedValue({});
    state.audit.mockReset().mockResolvedValue(undefined);
-   state.rename.mockReset().mockResolvedValue(undefined);
    state.remove
       .mockReset()
       .mockResolvedValue({ deleted: ["report.json"], failed: [] });
@@ -142,7 +141,6 @@ const expectNoStorage = () => {
    expect(state.getClient).not.toHaveBeenCalled();
    expect(state.upload).not.toHaveBeenCalled();
    expect(state.remove).not.toHaveBeenCalled();
-   expect(state.rename).not.toHaveBeenCalled();
    expect(state.audit).not.toHaveBeenCalled();
 };
 
@@ -218,16 +216,18 @@ describe("versioned object mutation boundaries", () => {
    );
 
    it.each(requests)(
-      "allows the authorized initiating user on $method $path",
+      "applies operation availability after authorizing $method $path",
       async (request) => {
          const response = await send(request, state.actor);
-         expect(response.status).toBe(
-            request.method === "PUT"
-               ? 201
-               : request.method === "POST"
-                 ? 204
-                 : 200
-         );
+         if (request.method === "POST") {
+            expect(response.status).toBe(409);
+            expect(await response.json()).toMatchObject({
+               message: expect.stringContaining("Rename is unavailable"),
+            });
+            expectNoStorage();
+            return;
+         }
+         expect(response.status).toBe(request.method === "PUT" ? 201 : 200);
          expect(state.getClient).toHaveBeenCalledOnce();
          if (request.method === "PUT") {
             expect(await response.json()).toMatchObject({
@@ -238,17 +238,120 @@ describe("versioned object mutation boundaries", () => {
             expect(state.remove.mock.calls[0]?.[1]).toEqual(
                request.input.objects
             );
-         } else {
-            expect(state.rename).toHaveBeenCalledOnce();
-            expect(state.rename).toHaveBeenCalledWith(
-               expect.objectContaining({ bucket: "backups" }),
-               "report.json",
-               "renamed.json",
-               '"reviewed"'
-            );
          }
       }
    );
+
+   it("refuses AWS replacement before regional discovery or upload", async () => {
+      state.getClient.mockResolvedValue({
+         config: {
+            endpoint: async () => ({
+               protocol: "https:",
+               hostname: "s3.us-east-1.amazonaws.com",
+            }),
+         },
+      });
+      const response = await fetch(
+         `${base}/v3/upload?objectKey=report.json&contentType=text%2Fplain&expectedUserId=${state.actor}&expectedETag=${encodeURIComponent('"reviewed"')}`,
+         {
+            method: "PUT",
+            body: "new-data",
+         }
+      );
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({
+         message: expect.stringContaining("Replacement is unavailable"),
+      });
+      expect(state.getClient).toHaveBeenCalledExactlyOnceWith("server12345");
+      expect(state.upload).not.toHaveBeenCalled();
+   });
+
+   it("retains R2 replacement after checking the provider", async () => {
+      state.getClient.mockResolvedValue({
+         config: {
+            endpoint: async () => ({
+               protocol: "https:",
+               hostname: "account.r2.cloudflarestorage.com",
+            }),
+         },
+      });
+      const response = await fetch(
+         `${base}/v3/upload?objectKey=report.json&contentType=text%2Fplain&expectedUserId=${state.actor}&expectedETag=${encodeURIComponent('"reviewed"')}`,
+         {
+            method: "PUT",
+            body: "new-data",
+         }
+      );
+      expect(response.status).toBe(201);
+      expect(state.upload).toHaveBeenCalledWith(
+         expect.objectContaining({ expectedETag: '"reviewed"' })
+      );
+   });
+
+   it("executes authorized R2 deletion and reports stale keys separately", async () => {
+      const { deleteKeys } =
+         await vi.importActual<typeof import("@/lib/s3/delete")>(
+            "@/lib/s3/delete"
+         );
+      const sent: { method: string; path: string }[] = [];
+      const client = new S3Client({
+         region: "auto",
+         endpoint: "https://account.r2.cloudflarestorage.com",
+         credentials: { accessKeyId: "test", secretAccessKey: "test" },
+         forcePathStyle: true,
+         requestHandler: {
+            handle: async (request: { method: string; path: string }) => {
+               sent.push({ method: request.method, path: request.path });
+               return {
+                  response: {
+                     statusCode: request.method === "HEAD" ? 200 : 204,
+                     headers:
+                        request.method === "HEAD"
+                           ? {
+                                etag: request.path.endsWith("stale.json")
+                                   ? '"changed"'
+                                   : '"reviewed"',
+                                "content-length": "0",
+                             }
+                           : {},
+                     body: Readable.from([]),
+                  },
+               };
+            },
+         },
+      });
+      state.getClient.mockResolvedValue(client);
+      state.remove.mockImplementation(deleteKeys);
+      try {
+         const response = await fetch(`${base}/v3`, {
+            method: "DELETE",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+               expectedUserId: state.actor,
+               objects: ["report.json", "stale.json"].map((key) => ({
+                  key,
+                  expectedETag: '"reviewed"',
+               })),
+            }),
+         });
+         expect(response.status).toBe(207);
+         expect(await response.json()).toMatchObject({
+            deleted: ["report.json"],
+            failed: [{ key: "stale.json", retryable: false }],
+         });
+         expect(sent.filter(({ method }) => method === "DELETE")).toEqual([
+            { method: "DELETE", path: "/backups/report.json" },
+         ]);
+         expect(state.audit).toHaveBeenCalledWith(
+            expect.objectContaining({
+               actorId: state.actor,
+               action: "object.delete",
+            })
+         );
+      } finally {
+         client.destroy();
+      }
+   });
 
    it.each([
       { method: "PUT", path: "" },

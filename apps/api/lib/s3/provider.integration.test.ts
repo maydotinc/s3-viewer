@@ -3,11 +3,10 @@ import {
    DeleteBucketCommand,
    DeleteObjectsCommand,
    GetObjectCommand,
-   GetObjectAclCommand,
-   GetObjectTaggingCommand,
    HeadObjectCommand,
    ListMultipartUploadsCommand,
    ListObjectsV2Command,
+   ListObjectVersionsCommand,
    PutObjectCommand,
    S3Client,
 } from "@aws-sdk/client-s3";
@@ -125,6 +124,42 @@ describe.skipIf(!endpoint)(
                   })
                );
             }
+            // B2 writes are versioned by default. Key-only deletes merely
+            // create delete markers, leaving a nonempty disposable bucket.
+            if (isB2) {
+               for (;;) {
+                  const versions = await client.send(
+                     new ListObjectVersionsCommand({ Bucket: bucket })
+                  );
+                  const objects = [
+                     ...(versions.Versions ?? []),
+                     ...(versions.DeleteMarkers ?? []),
+                  ].map((entry) => {
+                     if (!entry.Key || !entry.VersionId)
+                        throw new Error(
+                           "Storage returned an incomplete test object version"
+                        );
+                     return { Key: entry.Key, VersionId: entry.VersionId };
+                  });
+                  if (!objects.length) {
+                     if (versions.IsTruncated)
+                        throw new Error(
+                           "Storage returned an incomplete version listing"
+                        );
+                     break;
+                  }
+                  const removed = await client.send(
+                     new DeleteObjectsCommand({
+                        Bucket: bucket,
+                        Delete: { Objects: objects },
+                     })
+                  );
+                  if (removed.Errors?.length)
+                     throw new Error(
+                        "Could not remove disposable test object versions"
+                     );
+               }
+            }
             for (;;) {
                const page = await client.send(
                   new ListObjectsV2Command({ Bucket: bucket })
@@ -235,22 +270,12 @@ describe.skipIf(!endpoint)(
                expect((await read(key)).toString()).toBe("another-writer");
                return;
             }
-            if (detectProvider(endpoint!) === Provider.Other) {
-               const acl = await client.send(
-                  new GetObjectAclCommand({ Bucket: bucket, Key: key })
-               );
-               // Community MinIO returns a dummy ACL with no owner identity.
-               // Refusal must leave the object intact, rather than resetting grants.
-               if (!acl.Owner?.ID) {
-                  await expect(
-                     upload(key, data, current.ETag)
-                  ).rejects.toMatchObject({
-                     status: 409,
-                     message: "The object's owner could not be preserved.",
-                  });
-                  expect((await read(key)).toString()).toBe("another-writer");
-                  return;
-               }
+            if (detectProvider(endpoint!) !== Provider.R2) {
+               await expect(
+                  upload(key, data, current.ETag)
+               ).rejects.toMatchObject({ status: 409 });
+               expect((await read(key)).toString()).toBe("another-writer");
+               return;
             }
             await upload(key, data, current.ETag);
             expect(await read(key)).toEqual(data);
@@ -339,7 +364,7 @@ describe.skipIf(!endpoint)(
          expect(await download.text()).toBe("download-body");
       });
 
-      it("renames without losing bytes, content metadata or tags and preserves an existing destination", async () => {
+      it("refuses rename while retaining the source bytes and metadata", async () => {
          await client.send(
             new PutObjectCommand({
                Bucket: bucket,
@@ -354,27 +379,17 @@ describe.skipIf(!endpoint)(
                   : { Tagging: "test=preserve" }),
             })
          );
-         if (detectProvider(endpoint!) !== Provider.S3) {
-            await expect(
-               renameReviewed("rename/source.txt", "rename/result.txt")
-            ).rejects.toMatchObject({ status: 409 });
-            expect((await read("rename/source.txt")).toString()).toBe(
-               "rename-body"
-            );
-            await expect(read("rename/result.txt")).rejects.toMatchObject({
-               name: "NoSuchKey",
-            });
-            return;
-         }
-         await renameReviewed("rename/source.txt", "rename/result.txt");
-         expect((await read("rename/result.txt")).toString()).toBe(
+         await expect(
+            renameReviewed("rename/source.txt", "rename/result.txt")
+         ).rejects.toMatchObject({ status: 409 });
+         expect((await read("rename/source.txt")).toString()).toBe(
             "rename-body"
          );
-         await expect(read("rename/source.txt")).rejects.toMatchObject({
+         await expect(read("rename/result.txt")).rejects.toMatchObject({
             name: "NoSuchKey",
          });
          const metadata = await client.send(
-            new HeadObjectCommand({ Bucket: bucket, Key: "rename/result.txt" })
+            new HeadObjectCommand({ Bucket: bucket, Key: "rename/source.txt" })
          );
          expect(metadata).toMatchObject({
             ContentType: "text/plain",
@@ -382,28 +397,19 @@ describe.skipIf(!endpoint)(
             ContentDisposition: "attachment",
             Metadata: { purpose: "provider-integration" },
          });
-         if (detectProvider(endpoint!) !== Provider.R2) {
-            const tags = await client.send(
-               new GetObjectTaggingCommand({
-                  Bucket: bucket,
-                  Key: "rename/result.txt",
-               })
-            );
-            expect(tags.TagSet).toEqual([{ Key: "test", Value: "preserve" }]);
-         }
          await put("rename/occupied.txt", "keep-destination");
          await expect(
-            renameReviewed("rename/result.txt", "rename/occupied.txt")
+            renameReviewed("rename/source.txt", "rename/occupied.txt")
          ).rejects.toMatchObject({ status: 409 });
          expect((await read("rename/occupied.txt")).toString()).toBe(
             "keep-destination"
          );
-         expect((await read("rename/result.txt")).toString()).toBe(
+         expect((await read("rename/source.txt")).toString()).toBe(
             "rename-body"
          );
       }, 30_000);
 
-      it("renames empty objects without overwriting an existing destination", async () => {
+      it("refuses empty-object rename without changing either filename", async () => {
          await put("empty/source", "");
          await put("empty/occupied", "keep-destination");
          await expect(
@@ -413,19 +419,11 @@ describe.skipIf(!endpoint)(
             "keep-destination"
          );
          expect(await read("empty/source")).toHaveLength(0);
-         if (detectProvider(endpoint!) !== Provider.S3) {
-            await expect(
-               renameReviewed("empty/source", "empty/result")
-            ).rejects.toMatchObject({ status: 409 });
-            expect(await read("empty/source")).toHaveLength(0);
-            await expect(read("empty/result")).rejects.toMatchObject({
-               name: "NoSuchKey",
-            });
-            return;
-         }
-         await renameReviewed("empty/source", "empty/result");
-         expect(await read("empty/result")).toHaveLength(0);
-         await expect(read("empty/source")).rejects.toMatchObject({
+         await expect(
+            renameReviewed("empty/source", "empty/result")
+         ).rejects.toMatchObject({ status: 409 });
+         expect(await read("empty/source")).toHaveLength(0);
+         await expect(read("empty/result")).rejects.toMatchObject({
             name: "NoSuchKey",
          });
       }, 30_000);
@@ -435,7 +433,7 @@ describe.skipIf(!endpoint)(
          await put("deletion/deep/two", "two");
          const keys = await listKeysPage(scope(), "deletion/", undefined);
          const result = await deleteKeys(scope(), keys.objects);
-         if (detectProvider(endpoint!) !== Provider.S3) {
+         if (![Provider.S3, Provider.R2].includes(detectProvider(endpoint!))) {
             expect(result.deleted).toEqual([]);
             expect(result.failed).toHaveLength(keys.objects.length);
             expect(result.failed.every(({ retryable }) => !retryable)).toBe(

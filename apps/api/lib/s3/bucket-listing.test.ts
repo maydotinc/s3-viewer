@@ -138,10 +138,18 @@ describe("bucket listing across providers", () => {
 
    it("retains AWS standard token pagination", async () => {
       let calls = 0;
-      const client = clientFor("s3.us-east-1.amazonaws.com", async () =>
-         ++calls === 1
-            ? response("first", "<ContinuationToken>next</ContinuationToken>")
-            : response("second")
+      const requests: unknown[] = [];
+      const client = clientFor(
+         "s3.us-east-1.amazonaws.com",
+         async (request) => {
+            requests.push(request.query?.["max-buckets"]);
+            return ++calls === 1
+               ? response(
+                    "first",
+                    "<ContinuationToken>next</ContinuationToken>"
+                 )
+               : response("second");
+         }
       );
       try {
          expect(
@@ -149,6 +157,7 @@ describe("bucket listing across providers", () => {
                ({ Name }) => Name
             )
          ).toEqual(["first", "second"]);
+         expect(requests).toEqual(["10000", "10000"]);
       } finally {
          client.destroy();
       }

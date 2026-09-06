@@ -1,6 +1,8 @@
 import { Provider } from "@s3-viewer/types";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { S3Client } from "@aws-sdk/client-s3";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getS3Client, invalidateS3Client } from "./client-cache";
+import { getBucketClient } from "./bucket-client";
 
 const state = vi.hoisted(() => ({
    snapshot: { credentials: "old", provider: "Other" } as {
@@ -57,7 +59,87 @@ beforeEach(() => {
    state.assertPublicEndpoint.mockReset().mockResolvedValue(undefined);
 });
 
+afterEach(() => vi.restoreAllMocks());
+
 describe("S3 client credential authority", () => {
+   it.each(["invalidation", "rotation", "deletion", "expiry"])(
+      "clears regional clients when the base client is removed by %s",
+      async (reason) => {
+         state.decrypt.mockImplementation((blob: string) => ({
+            endpoint: "https://s3.us-east-1.amazonaws.com",
+            region: "us-east-1",
+            accessKey: blob,
+            secretKey: "secret",
+         }));
+         vi.spyOn(S3Client.prototype, "send").mockResolvedValue({
+            BucketRegion: "eu-west-1",
+         } as never);
+         const old = await getS3Client(serverId);
+         await getBucketClient(old, "photos");
+         if (reason === "invalidation") invalidateS3Client(serverId);
+         else if (reason === "rotation") {
+            rotate();
+            await getS3Client(serverId);
+         } else if (reason === "deletion") {
+            state.snapshot = null;
+            await expect(getS3Client(serverId)).rejects.toMatchObject({
+               status: 404,
+            });
+         } else {
+            vi.useFakeTimers();
+            vi.advanceTimersByTime(10 * 60_000);
+            await getS3Client(serverId);
+         }
+         await expect(getBucketClient(old, "photos")).rejects.toMatchObject({
+            status: 409,
+         });
+      }
+   );
+
+   it("clears regional clients when cache capacity evicts their base client", async () => {
+      state.decrypt.mockReturnValue({
+         endpoint: "https://s3.us-east-1.amazonaws.com",
+         region: "us-east-1",
+         accessKey: "old",
+         secretKey: "secret",
+      });
+      vi.spyOn(S3Client.prototype, "send").mockResolvedValue({
+         BucketRegion: "eu-west-1",
+      } as never);
+      const old = await getS3Client(serverId);
+      await getBucketClient(old, "photos");
+      const ids = Array.from(
+         { length: 500 },
+         (_, index) => `cache-capacity-${index}`
+      );
+      try {
+         for (const id of ids) await getS3Client(id);
+         await expect(getBucketClient(old, "photos")).rejects.toMatchObject({
+            status: 409,
+         });
+      } finally {
+         ids.forEach(invalidateS3Client);
+      }
+   });
+
+   it("retries authority after local invalidation during region discovery", async () => {
+      state.decrypt.mockImplementation((blob: string) => ({
+         endpoint: "https://s3.us-east-1.amazonaws.com",
+         region: "us-east-1",
+         accessKey: blob,
+         secretKey: "secret",
+      }));
+      vi.spyOn(S3Client.prototype, "send")
+         .mockImplementationOnce(async () => {
+            rotate();
+            invalidateS3Client(serverId);
+            return { BucketRegion: "eu-west-1" };
+         })
+         .mockResolvedValue({ BucketRegion: "eu-west-1" } as never);
+      const fresh = await getS3Client(serverId, "photos");
+      expect((await fresh.config.credentials()).accessKeyId).toBe("new");
+   });
+
    it("reads persisted credentials for every hit without repeating decryption or DNS", async () => {
       const first = await getS3Client(serverId);
       expect(await getS3Client(serverId)).toBe(first);
@@ -206,5 +288,60 @@ describe("S3 client credential authority", () => {
       });
       expect(state.assertPublicEndpoint).toHaveBeenCalledTimes(3);
       expect(state.findUnique).toHaveBeenCalledTimes(6);
+   });
+
+   it("rebuilds regional clients with fresh credentials after rotation", async () => {
+      state.decrypt.mockImplementation((blob: string) => ({
+         endpoint: "https://s3.us-east-1.amazonaws.com",
+         region: "us-east-1",
+         accessKey: blob,
+         secretKey: "secret",
+         sessionToken: `${blob}-token`,
+      }));
+      vi.spyOn(S3Client.prototype, "send").mockResolvedValue({
+         BucketRegion: "eu-west-1",
+      } as never);
+      const old = await getS3Client(serverId, "photos");
+      rotate();
+      const fresh = await getS3Client(serverId, "photos");
+      expect(fresh).not.toBe(old);
+      expect(await fresh.config.region()).toBe("eu-west-1");
+      expect(await fresh.config.credentials()).toMatchObject({
+         accessKeyId: "new",
+         sessionToken: "new-token",
+      });
+   });
+
+   it("rechecks authority after region discovery races credential rotation", async () => {
+      state.decrypt.mockImplementation((blob: string) => ({
+         endpoint: "https://s3.us-east-1.amazonaws.com",
+         region: "us-east-1",
+         accessKey: blob,
+         secretKey: "secret",
+      }));
+      vi.spyOn(S3Client.prototype, "send")
+         .mockImplementationOnce(async () => {
+            rotate();
+            return { BucketRegion: "eu-west-1" };
+         })
+         .mockResolvedValue({ BucketRegion: "eu-west-1" } as never);
+      const fresh = await getS3Client(serverId, "photos");
+      expect((await fresh.config.credentials()).accessKeyId).toBe("new");
+   });
+
+   it("does not return a regional client after deletion during region discovery", async () => {
+      state.decrypt.mockReturnValue({
+         endpoint: "https://s3.us-east-1.amazonaws.com",
+         region: "us-east-1",
+         accessKey: "old",
+         secretKey: "secret",
+      });
+      vi.spyOn(S3Client.prototype, "send").mockImplementationOnce(async () => {
+         state.snapshot = null;
+         return { BucketRegion: "eu-west-1" };
+      });
+      await expect(getS3Client(serverId, "photos")).rejects.toMatchObject({
+         status: 404,
+      });
    });
 });

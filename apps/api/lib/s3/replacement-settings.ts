@@ -1,7 +1,4 @@
 import {
-   GetBucketOwnershipControlsCommand,
-   GetObjectAclCommand,
-   GetObjectTaggingCommand,
    HeadObjectCommand,
    type PutObjectCommandInput,
 } from "@aws-sdk/client-s3";
@@ -9,12 +6,9 @@ import { Provider } from "@s3-viewer/types";
 import { isDeepStrictEqual } from "node:util";
 import { ApiHttpError } from "../http";
 import type { S3Scope } from "./listing";
-import { aclAttributes } from "./object-acl";
-import { readObjectLockSnapshot } from "./object-lock";
 
 type ReplacementSettings = {
    versionId?: string;
-   lock?: Awaited<ReturnType<typeof readObjectLockSnapshot>>;
    attributes: Partial<PutObjectCommandInput>;
 };
 
@@ -25,6 +19,13 @@ const cannotPreserve = (reason: string): never => {
    );
 };
 
+const assertReplacementSupported = (provider: Provider): void => {
+   if (provider !== Provider.R2)
+      cannotPreserve(
+         "Replacement is unavailable because concurrent permission changes cannot be safely preserved."
+      );
+};
+
 // A replacement is a new object in S3: omitted settings revert to defaults.
 // Never infer missing permissions, metadata, or encryption from a failed read.
 const readReplacementSettings = async (
@@ -33,6 +34,7 @@ const readReplacementSettings = async (
    key: string,
    expectedETag: string
 ): Promise<ReplacementSettings> => {
+   assertReplacementSupported(provider);
    const options = { abortSignal: signal };
    const source = await client.send(
       new HeadObjectCommand({
@@ -66,56 +68,9 @@ const readReplacementSettings = async (
          "This file has a content encoding that cannot be preserved for a replacement."
       );
 
-   const identity = {
-      Bucket: bucket,
-      Key: key,
-      ...(source.VersionId && { VersionId: source.VersionId }),
-   };
-   let permissions: Partial<PutObjectCommandInput> = {};
-   let tagging: string | undefined;
-   if (provider !== Provider.R2) {
-      const ownership =
-         provider === Provider.S3
-            ? await client
-                 .send(
-                    new GetBucketOwnershipControlsCommand({ Bucket: bucket }),
-                    options
-                 )
-                 .catch(() => null)
-            : null;
-      const enforced =
-         ownership?.OwnershipControls?.Rules?.length === 1 &&
-         ownership.OwnershipControls.Rules[0]?.ObjectOwnership ===
-            "BucketOwnerEnforced";
-      if (!enforced)
-         permissions = aclAttributes(
-            await client.send(new GetObjectAclCommand(identity), options)
-         );
-      const tags = await client.send(
-         new GetObjectTaggingCommand(identity),
-         options
-      );
-      if (!Array.isArray(tags.TagSet))
-         cannotPreserve("The file's tags could not be read.");
-      const encoded = new URLSearchParams();
-      for (const tag of [...tags.TagSet!].sort((a, b) =>
-         (a.Key ?? "").localeCompare(b.Key ?? "")
-      )) {
-         if (tag.Key === undefined || tag.Value === undefined)
-            cannotPreserve("The file's tags could not be read.");
-         encoded.append(tag.Key!, tag.Value!);
-      }
-      tagging = encoded.toString();
-   }
-   const lock =
-      provider === Provider.R2
-         ? undefined
-         : await readObjectLockSnapshot({ client, bucket, signal }, identity);
    return {
       versionId: source.VersionId,
-      lock,
       attributes: {
-         ...permissions,
          Metadata: source.Metadata ?? {},
          ContentType: source.ContentType,
          CacheControl: source.CacheControl,
@@ -123,12 +78,6 @@ const readReplacementSettings = async (
          ContentLanguage: source.ContentLanguage,
          Expires: source.Expires,
          StorageClass: source.StorageClass,
-         ...(provider !== Provider.R2 && {
-            Tagging: tagging,
-            WebsiteRedirectLocation: source.WebsiteRedirectLocation,
-            ServerSideEncryption: source.ServerSideEncryption,
-            ...lock?.attributes,
-         }),
       },
    };
 };
@@ -144,4 +93,8 @@ const assertReplacementUnchanged = (
       );
 };
 
-export { assertReplacementUnchanged, readReplacementSettings };
+export {
+   assertReplacementSupported,
+   assertReplacementUnchanged,
+   readReplacementSettings,
+};

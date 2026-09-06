@@ -37,14 +37,6 @@ const groups: LinkGroup[] = [
             label: "Invite a teammate",
             href: "/how-to/invite-teammate-to-s3-bucket",
          },
-         {
-            label: "View S3 + R2",
-            href: "/how-to/view-s3-and-r2-side-by-side",
-         },
-         {
-            label: "Granular permissions",
-            href: "/how-to/set-granular-s3-permissions",
-         },
          { label: "All guides", href: "/how-to" },
       ],
    },

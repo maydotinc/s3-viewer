@@ -20,6 +20,10 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { authEnv } from "./env";
 import { validateProfile } from "./profile";
 import {
+   clearExpiredSessionCookie,
+   enforceSessionPolicy,
+} from "./session-policy";
+import {
    createThrottle,
    perAddress,
    perAddressAndIp,
@@ -131,19 +135,27 @@ const auth = betterAuth({
    },
    hooks: {
       before: createAuthMiddleware(async (ctx) => {
+         const absoluteSessionExpired = await enforceSessionPolicy(ctx);
          const rules = THROTTLES[ctx.path];
          const email = bodyEmail(ctx.body as HookBody);
-         if (!rules || !email) return;
          // server-side auth.api calls carry no headers: they key on the
          // address alone, like the mail throttles do
          const ip = ctx.headers?.get(CLIENT_IP_HEADER) ?? "";
-         if (rules.every(({ throttle, key }) => throttle.allow(key(ip, email))))
-            return;
-         throw new APIError("TOO_MANY_REQUESTS", {
-            message: "Too many attempts. Try again in a few minutes.",
-            code: "RATE_LIMITED",
-         });
+         if (
+            rules &&
+            email &&
+            !rules.every(({ throttle, key }) => throttle.allow(key(ip, email)))
+         ) {
+            throw new APIError("TOO_MANY_REQUESTS", {
+               message: "Too many attempts. Try again in a few minutes.",
+               code: "RATE_LIMITED",
+            });
+         }
+         return { context: { context: { absoluteSessionExpired } } };
       }),
+      after: createAuthMiddleware(async (ctx) =>
+         clearExpiredSessionCookie(ctx)
+      ),
    },
    databaseHooks: {
       account: {

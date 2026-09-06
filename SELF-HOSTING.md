@@ -613,31 +613,36 @@ key back as a block of real lines when you've got it right.
 
 ## 8. Production notes
 
-- **Provider compatibility.** AWS S3, Cloudflare R2, and MinIO support browsing,
-  upload and replacement (including multipart), preview, download, rename,
-  single/bulk/folder deletion, and app-managed team access. No provider is
-  blocked from those operations by its label, and versioning is optional.
-  The configured upload and rename size limits apply to every provider.
+- **Provider compatibility.** Browsing, previews, downloads and app-managed
+  team access use S3 APIs across providers. AWS S3, Cloudflare R2 and MinIO
+  support conditional new-file uploads, including multipart. Replacements
+  are R2-only; object deletion supports AWS and R2; rename is unavailable everywhere.
+  B2 uploads remain blocked pending verified conditional-write support.
+  The UI explains these restrictions and combines capability flags with
+  team permissions before enabling actions.
   See [provider compatibility](./PROVIDER-COMPATIBILITY.md) for the researched
   protocol differences, permissions, and test coverage.
 
-- **Destructive operations.** Delete and rename requests are never automatically
-  replayed after an uncertain result. Confirmed per-object failures can be
-  retried; unknown outcomes require refresh and review. AWS ACL-enabled rename
-  needs access to read and preserve the source ACL. MinIO rename retains tags
-  through server-side multipart copy. R2 uses its copy destination conditions
-  and does not receive unsupported AWS ACL, versioning, or ownership requests.
-  Rename is a copy followed by deletion, so unrelated external writers cannot
-  be coordinated atomically. Use your provider's recovery features where
-  available; unversioned deletion may be permanent.
+- **Destructive operations.** AWS object deletion requires reviewed ETags;
+  R2 checks each reviewed ETag and then performs ordinary key deletion. Pause
+  other writers: an R2 object changed after the check can still be deleted.
+  Uncertain outcomes and conflicts require refresh and review. Rename and
+  AWS/compatible-endpoint replacements stop before storage requests because
+  copy/delete and metadata reads cannot atomically preserve concurrent ACL
+  or tag-based permission changes. R2 replacements preserve readable metadata
+  and send conditional writes without unsupported ACL/tag requests. Use your
+  provider's recovery features where available; unversioned AWS deletion may
+  be permanent.
 
 - **Multiple API workers.** Each S3 client lookup checks the current encrypted
   credentials and provider in PostgreSQL, including cache hits. Database
   failures refuse storage access. Operations that already obtained a client
-  may finish during rotation. Auth session cookie caching is disabled so
-  revoked sessions cannot manage account login methods. Deploy API and web
-  together: version 3 mutation paths reject older workers and legacy clients
-  must refresh before uploading, deleting, or renaming.
+  may finish during rotation. Regional clients are invalidated with their base
+  credentials. Auth session cookie caching is disabled, and sessions expire
+  after an absolute 90 days across API and authentication endpoints. Deploy
+  API and web together: API contract version 4 adds account-deletion identity
+  binding and storage capability flags; object mutation paths remain `/v3`.
+  Legacy clients must refresh before mutations.
 
 - **Creating buckets.** Existing buckets are never attached by reissuing
   CreateBucket; that can reset ACLs in AWS us-east-1. Duplicate app requests

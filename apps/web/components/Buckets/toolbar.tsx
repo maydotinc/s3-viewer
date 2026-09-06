@@ -2,9 +2,7 @@ import {
    useGridContext,
    useGridPaginationContext,
 } from "@/components/DataGrid/context";
-import { usePermission } from "@/lib/hooks/usePermission";
 import { useShortcut } from "@/lib/shortcuts";
-import { Permission } from "@s3-viewer/permissions";
 import usePreferencesStore from "@/lib/stores/preferencesStore";
 import { MAX_LIST_BLOCK_SIZE, type S3Object } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -26,6 +24,7 @@ import {
 import { useBucketContext } from "./Context";
 import PrefixSearch from "./Grid/prefix-search";
 import UploadMenu from "./Upload/upload-menu";
+import { useUploader } from "./Upload/provider";
 import useObjectCommands from "./useObjectCommands";
 
 const SORT_LABEL = { first: "Folders first", mixed: "By name" } as const;
@@ -95,7 +94,7 @@ const ObjectsToolbar = () => {
    const { bucketName, refresh, isLoading } = useBucketContext();
    const { selectedIds, clearSelection, gridRef } = useGridContext();
    const commands = useObjectCommands(bucketName);
-   const canUpload = usePermission(Permission.UPLOAD_OBJECT, bucketName);
+   const { canUpload, notice } = useUploader();
    const count = selectedIds.length;
    const removeSelection = () =>
       commands.remove(
@@ -128,6 +127,7 @@ const ObjectsToolbar = () => {
    // only approximate a label's width, so the row visibly settled.
    return (
       <div className="flex min-h-9 flex-wrap items-center gap-2">
+         {notice && <p className="w-full text-xs text-viewertext">{notice}</p>}
          <PrefixSearch className="w-72 shrink-0" />
          <div
             className="ml-auto flex flex-wrap items-center justify-end gap-2"

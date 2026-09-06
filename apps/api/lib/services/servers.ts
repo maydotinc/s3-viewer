@@ -1,6 +1,7 @@
 import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError } from "@/lib/http";
 import { decryptCredentials } from "@/lib/utils/encryption";
+import { storageCapabilities } from "./storage-capabilities";
 import { $Enums, Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import {
@@ -15,16 +16,40 @@ const serverInfoSelect = {
    id: true,
    name: true,
    provider: true,
+   credentials: true,
 } satisfies Prisma.ServerSelect;
 
-type ServerRow = { id: string; name: string; provider: $Enums.Provider };
+type ServerRow = {
+   id: string;
+   name: string;
+   provider: $Enums.Provider;
+   credentials: string;
+};
 
-const toServerInfo = (row: ServerRow, userRole: Role): ServerInfo => ({
-   id: row.id,
-   name: row.name,
-   provider: Provider[row.provider],
-   userRole,
-});
+const toServerInfo = (row: ServerRow, userRole: Role): ServerInfo => {
+   const provider = Provider[row.provider];
+   let capabilities;
+   try {
+      // B2 remains Other in the database. Only derive public feature flags;
+      // neither the endpoint nor its encrypted credentials leave this helper.
+      capabilities = storageCapabilities(
+         provider,
+         provider === Provider.Other
+            ? decryptCredentials(row.credentials).endpoint
+            : undefined
+      );
+   } catch {
+      capabilities = {
+         upload: false,
+         replace: false,
+         rename: false,
+         delete: false,
+         notice:
+            "Storage credentials could not be read. Ask the owner to update them.",
+      };
+   }
+   return { id: row.id, name: row.name, provider, userRole, capabilities };
+};
 
 type BucketScopeSettings = {
    restrictedBuckets: boolean;

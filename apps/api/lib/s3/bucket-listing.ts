@@ -18,7 +18,10 @@ const listBuckets = async (
    const tokens = new Set<string>();
    let token: string | undefined;
    for (let page = 0; page < MAX_BUCKET_PAGES; page++) {
-      const command = new ListBucketsCommand({ ContinuationToken: token });
+      const command = new ListBucketsCommand({
+         ContinuationToken: token,
+         ...(provider === Provider.S3 ? { MaxBuckets: 10_000 } : {}),
+      });
       let r2Headers: Record<string, string> | undefined;
       if (provider === Provider.R2) {
          command.middlewareStack.add(

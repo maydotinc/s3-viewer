@@ -1,6 +1,5 @@
 import { asyncHandler, fail } from "@/lib/http";
 import { auth } from "@s3-viewer/auth";
-import { DAY_MS, SESSION_ABSOLUTE_TTL_DAYS } from "@s3-viewer/types";
 import { fromNodeHeaders } from "better-auth/node";
 
 type SessionUser = typeof auth.$Infer.Session.user;
@@ -16,13 +15,6 @@ declare global {
    }
 }
 
-const ABSOLUTE_TTL_MS = SESSION_ABSOLUTE_TTL_DAYS * DAY_MS;
-
-// the sliding window alone lets a session live forever if it is used often
-// enough, so a stolen cookie is capped at its original creation date
-const beyondAbsoluteTtl = (createdAt: Date): boolean =>
-   Date.now() - createdAt.getTime() > ABSOLUTE_TTL_MS;
-
 const authGuard = asyncHandler(async (req, res, next) => {
    // the signed cookie cache would keep serving a revoked session until it
    // expires (60 s), so every api request pays one read of the session row
@@ -30,7 +22,8 @@ const authGuard = asyncHandler(async (req, res, next) => {
       headers: fromNodeHeaders(req.headers),
       query: { disableCookieCache: true },
    });
-   if (!session || beyondAbsoluteTtl(new Date(session.session.createdAt))) {
+   // Shared auth policy also revokes sessions at their absolute age limit.
+   if (!session) {
       fail(res, 401, "Sign in required");
       return;
    }

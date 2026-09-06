@@ -23,6 +23,10 @@ const MESSAGES: Readonly<Record<string, string>> = {
    TOKEN_EXPIRED: "That link has expired. Request a new one.",
    EMAIL_ALREADY_VERIFIED: "This email is already verified.",
    RATE_LIMITED: TOO_MANY_ATTEMPTS,
+   ACCOUNT_CHANGED:
+      "Your account changed. Reopen the deletion dialog and confirm again.",
+   ACCOUNT_CONFIRMATION_REQUIRED:
+      "Confirm your account email before deleting your account.",
 };
 
 const authErrorMessage = (error: AuthClientError): string => {

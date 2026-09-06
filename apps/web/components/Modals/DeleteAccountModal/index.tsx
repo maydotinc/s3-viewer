@@ -1,5 +1,5 @@
 import FormError from "@/components/Modals/form-error";
-import { authClient, signOut } from "@/lib/auth";
+import { authClient, deleteAccount, signOut } from "@/lib/auth";
 import { loginPathFor } from "@/lib/auth-redirect";
 import { pluralize } from "@/lib/utils/format";
 import {
@@ -23,7 +23,7 @@ import {
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { toast } from "@s3-viewer/ui/components/toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // the summary is loaded by the danger-zone card before this opens, so the
 // dialog renders at its final size on the first frame (design rule 3)
@@ -139,29 +139,55 @@ const UntouchedCallout = () => (
 );
 
 const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
-   const { data: session } = authClient.useSession();
+   const { data: session, isPending, isRefetching } = authClient.useSession();
+   const [confirmedSummary] = useState(summary);
    const [typed, setTyped] = useState("");
    const [error, setError] = useState<string | null>(null);
    const [deleting, setDeleting] = useState(false);
    const [sessionExpired, setSessionExpired] = useState(false);
 
-   const email = session?.user.email ?? "";
+   const { id: expectedUserId, email } = confirmedSummary.user;
+   const sessionMatches =
+      session?.user.id === expectedUserId &&
+      session.user.email.toLowerCase() === email.toLowerCase();
+   useEffect(() => {
+      if (!isPending && !isRefetching && !sessionMatches && !deleting)
+         onClose();
+   }, [isPending, isRefetching, sessionMatches, deleting, onClose]);
    const needsFreshSignIn =
       sessionExpired ||
       (session !== null &&
          session !== undefined &&
          isStale(session.session.createdAt));
    const confirmed =
-      email.length > 0 && typed.trim().toLowerCase() === email.toLowerCase();
+      !isPending &&
+      !isRefetching &&
+      sessionMatches &&
+      !needsFreshSignIn &&
+      email.length > 0 &&
+      typed.trim().toLowerCase() === email.toLowerCase();
 
    const confirm = async () => {
       if (deleting || !confirmed) return;
       setDeleting(true);
       setError(null);
-      const { error: deleteError } = await authClient.deleteUser({});
-      if (deleteError) {
-         if (deleteError.code === SESSION_EXPIRED) setSessionExpired(true);
-         else setError(deleteError.message ?? GENERIC_ERROR_MESSAGE);
+      let result;
+      try {
+         result = await deleteAccount({
+            expectedUserId,
+            confirmedEmail: typed.trim(),
+         });
+      } catch {
+         setError(GENERIC_ERROR_MESSAGE);
+         setDeleting(false);
+         return;
+      }
+      if (result.error) {
+         if (result.code === SESSION_EXPIRED) setSessionExpired(true);
+         else if (result.code === "ACCOUNT_CHANGED") {
+            toast.error(result.error);
+            onClose();
+         } else setError(result.error);
          setDeleting(false);
          return;
       }
@@ -189,7 +215,7 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
             </DialogHeader>
             <DialogBody className="flex flex-col gap-6">
                <UntouchedCallout />
-               <RemovedList summary={summary} />
+               <RemovedList summary={confirmedSummary} />
                {needsFreshSignIn ? (
                   <div className="rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
                      {STALE_SESSION_MESSAGE}

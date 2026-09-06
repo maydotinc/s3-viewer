@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
    get: vi.fn(),
    remove: vi.fn(),
    pending: [] as Promise<unknown>[],
+   provider: "S3",
 }));
 
 vi.mock("react", async (original) => ({
@@ -30,6 +31,9 @@ vi.mock("react", async (original) => ({
 }));
 vi.mock("@/components/Modals/confirm-dialog", () => ({
    ConfirmDialog: () => null,
+}));
+vi.mock("@/lib/hooks/queries/server/useServers", () => ({
+   default: () => ({ servers: [{ id: "server123", provider: h.provider }] }),
 }));
 vi.mock("@s3-viewer/ui/components/toast", () => ({
    toast: { success: vi.fn(), error: vi.fn() },
@@ -76,6 +80,7 @@ const renderModal = (objects: S3DeleteTarget[], onClose: () => void) => {
       confirmLabel: string;
       confirmDisabled: boolean;
       error: string | null;
+      description: string;
    }>;
 };
 const confirm = async (objects: S3DeleteTarget[], onClose: () => void) => {
@@ -85,9 +90,12 @@ const confirm = async (objects: S3DeleteTarget[], onClose: () => void) => {
 
 beforeEach(() => {
    vi.clearAllMocks();
+   h.get.mockReset();
+   h.remove.mockReset();
    h.slots = [];
    h.cursor = 0;
    h.pending = [];
+   h.provider = "S3";
    vi.stubGlobal("React", React);
    h.remove
       .mockImplementationOnce(
@@ -116,6 +124,25 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("delete confirmation retry accounting", () => {
+   it.each([
+      ["single object", reviewed.slice(0, 1)],
+      ["selection", reviewed.slice(0, 2)],
+      ["folder", [{ key: "folder/", expectedETag: null }]],
+   ])(
+      "enables R2 %s deletion with explicit key-deletion limits",
+      (_kind, objects) => {
+         h.provider = "R2";
+         const view = renderModal(objects as S3DeleteTarget[], vi.fn());
+         expect(view.props.confirmDisabled).toBe(false);
+         expect(view.props.confirmLabel).toBe("Delete");
+         expect(view.props.description).toContain("R2 deletes are permanent");
+         expect(view.props.description).toContain(
+            "file changed during deletion"
+         );
+         expect(view.props.description).not.toContain("versioning");
+      }
+   );
+
    it("retries all 150 failures before closing the dialog", async () => {
       const onClose = vi.fn();
       await confirm(reviewed, onClose);

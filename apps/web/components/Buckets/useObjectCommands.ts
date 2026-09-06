@@ -1,5 +1,6 @@
 import { useModalActions } from "@/lib/contexts/ModalContext";
 import { useEffectiveRole } from "@/lib/hooks/usePermission";
+import { useStorageCapabilities } from "@/lib/hooks/useStorageCapabilities";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { getDownloadUrl, saveFromUrl } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
@@ -38,9 +39,12 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
    const { refresh } = useBucketContext();
 
    const role = useEffectiveRole(bucketName);
+   const capabilities = useStorageCapabilities();
    const canDownload = hasPermission(role, Permission.DOWNLOAD_OBJECT);
-   const canDelete = hasPermission(role, Permission.DELETE_OBJECT);
-   const canRename = canDelete;
+   const canDelete =
+      capabilities.delete && hasPermission(role, Permission.DELETE_OBJECT);
+   const canRename =
+      capabilities.rename && hasPermission(role, Permission.DELETE_OBJECT);
 
    const download = useCallback(
       async (objectKey: string) => {
@@ -83,6 +87,7 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
          expectedETag: string | null,
          onSuccess?: (newObjectKey: string) => void
       ) => {
+         if (!canRename) return;
          const reviewed = observedETagSchema.safeParse(expectedETag);
          if (!reviewed.success) {
             toast.error("Refresh and review the object before renaming it.");
@@ -99,11 +104,12 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
             },
          });
       },
-      [openRenameObjectModal, serverId, bucketName, refresh]
+      [canRename, openRenameObjectModal, serverId, bucketName, refresh]
    );
 
    const remove = useCallback(
-      (objects: S3DeleteTarget[], onSuccess?: () => void) =>
+      (objects: S3DeleteTarget[], onSuccess?: () => void) => {
+         if (!canDelete) return;
          openConfirmDeleteModal({
             serverId,
             bucketName,
@@ -112,8 +118,9 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
                refresh();
                onSuccess?.();
             },
-         }),
-      [openConfirmDeleteModal, serverId, bucketName, refresh]
+         });
+      },
+      [canDelete, openConfirmDeleteModal, serverId, bucketName, refresh]
    );
 
    return useMemo(

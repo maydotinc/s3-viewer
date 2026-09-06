@@ -1,6 +1,6 @@
 import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { env } from "@/lib/env";
-import { ApiHttpError, fail, noContent, requestSignal } from "@/lib/http";
+import { ApiHttpError, fail, requestSignal } from "@/lib/http";
 import { requireExpectedUser } from "@/lib/middleware/expected-user";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
@@ -14,7 +14,9 @@ import {
    inlineDisposition,
 } from "@/lib/s3/keys";
 import { listKeysPage, listPage, type S3Scope } from "@/lib/s3/listing";
-import { renameObject } from "@/lib/s3/rename";
+import { renameUnavailableError } from "@/lib/s3/rename";
+import { assertReplacementSupported } from "@/lib/s3/replacement-settings";
+import { clientProvider } from "@/lib/s3/provider";
 import { presignedUrl } from "@/lib/s3/presign";
 import { recordAudit } from "@/lib/services/audit";
 import {
@@ -109,7 +111,7 @@ objectsRouter.get(
       async (req, res) => {
          const { serverId, bucketName, prefix, continuationToken, blockSize } =
             input<ListObjectsQuery>(res);
-         const client = await getS3Client(serverId);
+         const client = await getS3Client(serverId, bucketName);
          res.json(
             await listPage({
                ...routeScope(client, bucketName, res),
@@ -130,7 +132,7 @@ objectsRouter.post(
       async (req, res) => {
          const { serverId, bucketName, objectKeys } =
             input<ObjectKeysInput>(res);
-         const client = await getS3Client(serverId);
+         const client = await getS3Client(serverId, bucketName);
          res.json(
             await whichExist(routeScope(client, bucketName, res), objectKeys)
          );
@@ -142,7 +144,7 @@ objectsRouter.get(
    "/download-url",
    ...bucketRoute(Permission.DOWNLOAD_OBJECT, objectScope, async (req, res) => {
       const { serverId, bucketName, objectKey } = input<ObjectScope>(res);
-      const client = await getS3Client(serverId);
+      const client = await getS3Client(serverId, bucketName);
       const command = new GetObjectCommand({
          Bucket: bucketName,
          Key: objectKey,
@@ -156,7 +158,7 @@ objectsRouter.get(
    "/preview-url",
    ...bucketRoute(Permission.DOWNLOAD_OBJECT, objectScope, async (req, res) => {
       const { serverId, bucketName, objectKey } = input<ObjectScope>(res);
-      const client = await getS3Client(serverId);
+      const client = await getS3Client(serverId, bucketName);
       const metadata = toMetadata(
          await headObject({ client, bucket: bucketName }, objectKey)
       );
@@ -202,6 +204,17 @@ objectsRouter.put(
             expectedUserId,
          } = input<PutObjectQuery>(res);
          const userId = requireExpectedUser(res, expectedUserId);
+         if (expectedETag !== undefined) {
+            try {
+               // Refuse unsupported replacements before regional discovery can
+               // touch storage, and before buffering any request body.
+               const baseClient = await getS3Client(serverId);
+               assertReplacementSupported(await clientProvider(baseClient));
+            } catch (error) {
+               res.setHeader("Connection", "close");
+               throw error;
+            }
+         }
          const contentLength = declaredLength(req.headers["content-length"]);
          if (exceedsLimit(contentLength, env.MAX_UPLOAD_BYTES)) {
             throw new ApiHttpError(
@@ -249,7 +262,11 @@ objectsRouter.put(
          req.on("close", onRequestClose);
          res.on("close", onResponseClose);
          try {
-            const client = await getS3Client(serverId);
+            const client = await getS3Client(
+               serverId,
+               bucketName,
+               abortController.signal
+            );
             // The streaming watchdog only times demanded client input; a
             // socket timer would also kill healthy S3 backpressure/completion.
             req.setTimeout(0);
@@ -293,7 +310,7 @@ objectsRouter.delete(
          const { serverId, bucketName, objects, expectedUserId } =
             input<DeleteObjectsInput>(res);
          const userId = requireExpectedUser(res, expectedUserId);
-         const client = await getS3Client(serverId);
+         const client = await getS3Client(serverId, bucketName);
          const result = await deleteKeys(
             routeScope(client, bucketName, res),
             objects
@@ -317,7 +334,7 @@ objectsRouter.get(
       async (req, res) => {
          const { serverId, bucketName, prefix, continuationToken } =
             input<KeysQuery>(res);
-         const client = await getS3Client(serverId);
+         const client = await getS3Client(serverId, bucketName);
          res.json(
             await listKeysPage(
                routeScope(client, bucketName, res),
@@ -335,29 +352,9 @@ objectsRouter.post(
       Permission.DELETE_OBJECT,
       renameObjectBodySchema,
       async (req, res) => {
-         const {
-            serverId,
-            bucketName,
-            objectKey,
-            newObjectKey,
-            expectedUserId,
-            expectedETag,
-         } = input<RenameObjectInput>(res);
-         const userId = requireExpectedUser(res, expectedUserId);
-         const client = await getS3Client(serverId);
-         await renameObject(
-            routeScope(client, bucketName, res),
-            objectKey,
-            newObjectKey,
-            expectedETag
-         );
-         await recordAudit({
-            action: "object.rename",
-            actorId: userId,
-            serverId,
-            target: `${bucketName}/${objectKey} -> ${newObjectKey}`,
-         });
-         noContent(res);
+         const { expectedUserId } = input<RenameObjectInput>(res);
+         requireExpectedUser(res, expectedUserId);
+         throw renameUnavailableError();
       }
    )
 );

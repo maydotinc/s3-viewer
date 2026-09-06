@@ -7,6 +7,7 @@ import { ApiHttpError } from "../http";
 import { logger } from "../logger";
 import { classifyBucketError, classifyS3Error } from "./classify";
 import { listBuckets } from "./bucket-listing";
+import { getBucketClient } from "./bucket-client";
 
 const CONNECT_TIMEOUT_MS = 15_000;
 
@@ -44,7 +45,8 @@ const canHeadBucket = async (
    abortSignal: AbortSignal
 ): Promise<boolean> => {
    try {
-      await client.send(new HeadBucketCommand({ Bucket: bucketName }), {
+      const regional = await getBucketClient(client, bucketName, abortSignal);
+      await regional.send(new HeadBucketCommand({ Bucket: bucketName }), {
          abortSignal,
       });
       return true;
@@ -71,8 +73,10 @@ const assertCredentialsWork = async (
       return;
    }
    try {
-      await client.send(new HeadBucketCommand({ Bucket: bucketName }), {
-         abortSignal: AbortSignal.timeout(CONNECT_TIMEOUT_MS),
+      const abortSignal = AbortSignal.timeout(CONNECT_TIMEOUT_MS);
+      const regional = await getBucketClient(client, bucketName, abortSignal);
+      await regional.send(new HeadBucketCommand({ Bucket: bucketName }), {
+         abortSignal,
       });
    } catch (err) {
       const failure = probeFailure(err, event, classifyBucketError);

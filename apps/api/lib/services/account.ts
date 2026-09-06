@@ -40,6 +40,7 @@ const accountSummary = async (
       ]
    );
    return {
+      user: { id: user.id, email: user.email },
       ownedServers: owned.map((server) => ({
          id: server.id,
          name: server.name,

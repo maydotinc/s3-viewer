@@ -9,6 +9,11 @@ import { logger } from "../logger";
 import { assertPublicEndpoint, publicOnlyLookup } from "../utils/endpoint";
 import { decryptCredentials } from "../utils/encryption";
 import { credentialsUnreadableError } from "./errors";
+import {
+   BucketClientInvalidatedError,
+   getBucketClient,
+   invalidateBucketClients,
+} from "./bucket-client";
 
 const CACHE_TTL_MS = 10 * MINUTE_MS;
 const CACHE_MAX_ENTRIES = 500;
@@ -33,6 +38,12 @@ type CacheEntry = {
 const cache = new Map<string, CacheEntry>();
 const generations = new Map<string, number>();
 const inFlightFills = new Map<string, number>();
+
+const removeCachedClient = (serverId: string): void => {
+   const entry = cache.get(serverId);
+   if (entry) invalidateBucketClients(entry.client);
+   cache.delete(serverId);
+};
 
 const generationOf = (serverId: string): number =>
    generations.get(serverId) ?? 0;
@@ -80,6 +91,7 @@ const buildClient = (
          }),
       },
       forcePathStyle: provider !== Provider.S3,
+      followRegionRedirects: false,
       maxAttempts: MAX_ATTEMPTS,
       requestChecksumCalculation:
          provider === Provider.R2 ? "WHEN_REQUIRED" : "WHEN_SUPPORTED",
@@ -112,11 +124,11 @@ const makeRoom = (): void => {
    if (cache.size < CACHE_MAX_ENTRIES) return;
    const now = Date.now();
    for (const [key, entry] of cache) {
-      if (entry.expiresAt <= now) cache.delete(key);
+      if (entry.expiresAt <= now) removeCachedClient(key);
    }
    for (const key of cache.keys()) {
       if (cache.size < CACHE_MAX_ENTRIES) break;
-      cache.delete(key);
+      removeCachedClient(key);
    }
 };
 
@@ -126,7 +138,7 @@ const readCredentialSnapshot = async (serverId: string) => {
       select: { credentials: true, provider: true },
    });
    if (!server) {
-      cache.delete(serverId);
+      removeCachedClient(serverId);
       throw new ApiHttpError(404, SERVER_NOT_FOUND);
    }
    return server;
@@ -138,7 +150,7 @@ const sameCredentials = (
 ): boolean =>
    left.credentials === right.credentials && left.provider === right.provider;
 
-const getS3Client = async (serverId: string): Promise<S3Client> => {
+const getCachedClient = async (serverId: string): Promise<S3Client> => {
    for (let attempt = 0; attempt < MAX_CREDENTIAL_READ_ATTEMPTS; attempt++) {
       const generation = generationOf(serverId);
       beginFill(serverId);
@@ -153,7 +165,7 @@ const getS3Client = async (serverId: string): Promise<S3Client> => {
          ) {
             return hit.client;
          }
-         cache.delete(serverId);
+         removeCachedClient(serverId);
          const credentials = readStoredCredentials(
             serverId,
             snapshot.credentials
@@ -168,6 +180,7 @@ const getS3Client = async (serverId: string): Promise<S3Client> => {
          }
          const client = buildClient(credentials, Provider[snapshot.provider]);
          makeRoom();
+         removeCachedClient(serverId);
          cache.set(serverId, {
             client,
             expiresAt: Date.now() + CACHE_TTL_MS,
@@ -184,8 +197,33 @@ const getS3Client = async (serverId: string): Promise<S3Client> => {
    );
 };
 
+const getS3Client = async (
+   serverId: string,
+   bucket?: string,
+   signal?: AbortSignal
+): Promise<S3Client> => {
+   for (let attempt = 0; attempt < MAX_CREDENTIAL_READ_ATTEMPTS; attempt++) {
+      const client = await getCachedClient(serverId);
+      if (bucket === undefined) return client;
+      let regional: S3Client;
+      try {
+         regional = await getBucketClient(client, bucket, signal);
+      } catch (error) {
+         if (error instanceof BucketClientInvalidatedError) continue;
+         throw error;
+      }
+      // Region discovery and DNS validation await external I/O. Re-read the
+      // credential authority before returning a client for the actual action.
+      if ((await getCachedClient(serverId)) === client) return regional;
+   }
+   throw new ApiHttpError(
+      409,
+      "Server credentials changed while connecting. Try again."
+   );
+};
+
 const invalidateS3Client = (serverId: string): void => {
-   cache.delete(serverId);
+   removeCachedClient(serverId);
    if (inFlightFills.has(serverId)) {
       generations.set(serverId, generationOf(serverId) + 1);
    } else {

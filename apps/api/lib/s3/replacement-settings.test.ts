@@ -1,10 +1,9 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { PassThrough, Readable } from "node:stream";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { streamUpload } from "./upload";
 
 const MIB = 1024 ** 2;
-const owner = "a".repeat(64);
 type Request = {
    method: string;
    query: Record<string, string>;
@@ -12,11 +11,7 @@ type Request = {
 };
 const fixture = (
    options: {
-      r2?: boolean;
       headers?: Record<string, string>;
-      denied?: "acl" | "tagging" | "object-lock" | "retention" | "legal-hold";
-      lockEnabled?: boolean;
-      changeLockAfterPart?: boolean;
       changeAfterPart?: boolean;
       changeAfterRead?: boolean;
       headConflict?: boolean;
@@ -24,13 +19,10 @@ const fixture = (
 ) => {
    const requests: Request[] = [];
    let changed = false;
-   let lockChanged = false;
    let reads = 0;
    const client = new S3Client({
-      endpoint: options.r2
-         ? "https://test.r2.cloudflarestorage.com"
-         : "https://s3.us-east-1.amazonaws.com",
-      region: "us-east-1",
+      endpoint: "https://test.r2.cloudflarestorage.com",
+      region: "auto",
       forcePathStyle: true,
       maxAttempts: 1,
       requestChecksumCalculation: "WHEN_REQUIRED",
@@ -55,49 +47,20 @@ const fixture = (
                   "content-disposition": 'attachment; filename="report.txt"',
                   "content-language": "en",
                   "x-amz-storage-class": "STANDARD_IA",
-                  ...(options.r2
-                     ? {}
-                     : { "x-amz-server-side-encryption": "AES256" }),
                   ...options.headers,
                };
                if (options.headConflict) statusCode = 412;
-            } else if ("ownershipControls" in request.query) {
-               body =
-                  "<OwnershipControls><Rule><ObjectOwnership>ObjectWriter</ObjectOwnership></Rule></OwnershipControls>";
-            } else if ("acl" in request.query) {
-               body = `<AccessControlPolicy><Owner><ID>${owner}</ID></Owner><AccessControlList><Grant><Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="CanonicalUser"><ID>${owner}</ID></Grantee><Permission>FULL_CONTROL</Permission></Grant><Grant><Grantee xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:type="Group"><URI>http://acs.amazonaws.com/groups/global/AuthenticatedUsers</URI></Grantee><Permission>READ</Permission></Grant></AccessControlList></AccessControlPolicy>`;
-            } else if ("tagging" in request.query) {
-               body =
-                  "<Tagging><TagSet><Tag><Key>classification</Key><Value>private</Value></Tag></TagSet></Tagging>";
-            } else if ("object-lock" in request.query) {
-               if (options.lockEnabled) {
-                  body =
-                     "<ObjectLockConfiguration><ObjectLockEnabled>Enabled</ObjectLockEnabled></ObjectLockConfiguration>";
-               } else {
-                  statusCode = 404;
-                  body =
-                     "<Error><Code>ObjectLockConfigurationNotFoundError</Code></Error>";
-               }
-            } else if ("retention" in request.query) {
-               body = `<Retention><Mode>COMPLIANCE</Mode><RetainUntilDate>${lockChanged ? "2041" : "2040"}-01-01T00:00:00.000Z</RetainUntilDate></Retention>`;
-            } else if ("legal-hold" in request.query) {
-               body = "<LegalHold><Status>ON</Status></LegalHold>";
             } else if ("uploads" in request.query) {
                body =
                   "<InitiateMultipartUploadResult><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>";
             } else if ("partNumber" in request.query) {
                if (options.changeAfterPart) changed = true;
-               if (options.changeLockAfterPart) lockChanged = true;
             } else if (
                request.method === "POST" &&
                "uploadId" in request.query
             ) {
                body =
                   '<CompleteMultipartUploadResult><ETag>"replacement"</ETag></CompleteMultipartUploadResult>';
-            }
-            if (options.denied && options.denied in request.query) {
-               statusCode = 403;
-               body = "<Error><Code>AccessDenied</Code></Error>";
             }
             return {
                response: {
@@ -127,49 +90,7 @@ const fixture = (
    return { client, run, requests, mutations };
 };
 
-describe("replacement uploads preserve reviewed object settings", () => {
-   it.each([8, 6 * MIB])(
-      "preserves lock settings omitted from HEAD for %i bytes",
-      async (size) => {
-         const f = fixture({ lockEnabled: true });
-         try {
-            await f.run(size);
-            expect(f.mutations()[0]!.headers).toMatchObject({
-               "x-amz-object-lock-mode": "COMPLIANCE",
-               "x-amz-object-lock-retain-until-date": "2040-01-01T00:00:00Z",
-               "x-amz-object-lock-legal-hold": "ON",
-            });
-         } finally {
-            f.client.destroy();
-         }
-      }
-   );
-   it.each(["object-lock", "retention", "legal-hold"] as const)(
-      "blocks replacement when %s protection cannot be read",
-      async (denied) => {
-         const f = fixture({ lockEnabled: true, denied });
-         try {
-            await expect(f.run()).rejects.toMatchObject({ status: 403 });
-            expect(f.mutations()).toHaveLength(0);
-         } finally {
-            f.client.destroy();
-         }
-      }
-   );
-   it("aborts multipart if retention changes before publication", async () => {
-      const f = fixture({ lockEnabled: true, changeLockAfterPart: true });
-      try {
-         await expect(f.run(6 * MIB)).rejects.toMatchObject({ status: 409 });
-         expect(
-            f
-               .mutations()
-               .some((r) => r.method === "POST" && "uploadId" in r.query)
-         ).toBe(false);
-         expect(f.mutations().at(-1)!.method).toBe("DELETE");
-      } finally {
-         f.client.destroy();
-      }
-   });
+describe("R2 replacements preserve reviewed object settings", () => {
    it("maps a bodyless HEAD precondition failure to an upload conflict", async () => {
       const f = fixture({ headConflict: true });
       try {
@@ -179,7 +100,6 @@ describe("replacement uploads preserve reviewed object settings", () => {
          f.client.destroy();
       }
    });
-
    it("handles input disconnects while replacement settings are being read", async () => {
       const body = new PassThrough();
       const controller = new AbortController();
@@ -188,7 +108,7 @@ describe("replacement uploads preserve reviewed object settings", () => {
          begin = resolve;
       });
       const client = new S3Client({
-         endpoint: "https://s3.us-east-1.amazonaws.com",
+         endpoint: "https://test.r2.cloudflarestorage.com",
          region: "us-east-1",
          credentials: { accessKeyId: "test", secretAccessKey: "test" },
          requestHandler: {
@@ -236,36 +156,9 @@ describe("replacement uploads preserve reviewed object settings", () => {
       }
    });
    it.each([8, 6 * MIB])(
-      "preserves ACL, tags, metadata and storage settings for %i bytes",
-      async (size) => {
-         const f = fixture();
-         try {
-            await expect(f.run(size)).resolves.toMatchObject({ size });
-            const write = f.mutations()[0]!;
-            expect(write.headers).toMatchObject({
-               "content-type": "text/plain",
-               "x-amz-meta-owner": "finance",
-               "cache-control": "private, max-age=60",
-               "content-disposition": 'attachment; filename="report.txt"',
-               "content-language": "en",
-               "x-amz-storage-class": "STANDARD_IA",
-               "x-amz-server-side-encryption": "AES256",
-               "x-amz-grant-full-control": `id="${owner}"`,
-               "x-amz-grant-read":
-                  'uri="http://acs.amazonaws.com/groups/global/AuthenticatedUsers"',
-               "x-amz-tagging": "classification=private",
-            });
-            const publication = f.mutations().at(-1)!;
-            expect(publication.headers["if-match"]).toBe('"reviewed"');
-         } finally {
-            f.client.destroy();
-         }
-      }
-   );
-   it.each([8, 6 * MIB])(
       "preserves R2 metadata without unsupported AWS calls for %i bytes",
       async (size) => {
-         const f = fixture({ r2: true });
+         const f = fixture();
          try {
             await f.run(size);
             expect(f.requests.filter((r) => r.method === "GET")).toHaveLength(
@@ -307,20 +200,6 @@ describe("replacement uploads preserve reviewed object settings", () => {
          }
       }
    );
-   it.each(["acl", "tagging"] as const)(
-      "does not ignore a denied %s read",
-      async (denied) => {
-         const f = fixture({ denied });
-         try {
-            await expect(f.run()).rejects.toMatchObject({
-               name: "AccessDenied",
-            });
-            expect(f.mutations()).toHaveLength(0);
-         } finally {
-            f.client.destroy();
-         }
-      }
-   );
    it("rejects a source mismatch even when HEAD ignores its condition", async () => {
       const f = fixture({ headers: { etag: '"changed"' } });
       try {
@@ -353,4 +232,57 @@ describe("replacement uploads preserve reviewed object settings", () => {
          f.client.destroy();
       }
    });
+});
+
+describe("providers with mutable permissions cannot replace existing objects", () => {
+   it.each(
+      [
+         "https://s3.us-east-1.amazonaws.com",
+         "https://s3.eu-central-1.amazonaws.com",
+         "https://minio.example.com",
+      ].flatMap((endpoint) => [8, 6 * MIB].map((size) => ({ endpoint, size })))
+   )(
+      "refuses $size-byte replacement on $endpoint before storage requests or body reads",
+      async ({ endpoint, size }) => {
+         const handle = vi.fn();
+         const client = new S3Client({
+            endpoint,
+            region: "us-east-1",
+            credentials: { accessKeyId: "test", secretAccessKey: "test" },
+            requestHandler: { handle },
+         });
+         let reads = 0;
+         const body = new Readable({
+            read() {
+               reads++;
+               this.push(Buffer.alloc(size));
+               this.push(null);
+            },
+         });
+         try {
+            await expect(
+               streamUpload({
+                  client,
+                  bucket: "bucket",
+                  key: "report.txt",
+                  expectedETag: '"reviewed"',
+                  contentType: "text/plain",
+                  body,
+                  contentLength: size,
+                  partSize: 5 * MIB,
+                  maxBytes: 10 * MIB,
+                  abortController: new AbortController(),
+               })
+            ).rejects.toMatchObject({
+               status: 409,
+               message: expect.stringContaining("permission changes"),
+            });
+            expect(handle).not.toHaveBeenCalled();
+            expect(reads).toBe(0);
+         } finally {
+            body.destroy();
+            client.destroy();
+         }
+      }
+   );
 });

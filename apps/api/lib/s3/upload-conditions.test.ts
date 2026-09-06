@@ -24,7 +24,7 @@ const config = {
    requestHandler: {},
    endpoint: async () => ({
       protocol: "https:",
-      hostname: "s3.us-east-1.amazonaws.com",
+      hostname: "account.r2.cloudflarestorage.com",
       path: "/",
    }),
    requestChecksumCalculation: async () => "WHEN_REQUIRED",
@@ -90,7 +90,13 @@ describe("conditional uploads", () => {
             "https://s3.us-east-1.amazonaws.com",
             "https://account.r2.cloudflarestorage.com",
             "https://minio.example.com",
-         ].map((endpoint) => ({ ...input, endpoint }))
+         ]
+            .filter(
+               (endpoint) =>
+                  input.expectedETag === undefined ||
+                  endpoint.includes("r2.cloudflarestorage.com")
+            )
+            .map((endpoint) => ({ ...input, endpoint }))
       )
    )(
       "sends the condition over the SDK transport for $endpoint / $size bytes / $expectedETag",

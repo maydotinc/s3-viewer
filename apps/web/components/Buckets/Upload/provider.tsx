@@ -1,4 +1,7 @@
 import { useBucketContext } from "@/components/Buckets/Context";
+import { usePermission } from "@/lib/hooks/usePermission";
+import { useStorageCapabilities } from "@/lib/hooks/useStorageCapabilities";
+import { Permission } from "@s3-viewer/permissions";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import { isAborted } from "@/lib/api";
 import { forgetKeys } from "@/lib/hooks/mutations/object/invalidate";
@@ -40,6 +43,8 @@ const sameTarget = (left: UploadTarget, right: UploadTarget): boolean =>
 type UploaderValue = {
    upload: (files: UploadFile[]) => Promise<void>;
    isChecking: boolean;
+   canUpload: boolean;
+   notice: string | null;
 };
 
 const UploaderContext = createContext<UploaderValue | null>(null);
@@ -49,6 +54,14 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
    const userId = useUserId();
    const serverId = useSessionStore((state) => state.serverId);
    const { bucketName, prefix, refresh } = useBucketContext();
+   const capabilities = useStorageCapabilities();
+   const permitted = usePermission(Permission.UPLOAD_OBJECT, bucketName);
+   const canUpload = permitted && capabilities.upload;
+   const allowed = useRef(canUpload);
+   allowed.current = canUpload;
+   const canReplace = canUpload && capabilities.replace;
+   const replacementAllowed = useRef(canReplace);
+   replacementAllowed.current = canReplace;
    const enqueue = useUploadStore((state) => state.enqueue);
    const [pending, setPending] = useState<PendingReplace | null>(null);
    const [isChecking, setIsChecking] = useState(false);
@@ -103,7 +116,9 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
          target: UploadTarget,
          eTags: Record<string, string>
       ) => {
-         if (!isCurrent(target)) return;
+         if (!allowed.current || !isCurrent(target)) return;
+         if (Object.keys(eTags).length > 0 && !replacementAllowed.current)
+            return;
          const keys = files.map(
             (file) => `${target.prefix}${file.relativePath}`
          );
@@ -130,7 +145,7 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
 
    const upload = useCallback(
       async (files: UploadFile[]) => {
-         if (files.length === 0) return;
+         if (files.length === 0 || !allowed.current) return;
          const target = { userId, serverId, bucketName, prefix };
          if (!userId || !serverId || !isCurrent(target)) return;
          checking.current?.controller.abort();
@@ -156,6 +171,10 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
             const existing = files
                .filter((file) => found.has(`${prefix}${file.relativePath}`))
                .map((file) => file.relativePath);
+            if (existing.length > 0 && !replacementAllowed.current)
+               throw new Error(
+                  "Replacing existing files is unavailable for this provider. Upload them under new filenames."
+               );
             if (existing.length > 0)
                setPending({ files, existing, eTags: result.eTags, ...target });
             else start(files, target, result.eTags);
@@ -177,10 +196,15 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
       [userId, serverId, bucketName, prefix, isCurrent, start]
    );
 
-   const value = useMemo(() => ({ upload, isChecking }), [upload, isChecking]);
+   const value = useMemo(
+      () => ({ upload, isChecking, canUpload, notice: capabilities.notice }),
+      [upload, isChecking, canUpload, capabilities.notice]
+   );
 
    const visiblePending =
-      pending && sameTarget(pending, currentTarget.current) ? pending : null;
+      canReplace && pending && sameTarget(pending, currentTarget.current)
+         ? pending
+         : null;
    const confirmReplace = () => {
       if (!visiblePending) return;
       start(visiblePending.files, visiblePending, visiblePending.eTags);

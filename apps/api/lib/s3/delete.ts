@@ -12,6 +12,7 @@ import { throwHttpError } from "./errors";
 import type { S3Scope } from "./listing";
 import { clientProvider } from "./provider";
 import { withoutRetries } from "./no-retry";
+import { deleteR2Keys } from "./r2-delete";
 
 const deleteBatch = async (
    { client, bucket, signal }: S3Scope,
@@ -68,7 +69,7 @@ const deleteKeys = async (
 ): Promise<S3DeleteResult> => {
    const provider = await clientProvider(scope.client);
    const result: S3DeleteResult = { deleted: [], failed: [] };
-   if (provider !== Provider.S3) {
+   if (provider !== Provider.S3 && provider !== Provider.R2) {
       result.failed = objects.map(({ key }) => ({
          key,
          message:
@@ -94,6 +95,12 @@ const deleteKeys = async (
       }
    }
    const once = { ...scope, client: withoutRetries(scope.client) };
+   if (provider === Provider.R2) {
+      const deleted = await deleteR2Keys(once, reviewed);
+      result.deleted.push(...deleted.deleted);
+      result.failed.push(...deleted.failed);
+      return result;
+   }
    for (const batch of chunk(reviewed, S3_MAX_KEYS_PER_REQUEST)) {
       const deleted = await deleteBatch(once, batch);
       result.deleted.push(...deleted.deleted);

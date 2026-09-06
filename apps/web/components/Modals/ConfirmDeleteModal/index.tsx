@@ -4,7 +4,13 @@ import useDeleteObjects, {
    type DeleteSummary,
 } from "@/lib/hooks/mutations/object/useDeleteObjects";
 import useDeletePrefix from "@/lib/hooks/mutations/object/useDeletePrefix";
-import { baseName, isFolderKey, type S3DeleteTarget } from "@s3-viewer/types";
+import useServers from "@/lib/hooks/queries/server/useServers";
+import {
+   Provider,
+   baseName,
+   isFolderKey,
+   type S3DeleteTarget,
+} from "@s3-viewer/types";
 import { useEffect, useRef, useState } from "react";
 
 type ConfirmDeleteModalProps = {
@@ -26,6 +32,10 @@ const ConfirmDeleteModal = ({
 }: ConfirmDeleteModalProps) => {
    const deleteObjects = useDeleteObjects();
    const deletePrefix = useDeletePrefix();
+   const { servers } = useServers();
+   const isR2 =
+      servers.find((server) => server.id === serverId)?.provider ===
+      Provider.R2;
    const [error, setError] = useState<string | null>(null);
    const [failed, setFailed] = useState<DeleteSummary["failed"]>([]);
    const [failedTotal, setFailedTotal] = useState(0);
@@ -56,13 +66,16 @@ const ConfirmDeleteModal = ({
       : count === 1
         ? "Delete object"
         : `Delete ${count} objects`;
+   const permanence = isR2
+      ? "R2 deletes are permanent. Pause other writers: a file changed during deletion could also be removed."
+      : "This may be permanent, depending on your bucket’s versioning and retention settings.";
    const description = folder
       ? isPending && progress > 0
          ? `Removing current objects under ${folder}… ${progress} deleted so far.`
-         : `This removes current objects under ${folder}. This may be permanent, depending on your bucket’s versioning and retention settings.`
+         : `This removes current objects under ${folder}. ${permanence}`
       : count === 1
-        ? `This removes ${baseName(objects[0]?.key ?? "")}. This may be permanent, depending on your bucket’s versioning and retention settings.`
-        : `This removes ${count} current objects. This may be permanent, depending on your bucket’s versioning and retention settings.`;
+        ? `This removes ${baseName(objects[0]?.key ?? "")}. ${permanence}`
+        : `This removes ${count} current objects. ${permanence}`;
 
    const confirm = () => {
       if (

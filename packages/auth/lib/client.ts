@@ -1,4 +1,8 @@
-import { AUTH_BASE_PATH, SITE_PATHS } from "@s3-viewer/types";
+import {
+   AUTH_BASE_PATH,
+   SITE_PATHS,
+   type DeleteAccountInput,
+} from "@s3-viewer/types";
 import { createAuthClient } from "better-auth/react";
 import { authErrorMessage, type AuthClientError } from "./errors";
 import { localPart } from "./utils";
@@ -109,6 +113,18 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
          })
          .then(toResult);
 
+   // The built-in deleteUser input omits our required account confirmation.
+   // Use the same auth transport so cookie handling and errors stay consistent.
+   const deleteAccount = (
+      confirmation: DeleteAccountInput
+   ): Promise<AuthResult> =>
+      authClient
+         .$fetch("/delete-user", {
+            method: "POST",
+            body: confirmation,
+         })
+         .then(toResult);
+
    const hasPassword = async (): Promise<boolean> => {
       const { data, error } = await authClient.listAccounts();
       if (error) throw new Error(authErrorMessage(error));
@@ -134,6 +150,7 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
       authClient,
       changePassword,
       continueWithPassword,
+      deleteAccount,
       hasPassword,
       requestPasswordReset,
       resetPassword,

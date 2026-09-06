@@ -26,6 +26,16 @@ type ServerInfo = {
    name: string;
    userRole: Role;
    provider: Provider;
+   /** Additive for older clients; missing capabilities must disable mutations. */
+   capabilities?: StorageCapabilities;
+};
+
+type StorageCapabilities = {
+   upload: boolean;
+   replace: boolean;
+   rename: boolean;
+   delete: boolean;
+   notice: string | null;
 };
 
 type BucketAccessEntry = {
@@ -78,6 +88,7 @@ type OwnedServerSummary = {
 };
 
 type AccountSummary = {
+   user: { id: string; email: string };
    ownedServers: OwnedServerSummary[];
    /** servers the user belongs to but does not own */
    memberships: number;
@@ -107,6 +118,7 @@ export type {
    SendInviteResult,
    ServerCredentials,
    ServerInfo,
+   StorageCapabilities,
    ServerInvite,
    ServerUser,
 };
