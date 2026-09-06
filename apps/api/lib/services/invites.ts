@@ -1,7 +1,7 @@
 import { siteOrigin } from "@/lib/env";
 import { bucketGrantSelect, toBucketEntry } from "@/lib/services/members";
 import type { $Enums, Prisma } from "@prisma/client";
-import { canManageRole, highestRole } from "@s3-viewer/permissions";
+import { highestRole } from "@s3-viewer/permissions";
 import {
    DAY_MS,
    INVITE_TTL_DAYS,
@@ -71,56 +71,6 @@ const grantServerRole = async (
 
 type BucketGrantRow = { bucketName: string; role: $Enums.Role };
 
-type InviteAuthority = {
-   invitedById: string;
-   serverId: string;
-   role: $Enums.Role;
-   bucketAccess: readonly BucketGrantRow[];
-};
-
-// an invite is only as good as the authority of whoever sent it: a sender who
-// was removed, demoted, or has lost the right to hand out one of its roles
-// must not still be granting access days later, and the invitee must not be
-// shown an invite that can no longer be accepted
-const canStillGrant = (
-   senderRole: Role | null,
-   invite: Pick<InviteAuthority, "role" | "bucketAccess">
-): boolean =>
-   canManageRole(senderRole, Role[invite.role]) &&
-   invite.bucketAccess.every((grant) =>
-      canManageRole(senderRole, Role[grant.role])
-   );
-
-const senderKey = ({ invitedById, serverId }: InviteAuthority): string =>
-   `${invitedById}:${serverId}`;
-
-const stillGrantable = async <T extends InviteAuthority>(
-   db: Prisma.TransactionClient,
-   invites: readonly T[]
-): Promise<T[]> => {
-   if (invites.length === 0) return [];
-   const senders = await db.serverAccess.findMany({
-      where: {
-         OR: invites.map(({ invitedById, serverId }) => ({
-            userId: invitedById,
-            serverId,
-         })),
-      },
-      select: { userId: true, serverId: true, role: true },
-   });
-   const roles = new Map(
-      senders.map((s) => [`${s.userId}:${s.serverId}`, Role[s.role]])
-   );
-   return invites.filter((invite) =>
-      canStillGrant(roles.get(senderKey(invite)) ?? null, invite)
-   );
-};
-
-const senderCanStillGrant = async (
-   tx: Prisma.TransactionClient,
-   invite: InviteAuthority
-): Promise<boolean> => (await stillGrantable(tx, [invite])).length === 1;
-
 const grantBucketRoles = async (
    tx: Prisma.TransactionClient,
    userId: string,
@@ -163,7 +113,7 @@ export {
    inviteSelect,
    invitesUrl,
    liveInvite,
-   senderCanStillGrant,
-   stillGrantable,
    toServerInvite,
 };
+
+export { senderCanStillGrant, stillGrantable } from "./invite-authority";

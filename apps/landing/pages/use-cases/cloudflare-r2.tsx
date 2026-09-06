@@ -19,9 +19,9 @@ const SLUG = "cloudflare-r2";
 const TITLE = "A daily-use dashboard for Cloudflare R2.";
 const KEYWORD = "Cloudflare R2 dashboard";
 const META_DESCRIPTION =
-   "A daily-use dashboard for Cloudflare R2: rename, inline previews, streamed uploads with no bucket setup, email invites, and your AWS buckets in the same sidebar.";
+   "A daily-use dashboard for Cloudflare R2: inline previews, streamed uploads with no bucket setup, email invites, and your AWS buckets in the same sidebar.";
 const DESCRIPTION =
-   "Cloudflare R2's S3-compatible API is excellent — it's what lets any S3 client talk to R2 the same way it talks to AWS S3. The Cloudflare dashboard is built around configuration; S3 Viewer is the layer for daily browsing on top: rename, inline previews, streamed uploads that need no CORS policy on the bucket, email invites, and R2 in the same sidebar as your AWS buckets.";
+   "Cloudflare R2's S3-compatible API is excellent — it's what lets any S3 client talk to R2 the same way it talks to AWS S3. The Cloudflare dashboard is built around configuration; S3 Viewer is the layer for daily browsing on top: inline previews, streamed uploads that need no CORS policy on the bucket, email invites, and R2 in the same sidebar as your AWS buckets.";
 
 const steps: UseCaseStep[] = [
    {
@@ -34,7 +34,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Use R2 the way you'd use any bucket",
-      body: "Rename objects (the underlying S3 API has no rename — we wrap copy + delete). Filter a folder by prefix. Upload multi-GB files — they stream through S3 Viewer into R2 as a multipart upload, with no CORS policy to set on the bucket. Invite teammates by email — they don't need a Cloudflare account.",
+      body: "Filter a folder by prefix. Upload multi-GB files — they stream through S3 Viewer into R2 as a multipart upload, with no CORS policy to set on the bucket. Invite teammates by email — they don't need a Cloudflare account.",
    },
 ];
 
@@ -42,12 +42,12 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "Is there a better dashboard for Cloudflare R2?",
       answer:
-         "S3 Viewer is built for the daily browsing layer on top of R2. The Cloudflare dashboard is the right place to create buckets, manage R2 API tokens, configure custom domains, and handle billing. S3 Viewer adds inline file previews, a prefix filter inside each folder, one-step rename (wrapping the standard S3 copy + delete pattern), uploads that stream through S3 Viewer with no bucket configuration, team sharing by email, and your AWS buckets one click away in the same sidebar.",
+         "S3 Viewer is built for the daily browsing layer on top of R2. The Cloudflare dashboard is the right place to create buckets, manage R2 API tokens, configure custom domains, and handle billing. S3 Viewer adds inline file previews, a prefix filter inside each folder, uploads that stream through S3 Viewer with no bucket configuration, team sharing by email, and your AWS buckets one click away in the same sidebar.",
    },
    {
       question: "How do I rename a file in Cloudflare R2?",
       answer:
-         "R2 implements the S3 API, and Amazon S3 has no native rename — keys are immutable. The standard pattern is to copy the object to the new key and delete the old one. S3 Viewer wraps this behind ⋮ → Rename: it copies the object with its metadata, deletes the source only once the copy succeeds, and refuses to overwrite an existing key. Objects over 5 GB need a multipart copy from the CLI.",
+         "S3 Viewer's Rename action is currently available only on AWS S3, where concurrent changes can be checked before copying and deleting. For R2, download the object and upload it under a new name, then verify the new copy before deleting the original.",
    },
    {
       question: "How do I search a Cloudflare R2 bucket?",
@@ -58,7 +58,7 @@ const faqs: UseCaseFAQ[] = [
       question:
          "Can I share a Cloudflare R2 bucket with someone who doesn't have a Cloudflare account?",
       answer:
-         "Yes. Click Share, invite them by email and give them a role — Viewer (browse and download), Editor (also upload, rename, delete and create buckets) or Admin (also manage members, rename the server and remove buckets). They sign in to S3 Viewer in a browser and see the bucket, with no Cloudflare account or API token of their own.",
+         "Yes. Click Share, invite them by email and give them a role — Viewer (browse and download), Editor (also upload, delete and create buckets) or Admin (also manage members, rename the server and remove buckets). They sign in to S3 Viewer in a browser and see the bucket, with no Cloudflare account or API token of their own.",
    },
    {
       question: "Are large uploads to R2 reliable?",
@@ -82,12 +82,12 @@ export default createUseCasePage({
    title: TITLE,
    keyword: KEYWORD,
    description: DESCRIPTION,
-   seoTitle: "Cloudflare R2 Dashboard — Rename, Preview and Share R2 Buckets",
+   seoTitle: "Cloudflare R2 Dashboard — Browse, Preview and Share R2 Buckets",
    seoDescription: META_DESCRIPTION,
    eyebrow: "Cloudflare R2",
    tagline: "Built for the people who actually open R2 buckets every day.",
    bullets: [
-      "Rename, prefix filtering, and inline previews for R2 objects",
+      "Prefix filtering and inline previews for R2 objects",
       "Share R2 buckets by email — no Cloudflare account required for the recipient",
       "Mix R2 servers with AWS S3, MinIO, and B2 in one sidebar",
    ],
@@ -95,8 +95,8 @@ export default createUseCasePage({
    features: [
       {
          icon: PencilLine,
-         title: "Rename in R2",
-         body: "R2 has no rename API — same as S3, by design. S3 Viewer wraps the standard copy + delete pattern behind ⋮ → Rename: metadata carries over, the source goes only after the copy succeeds, and an existing key is never overwritten.",
+         title: "Preview R2 files",
+         body: "Open supported images, PDFs, text and other files directly in the browser. Rename is currently available only for AWS S3; on R2, download and re-upload under the new name.",
       },
       {
          icon: Search,

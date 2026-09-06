@@ -4,6 +4,7 @@ import { getAuth } from "@/lib/middleware/authorize";
 import { memberRoute, serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { recordAudit } from "@/lib/services/audit";
+import { revokeInvalidInvites } from "@/lib/services/invite-authority";
 import {
    assertBucketGrantChanges,
    clampBucketAccess,
@@ -14,9 +15,9 @@ import {
    removeMembership,
    replaceBucketAccess,
 } from "@/lib/services/members";
-import { isMissingRow, loadServerSettings } from "@/lib/services/servers";
+import { isMissingRow, lockBucketScope } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
-import { Permission, rankOf } from "@s3-viewer/permissions";
+import { Permission, rankOf, canManageRole } from "@s3-viewer/permissions";
 import {
    Role,
    removeMemberSchema,
@@ -37,20 +38,37 @@ const getMembers = async (_req: Request, res: Response) => {
 
 const updateRole = async (_req: Request, res: Response) => {
    const { serverId, userId, role, bucketAccess } = input<UpdateRoleInput>(res);
-   const { userId: actorId, serverRole, targetRole } = getAuth(res);
-   if (bucketAccess) {
-      const [scope, current, actor] = await Promise.all([
-         loadServerSettings(serverId),
-         loadBucketGrants(userId, serverId),
-         loadGrantingActor(actorId, serverId, serverRole, bucketAccess),
-      ]);
-      assertBucketGrantChanges(actor, scope, current, bucketAccess);
-   }
+   const { userId: actorId } = getAuth(res);
    const newRole = Role[role];
    // a bucket grant may outrank the server role on purpose (the picker caps
    // by the actor's rank, not the target's); only a demotion pulls them down
-   const demoted = rankOf(newRole) < rankOf(targetRole);
    await prisma.$transaction(async (tx) => {
+      const scope = await lockBucketScope(tx, serverId);
+      const [actorAccess, targetAccess] = await Promise.all([
+         tx.serverAccess.findUnique({
+            where: { userId_serverId: { userId: actorId, serverId } },
+         }),
+         tx.serverAccess.findUnique({
+            where: { userId_serverId: { userId, serverId } },
+         }),
+      ]);
+      if (!targetAccess) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+      const serverRole = actorAccess ? Role[actorAccess.role] : null;
+      if (
+         !serverRole ||
+         !canManageRole(serverRole, Role[targetAccess.role]) ||
+         !canManageRole(serverRole, newRole)
+      ) {
+         throw new ApiHttpError(403, "You can't manage that member");
+      }
+      const demoted = rankOf(newRole) < rankOf(Role[targetAccess.role]);
+      if (bucketAccess) {
+         const [current, actor] = await Promise.all([
+            loadBucketGrants(userId, serverId, tx),
+            loadGrantingActor(actorId, serverId, serverRole, bucketAccess, tx),
+         ]);
+         assertBucketGrantChanges(actor, scope, current, bucketAccess);
+      }
       try {
          await tx.serverAccess.update({
             where: { userId_serverId: { userId, serverId } },
@@ -63,6 +81,7 @@ const updateRole = async (_req: Request, res: Response) => {
       if (bucketAccess)
          await replaceBucketAccess(tx, userId, serverId, bucketAccess);
       if (demoted) await clampBucketAccess(tx, userId, serverId, newRole);
+      await revokeInvalidInvites(tx, serverId);
    });
    const member = await findMember(serverId, userId);
    if (!member) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
@@ -78,7 +97,7 @@ const updateRole = async (_req: Request, res: Response) => {
 const removeMember = async (_req: Request, res: Response) => {
    const { serverId, userId } = input<RemoveMemberInput>(res);
    const { userId: actorId } = getAuth(res);
-   await removeMembership(userId, serverId);
+   await removeMembership(userId, serverId, actorId);
    await recordAudit({
       action: "member.remove",
       actorId,

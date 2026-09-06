@@ -124,7 +124,7 @@ const ProfileCard = () => {
                      ) : transport === "loading" ? (
                         "Not verified."
                      ) : transport === "disabled" ? (
-                        "Not verified. This instance has no email configured, so verification is unavailable."
+                        "Not verified. Ask the instance operator to verify your account or enable email, then sign in again."
                      ) : (
                         <>
                            Not verified yet.{" "}

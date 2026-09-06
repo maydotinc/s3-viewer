@@ -11,11 +11,11 @@ const SLUG = "rename-s3-file";
 const TITLE = "How to rename a file in S3 (and why it's tricky)";
 const KEYWORD = "rename file in S3";
 const TLDR =
-   "Amazon S3 has no rename API — keys are immutable, by design. Cloudflare R2 follows the same S3 API and inherits the same constraint. To rename, you copy the object to the new key and delete the original. The AWS CLI does it with aws s3 mv; the SDKs do it with copyObject + deleteObject; S3 Viewer wraps the same pattern behind the ⋮ menu on a row: it copies the object with its metadata, then deletes the original. It refuses to overwrite an existing key and is limited to objects up to 5 GB.";
+   "Amazon S3 has no rename API — keys are immutable, by design. Cloudflare R2 follows the same S3 API and inherits the same constraint. To rename, you copy the object to the new key and delete the original. The AWS CLI does it with aws s3 mv; the SDKs do it with copyObject + deleteObject; S3 Viewer offers rename on AWS S3 only: it conditionally copies an unchanged object with its metadata into an absent destination, then deletes the original only if its ETag still matches. It refuses to overwrite an existing key and is limited to objects up to 5 GB.";
 
 const steps: HowToStep[] = [
    {
-      title: "In S3 Viewer: open the ⋮ menu and choose Rename",
+      title: "On AWS S3: open the ⋮ menu and choose Rename",
       body: (
          <>
             Open the ⋮ menu on the object&apos;s row and choose{" "}
@@ -113,7 +113,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Can I rename a file in Cloudflare R2?",
       answer:
-         "Same answer — R2 implements the S3 API, and Amazon S3's no-rename design carries over. Use the same copy + delete pattern. S3 Viewer's rename works identically against R2 buckets: ⋮ → Rename, metadata preserved, up to 5 GB.",
+         "S3 Viewer's Rename action is currently available only on AWS S3. For R2, download the object and upload it under a new name, then verify the new copy before deleting the original.",
    },
    {
       question: "How do I rename a folder in S3?",
@@ -159,12 +159,11 @@ export default createHowToPage({
          </p>
          <br />
          <p>
-            S3 Viewer only deletes the source after the destination write
-            returns success, refuses the rename when something already exists at
-            the target key (you get a conflict error rather than a silent
+            S3 Viewer checks that the source is unchanged before copying and
+            deleting it, refuses the rename when something already exists at the
+            target key (you get a conflict error rather than a silent
             overwrite), and rejects objects over 5 GB — use the CLI or an SDK
-            for those. The same pattern works against Cloudflare R2 and any
-            other S3-compatible provider.
+            for those. S3 Viewer offers this guarded rename only on AWS S3.
          </p>
       </>
    ),

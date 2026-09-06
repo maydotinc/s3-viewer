@@ -1,9 +1,9 @@
-import type { S3Client } from "@aws-sdk/client-s3";
+import { AbortMultipartUploadCommand, type S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { Transform, type Readable } from "node:stream";
 import { logger } from "../logger";
+import { UPLOAD_QUEUE_SIZE } from "./upload-budget";
 
-const QUEUE_SIZE = 4;
 const MAX_PARTS = 10_000;
 const MIB = 1024 * 1024;
 const TIB = 1024 ** 4;
@@ -20,13 +20,21 @@ class UploadTooLargeError extends Error {
    }
 }
 
+class UploadIdleError extends Error {
+   constructor() {
+      super("Upload stopped receiving data. Try again.");
+      this.name = "UploadIdleError";
+   }
+}
+
 const isUploadTooLargeError = (err: unknown): err is UploadTooLargeError =>
    err instanceof UploadTooLargeError;
 
-const limitBytes = (limit: number): Transform => {
+const limitBytes = (limit: number, onChunk: () => void): Transform => {
    let total = 0;
    return new Transform({
       transform(chunk, _encoding, done) {
+         onChunk();
          total += chunk.length;
          if (total > limit) {
             done(new UploadTooLargeError(limit));
@@ -85,6 +93,7 @@ type StreamUploadParams = {
    partSize: number;
    maxBytes: number;
    abortController: AbortController;
+   idleTimeoutMs?: number;
 };
 
 type StreamUploadResult = { size: number; eTag: string | null };
@@ -99,13 +108,58 @@ const streamUpload = async ({
    partSize,
    maxBytes,
    abortController,
+   idleTimeoutMs = 120_000,
 }: StreamUploadParams): Promise<StreamUploadResult> => {
-   const limiter = limitBytes(maxBytes);
-   body.on("error", (err) => limiter.destroy(err));
-   limiter.on("error", () => body.destroy());
+   let idle: ReturnType<typeof setTimeout> | undefined;
+   const clearIdle = () => clearTimeout(idle);
+   const resetIdle = () => {
+      clearIdle();
+      // Backpressure means S3 is busy, not that the client is stalled. Only
+      // time the client while we demand input; S3 has its own idle timeout.
+      if (!body.readableFlowing || body.readableEnded) return;
+      idle = setTimeout(
+         () => abortController.abort(new UploadIdleError()),
+         idleTimeoutMs
+      );
+      idle.unref();
+   };
+   const limiter = limitBytes(maxBytes, resetIdle);
+   body.on("pause", clearIdle);
+   body.on("resume", resetIdle);
+   body.on("end", clearIdle);
+   const onBodyError = (err: Error) => limiter.destroy(err);
+   const onAbort = () =>
+      limiter.destroy(
+         abortController.signal.reason instanceof Error
+            ? abortController.signal.reason
+            : new Error("Upload aborted")
+      );
+   body.on("error", onBodyError);
+   limiter.on("error", () => {
+      body.unpipe(limiter);
+      body.pause();
+   });
+   abortController.signal.addEventListener("abort", onAbort, { once: true });
+
+   // Upload.done() races its own AbortController and can otherwise return
+   // while buffered parts are still being sent. Cancel the input and each
+   // S3 request instead, so done() waits for its workers and cleanup before
+   // the caller releases the memory reservation. Cleanup gets its own signal.
+   let cleanupConfirmed = false;
+   const uploadClient = Object.create(client) as S3Client;
+   uploadClient.send = (async (command: Parameters<S3Client["send"]>[0]) => {
+      const cleanup = command instanceof AbortMultipartUploadCommand;
+      const result = await client.send(command, {
+         abortSignal: cleanup
+            ? AbortSignal.timeout(10_000)
+            : abortController.signal,
+      });
+      if (cleanup) cleanupConfirmed = true;
+      return result;
+   }) as S3Client["send"];
 
    const upload = new Upload({
-      client,
+      client: uploadClient,
       params: {
          Bucket: bucket,
          Key: key,
@@ -116,9 +170,8 @@ const streamUpload = async ({
             : { ContentLength: contentLength }),
       },
       partSize,
-      queueSize: QUEUE_SIZE,
+      queueSize: UPLOAD_QUEUE_SIZE,
       leavePartsOnError: false,
-      abortController,
    });
 
    let size = 0;
@@ -127,20 +180,54 @@ const streamUpload = async ({
    });
 
    try {
+      resetIdle();
+      if (abortController.signal.aborted) onAbort();
       const out = await upload.done();
       return { size, eTag: out.ETag ?? null };
    } catch (err) {
-      // done() races the abort, so the AbortMultipartUpload may still be in
-      // flight here; log the id so an operator can clean up orphaned parts
-      if (upload.uploadId !== undefined) {
-         logger.warn("Multipart upload failed before cleanup was confirmed", {
-            bucket,
-            key,
-            uploadId: upload.uploadId,
-         });
+      // lib-storage cleans up worker failures, but not failures/cancellation
+      // during CompleteMultipartUpload. Finish that cleanup before admission
+      // is released; it must work even after the request signal was aborted.
+      if (upload.uploadId !== undefined && !cleanupConfirmed) {
+         try {
+            await client.send(
+               new AbortMultipartUploadCommand({
+                  Bucket: bucket,
+                  Key: key,
+                  UploadId: upload.uploadId,
+               }),
+               { abortSignal: AbortSignal.timeout(10_000) }
+            );
+            cleanupConfirmed = true;
+         } catch (cleanupError) {
+            cleanupConfirmed =
+               cleanupError instanceof Error &&
+               cleanupError.name === "NoSuchUpload";
+         }
+         if (!cleanupConfirmed) {
+            logger.warn(
+               "Multipart upload failed before cleanup was confirmed",
+               {
+                  bucket,
+                  key,
+                  uploadId: upload.uploadId,
+               }
+            );
+         }
       }
       if (isUploadTooLargeError(limiter.errored)) throw limiter.errored;
+      if (abortController.signal.reason instanceof UploadIdleError)
+         throw abortController.signal.reason;
       throw err;
+   } finally {
+      clearIdle();
+      body.off("pause", clearIdle);
+      body.off("resume", resetIdle);
+      body.off("end", clearIdle);
+      body.unpipe(limiter);
+      body.off("error", onBodyError);
+      abortController.signal.removeEventListener("abort", onAbort);
+      limiter.destroy();
    }
 };
 
@@ -157,4 +244,5 @@ export {
    partSizeFor,
    streamUpload,
    UploadTooLargeError,
+   UploadIdleError,
 };

@@ -1,7 +1,15 @@
-import type { S3Client } from "@aws-sdk/client-s3";
-import { Readable } from "node:stream";
-import { describe, expect, it } from "vitest";
 import {
+   CompleteMultipartUploadCommand,
+   CreateMultipartUploadCommand,
+   UploadPartCommand,
+   AbortMultipartUploadCommand,
+   type S3Client,
+} from "@aws-sdk/client-s3";
+import { createUploadBudget } from "./upload-budget";
+import { Readable, PassThrough } from "node:stream";
+import { describe, expect, it, vi } from "vitest";
+import {
+   UploadIdleError,
    declaredLength,
    exceedsMaxPartSize,
    isUploadTooLargeError,
@@ -11,6 +19,17 @@ import {
    partSizeFor,
    streamUpload,
 } from "./upload";
+
+const mockConfig = {
+   requestHandler: {},
+   endpoint: async () => ({
+      protocol: "https:",
+      hostname: "s3.example.com",
+      path: "/",
+   }),
+   requestChecksumCalculation: async () => "WHEN_REQUIRED",
+   forcePathStyle: true,
+};
 
 describe("declaredLength", () => {
    it("parses a well-formed Content-Length", () => {
@@ -83,7 +102,7 @@ describe("streamUpload byte cap", () => {
       const body = Readable.from(chunks);
       const sent: Buffer[] = [];
       const client = {
-         config: { requestHandler: {} },
+         config: mockConfig,
          send: async (command: { input: { Body?: unknown } }) => {
             const part = command.input.Body;
             if (part !== undefined) sent.push(Buffer.from(part as Uint8Array));
@@ -114,8 +133,7 @@ describe("streamUpload byte cap", () => {
 
    it("does not trip the cap for a body at exactly the limit", async () => {
       const chunk = Buffer.alloc(64 * 1024, 1);
-      const err = await collect([chunk], 64 * 1024).catch((e: unknown) => e);
-      expect(isUploadTooLargeError(err)).toBe(false);
+      await expect(collect([chunk], 64 * 1024)).resolves.toBe(64 * 1024);
    });
 
    it("trips the cap one byte over the limit", async () => {
@@ -124,5 +142,316 @@ describe("streamUpload byte cap", () => {
          (e: unknown) => e
       );
       expect(isUploadTooLargeError(err)).toBe(true);
+   });
+});
+
+describe("upload lifetime", () => {
+   it("aborts a stalled input and clears the watchdog", async () => {
+      vi.useFakeTimers();
+      const body = new PassThrough();
+      try {
+         const pending = streamUpload({
+            client: {
+               config: mockConfig,
+               send: vi.fn(),
+            } as unknown as S3Client,
+            bucket: "bucket",
+            key: "key",
+            contentType: "text/plain",
+            body,
+            contentLength: undefined,
+            partSize: 5 * 1024 * 1024,
+            maxBytes: 100,
+            abortController: new AbortController(),
+            idleTimeoutMs: 40,
+         });
+         const check = expect(pending).rejects.toBeInstanceOf(UploadIdleError);
+         await vi.advanceTimersByTimeAsync(41);
+         await check;
+         expect(vi.getTimerCount()).toBe(0);
+      } finally {
+         body.destroy();
+         vi.useRealTimers();
+      }
+   });
+
+   it("resets the inactivity deadline as input arrives", async () => {
+      vi.useFakeTimers();
+      const body = new PassThrough();
+      try {
+         const pending = streamUpload({
+            client: {
+               config: mockConfig,
+               send: async () => ({ ETag: '"ok"' }),
+            } as unknown as S3Client,
+            bucket: "bucket",
+            key: "key",
+            contentType: "text/plain",
+            body,
+            contentLength: undefined,
+            partSize: 5 * 1024 * 1024,
+            maxBytes: 100,
+            abortController: new AbortController(),
+            idleTimeoutMs: 40,
+         });
+         await vi.advanceTimersByTimeAsync(30);
+         body.write("a");
+         await vi.advanceTimersByTimeAsync(30);
+         body.end("b");
+         await expect(pending).resolves.toMatchObject({ eTag: '"ok"' });
+         expect(vi.getTimerCount()).toBe(0);
+      } finally {
+         body.destroy();
+         vi.useRealTimers();
+      }
+   });
+
+   it("waits for cancelled part requests and multipart cleanup before settling", async () => {
+      const body = new PassThrough();
+      const controller = new AbortController();
+      let startPart!: () => void;
+      const started = new Promise<void>((resolve) => {
+         startPart = resolve;
+      });
+      let completeCleanup!: () => void;
+      const cleanup = new Promise<void>((resolve) => {
+         completeCleanup = resolve;
+      });
+      let cleanupSignal: AbortSignal | undefined;
+      const client = {
+         config: mockConfig,
+         send: async (
+            command:
+               | CreateMultipartUploadCommand
+               | UploadPartCommand
+               | AbortMultipartUploadCommand,
+            options: { abortSignal: AbortSignal }
+         ) => {
+            if (command instanceof CreateMultipartUploadCommand)
+               return { UploadId: "upload123" };
+            if (command instanceof UploadPartCommand) {
+               startPart();
+               return new Promise((_resolve, reject) =>
+                  options.abortSignal.addEventListener(
+                     "abort",
+                     () => reject(options.abortSignal.reason),
+                     { once: true }
+                  )
+               );
+            }
+            if (command instanceof AbortMultipartUploadCommand) {
+               cleanupSignal = options.abortSignal;
+               await cleanup;
+               return {};
+            }
+            throw new Error("Unexpected S3 command");
+         },
+      } as unknown as S3Client;
+      const budget = createUploadBudget({
+         maxUploads: 1,
+         maxPerUser: 1,
+         maxBytes: 20 * 1024 * 1024,
+      });
+      const release = budget.acquire("user1", 20 * 1024 * 1024);
+      const pending = streamUpload({
+         client,
+         bucket: "bucket",
+         key: "key",
+         contentType: "text/plain",
+         body,
+         contentLength: undefined,
+         partSize: 5 * 1024 * 1024,
+         maxBytes: 10 * 1024 * 1024,
+         abortController: controller,
+      }).finally(release);
+      const rejected = expect(pending).rejects.toBeDefined();
+      body.write(Buffer.alloc(5 * 1024 * 1024 + 1));
+      await started;
+      controller.abort(new Error("Client disconnected"));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      expect(cleanupSignal?.aborted).toBe(false);
+      expect(() => budget.acquire("user2", 1)).toThrow(/busy/);
+      completeCleanup();
+      await rejected;
+      expect(() => budget.acquire("user2", 1)).not.toThrow();
+      body.destroy();
+   });
+});
+
+describe("multipart completion", () => {
+   it.each(["disconnect", "S3 error"])(
+      "waits for orphan cleanup after %s during completion",
+      async (failure) => {
+         const controller = new AbortController();
+         const original = new Error(failure);
+         let completing!: () => void,
+            cleaning!: () => void,
+            finishCleanup!: () => void;
+         const started = new Promise<void>((resolve) => {
+            completing = resolve;
+         });
+         const cleanupStarted = new Promise<void>((resolve) => {
+            cleaning = resolve;
+         });
+         const cleanupFinished = new Promise<void>((resolve) => {
+            finishCleanup = resolve;
+         });
+         const client = {
+            config: mockConfig,
+            send: async (
+               command:
+                  | CreateMultipartUploadCommand
+                  | UploadPartCommand
+                  | CompleteMultipartUploadCommand
+                  | AbortMultipartUploadCommand,
+               options: { abortSignal: AbortSignal }
+            ) => {
+               if (command instanceof CreateMultipartUploadCommand)
+                  return { UploadId: "upload123" };
+               if (command instanceof UploadPartCommand)
+                  return { ETag: '"part"' };
+               if (command instanceof CompleteMultipartUploadCommand) {
+                  completing();
+                  if (failure === "S3 error") throw original;
+                  return new Promise((_resolve, reject) =>
+                     options.abortSignal.addEventListener(
+                        "abort",
+                        () => reject(original),
+                        { once: true }
+                     )
+                  );
+               }
+               if (command instanceof AbortMultipartUploadCommand) {
+                  expect(options.abortSignal.aborted).toBe(false);
+                  cleaning();
+                  await cleanupFinished;
+                  return {};
+               }
+               throw new Error("Unexpected command");
+            },
+         } as unknown as S3Client;
+         const budget = createUploadBudget({
+            maxUploads: 1,
+            maxPerUser: 1,
+            maxBytes: 20 * 1024 * 1024,
+         });
+         const release = budget.acquire("user1", 20 * 1024 * 1024);
+         const pending = streamUpload({
+            client,
+            bucket: "b",
+            key: "k",
+            contentType: "text/plain",
+            body: Readable.from([Buffer.alloc(5 * 1024 * 1024 + 1)]),
+            contentLength: undefined,
+            partSize: 5 * 1024 * 1024,
+            maxBytes: 10 * 1024 * 1024,
+            abortController: controller,
+         }).finally(release);
+         const rejected = expect(pending).rejects.toBe(original);
+         await started;
+         if (failure === "disconnect") controller.abort(original);
+         await cleanupStarted;
+         expect(() => budget.acquire("user2", 1)).toThrow(/busy/);
+         finishCleanup();
+         await rejected;
+         expect(() => budget.acquire("user2", 1)).not.toThrow();
+      }
+   );
+
+   it("allows S3 completion beyond the input deadline after EOF", async () => {
+      vi.useFakeTimers();
+      const controller = new AbortController();
+      let completing!: () => void, finish!: () => void;
+      const started = new Promise<void>((resolve) => {
+         completing = resolve;
+      });
+      const completed = new Promise<void>((resolve) => {
+         finish = resolve;
+      });
+      const client = {
+         config: mockConfig,
+         send: async (
+            command:
+               | CreateMultipartUploadCommand
+               | CompleteMultipartUploadCommand
+         ) => {
+            if (command instanceof CreateMultipartUploadCommand)
+               return { UploadId: "upload123" };
+            if (command instanceof CompleteMultipartUploadCommand) {
+               completing();
+               await completed;
+            }
+            return { ETag: '"ok"' };
+         },
+      } as unknown as S3Client;
+      try {
+         const pending = streamUpload({
+            client,
+            bucket: "b",
+            key: "k",
+            contentType: "text/plain",
+            body: Readable.from([Buffer.alloc(5 * 1024 * 1024 + 1)]),
+            contentLength: undefined,
+            partSize: 5 * 1024 * 1024,
+            maxBytes: 10 * 1024 * 1024,
+            abortController: controller,
+            idleTimeoutMs: 40,
+         });
+         await started;
+         await vi.advanceTimersByTimeAsync(400);
+         expect(controller.signal.aborted).toBe(false);
+         finish();
+         await expect(pending).resolves.toMatchObject({ eTag: '"ok"' });
+         expect(vi.getTimerCount()).toBe(0);
+      } finally {
+         vi.useRealTimers();
+      }
+   });
+
+   it("pauses the client deadline while S3 backpressures input", async () => {
+      vi.useFakeTimers();
+      const body = new PassThrough();
+      const controller = new AbortController();
+      let unblock!: () => void;
+      const blocked = new Promise<void>((resolve) => {
+         unblock = resolve;
+      });
+      const client = {
+         config: mockConfig,
+         send: async (
+            command: CreateMultipartUploadCommand | UploadPartCommand
+         ) => {
+            if (command instanceof CreateMultipartUploadCommand)
+               return { UploadId: "upload123" };
+            if (command instanceof UploadPartCommand) await blocked;
+            return { ETag: '"ok"' };
+         },
+      } as unknown as S3Client;
+      try {
+         const pending = streamUpload({
+            client,
+            bucket: "b",
+            key: "k",
+            contentType: "text/plain",
+            body,
+            contentLength: undefined,
+            partSize: 5 * 1024 * 1024,
+            maxBytes: 25 * 1024 * 1024,
+            abortController: controller,
+            idleTimeoutMs: 40,
+         });
+         for (let n = 0; n < 4; n++) body.write(Buffer.alloc(5 * 1024 * 1024));
+         await vi.advanceTimersByTimeAsync(1);
+         expect(body.readableFlowing).toBe(false);
+         await vi.advanceTimersByTimeAsync(400);
+         expect(controller.signal.aborted).toBe(false);
+         body.end();
+         unblock();
+         await expect(pending).resolves.toMatchObject({ eTag: '"ok"' });
+         expect(vi.getTimerCount()).toBe(0);
+      } finally {
+         body.destroy();
+         vi.useRealTimers();
+      }
    });
 });

@@ -54,6 +54,10 @@ services:
          - ALLOW_PRIVATE_ENDPOINTS
          - MAX_UPLOAD_BYTES
          - UPLOAD_PART_BYTES
+         - MAX_CONCURRENT_UPLOADS
+         - MAX_USER_UPLOADS
+         - UPLOAD_MEMORY_BUDGET_BYTES
+         - UPLOAD_IDLE_TIMEOUT_MS
          - LOG_LEVEL
       volumes:
          - apidata:/data

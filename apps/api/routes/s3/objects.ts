@@ -1,11 +1,6 @@
-import {
-   MAX_EXISTS_HEADS,
-   OBJECT_EXISTS,
-   S3_ROUTE_TIMEOUT_MS,
-} from "@/lib/constants";
+import { MAX_EXISTS_HEADS, S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
-import { logger } from "@/lib/logger";
 import { getAuth } from "@/lib/middleware/authorize";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
@@ -14,7 +9,6 @@ import { deleteKeys } from "@/lib/s3/delete";
 import { isNotFound, throwHttpError, toHttpError } from "@/lib/s3/errors";
 import {
    contentDispositionFilename,
-   encodeCopySource,
    inlineContentType,
    inlineDisposition,
 } from "@/lib/s3/keys";
@@ -24,6 +18,7 @@ import {
    listPage,
    type S3Scope,
 } from "@/lib/s3/listing";
+import { renameObject } from "@/lib/s3/rename";
 import { presignedUrl } from "@/lib/s3/presign";
 import { recordAudit } from "@/lib/services/audit";
 import { loadServerSettings } from "@/lib/services/servers";
@@ -38,20 +33,18 @@ import {
    maxPartBytesFor,
    partSizeFor,
    streamUpload,
+   UploadIdleError,
 } from "@/lib/s3/upload";
+import { createUploadBudget, uploadMemoryFor } from "@/lib/s3/upload-budget";
 import {
-   CopyObjectCommand,
-   DeleteObjectCommand,
    GetObjectCommand,
    HeadObjectCommand,
-   type CopyObjectCommandInput,
    type HeadObjectCommandOutput,
    type S3Client,
 } from "@aws-sdk/client-s3";
 import { Permission } from "@s3-viewer/permissions";
 import {
    DEFAULT_CONTENT_TYPE,
-   MAX_RENAME_BYTES,
    Provider,
    keysQuerySchema,
    listObjectsQuerySchema,
@@ -78,6 +71,11 @@ const HEAD_CONCURRENCY = 16;
 const EXISTS_LIST_THRESHOLD = 50;
 
 const objectsRouter = Router({ mergeParams: true });
+const uploadBudget = createUploadBudget({
+   maxUploads: env.MAX_CONCURRENT_UPLOADS,
+   maxPerUser: env.MAX_USER_UPLOADS,
+   maxBytes: env.UPLOAD_MEMORY_BUDGET_BYTES,
+});
 
 const routeScope = (
    client: S3Client,
@@ -134,19 +132,6 @@ const whichExist = async (
       ...unresolved.slice(MAX_EXISTS_HEADS),
    ];
 };
-
-const copyAttributes = (
-   head: HeadObjectCommandOutput
-): Partial<CopyObjectCommandInput> => ({
-   ...(head.StorageClass && { StorageClass: head.StorageClass }),
-   ...(head.ServerSideEncryption && {
-      ServerSideEncryption: head.ServerSideEncryption,
-   }),
-   ...(head.SSEKMSKeyId && { SSEKMSKeyId: head.SSEKMSKeyId }),
-   ...(head.BucketKeyEnabled !== undefined && {
-      BucketKeyEnabled: head.BucketKeyEnabled,
-   }),
-});
 
 const toMetadata = (head: HeadObjectCommandOutput): S3ObjectMetadata => ({
    contentType: head.ContentType ?? DEFAULT_CONTENT_TYPE,
@@ -266,15 +251,6 @@ objectsRouter.put(
             );
          }
 
-         // a large upload can stream for hours, so this route drops the socket
-         // idle timeout instead of server.ts doing it for every route
-         req.setTimeout(0);
-
-         const abortController = new AbortController();
-         req.on("close", () => {
-            if (!req.complete) abortController.abort();
-         });
-
          const partSize = partSizeFor(contentLength, env.UPLOAD_PART_BYTES);
          const maxBytes = Math.min(
             env.MAX_UPLOAD_BYTES,
@@ -282,25 +258,56 @@ objectsRouter.put(
             MAX_OBJECT_BYTES
          );
 
-         const client = await getS3Client(serverId);
-         const { size, eTag } = await streamUpload({
-            client,
-            bucket: bucketName,
-            key: objectKey,
-            contentType,
-            body: req,
-            contentLength,
-            partSize,
-            maxBytes,
-            abortController,
-         }).catch((err: unknown) => {
-            if (isUploadTooLargeError(err)) {
-               throw new ApiHttpError(413, err.message);
-            }
-            return throwHttpError(err);
-         });
-         const uploaded: S3ObjectUploaded = { key: objectKey, size, eTag };
-         res.status(201).json(uploaded);
+         const { userId } = getAuth(res);
+         let release: () => void;
+         try {
+            release = uploadBudget.acquire(userId, uploadMemoryFor(partSize));
+         } catch (error) {
+            res.setHeader("Connection", "close");
+            if (error instanceof ApiHttpError && error.status === 429)
+               res.setHeader("Retry-After", "5");
+            throw error;
+         }
+         const abortController = new AbortController();
+         const onRequestClose = () => {
+            if (!req.complete) abortController.abort();
+         };
+         const onResponseClose = () => {
+            if (!res.writableEnded) abortController.abort();
+         };
+         req.on("close", onRequestClose);
+         res.on("close", onResponseClose);
+         try {
+            const client = await getS3Client(serverId);
+            // The streaming watchdog only times demanded client input; a
+            // socket timer would also kill healthy S3 backpressure/completion.
+            req.setTimeout(0);
+            const { size, eTag } = await streamUpload({
+               client,
+               bucket: bucketName,
+               key: objectKey,
+               contentType,
+               body: req,
+               contentLength,
+               partSize,
+               maxBytes,
+               abortController,
+               idleTimeoutMs: env.UPLOAD_IDLE_TIMEOUT_MS,
+            });
+            const uploaded: S3ObjectUploaded = { key: objectKey, size, eTag };
+            res.status(201).json(uploaded);
+         } catch (error) {
+            res.setHeader("Connection", "close");
+            if (isUploadTooLargeError(error))
+               throw new ApiHttpError(413, error.message);
+            if (error instanceof UploadIdleError)
+               throw new ApiHttpError(408, error.message);
+            throwHttpError(error);
+         } finally {
+            req.off("close", onRequestClose);
+            res.off("close", onResponseClose);
+            release();
+         }
       }
    )
 );
@@ -363,62 +370,12 @@ objectsRouter.post(
             getS3Client(serverId),
             loadServerSettings(serverId),
          ]);
-         const scope: S3Scope = { client, bucket: bucketName };
-
-         const [source, destinationExists] = await Promise.all([
-            headObject(scope, objectKey),
-            objectExists(scope, newObjectKey),
-         ]);
-         if ((source.ContentLength ?? 0) > MAX_RENAME_BYTES) {
-            throw new ApiHttpError(413, "Objects over 5 GB can't be renamed");
-         }
-         if (destinationExists) throw new ApiHttpError(409, OBJECT_EXISTS);
-
-         await client
-            .send(
-               new CopyObjectCommand({
-                  Bucket: bucketName,
-                  Key: newObjectKey,
-                  CopySource: encodeCopySource(bucketName, objectKey),
-                  MetadataDirective: "COPY",
-                  ...copyAttributes(source),
-                  // only s3 itself answers 412 instead of overwriting, so the
-                  // check-then-copy above stays the fallback everywhere else
-                  ...(Provider[provider] === Provider.S3 && {
-                     IfNoneMatch: "*",
-                  }),
-               })
-            )
-            .catch(throwHttpError);
-         await client
-            .send(
-               new DeleteObjectCommand({ Bucket: bucketName, Key: objectKey })
-            )
-            .catch(async (err: unknown) => {
-               // a delete that timed out may still have landed, so the copy is
-               // only undone while the source is provably still there
-               const sourceRemains = await objectExists(scope, objectKey).catch(
-                  () => null
-               );
-               if (sourceRemains === false) return;
-               if (sourceRemains) {
-                  await client
-                     .send(
-                        new DeleteObjectCommand({
-                           Bucket: bucketName,
-                           Key: newObjectKey,
-                        })
-                     )
-                     .catch(() =>
-                        logger.warn("Rename left a copy behind", {
-                           bucket: bucketName,
-                           objectKey,
-                           newObjectKey,
-                        })
-                     );
-               }
-               return throwHttpError(err);
-            });
+         await renameObject(
+            routeScope(client, bucketName, res),
+            Provider[provider],
+            objectKey,
+            newObjectKey
+         );
          await recordAudit({
             action: "object.rename",
             actorId: userId,

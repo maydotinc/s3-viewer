@@ -7,6 +7,11 @@ const KEYS = [
    "GITHUB_CLIENT_ID",
    "GITHUB_CLIENT_SECRET",
    "ALLOW_PRIVATE_ENDPOINTS",
+   "UPLOAD_PART_BYTES",
+   "MAX_CONCURRENT_UPLOADS",
+   "MAX_USER_UPLOADS",
+   "UPLOAD_MEMORY_BUDGET_BYTES",
+   "UPLOAD_IDLE_TIMEOUT_MS",
 ] as const;
 
 const loadEnv = async (overrides: Partial<Record<string, string>> = {}) => {
@@ -101,5 +106,40 @@ describe("GITHUB_CLIENT_ID / GITHUB_CLIENT_SECRET", () => {
       await expect(
          loadEnv({ GITHUB_CLIENT_ID: "id", GITHUB_CLIENT_SECRET: "secret" })
       ).resolves.toMatchObject({ GITHUB_CLIENT_ID: "id" });
+   });
+});
+
+describe("upload resource limits", () => {
+   it("defaults to bounded concurrency, memory and inactivity", async () => {
+      await expect(loadEnv()).resolves.toMatchObject({
+         UPLOAD_PART_BYTES: 5 * 1024 * 1024,
+         MAX_CONCURRENT_UPLOADS: 6,
+         MAX_USER_UPLOADS: 3,
+         UPLOAD_MEMORY_BUDGET_BYTES: 256 * 1024 * 1024,
+         UPLOAD_IDLE_TIMEOUT_MS: 120_000,
+      });
+   });
+   it("requires positive integer limits", async () => {
+      for (const key of [
+         "MAX_CONCURRENT_UPLOADS",
+         "MAX_USER_UPLOADS",
+         "UPLOAD_MEMORY_BUDGET_BYTES",
+         "UPLOAD_IDLE_TIMEOUT_MS",
+      ]) {
+         for (const value of ["0", "-1", "1.5", "garbage"]) {
+            await expect(loadEnv({ [key]: value })).rejects.toThrow(key);
+         }
+      }
+   });
+   it("refuses a part size that cannot fit the memory budget", async () => {
+      await expect(
+         loadEnv({ UPLOAD_PART_BYTES: String(100 * 1024 * 1024) })
+      ).rejects.toThrow(/UPLOAD_MEMORY_BUDGET_BYTES/);
+      await expect(
+         loadEnv({
+            UPLOAD_PART_BYTES: String(100 * 1024 * 1024),
+            UPLOAD_MEMORY_BUDGET_BYTES: String(400 * 1024 * 1024),
+         })
+      ).resolves.toMatchObject({ UPLOAD_PART_BYTES: 100 * 1024 * 1024 });
    });
 });

@@ -103,7 +103,10 @@ the web app, the landing site and the shared packages. Keep it current.
   password does not spend it); `establish`,
   `validate-buckets` and `PATCH …/credentials` 30/min per user. `TRUST_PROXY` env (default `loopback`)
   feeds `app.set("trust proxy", …)`.
-- Parsers: `express.json({ limit: "1mb" })` only, skipped for `PUT …/objects`
+- Parsers: auth routes first consume a bounded text body (64 KiB, all content
+  types, including chunked requests) before Better Auth's adapter parses it;
+  compressed auth bodies are rejected (415), oversized bodies return 413.
+  Other routes use `express.json({ limit: "1mb" })`, skipped for `PUT …/objects`
   so the upload body reaches the handler as a raw stream. No urlencoded parser.
 - Cross-site protection: `sameSite: "lax"` cookies plus an `Origin`/`Sec-Fetch-Site`
   check on every non-GET request, `/auth/*` included (allow only the
@@ -162,8 +165,10 @@ the web app, the landing site and the shared packages. Keep it current.
   leading `/`, no control characters, no lone UTF-16 surrogates (the SDK's
   URI encoder throws on those).
 - Uploads stream through the API (`lib/s3/upload.ts`): `@aws-sdk/lib-storage`
-  `Upload` with 4 parts in flight, `leavePartsOnError: false`; a client
-  disconnect aborts the S3 upload. Part size defaults to 25 MiB, configurable
+  `Upload` with 2 parts in flight, `leavePartsOnError: false`; a client
+  disconnect aborts the input and S3 requests. Reservations are held until
+  workers finish and multipart cleanup settles (cleanup has its own 10 s
+  deadline). Part size defaults to 5 MiB, configurable
   via `UPLOAD_PART_BYTES` (min 5 MiB, S3's minimum; max 5 GiB, S3's maximum).
   `Content-Length`, when present, is checked against `MAX_UPLOAD_BYTES` (413)
   and passed to S3; the part size is then bumped above the configured value,
@@ -171,8 +176,19 @@ the web app, the landing site and the shared packages. Keep it current.
   request is rejected (413) up front when even the maximum part size can't
   fit the declared length. The cached client's 30 s `requestTimeout` is a
   socket-idle timeout, so it is fine for the server→S3 leg.
-  `server.requestTimeout = 5 min` and `headersTimeout = 60 s` keep long
-  uploads alive without leaving a socket open forever.
+  `MAX_CONCURRENT_UPLOADS` (6) and `MAX_USER_UPLOADS` (3) bound active uploads
+  per API process. Each reserves four part buffers against
+  `UPLOAD_MEMORY_BUDGET_BYTES` (256 MiB); saturation returns 429 with
+  `Retry-After: 5`, and a reservation larger than the entire budget returns 413. The configured base part size must fit or startup fails. This budget
+  covers upload buffers, not total process memory.
+  `server.requestTimeout = 0` permits long active uploads;
+  `headersTimeout = 60 s` and socket inactivity deadlines bound stalls.
+  Auth and pre-handler requests have a two-minute socket deadline; upload
+  handlers use a streaming watchdog with `UPLOAD_IDLE_TIMEOUT_MS` (120000),
+  returning 408 on an input stall when the connection is still writable.
+  It pauses during S3 backpressure and stops at input EOF; active S3 requests
+  and completion use the S3 client's own idle timeout. Failed completion
+  explicitly aborts multipart parts, since the SDK only cleans worker failures.
 - Credential encryption is hybrid: AES-256-GCM payload, key wrapped with
   RSA-OAEP(SHA-256). Wire format (base64 JSON): `{ v: 1, k, iv, ct }`. The
   private key must be at least 2048 bits (checked at startup).
@@ -246,11 +262,14 @@ addressed to the caller's email. Expired invites are not counted.
 invites are addressed to an address, and an OAuth provider may hand us an
 unverified one. Accepting is atomic; a second concurrent accept gets 404. An
 invite is only as good as its sender's current authority: `stillGrantable`
-(`lib/services/invites.ts`) keeps only invites whose sender is still a member
-who outranks the invited role and every bucket grant (`canManageRole`, which
-implies `MANAGE_MEMBERS`). `GET /invites` filters through it so the invitee
-never sees an invite they can't accept, and the accept transaction re-checks
-the one invite, answering 404 otherwise. Every invite listing uses the one
+(`lib/services/invite-authority.ts`) keeps only invites whose sender is still
+an authorized member, outranks every invited role, and currently holds each
+bucket grant they are offering within the server's allowed bucket scope.
+Owners have implicit bucket authority. `GET /invites` filters through it;
+acceptance re-checks inside a transaction, answering 404 otherwise. Sending,
+accepting, revoking, membership changes and bucket-scope changes serialize
+on the server row lock. Permission reductions also delete invalid pending
+invites in that transaction, so restoring access cannot revive them. Every invite listing uses the one
 `liveInvite()` filter, so expired rows never show.
 
 A server may have at most `MAX_PENDING_INVITES` (30, `@s3-viewer/types`)
@@ -291,22 +310,21 @@ GET    …/objects/preview-url?objectKey                        → S3ObjectPrev
 PUT    …/objects?objectKey&contentType   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (413 over MAX_UPLOAD_BYTES)
 DELETE …/objects                         { objectKeys[] }     → S3DeleteResult (207 if any failed)
 GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ keys, nextToken }` (recursive, one S3 page of ≤ 1000 keys; prefix is a folder key ending in "/", never "/" or the root)
-POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 if target exists or the source is archived, 413 if > 5 GB)
+POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 on conflicts, partial copy, unsupported provider or archived source; 413 if > 5 GB)
 ```
 
 Removed on purpose: a general-purpose copy/move route (no UI for it) —
 `POST …/objects/rename` above is the one copy the API does, and only because
-S3 has no native rename: it is a same-bucket `CopyObject` immediately
-followed by a `DeleteObject` of the source, not a route for copying or
-moving objects anywhere else. The copy carries the source's `StorageClass`
-and SSE settings from `HeadObject` (S3 would otherwise rewrite it as
-STANDARD under the bucket default), sends `IfNoneMatch: "*"` only when the
-provider is S3 (the one provider that answers 412 instead of overwriting;
-elsewhere the HeadObject pre-check stays the guard), maps `PreconditionFailed`
-and `InvalidObjectState` to 409, and when the source delete fails checks
-whether the source is still there: gone means the delete landed and the
-rename is reported done; present means the new key is deleted again so a
-transient error never leaves two copies; unknown means neither is touched. Also removed: `does-user-exist`, session IP
+S3 has no native rename. AWS S3 only: HEAD captures the source ETag;
+`CopyObject` uses `CopySourceIfMatch` and destination `IfNoneMatch: "*"`;
+`DeleteObject` uses `IfMatch` with that same source ETag. Other providers
+return 409 and the web disables Rename, since they may ignore conditions.
+The copy preserves metadata, `StorageClass` and SSE settings. Copy conflicts
+and archived sources return 409. If deletion fails, HEAD checks whether the
+source is gone (report success); otherwise return 409 explaining the partial
+copy. Never delete the destination as rollback: a concurrent writer may own
+it now. The web invalidates both keys on success or failure so both copies
+are visible. Also removed: `does-user-exist`, session IP
 validation, folder-less single delete (use `objectKeys` with one key), and
 presigned upload/multipart routes (uploads stream through the API instead,
 so no bucket CORS is required).
@@ -393,8 +411,14 @@ email failed`) and never fails the request that caused it: the account
   credential is a boot error. `resolveEmailTransport`
   (`@s3-viewer/email/transport`) is the single implementation, used by the
   API's `lib/env.ts` and by the email package itself. `none` is a first-class
-  mode: sign-in still works, password reset, email verification and invites do
-  not, and `GET /config` reports `emailEnabled: false` so the web can say so.
+  mode: sign-in still works; emailed verification, password reset and invites
+  do not. `GET /config` reports `emailEnabled: false` so the web can say so.
+  An operator can inspect then verify a specific account with the console-only
+  `verify-email` command (email plus matching account id). Its transaction
+  sets `emailVerified`, deletes all sessions and records `account.verify`
+  with the account id as target and no acting app user. The operator must
+  independently confirm ownership; users then sign in again. There is no
+  global verification bypass or public HTTP route.
   The API logs exactly one line at boot naming the mode; with `none`, a
   development instance still prints the whole message (that is how a
   verification link is picked up locally) while production drops it and logs
@@ -537,7 +561,7 @@ Every how-to has a slug in three places: `HOW_TOS` in
 
 Only describe what ships (see routes and web notes). No
 cross-provider copy, no versioning prompts, no bulk download, no audit log,
-no side-by-side. Rename refuses to overwrite and is limited to 5 GB. Search
+no side-by-side. Rename is AWS S3 only, refuses to overwrite and is limited to 5 GB. Search
 is a prefix filter inside the current folder. Share link = 15-minute presigned
 URL from the object's "Copy link" action. Uploads stream through the S3 Viewer
 server to the bucket (nothing to configure on the bucket) and retry on network

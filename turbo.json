@@ -38,7 +38,11 @@
             "SUPPORT_EMAIL",
             "ALLOW_PRIVATE_ENDPOINTS",
             "MAX_UPLOAD_BYTES",
-            "UPLOAD_PART_BYTES"
+            "UPLOAD_PART_BYTES",
+            "MAX_CONCURRENT_UPLOADS",
+            "MAX_USER_UPLOADS",
+            "UPLOAD_MEMORY_BUDGET_BYTES",
+            "UPLOAD_IDLE_TIMEOUT_MS"
          ]
       },
       "dev": {
@@ -66,7 +70,11 @@
             "SUPPORT_EMAIL",
             "ALLOW_PRIVATE_ENDPOINTS",
             "MAX_UPLOAD_BYTES",
-            "UPLOAD_PART_BYTES"
+            "UPLOAD_PART_BYTES",
+            "MAX_CONCURRENT_UPLOADS",
+            "MAX_USER_UPLOADS",
+            "UPLOAD_MEMORY_BUDGET_BYTES",
+            "UPLOAD_IDLE_TIMEOUT_MS"
          ]
       },
       "lint": {

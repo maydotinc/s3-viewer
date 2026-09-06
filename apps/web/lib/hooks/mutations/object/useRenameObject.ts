@@ -22,8 +22,11 @@ const useRenameObject = () => {
             objectKey,
             newObjectKey,
          }),
-      onSuccess: (_, { bucketName, objectKey }) => {
-         forgetKeys(queryClient, userId, serverId, bucketName, [objectKey]);
+      onSettled: (_result, _error, { bucketName, objectKey, newObjectKey }) => {
+         forgetKeys(queryClient, userId, serverId, bucketName, [
+            objectKey,
+            newObjectKey,
+         ]);
       },
    });
 };

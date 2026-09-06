@@ -1,7 +1,9 @@
+import { revokeInvalidInvites } from "./invite-authority";
 import { MEMBER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError } from "@/lib/http";
 import {
    isBucketAllowed,
+   lockBucketScope,
    type BucketScopeSettings,
 } from "@/lib/services/servers";
 import type { $Enums, Prisma } from "@prisma/client";
@@ -92,13 +94,14 @@ const loadGrantingActor = async (
    userId: string,
    serverId: string,
    serverRole: Role,
-   grants: readonly BucketGrant[]
+   grants: readonly BucketGrant[],
+   db: Prisma.TransactionClient = prisma
 ): Promise<GrantingActor> => {
    const bucketNames = grants.map((g) => g.bucketName);
    if (serverRole === Role.OWNER || bucketNames.length === 0) {
       return { serverRole, bucketRoles: new Map() };
    }
-   const rows = await prisma.bucketAccess.findMany({
+   const rows = await db.bucketAccess.findMany({
       where: { userId, serverId, bucketName: { in: bucketNames } },
       select: bucketGrantSelect,
    });
@@ -110,9 +113,10 @@ const loadGrantingActor = async (
 
 const loadBucketGrants = (
    userId: string,
-   serverId: string
+   serverId: string,
+   db: Prisma.TransactionClient = prisma
 ): Promise<BucketRow[]> =>
-   prisma.bucketAccess.findMany({
+   db.bucketAccess.findMany({
       where: { userId, serverId },
       select: bucketGrantSelect,
    });
@@ -217,13 +221,32 @@ const replaceBucketAccess = async (
 
 const removeMembership = async (
    userId: string,
-   serverId: string
+   serverId: string,
+   actorId: string = userId
 ): Promise<void> => {
-   const [, removed] = await prisma.$transaction([
-      prisma.bucketAccess.deleteMany({ where: { userId, serverId } }),
-      prisma.serverAccess.deleteMany({ where: { userId, serverId } }),
-   ]);
-   if (removed.count === 0) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+   await prisma.$transaction(async (tx) => {
+      await lockBucketScope(tx, serverId);
+      const target = await tx.serverAccess.findUnique({
+         where: { userId_serverId: { userId, serverId } },
+      });
+      if (!target) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+      if (actorId === userId) {
+         if (target.role === Role.OWNER)
+            throw new ApiHttpError(403, "Owners can't leave their server");
+      } else {
+         const actor = await tx.serverAccess.findUnique({
+            where: { userId_serverId: { userId: actorId, serverId } },
+         });
+         if (!canManageRole(actor ? Role[actor.role] : null, Role[target.role]))
+            throw new ApiHttpError(403, "You can't manage that member");
+      }
+      await tx.bucketAccess.deleteMany({ where: { userId, serverId } });
+      const removed = await tx.serverAccess.deleteMany({
+         where: { userId, serverId },
+      });
+      if (removed.count === 0) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+      await revokeInvalidInvites(tx, serverId);
+   });
 };
 
 export {

@@ -58,7 +58,7 @@ const faqs: UseCaseFAQ[] = [
       question:
          "How is this different from the AWS console or the Cloudflare R2 dashboard?",
       answer:
-         "Each provider's native console is the right tool for managing accounts, IAM, billing, and bucket configuration on that provider. S3 Viewer focuses on the day-to-day browsing-and-collaboration layer that sits on top of every provider — browse, filter, rename, upload with retries, share a link, invite teammates by email. Use both: their console for setup, S3 Viewer for daily work.",
+         "Each provider's native console is the right tool for managing accounts, IAM, billing, and bucket configuration on that provider. S3 Viewer focuses on the day-to-day browsing-and-collaboration layer that sits on top of every provider — browse, filter, upload with retries, share a link, invite teammates by email. Rename is currently available only on AWS S3. Use both: their console for setup, S3 Viewer for daily work.",
    },
    {
       question: "Can I copy or move files between S3 and R2?",
@@ -108,7 +108,7 @@ export default createUseCasePage({
       {
          icon: Layers,
          title: "The same operations everywhere",
-         body: "Upload, download, Copy link, rename and delete behave identically on S3, R2, MinIO and B2 — one set of habits instead of one per console.",
+         body: "Upload, download, Copy link and delete use the same controls on S3, R2, MinIO and B2. Rename is currently available only on AWS S3, where conditional requests protect against concurrent changes.",
       },
       {
          icon: Command,

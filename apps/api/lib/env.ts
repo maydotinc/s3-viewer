@@ -2,6 +2,7 @@ import { logger } from "@/lib/logger";
 import { ensureDataDirSecrets } from "@/lib/utils/secrets";
 import { resolveEmailTransport } from "@s3-viewer/email/transport";
 import dotenv from "dotenv";
+import { uploadMemoryFor } from "@/lib/s3/upload-budget";
 import { z } from "zod";
 
 dotenv.config();
@@ -24,9 +25,14 @@ const isSmtpUrl = (value: string): boolean => {
 const MIB = 1024 * 1024;
 const GIB = 1024 * MIB;
 const DEFAULT_MAX_UPLOAD_BYTES = 5 * GIB;
-const DEFAULT_UPLOAD_PART_BYTES = 25 * MIB;
+const DEFAULT_UPLOAD_PART_BYTES = 5 * MIB;
 const MIN_UPLOAD_PART_BYTES = 5 * MIB;
 const MAX_UPLOAD_PART_BYTES = 5 * 1024 * MIB;
+
+const positiveInt = (fallback: number) =>
+   optionalString
+      .pipe(z.coerce.number().int().positive().optional())
+      .transform((value) => value ?? fallback);
 
 const schema = z
    .object({
@@ -48,6 +54,10 @@ const schema = z
       GITHUB_CLIENT_ID: optionalString,
       GITHUB_CLIENT_SECRET: optionalString,
       PORT: z.coerce.number().int().min(1).max(65535).default(5001),
+      MAX_CONCURRENT_UPLOADS: positiveInt(6),
+      MAX_USER_UPLOADS: positiveInt(3),
+      UPLOAD_MEMORY_BUDGET_BYTES: positiveInt(256 * MIB),
+      UPLOAD_IDLE_TIMEOUT_MS: positiveInt(120_000),
       MAX_UPLOAD_BYTES: optionalString
          .pipe(z.coerce.number().int().positive().optional())
          .transform((value) => value ?? DEFAULT_MAX_UPLOAD_BYTES),
@@ -80,6 +90,16 @@ const schema = z
       ),
    })
    .superRefine((value, ctx) => {
+      if (
+         uploadMemoryFor(value.UPLOAD_PART_BYTES) >
+         value.UPLOAD_MEMORY_BUDGET_BYTES
+      ) {
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["UPLOAD_MEMORY_BUDGET_BYTES"],
+            message: "must hold at least four UPLOAD_PART_BYTES buffers",
+         });
+      }
       // an unset transport is inferred from whichever credential is present,
       // so only an explicit choice can name one it has nothing to connect with
       if (value.EMAIL_TRANSPORT === "smtp" && !value.SMTP_URL) {

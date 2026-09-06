@@ -14,7 +14,11 @@ import {
    toServerInvite,
 } from "@/lib/services/invites";
 import { bucketGrantSelect } from "@/lib/services/members";
-import { serverInfoSelect, toServerInfo } from "@/lib/services/servers";
+import {
+   lockBucketScope,
+   serverInfoSelect,
+   toServerInfo,
+} from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
 import { Role, inviteIdSchema, type InviteIdInput } from "@s3-viewer/types";
@@ -66,6 +70,14 @@ const acceptInvite = async (req: Request, res: Response) => {
    const user = requireVerifiedUser(req);
    const { inviteId } = input<InviteIdInput>(res);
    const server = await prisma.$transaction(async (tx) => {
+      const addressed = await tx.pendingInvitation.findUnique({
+         where: { id: inviteId },
+         select: { serverId: true, email: true },
+      });
+      if (!addressed || !sameEmail(addressed.email, user.email))
+         throw new ApiHttpError(404, NOT_FOUND);
+      await lockBucketScope(tx, addressed.serverId);
+      // Re-read after taking the same lock used for sends and revocations.
       const invite = await tx.pendingInvitation.findUnique({
          where: { id: inviteId },
          select: {

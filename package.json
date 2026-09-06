@@ -18,6 +18,7 @@
       "db:deploy": "node scripts/db.mjs deploy",
       "db:migrate": "node scripts/db.mjs migrate",
       "db:status": "node scripts/db.mjs status",
+      "account:verify": "pnpm --filter api exec tsx verify-email.ts",
       "favicons": "tsx scripts/generate-favicons.ts",
       "format": "prettier --write .",
       "format:check": "prettier --check ."

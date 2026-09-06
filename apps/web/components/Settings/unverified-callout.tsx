@@ -21,7 +21,7 @@ const UnverifiedCallout = ({ action }: { action: string }) => {
       <Callout>
          <p>
             {noEmail
-               ? `Email isn’t configured on this instance, so verification is unavailable. You can’t ${action} until your address is verified.`
+               ? `To ${action}, ask the instance operator to verify your account or enable email, then sign in again.`
                : `Verify your email address to ${action}.`}
          </p>
          {email && !noEmail && (

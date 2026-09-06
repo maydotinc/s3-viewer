@@ -15,7 +15,7 @@ import {
    toServerInvite,
 } from "@/lib/services/invites";
 import { assertBucketGrants, loadGrantingActor } from "@/lib/services/members";
-import { loadServerSettings } from "@/lib/services/servers";
+import { lockBucketScope } from "@/lib/services/servers";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import { sendServerInviteEmail } from "@s3-viewer/email";
@@ -48,9 +48,10 @@ const getInvites = async (_req: Request, res: Response) => {
 
 const memberEmails = async (
    serverId: string,
-   emails: string[]
+   emails: string[],
+   db: Prisma.TransactionClient
 ): Promise<string[]> => {
-   const rows = await prisma.serverAccess.findMany({
+   const rows = await db.serverAccess.findMany({
       where: { serverId, user: { email: { in: emails } } },
       select: { user: { select: { email: true } } },
    });
@@ -60,9 +61,10 @@ const memberEmails = async (
 const assertCanReplaceInvites = async (
    serverId: string,
    emails: string[],
-   actorRole: Role
+   actorRole: Role,
+   db: Prisma.TransactionClient
 ): Promise<void> => {
-   const existing = await prisma.pendingInvitation.findMany({
+   const existing = await db.pendingInvitation.findMany({
       where: { serverId, email: { in: emails }, ...liveInvite() },
       select: { email: true, role: true },
    });
@@ -215,16 +217,6 @@ const sendInvites = async (req: Request, res: Response) => {
    if (!canManageRole(serverRole, Role[role])) {
       throw new ApiHttpError(403, "You can't invite with that role");
    }
-   const [scope, alreadyMembers, granting] = await Promise.all([
-      loadServerSettings(serverId),
-      memberEmails(serverId, emails),
-      loadGrantingActor(actor.id, serverId, serverRole, bucketAccess),
-   ]);
-   assertBucketGrants(granting, scope, bucketAccess);
-
-   const pending = emails.filter((e) => !alreadyMembers.includes(e));
-   await assertCanReplaceInvites(serverId, pending, serverRole);
-
    const write: InviteWrite = {
       serverId,
       role,
@@ -232,7 +224,7 @@ const sendInvites = async (req: Request, res: Response) => {
       invitedById: actor.id,
       expiresAt: inviteExpiry(),
    };
-   const invites = await prisma.$transaction(async (tx) => {
+   const { invites, alreadyMembers } = await prisma.$transaction(async (tx) => {
       const [{ locked }] = await tx.$queryRaw<[{ locked: boolean }]>`
          SELECT pg_try_advisory_xact_lock(hashtext(${serverId})::bigint) AS locked
       `;
@@ -242,8 +234,26 @@ const sendInvites = async (req: Request, res: Response) => {
             "Another invite is being sent for this server. Try again."
          );
       }
+      const scope = await lockBucketScope(tx, serverId);
+      const access = await tx.serverAccess.findUnique({
+         where: { userId_serverId: { userId: actor.id, serverId } },
+         select: { role: true },
+      });
+      const currentRole = access ? Role[access.role] : null;
+      if (!currentRole || !canManageRole(currentRole, Role[role]))
+         throw new ApiHttpError(403, "You can't invite with that role");
+      const [alreadyMembers, granting] = await Promise.all([
+         memberEmails(serverId, emails, tx),
+         loadGrantingActor(actor.id, serverId, currentRole, bucketAccess, tx),
+      ]);
+      assertBucketGrants(granting, scope, bucketAccess);
+      const pending = emails.filter((e) => !alreadyMembers.includes(e));
+      await assertCanReplaceInvites(serverId, pending, currentRole, tx);
       await assertUnderPendingCap(tx, serverId, pending);
-      return writeInvites(tx, pending, write);
+      return {
+         invites: await writeInvites(tx, pending, write),
+         alreadyMembers,
+      };
    });
    await emailInvites(invites, actor.name, invitesUrl, serverId);
    await Promise.all(
@@ -262,17 +272,27 @@ const sendInvites = async (req: Request, res: Response) => {
 
 const revokeInvite = async (_req: Request, res: Response) => {
    const { serverId, inviteId } = input<RevokeInviteInput>(res);
-   const { userId, serverRole } = getAuth(res);
-   const invite = await prisma.pendingInvitation.findUnique({
-      where: { id: inviteId, serverId },
-      select: { email: true, role: true },
-   });
-   if (!invite) throw new ApiHttpError(404, "Invite not found");
-   if (!canManageRole(serverRole, Role[invite.role])) {
-      throw new ApiHttpError(403, "You can't revoke that invite");
-   }
-   await prisma.pendingInvitation.deleteMany({
-      where: { id: inviteId, serverId },
+   const { userId } = getAuth(res);
+   const invite = await prisma.$transaction(async (tx) => {
+      await lockBucketScope(tx, serverId);
+      const [access, invite] = await Promise.all([
+         tx.serverAccess.findUnique({
+            where: { userId_serverId: { userId, serverId } },
+            select: { role: true },
+         }),
+         tx.pendingInvitation.findUnique({
+            where: { id: inviteId, serverId },
+            select: { email: true, role: true },
+         }),
+      ]);
+      if (!invite) throw new ApiHttpError(404, "Invite not found");
+      if (!access || !canManageRole(Role[access.role], Role[invite.role])) {
+         throw new ApiHttpError(403, "You can't revoke that invite");
+      }
+      await tx.pendingInvitation.deleteMany({
+         where: { id: inviteId, serverId },
+      });
+      return invite;
    });
    await recordAudit({
       action: "invite.revoke",

@@ -24,6 +24,11 @@ export default defineConfig({
          GITHUB_CLIENT_ID: "",
          GITHUB_CLIENT_SECRET: "",
          ALLOW_PRIVATE_ENDPOINTS: "",
+         UPLOAD_PART_BYTES: "",
+         MAX_CONCURRENT_UPLOADS: "",
+         MAX_USER_UPLOADS: "",
+         UPLOAD_MEMORY_BUDGET_BYTES: "",
+         UPLOAD_IDLE_TIMEOUT_MS: "",
       },
    },
 });

@@ -44,6 +44,10 @@ docker compose up -d
 
 then open `http://localhost:3000` — a working install with zero configuration. Add `--build` to build the images from this checkout instead of pulling from `ghcr.io/maydotinc`. (The optional landing site has no published image — it inlines your site URL when it is compiled, so the `landing` profile always builds it from the checkout.) Both containers report their own health (`/health` on the API, `/api/health` on the web app), so `docker compose ps` tells you when the stack is actually ready.
 
+The default install sends no email. Create your account, then use the
+[operator verification command](./SELF-HOSTING.md#verify-an-account-without-email)
+and sign in again before connecting your first server.
+
 Putting it on a real domain behind the bundled Caddy means one longer command, always with both files:
 
 ```bash
@@ -84,7 +88,7 @@ Email is used for exactly two links, both valid for one hour:
 - **Verify your email.** Sent on sign-up, and again from Settings → Profile or from the callouts that need it. A new account is signed in straight away, but two things wait for the link: **connecting a server** (its credentials belong to whoever can reset the account's password, which is whoever owns the address, so the address is proven first) and **invites** (matched by address, so sending and accepting both refuse an unverified one). The link lands on Settings → Profile.
 - **Reset your password.** "Forgot password?" sends a link to `/reset-password`; choosing a new password signs out every other device. This is also how a GitHub-only account adds a password. Settings → Profile has a Password card to change one, or to set a first one, which (like deleting the account) needs a session younger than 24 hours so a stolen cookie is not enough to claim the account.
 
-Whether those links can be sent depends on `EMAIL_TRANSPORT` (see Email below). With no transport configured, sign-in still works, but nobody can recover a forgotten password, verify an address, connect a server or use invites; the UI explains this wherever it matters, instead of failing silently. Treat a transport as required for anything beyond a single-user box.
+Whether those links can be sent depends on `EMAIL_TRANSPORT` (see Email below). With no transport configured, sign-in still works; an operator can [verify an account from the API console](./SELF-HOSTING.md#verify-an-account-without-email) so it can connect a server. Emailed verification, password recovery and invites remain unavailable; the UI explains the operator workflow wherever verification is needed. Treat a transport as required for anything beyond a single-user box.
 
 Password sign-in is limited to 10 attempts per address per 10 minutes on top of the per-IP limit, account creation to 10 per IP per hour, and outbound verification or reset links to 5 per address per 10 minutes.
 
@@ -96,7 +100,7 @@ Every non-`GET` request is additionally checked for an `Origin` matching `NEXT_P
 
 Transactional email (verification links, password-reset links, server invitations, account-deletion notices) has three modes, chosen by `EMAIL_TRANSPORT` in `apps/api/.env`:
 
-- **`none`**: no mail is sent, and this is a fully supported way to run S3 Viewer. Sign-in still works; password reset, email verification and invites are unavailable, and the UI says so wherever it would otherwise offer them. In development the full message is still printed to the API log so you can copy a link; in production it is dropped entirely.
+- **`none`**: no mail is sent, and this is a fully supported way to run S3 Viewer. Sign-in still works; operators can verify accounts using the console command above. Password reset, emailed verification and invites are unavailable, and the UI says so wherever it would otherwise offer them. In development the full message is still printed to the API log so you can copy a link; in production it is dropped entirely.
 - **`resend`**: sends through [Resend](https://resend.com). Set `RESEND_KEY` and `EMAIL_FROM`.
 - **`smtp`**: depends on no third party. Set `SMTP_URL` (`smtp://user:pass@mail.example.com:587`, or `smtps://…` for implicit TLS) and `EMAIL_FROM`.
 
@@ -164,6 +168,8 @@ Report vulnerabilities privately per [SECURITY.md](./SECURITY.md). What is in pl
 - **Client-side hybrid encryption for S3 credentials.** The browser generates an AES-256-GCM key, encrypts the credentials with it, and wraps that key with RSA-OAEP (SHA-256) using the encryption public key served at `GET /config`. Only the API holds the private half. Credentials never come back to the browser and never appear in an API response.
 - **Cross-site request protection.** `SameSite=Lax`, `HttpOnly` session cookies, plus an `Origin` / `Sec-Fetch-Site` check on every non-`GET` request, which rejects anything that did not come from `NEXT_PUBLIC_SITE_URL` with a 403.
 - **Rate limits.** 1200 requests/minute per IP before authentication (6000/minute per IP on the bucket routes instead, also before authentication), 1800/minute per user id, 20/minute per IP on every non-GET auth route, 10/10 minutes per IP and email address on password sign-in (60/10 minutes per address as a backstop), 10 accounts created per IP per hour, and 5/10 minutes per address on verification and reset links. Set `TRUST_PROXY` correctly or the per-IP limits all key off your proxy.
+- **Bounded request bodies and uploads.** Auth bodies are capped at 64 KiB, including chunked requests; compressed auth bodies are rejected. Uploads default to 6 active per API process, 3 per user, a 256 MiB buffer reservation budget, and a two-minute inactivity timeout. See the self-hosting env reference to tune these independently of the maximum object size.
+- **Concurrent rename protection.** AWS S3 rename copies only an unchanged source into an absent destination, then deletes only a source with the same ETag. If deletion cannot be confirmed, both keys are preserved and the folder refreshes. Rename is disabled for other providers until they can enforce these conditions.
 - **SSRF guard on server endpoints.** An endpoint you add must be a public `https://` URL (`http://` is allowed outside production only, or with `ALLOW_PRIVATE_ENDPOINTS=true`); `localhost`, `*.localhost` and any hostname that resolves to a loopback, private, link-local or multicast address is rejected before a single request is signed, unless `ALLOW_PRIVATE_ENDPOINTS=true` (see [SELF-HOSTING.md](./SELF-HOSTING.md)).
 - **No IP logging.** Better Auth's IP tracking is switched off and the API logger never writes a client address.
 - **Authorization from validated input only.** Every route parses its input with a zod schema first, then checks the caller's server role and the effective bucket role; handlers never read `req.body` or `req.query` directly.

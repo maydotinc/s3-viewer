@@ -5,6 +5,7 @@ import { publicConfig } from "@/lib/config";
 import { errorHandler, fail } from "@/lib/http";
 import { banner, logger } from "@/lib/logger";
 import { authGuard } from "@/lib/middleware/auth";
+import { authBodyLimit } from "@/lib/middleware/auth-body";
 import { originCheck } from "@/lib/middleware/origin";
 import {
    BUCKET_MOUNT,
@@ -66,7 +67,7 @@ app.use((req, res, next) => {
    const id = randomUUID();
    res.locals.requestId = id;
    res.setHeader(REQUEST_ID_HEADER, id);
-   if (!isObjectUpload(req)) req.setTimeout(IDLE_TIMEOUT_MS);
+   req.setTimeout(IDLE_TIMEOUT_MS);
    next();
 });
 
@@ -94,7 +95,7 @@ app.use(AUTH_BASE_PATH, (req, res, next) => {
    return req.method === "GET" ? next() : authRouteLimit(req, res, next);
 });
 app.post(`${AUTH_BASE_PATH}/sign-up/email`, signUpLimit);
-app.all(`${AUTH_BASE_PATH}/{*any}`, toNodeHandler(auth));
+app.all(`${AUTH_BASE_PATH}/{*any}`, authBodyLimit, toNodeHandler(auth));
 
 const json = express.json({ limit: "1mb" });
 app.use((req, res, next) =>

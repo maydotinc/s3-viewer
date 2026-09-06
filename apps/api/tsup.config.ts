@@ -1,7 +1,7 @@
 import { defineConfig, type Options } from "tsup";
 
 export default defineConfig((options: Options) => ({
-   entryPoints: ["server.ts"],
+   entryPoints: ["server.ts", "verify-email.ts"],
    format: ["esm"],
    target: "node20",
    sourcemap: true,

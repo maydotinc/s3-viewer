@@ -11,6 +11,7 @@ import {
    throwListBucketsError,
 } from "@/lib/s3/errors";
 import { recordAudit } from "@/lib/services/audit";
+import { revokeInvalidInvites } from "@/lib/services/invite-authority";
 import { bucketGrantSelect } from "@/lib/services/members";
 import {
    assertBucketRemovable,
@@ -223,6 +224,7 @@ bucketsRouter.delete(
          assertBucketRemovable(await lockBucketScope(tx, serverId), bucketName);
          await tx.$executeRaw`UPDATE "server" SET "allowedBuckets" = array_remove("allowedBuckets", ${bucketName}) WHERE "id" = ${serverId}`;
          await tx.bucketAccess.deleteMany({ where: { serverId, bucketName } });
+         await revokeInvalidInvites(tx, serverId);
       });
       await recordAudit({
          action: "bucket.remove",

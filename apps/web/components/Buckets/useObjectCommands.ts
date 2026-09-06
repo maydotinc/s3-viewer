@@ -1,10 +1,11 @@
 import { useModalActions } from "@/lib/contexts/ModalContext";
+import useServers from "@/lib/hooks/queries/server/useServers";
 import { useEffectiveRole } from "@/lib/hooks/usePermission";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { getDownloadUrl, saveFromUrl } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
-import { PRESIGN_EXPIRY_SECONDS, baseName } from "@s3-viewer/types";
+import { PRESIGN_EXPIRY_SECONDS, Provider, baseName } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useCallback, useMemo } from "react";
 import { useBucketContext } from "./Context";
@@ -31,9 +32,11 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
    const { openRenameObjectModal, openConfirmDeleteModal } = useModalActions();
    const { refresh } = useBucketContext();
 
+   const { currentServer } = useServers();
    const role = useEffectiveRole(bucketName);
    const canDownload = hasPermission(role, Permission.DOWNLOAD_OBJECT);
    const canDelete = hasPermission(role, Permission.DELETE_OBJECT);
+   const canRename = canDelete && currentServer?.provider === Provider.S3;
 
    const download = useCallback(
       async (objectKey: string) => {
@@ -100,13 +103,13 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
 
    return useMemo(
       () => ({
-         can: { download: canDownload, rename: canDelete, delete: canDelete },
+         can: { download: canDownload, rename: canRename, delete: canDelete },
          download,
          copyLink,
          rename,
          remove,
       }),
-      [canDownload, canDelete, download, copyLink, rename, remove]
+      [canDownload, canDelete, canRename, download, copyLink, rename, remove]
    );
 };
 
