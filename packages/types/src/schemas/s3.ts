@@ -37,14 +37,16 @@ export const listObjectsQuerySchema = bucketScope.extend({
 });
 export type ListObjectsQuery = z.infer<typeof listObjectsQuerySchema>;
 
+export const observedETagSchema = z
+   .string()
+   .max(256)
+   .regex(/^"[\x21\x23-\x7e]+"$/)
+   .refine((value) => value !== '"*"', "Wildcard ETags are not allowed");
+
 export const putObjectQuerySchema = objectScope.extend({
+   expectedUserId: idSchema,
    contentType: contentTypeSchema,
-   // One observed, strong ETag; wildcards/lists would authorize unseen data.
-   expectedETag: z
-      .string()
-      .max(256)
-      .regex(/^"[\x21\x23-\x7e]+"$/)
-      .optional(),
+   expectedETag: observedETagSchema.optional(),
 });
 export type PutObjectQuery = z.infer<typeof putObjectQuerySchema>;
 
@@ -53,6 +55,25 @@ export const objectKeysBodySchema = bucketScope.extend({
 });
 export type ObjectKeysInput = z.infer<typeof objectKeysBodySchema>;
 
+export const deleteObjectsBodySchema = bucketScope.extend({
+   expectedUserId: idSchema,
+   objects: z
+      .array(
+         z.object({
+            key: objectKeySchema,
+            expectedETag: observedETagSchema.nullable(),
+         })
+      )
+      .min(1)
+      .max(MAX_BATCH_KEYS)
+      .refine(
+         (objects) =>
+            new Set(objects.map(({ key }) => key)).size === objects.length,
+         "Object keys must be unique"
+      ),
+});
+export type DeleteObjectsInput = z.infer<typeof deleteObjectsBodySchema>;
+
 export const keysQuerySchema = bucketScope.extend({
    prefix: objectKeySchema.refine(isFolderKey, "Prefix must end with /"),
    continuationToken: continuationTokenSchema,
@@ -60,7 +81,7 @@ export const keysQuerySchema = bucketScope.extend({
 export type KeysQuery = z.infer<typeof keysQuerySchema>;
 
 export const renameObjectBodySchema = objectScope
-   .extend({ newObjectKey: objectKeySchema })
+   .extend({ newObjectKey: objectKeySchema, expectedUserId: idSchema })
    .refine(
       ({ objectKey, newObjectKey }) =>
          !isFolderKey(objectKey) && !isFolderKey(newObjectKey),

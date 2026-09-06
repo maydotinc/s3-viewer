@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadCancelled } from "@/lib/utils/s3/upload-cancelled";
 
+const memory = new Map<string, string>();
+vi.stubGlobal("localStorage", {
+   getItem: (key: string) => memory.get(key) ?? null,
+   setItem: (key: string, value: string) => void memory.set(key, value),
+   removeItem: (key: string) => void memory.delete(key),
+});
+
 type Settle = {
    resolve: () => void;
    reject: (error: unknown) => void;
@@ -38,6 +45,7 @@ vi.mock("@/lib/utils/s3/uploadObject", () => ({
 }));
 
 const { default: useUploadStore } = await import("./uploadStore");
+const { default: useSessionStore } = await import("../sessionStore");
 
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 const file = (name: string) => ({
@@ -66,12 +74,73 @@ const fail = async (name: string, serverId = "s") => {
 
 beforeEach(() => {
    useUploadStore.getState().dismiss();
+   useSessionStore.getState().setUserId("user-a");
    inFlight.clear();
    toast.success.mockClear();
    toast.error.mockClear();
 });
 
 describe("uploadStore", () => {
+   it.each([null, "user-b"])(
+      "aborts active files and erases queued files and results when identity becomes %s",
+      async (userId) => {
+         const onComplete = vi.fn();
+         useUploadStore.getState().enqueue({
+            files: ["a", "b", "c", "private-fourth.txt"].map(file),
+            serverId: "s",
+            bucketName: "b",
+            prefix: "p/",
+            onComplete,
+         });
+         const previous = [...inFlight.values()];
+         useSessionStore.getState().setUserId(userId);
+         expect(previous).toHaveLength(3);
+         for (const job of previous) expect(job.abort).toHaveBeenCalledOnce();
+         await flush();
+         expect(useUploadStore.getState()).toMatchObject({
+            entries: {},
+            order: [],
+            queue: [],
+            batch: null,
+            isUploading: false,
+         });
+         expect(inFlight.has(uploadId("private-fourth.txt"))).toBe(false);
+         expect(onComplete).not.toHaveBeenCalled();
+         expect(toast.success).not.toHaveBeenCalled();
+      }
+   );
+
+   it("does not resurrect a large enqueue after an account changes between chunks", async () => {
+      enqueue(...Array.from({ length: 401 }, (_, i) => `private-${i}`));
+      expect(useUploadStore.getState().order).toHaveLength(200);
+      useSessionStore.getState().setUserId("user-b");
+      enqueue("new-account-file");
+      await flush();
+      expect(useUploadStore.getState().order).toEqual([
+         uploadId("new-account-file"),
+      ]);
+      await finish("new-account-file");
+      expect(useUploadStore.getState().batch).toMatchObject({
+         completed: 1,
+         failed: 0,
+         settled: true,
+      });
+   });
+
+   it("refuses enqueue without a user and preserves uploads across same-user server navigation", async () => {
+      useSessionStore.getState().clearSession();
+      enqueue("signed-out-file");
+      expect(inFlight.size).toBe(0);
+      useSessionStore.getState().setUserId("user-a");
+      enqueue("a", "b", "c", "d");
+      useSessionStore.getState().setServerId("other-server");
+      useSessionStore.getState().setUserId("user-a");
+      for (const job of inFlight.values())
+         expect(job.abort).not.toHaveBeenCalled();
+      await finish("a");
+      expect(status("d")).toBe("active");
+   });
+
    it("keeps three uploads active and settles the batch with exact counts", async () => {
       enqueue("a", "b", "c", "d", "e");
       expect(["a", "b", "c"].map((name) => status(name))).toEqual([

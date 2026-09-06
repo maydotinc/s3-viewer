@@ -11,6 +11,7 @@ import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { getS3ClientFromCredentials } from "./client-cache";
 import { streamUpload } from "./upload";
+vi.mock("./no-retry", () => ({ withoutRetries: (client: S3Client) => client }));
 
 const MIB = 1024 * 1024;
 const config = {
@@ -44,17 +45,26 @@ const params = (client: S3Client, size: number, expectedETag?: string) => ({
 });
 
 describe("conditional uploads", () => {
-   it.each([
-      { size: 8, expectedETag: undefined },
-      { size: 6 * MIB, expectedETag: undefined },
-      { size: 8, expectedETag: '"confirmed"' },
-      { size: 6 * MIB, expectedETag: '"confirmed"' },
-   ])(
-      "sends the condition over the SDK transport for $size bytes / $expectedETag",
-      async ({ size, expectedETag }) => {
+   it.each(
+      [
+         { size: 8, expectedETag: undefined },
+         { size: 6 * MIB, expectedETag: undefined },
+         { size: 8, expectedETag: '"confirmed"' },
+         { size: 6 * MIB, expectedETag: '"confirmed"' },
+      ].flatMap((input) =>
+         [
+            "https://s3.us-east-1.amazonaws.com",
+            "https://account.r2.cloudflarestorage.com",
+            "https://minio.example.com",
+         ].map((endpoint) => ({ ...input, endpoint }))
+      )
+   )(
+      "sends the condition over the SDK transport for $endpoint / $size bytes / $expectedETag",
+      async ({ size, expectedETag, endpoint }) => {
          let commits = 0;
          const client = new S3Client({
-            endpoint: "https://s3.us-east-1.amazonaws.com",
+            endpoint,
+            forcePathStyle: true,
             region: "us-east-1",
             credentials: { accessKeyId: "test", secretAccessKey: "test" },
             requestChecksumCalculation: "WHEN_REQUIRED",
@@ -69,6 +79,12 @@ describe("conditional uploads", () => {
                      request.method === "POST" &&
                      Object.hasOwn(request.query, "uploads")
                   ) {
+                     if (!endpoint.includes("amazonaws.com")) {
+                        expect(request.headers["if-none-match"]).toBe(
+                           expectedETag === undefined ? "*" : undefined
+                        );
+                        expect(request.headers["if-match"]).toBe(expectedETag);
+                     }
                      body =
                         "<InitiateMultipartUploadResult><UploadId>upload1</UploadId></InitiateMultipartUploadResult>";
                   } else if (
@@ -182,8 +198,11 @@ describe("conditional uploads", () => {
       }
    );
 
-   it("refuses unverified endpoints before reading or writing data", async () => {
-      const send = vi.fn();
+   it("supports a custom MinIO-compatible endpoint with conditional writes", async () => {
+      const send = vi.fn(async (command: PutObjectCommand) => {
+         expect(command.input.IfNoneMatch).toBe("*");
+         return { ETag: '"minio"' };
+      });
       const client = {
          config: {
             ...config,
@@ -195,9 +214,11 @@ describe("conditional uploads", () => {
          send,
       } as unknown as S3Client;
       const input = params(client, 10);
-      await expect(streamUpload(input)).rejects.toMatchObject({ status: 409 });
-      expect(send).not.toHaveBeenCalled();
-      expect(input.body.readableDidRead).toBe(false);
+      await expect(streamUpload(input)).resolves.toEqual({
+         size: 10,
+         eTag: '"minio"',
+      });
+      expect(send).toHaveBeenCalledOnce();
    });
 });
 
@@ -211,15 +232,21 @@ describe("R2 conditional streaming", () => {
       }),
    };
 
-   it("streams a large body through one conditional PUT without losing bytes before the SDK consumes it", async () => {
+   it("streams a large body through multipart and conditions the final commit", async () => {
       let received = 0;
-      const send = vi.fn(async (command: PutObjectCommand) => {
-         expect(command).toBeInstanceOf(PutObjectCommand);
-         expect(command.input.IfNoneMatch).toBe("*");
+      const send = vi.fn(async (command: Command) => {
+         if (command instanceof CreateMultipartUploadCommand)
+            return { UploadId: "r2-upload" };
+         if (command instanceof CompleteMultipartUploadCommand) {
+            expect(command.input.IfNoneMatch).toBe("*");
+            return { ETag: '"r2"' };
+         }
+         expect(command).toBeInstanceOf(UploadPartCommand);
          await new Promise<void>((resolve) => setImmediate(resolve));
-         for await (const chunk of command.input.Body as Readable)
-            received += Buffer.byteLength(chunk);
-         return { ETag: '"r2"' };
+         received += Buffer.byteLength(
+            (command as UploadPartCommand).input.Body as Uint8Array
+         );
+         return { ETag: '"part"' };
       });
       const client = { config: r2Config, send } as unknown as S3Client;
       await expect(streamUpload(params(client, 6 * MIB))).resolves.toEqual({
@@ -227,7 +254,7 @@ describe("R2 conditional streaming", () => {
          eTag: '"r2"',
       });
       expect(received).toBe(6 * MIB);
-      expect(send).toHaveBeenCalledTimes(1);
+      expect(send).toHaveBeenCalledTimes(4);
    });
 
    it("serializes the replacement condition and an unencoded Content-Length with the actual SDK", async () => {
@@ -254,8 +281,11 @@ describe("R2 conditional streaming", () => {
             expect(request.headers["content-length"]).toBe("12");
             expect(request.headers["content-encoding"]).toBeUndefined();
             expect(request.headers["x-amz-trailer"]).toBeUndefined();
-            for await (const chunk of request.body as Readable)
-               received += Buffer.byteLength(chunk);
+            if (request.body instanceof Uint8Array)
+               received += request.body.byteLength;
+            else
+               for await (const chunk of request.body as Readable)
+                  received += Buffer.byteLength(chunk);
             return {
                response: {
                   statusCode: 200,
@@ -277,17 +307,25 @@ describe("R2 conditional streaming", () => {
       expect(received).toBe(12);
    });
 
-   it.each([undefined, 5 * 1024 ** 3 - 5 * MIB + 1])(
-      "rejects an unsupported content length %s before writing",
-      async (contentLength) => {
-         const send = vi.fn();
-         const client = { config: r2Config, send } as unknown as S3Client;
-         await expect(
-            streamUpload({ ...params(client, 0), contentLength })
-         ).rejects.toMatchObject({
-            status: contentLength === undefined ? 411 : 413,
-         });
-         expect(send).not.toHaveBeenCalled();
-      }
-   );
+   it("supports R2 multipart when the incoming stream has no Content-Length", async () => {
+      const send = vi.fn(async (command: Command) => {
+         if (command instanceof CreateMultipartUploadCommand)
+            return { UploadId: "r2-upload" };
+         if (command instanceof CompleteMultipartUploadCommand)
+            expect(command.input.IfMatch).toBe('"confirmed"');
+         return { ETag: '"r2"' };
+      });
+      const client = { config: r2Config, send } as unknown as S3Client;
+      await expect(
+         streamUpload({
+            ...params(client, 6 * MIB, '"confirmed"'),
+            contentLength: undefined,
+         })
+      ).resolves.toEqual({ size: 6 * MIB, eTag: '"r2"' });
+      expect(
+         send.mock.calls.some(
+            ([command]) => command instanceof CompleteMultipartUploadCommand
+         )
+      ).toBe(true);
+   });
 });

@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadCancelled } from "./upload-cancelled";
 
+const identity = vi.hoisted(() => ({ userId: "user-a" as string | null }));
+vi.mock("@/lib/stores/sessionStore", () => ({
+   default: { getState: () => identity },
+}));
+
 type ProgressHandler = (event: {
    loaded: number;
    lengthComputable: boolean;
@@ -71,12 +76,14 @@ class FakeXHR {
 vi.stubGlobal("XMLHttpRequest", FakeXHR);
 
 const { uploadObject } = await import("./uploadObject");
+const { setUnauthorizedHandler } = await import("@/lib/api");
 
 const body = { key: "k", size: 10, eTag: "e" };
 const makeFile = (size = 10) => new File(["x".repeat(size)], "a.txt");
 
 const upload = (overrides: { file?: File; expectedETag?: string } = {}) =>
    uploadObject({
+      userId: "user-a",
       serverId: "s",
       bucketName: "b",
       objectKey: "k",
@@ -87,32 +94,95 @@ const upload = (overrides: { file?: File; expectedETag?: string } = {}) =>
    });
 
 beforeEach(() => {
+   identity.userId = "user-a";
    FakeXHR.instances = [];
    vi.useFakeTimers();
 });
 
 afterEach(() => {
+   setUnauthorizedHandler(() => {});
    vi.useRealTimers();
 });
 
 describe("uploadObject", () => {
-   it("keeps the original replacement ETag across network retries", async () => {
-      const handle = upload({ expectedETag: '"before-confirmation"' });
+   it("reports a same-user upload 401 but ignores a delayed 401 after the account changes", async () => {
+      const unauthorized = vi.fn();
+      setUnauthorizedHandler(unauthorized);
+      const first = upload();
+      FakeXHR.instances[0]?.respond(401, { message: "Sign in required" });
+      await expect(first.done).rejects.toMatchObject({ status: 401 });
+      expect(unauthorized).toHaveBeenCalledOnce();
+      const previous = upload();
+      identity.userId = "user-b";
+      FakeXHR.instances[1]?.respond(401, { message: "Sign in required" });
+      await expect(previous.done).rejects.toMatchObject({ status: 401 });
+      expect(unauthorized).toHaveBeenCalledOnce();
+   });
+
+   it("sends the captured user identity to the API on every retry", async () => {
+      const handle = upload();
       const firstUrl = FakeXHR.instances[0]?.url ?? "";
-      expect(new URL(firstUrl, "http://localhost").pathname).toBe(
-         "/servers/s/buckets/b/objects/upload"
-      );
       expect(
-         new URL(firstUrl, "http://localhost").searchParams.get("expectedETag")
-      ).toBe('"before-confirmation"');
+         new URL(firstUrl, "http://localhost").searchParams.get(
+            "expectedUserId"
+         )
+      ).toBe("user-a");
       FakeXHR.instances[0]?.fail();
       await vi.advanceTimersByTimeAsync(500);
       expect(FakeXHR.instances[1]?.url).toBe(firstUrl);
-      FakeXHR.instances[1]?.respond(409, { message: "File changed" });
-      await expect(handle.done).rejects.toMatchObject({ status: 409 });
-      await vi.advanceTimersByTimeAsync(5000);
-      expect(FakeXHR.instances).toHaveLength(2);
+      FakeXHR.instances[1]?.respond(201, body);
+      await expect(handle.done).resolves.toEqual(body);
    });
+
+   it.each([null, "user-b"])(
+      "refuses an upload under changed identity %s before sending bytes",
+      async (userId) => {
+         identity.userId = userId;
+         const handle = upload();
+         await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+         expect(FakeXHR.instances).toHaveLength(0);
+      }
+   );
+
+   it.each([null, "user-b"])(
+      "cancels a network retry when identity becomes %s",
+      async (userId) => {
+         const handle = upload();
+         const result = expect(handle.done).rejects.toBeInstanceOf(
+            UploadCancelled
+         );
+         FakeXHR.instances[0]?.fail();
+         identity.userId = userId;
+         await vi.advanceTimersByTimeAsync(500);
+         await result;
+         expect(FakeXHR.instances).toHaveLength(1);
+      }
+   );
+
+   it.each(["fail", "timeoutOut"] as const)(
+      "never replays an overwrite after an ambiguous %s response",
+      async (failure) => {
+         const handle = upload({ expectedETag: '"before-confirmation"' });
+         const rejected = expect(handle.done).rejects.toMatchObject({
+            status: 0,
+            code: "UPLOAD_OUTCOME_UNKNOWN",
+            message: expect.stringContaining("Refresh the folder"),
+         });
+         const firstUrl = FakeXHR.instances[0]?.url ?? "";
+         expect(new URL(firstUrl, "http://localhost").pathname).toBe(
+            "/servers/s/buckets/b/objects/v3/upload"
+         );
+         expect(
+            new URL(firstUrl, "http://localhost").searchParams.get(
+               "expectedETag"
+            )
+         ).toBe('"before-confirmation"');
+         FakeXHR.instances[0]?.[failure]();
+         await rejected;
+         await vi.advanceTimersByTimeAsync(5000);
+         expect(FakeXHR.instances).toHaveLength(1);
+      }
+   );
 
    it("does not send replacement authority for a new file", async () => {
       const handle = upload();
@@ -129,6 +199,7 @@ describe("uploadObject", () => {
    it("resolves with the parsed body and reports progress up to the full size", async () => {
       const onProgress = vi.fn();
       const handle = uploadObject({
+         userId: "user-a",
          serverId: "s",
          bucketName: "b",
          objectKey: "k",
@@ -150,7 +221,7 @@ describe("uploadObject", () => {
       expect(FakeXHR.instances[0]?.timeout).toBeGreaterThan(0);
    });
 
-   it("retries a status-0 network error with exponential backoff, up to two retries", async () => {
+   it("retries a new-file status-0 network error with exponential backoff, up to two retries", async () => {
       const handle = upload();
       FakeXHR.instances[0]?.fail();
       await vi.advanceTimersByTimeAsync(500);
@@ -174,11 +245,14 @@ describe("uploadObject", () => {
       await vi.advanceTimersByTimeAsync(1000);
       FakeXHR.instances[2]?.fail();
 
-      await expect(handle.done).rejects.toMatchObject({ status: 0 });
+      await expect(handle.done).rejects.toMatchObject({
+         status: 0,
+         code: "UPLOAD_OUTCOME_UNKNOWN",
+      });
       expect(FakeXHR.instances).toHaveLength(3);
    });
 
-   it("treats a client-side timeout as a retryable network error", async () => {
+   it("treats a new-file client-side timeout as a retryable network error", async () => {
       const handle = upload();
       FakeXHR.instances[0]?.timeoutOut();
       await vi.advanceTimersByTimeAsync(500);

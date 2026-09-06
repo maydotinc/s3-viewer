@@ -153,7 +153,9 @@ const classifyListBucketsError = (
 };
 
 const deleteFailureMessage = (code: string | undefined): string =>
-   classifyFailure({ name: code ?? "Unknown", detail: "" }).message;
+   code === "PreconditionFailed" || code === "ConditionalRequestConflict"
+      ? "The object changed. Refresh and review it before deleting."
+      : classifyFailure({ name: code ?? "Unknown", detail: "" }).message;
 
 export {
    classifyBucketError,

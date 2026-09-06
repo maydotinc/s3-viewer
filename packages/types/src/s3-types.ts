@@ -9,6 +9,7 @@ type S3Bucket = {
 type S3Object = {
    key: string;
    isFolder: boolean;
+   eTag: string | null;
    lastModified: string | null;
    size: number | null;
 };
@@ -39,14 +40,16 @@ type S3ObjectPreview = S3PresignedUrl & {
 type S3ObjectUploaded = { key: string; size: number; eTag: string | null };
 type S3DeleteResult = {
    deleted: string[];
-   failed: { key: string; message: string }[];
+   failed: { key: string; message: string; retryable: boolean }[];
 };
-type S3KeysPage = { keys: string[]; nextToken: string | null };
+type S3DeleteTarget = { key: string; expectedETag: string | null };
+type S3KeysPage = { objects: S3DeleteTarget[]; nextToken: string | null };
 type S3ObjectsExist = { existing: string[]; eTags: Record<string, string> };
 
 export type {
    S3Bucket,
    S3DeleteResult,
+   S3DeleteTarget,
    S3Object,
    S3ObjectListPage,
    S3ObjectMetadata,

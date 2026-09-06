@@ -1,4 +1,4 @@
-import { ServerInfo } from "@s3-viewer/types";
+import { ServerInfo, type S3DeleteTarget } from "@s3-viewer/types";
 import useSessionStore from "@/lib/stores/sessionStore";
 import {
    ReactNode,
@@ -17,7 +17,7 @@ type ModalPropsMap = {
       userId: string;
       serverId: string;
       bucketName: string;
-      objectKeys: string[];
+      objects: S3DeleteTarget[];
       onDeleteSuccess?: () => void;
    };
    rename: { server: ServerInfo };

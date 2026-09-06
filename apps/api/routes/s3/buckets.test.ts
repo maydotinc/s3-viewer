@@ -26,6 +26,8 @@ const state = vi.hoisted(() => ({
    server: { findUnique: vi.fn() },
    serverAccess: { findUnique: vi.fn() },
    transaction: vi.fn(),
+   onPermissionLock: vi.fn(),
+   invites: vi.fn(),
 }));
 
 vi.mock("@/lib/utils/encryption", () => ({
@@ -62,6 +64,8 @@ beforeEach(() => {
    state.provider = "S3";
    state.locked = false;
    state.events = [];
+   state.onPermissionLock.mockReset();
+   state.invites.mockReset().mockResolvedValue([]);
    state.create.mockReset().mockResolvedValue(undefined);
    state.decrypt.mockReset().mockImplementation((encrypted: string) => ({
       endpoint: `https://${encrypted}.example.com`,
@@ -99,18 +103,42 @@ beforeEach(() => {
                   return [{ locked: true }];
                }
                state.events.push("permission-lock");
+               await state.onPermissionLock();
                return [scope()];
             },
             $executeRaw: async (
-               _strings: TemplateStringsArray,
+               strings: TemplateStringsArray,
                bucket: string
             ) => {
-               state.allowed.push(bucket);
+               if (strings.join("").includes("array_remove")) {
+                  state.events.push("scope-remove");
+                  state.allowed = state.allowed.filter(
+                     (name) => name !== bucket
+                  );
+               } else {
+                  state.allowed.push(bucket);
+               }
                return 1;
             },
-            serverAccess: state.serverAccess,
+            serverAccess: {
+               findUnique: async () => {
+                  state.events.push("transaction-role");
+                  return state.role ? { role: state.role } : null;
+               },
+            },
             server: state.server,
+            pendingInvitation: { findMany: state.invites },
             bucketAccess: {
+               deleteMany: async ({
+                  where,
+               }: {
+                  where: { bucketName: string };
+               }) => {
+                  state.events.push("grants-remove");
+                  state.grants = state.grants.filter(
+                     (grant) => grant.bucketName !== where.bucketName
+                  );
+               },
                upsert: async ({ create }: { create: Grant }) => {
                   const existing = state.grants.find(
                      (grant) => grant.bucketName === create.bucketName
@@ -129,14 +157,17 @@ beforeEach(() => {
       });
 });
 
-const postBucket = (serverId = "server12345") => {
+const requestBucket = (method: "post" | "delete", serverId = "server12345") => {
    const route = bucketsRouter.stack.find((layer) =>
-      layer.route?.stack.some((handler) => handler.method === "post")
+      layer.route?.stack.some((handler) => handler.method === method)
    )?.route;
-   if (!route) throw new Error("Bucket creation route not found");
+   if (!route) throw new Error("Bucket route not found");
    const req = {
       user: { id: "actor12345" },
-      params: { serverId },
+      params: {
+         serverId,
+         ...(method === "delete" ? { bucketName: "new-bucket" } : {}),
+      },
       body: { bucketName: "new-bucket" },
       query: {},
    } as unknown as Request;
@@ -151,6 +182,10 @@ const postBucket = (serverId = "server12345") => {
          resolve(body);
          return res;
       };
+      res.end = (() => {
+         resolve(undefined);
+         return res;
+      }) as Response["end"];
       let index = 0;
       const next = (error?: unknown) => {
          if (error) {
@@ -159,7 +194,7 @@ const postBucket = (serverId = "server12345") => {
          }
          const handler = route.stack[index++];
          if (!handler) {
-            reject(new Error("Bucket creation route did not respond"));
+            reject(new Error("Bucket route did not respond"));
             return;
          }
          handler.handle(req, res, next);
@@ -168,6 +203,8 @@ const postBucket = (serverId = "server12345") => {
    });
    return { req, res, finished };
 };
+
+const postBucket = (serverId?: string) => requestBucket("post", serverId);
 
 const deferred = () => {
    let resolve!: () => void;
@@ -243,7 +280,11 @@ describe("bucket creation authorization", () => {
          await expect(request.finished).rejects.toMatchObject({ status: 403 });
          expect(state.grants).toEqual([]);
          expect(state.allowed).toEqual(["original-bucket"]);
-         expect(state.events).toEqual(["creation-lock", "permission-lock"]);
+         expect(state.events).toEqual([
+            "creation-lock",
+            "permission-lock",
+            "transaction-role",
+         ]);
          const res = {
             locals: {
                input: {
@@ -328,5 +369,59 @@ describe("bucket creation authorization", () => {
       });
       expect(state.grants).toEqual([]);
       expect(state.locked).toBe(false);
+   });
+});
+
+describe("bucket removal authorization", () => {
+   beforeEach(() => {
+      state.allowed.push("new-bucket");
+      state.grants = [{ bucketName: "new-bucket", role: "EDITOR" }];
+   });
+
+   it.each(["EDITOR", "VIEWER", null] as const)(
+      "changes no scope, grants or invites after the actor becomes %s while waiting for the server lock",
+      async (role) => {
+         state.onPermissionLock.mockImplementation(() => {
+            state.role = role;
+         });
+         await expect(requestBucket("delete").finished).rejects.toMatchObject({
+            status: role ? 403 : 404,
+         });
+         expect(state.events).toEqual(["permission-lock", "transaction-role"]);
+         expect(state.allowed).toEqual(["original-bucket", "new-bucket"]);
+         expect(state.grants).toEqual([
+            { bucketName: "new-bucket", role: "EDITOR" },
+         ]);
+         expect(state.invites).not.toHaveBeenCalled();
+      }
+   );
+
+   it.each(["ADMIN", "OWNER"] as const)(
+      "permits %s to remove a bucket after checking the role inside the lock",
+      async (role) => {
+         state.role = role;
+         const request = requestBucket("delete");
+         await expect(request.finished).resolves.toBeUndefined();
+         expect(request.res.statusCode).toBe(204);
+         expect(state.events).toEqual([
+            "permission-lock",
+            "transaction-role",
+            "scope-remove",
+            "grants-remove",
+         ]);
+         expect(state.allowed).toEqual(["original-bucket"]);
+         expect(state.grants).toEqual([]);
+         expect(state.invites).toHaveBeenCalledOnce();
+      }
+   );
+
+   it("still refuses removal of the last allowed bucket", async () => {
+      state.allowed = ["new-bucket"];
+      await expect(requestBucket("delete").finished).rejects.toMatchObject({
+         status: 409,
+      });
+      expect(state.allowed).toEqual(["new-bucket"]);
+      expect(state.grants).toHaveLength(1);
+      expect(state.invites).not.toHaveBeenCalled();
    });
 });

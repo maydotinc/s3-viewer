@@ -1,7 +1,7 @@
 import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { env } from "@/lib/env";
-import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
-import { getAuth } from "@/lib/middleware/authorize";
+import { ApiHttpError, fail, noContent, requestSignal } from "@/lib/http";
+import { requireExpectedUser } from "@/lib/middleware/expected-user";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
@@ -17,7 +17,6 @@ import { listKeysPage, listPage, type S3Scope } from "@/lib/s3/listing";
 import { renameObject } from "@/lib/s3/rename";
 import { presignedUrl } from "@/lib/s3/presign";
 import { recordAudit } from "@/lib/services/audit";
-import { loadServerSettings } from "@/lib/services/servers";
 import {
    declaredLength,
    exceedsLimit,
@@ -41,7 +40,9 @@ import {
 import { Permission } from "@s3-viewer/permissions";
 import {
    DEFAULT_CONTENT_TYPE,
-   Provider,
+   OBJECT_MUTATION_PATH,
+   deleteObjectsBodySchema,
+   type DeleteObjectsInput,
    keysQuerySchema,
    listObjectsQuerySchema,
    objectKeysBodySchema,
@@ -59,7 +60,7 @@ import {
    type S3ObjectPreview,
    type S3ObjectUploaded,
 } from "@s3-viewer/types";
-import { Router, type Response } from "express";
+import { Router, type RequestHandler, type Response } from "express";
 
 const objectsRouter = Router({ mergeParams: true });
 const uploadBudget = createUploadBudget({
@@ -173,16 +174,34 @@ objectsRouter.get(
    })
 );
 
+const rejectLegacyMutation: RequestHandler = (req, res) => {
+   if (req.method === "PUT") res.setHeader("Connection", "close");
+   fail(
+      res,
+      409,
+      "This action needs the updated app. Refresh the page and try again."
+   );
+};
+
+objectsRouter.put(["/", "/upload"], rejectLegacyMutation);
+objectsRouter.delete("/", rejectLegacyMutation);
+objectsRouter.post("/rename", rejectLegacyMutation);
+
 objectsRouter.put(
-   // The dedicated path makes a new web app fail closed against an old API
-   // during rolling deploys. The legacy path also enforces conditions here.
-   ["/", "/upload"],
+   `${OBJECT_MUTATION_PATH}/upload`,
    ...bucketRoute(
       Permission.UPLOAD_OBJECT,
       putObjectQuerySchema,
       async (req, res) => {
-         const { serverId, bucketName, objectKey, contentType, expectedETag } =
-            input<PutObjectQuery>(res);
+         const {
+            serverId,
+            bucketName,
+            objectKey,
+            contentType,
+            expectedETag,
+            expectedUserId,
+         } = input<PutObjectQuery>(res);
+         const userId = requireExpectedUser(res, expectedUserId);
          const contentLength = declaredLength(req.headers["content-length"]);
          if (exceedsLimit(contentLength, env.MAX_UPLOAD_BYTES)) {
             throw new ApiHttpError(
@@ -211,7 +230,6 @@ objectsRouter.put(
             MAX_OBJECT_BYTES
          );
 
-         const { userId } = getAuth(res);
          let release: () => void;
          try {
             release = uploadBudget.acquire(userId, uploadMemoryFor(partSize));
@@ -267,18 +285,18 @@ objectsRouter.put(
 );
 
 objectsRouter.delete(
-   "/",
+   OBJECT_MUTATION_PATH,
    ...bucketRoute(
       Permission.DELETE_OBJECT,
-      objectKeysBodySchema,
+      deleteObjectsBodySchema,
       async (req, res) => {
-         const { serverId, bucketName, objectKeys } =
-            input<ObjectKeysInput>(res);
-         const { userId } = getAuth(res);
+         const { serverId, bucketName, objects, expectedUserId } =
+            input<DeleteObjectsInput>(res);
+         const userId = requireExpectedUser(res, expectedUserId);
          const client = await getS3Client(serverId);
          const result = await deleteKeys(
             routeScope(client, bucketName, res),
-            objectKeys
+            objects
          );
          await recordAudit({
             action: "object.delete",
@@ -312,21 +330,22 @@ objectsRouter.get(
 );
 
 objectsRouter.post(
-   "/rename",
+   `${OBJECT_MUTATION_PATH}/rename`,
    ...bucketRoute(
       Permission.DELETE_OBJECT,
       renameObjectBodySchema,
       async (req, res) => {
-         const { serverId, bucketName, objectKey, newObjectKey } =
-            input<RenameObjectInput>(res);
-         const { userId } = getAuth(res);
-         const [client, { provider }] = await Promise.all([
-            getS3Client(serverId),
-            loadServerSettings(serverId),
-         ]);
+         const {
+            serverId,
+            bucketName,
+            objectKey,
+            newObjectKey,
+            expectedUserId,
+         } = input<RenameObjectInput>(res);
+         const userId = requireExpectedUser(res, expectedUserId);
+         const client = await getS3Client(serverId);
          await renameObject(
             routeScope(client, bucketName, res),
-            Provider[provider],
             objectKey,
             newObjectKey
          );

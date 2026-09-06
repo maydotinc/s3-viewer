@@ -4,7 +4,7 @@ import useDeleteObjects, {
    type DeleteSummary,
 } from "@/lib/hooks/mutations/object/useDeleteObjects";
 import useDeletePrefix from "@/lib/hooks/mutations/object/useDeletePrefix";
-import { baseName, isFolderKey } from "@s3-viewer/types";
+import { baseName, isFolderKey, type S3DeleteTarget } from "@s3-viewer/types";
 import { useEffect, useRef, useState } from "react";
 
 type ConfirmDeleteModalProps = {
@@ -12,7 +12,7 @@ type ConfirmDeleteModalProps = {
    userId: string;
    serverId: string;
    bucketName: string;
-   objectKeys: string[];
+   objects: S3DeleteTarget[];
    onDeleteSuccess?: () => void;
 };
 
@@ -21,7 +21,7 @@ const ConfirmDeleteModal = ({
    userId,
    serverId,
    bucketName,
-   objectKeys,
+   objects,
    onDeleteSuccess,
 }: ConfirmDeleteModalProps) => {
    const deleteObjects = useDeleteObjects();
@@ -29,6 +29,7 @@ const ConfirmDeleteModal = ({
    const [error, setError] = useState<string | null>(null);
    const [failed, setFailed] = useState<DeleteSummary["failed"]>([]);
    const [failedTotal, setFailedTotal] = useState(0);
+   const [listingError, setListingError] = useState<string | null>(null);
    const [progress, setProgress] = useState(0);
    const abort = useRef<AbortController | null>(null);
    const mounted = useRef(true);
@@ -42,11 +43,13 @@ const ConfirmDeleteModal = ({
    }, []);
 
    const folder =
-      objectKeys.length === 1 && objectKeys[0] && isFolderKey(objectKeys[0])
-         ? objectKeys[0]
+      objects.length === 1 && objects[0] && isFolderKey(objects[0].key)
+         ? objects[0].key
          : null;
-   const count = objectKeys.length;
+   const count = objects.length;
    const isPending = deleteObjects.isPending || deletePrefix.isPending;
+   const retryable = failed.filter((failure) => failure.retryable);
+   const needsReview = failed.filter((failure) => !failure.retryable);
 
    const title = folder
       ? "Delete folder"
@@ -55,30 +58,36 @@ const ConfirmDeleteModal = ({
         : `Delete ${count} objects`;
    const description = folder
       ? isPending && progress > 0
-         ? `Deleting every object under ${folder}… ${progress} deleted so far.`
-         : `This deletes every object under ${folder}. This can't be undone.`
+         ? `Removing current objects under ${folder}… ${progress} deleted so far.`
+         : `This removes current objects under ${folder}. This may be permanent, depending on your bucket’s versioning and retention settings.`
       : count === 1
-        ? `This deletes ${baseName(objectKeys[0] ?? "")}. This can't be undone.`
-        : `This deletes ${count} objects. This can't be undone.`;
+        ? `This removes ${baseName(objects[0]?.key ?? "")}. This may be permanent, depending on your bucket’s versioning and retention settings.`
+        : `This removes ${count} current objects. This may be permanent, depending on your bucket’s versioning and retention settings.`;
 
    const confirm = () => {
+      if (
+         isPending ||
+         ((failed.length > 0 || listingError) && retryable.length === 0)
+      )
+         return;
       setError(null);
       const options = {
          onSuccess: (result: DeleteSummary) => {
             if (!mounted.current) return;
             if (result.deleted > 0) onDeleteSuccess?.();
-            setFailed(result.failed);
-            setFailedTotal(result.failedTotal);
-            if (result.failedTotal === 0) onClose();
+            const remaining = [...needsReview, ...result.failed];
+            setFailed(remaining);
+            setFailedTotal(remaining.length);
+            setListingError(listingError ?? result.listingError);
+            if (remaining.length === 0 && !listingError && !result.listingError)
+               onClose();
          },
          onError: (err: unknown) => {
             if (isAborted(err) || !mounted.current) return;
-            setFailed([]);
-            setFailedTotal(0);
             setError(errorMessage(err));
          },
       };
-      if (folder) {
+      if (folder && failed.length === 0 && !listingError) {
          abort.current = new AbortController();
          setProgress(0);
          deletePrefix.mutate(
@@ -96,14 +105,14 @@ const ConfirmDeleteModal = ({
          );
          return;
       }
-      const keys = failed.length > 0 ? failed.map((f) => f.key) : objectKeys;
+      const targets = failed.length > 0 ? retryable : objects;
       abort.current = new AbortController();
       deleteObjects.mutate(
          {
             userId,
             serverId,
             bucketName,
-            objectKeys: keys,
+            objects: targets,
             signal: abort.current.signal,
          },
          options
@@ -117,6 +126,8 @@ const ConfirmDeleteModal = ({
            ? "This object couldn't be deleted:"
            : `${failedTotal} objects couldn't be deleted:`;
 
+   const displayedFailures = failed.slice(0, 100);
+
    return (
       <ConfirmDialog
          closable={!isPending}
@@ -124,7 +135,17 @@ const ConfirmDeleteModal = ({
          title={title}
          description={description}
          descriptionClassName="break-all"
-         error={error ?? failureSummary}
+         error={
+            error ??
+            listingError ??
+            (needsReview.length > 0
+               ? "Some objects need to be reviewed again. Close this dialog and refresh before deleting them again."
+               : failureSummary)
+         }
+         confirmDisabled={
+            (failed.length > 0 || Boolean(listingError)) &&
+            retryable.length === 0
+         }
          confirmVariant="destructive"
          confirmLabel={failedTotal > 0 ? "Retry" : "Delete"}
          isPending={isPending}
@@ -132,7 +153,7 @@ const ConfirmDeleteModal = ({
       >
          {failed.length > 0 && (
             <ul className="max-h-40 overflow-y-auto rounded-md border border-viewerborder bg-viewergray p-2 text-xs break-all text-viewertext">
-               {failed.map((f) => (
+               {displayedFailures.map((f) => (
                   <li key={f.key}>
                      <span className="font-medium text-viewerblack">
                         {f.key}
@@ -140,8 +161,8 @@ const ConfirmDeleteModal = ({
                      — {f.message}
                   </li>
                ))}
-               {failedTotal > failed.length && (
-                  <li>and {failedTotal - failed.length} more</li>
+               {failedTotal > displayedFailures.length && (
+                  <li>and {failedTotal - displayedFailures.length} more</li>
                )}
             </ul>
          )}

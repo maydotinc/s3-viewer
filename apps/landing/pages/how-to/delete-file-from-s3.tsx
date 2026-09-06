@@ -11,7 +11,7 @@ const SLUG = "delete-file-from-s3";
 const TITLE = "How to delete a file from S3 safely";
 const KEYWORD = "delete file from S3";
 const TLDR =
-   "Run aws s3 rm s3://bucket/key, or open the ⋮ menu on the row in S3 Viewer and choose Delete. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For several objects at once, tick the checkboxes in S3 Viewer and hit Delete: the selection goes out as one DeleteObjects call. If MFA Delete is enabled, you'll need an MFA token.";
+   "Run aws s3 rm s3://bucket/key, or on AWS S3, R2, or MinIO open the ⋮ menu on the row in S3 Viewer and choose Delete. The catch: if the bucket has versioning enabled, this only adds a delete marker — the prior version is still there and still billed. To actually purge a versioned object, delete each version explicitly with its version ID. For several objects at once, tick the checkboxes in S3 Viewer and hit Delete: the selection goes out as one DeleteObjects call. If MFA Delete is enabled, you'll need an MFA token.";
 
 const steps: HowToStep[] = [
    {
@@ -23,7 +23,10 @@ const steps: HowToStep[] = [
             checkboxes and use the <strong>Delete</strong> button in the toolbar
             — the selection goes out as a single <code>DeleteObjects</code> call
             (the S3 API takes up to 1,000 keys per request). The confirmation
-            shows how many objects you are about to delete.
+            shows how many objects you are about to delete. AWS S3, R2, and
+            MinIO are supported. Versioning is optional. Uncertain deletion
+            requests are never automatically replayed; refresh and review them
+            before another attempt.
          </>
       ),
    },
@@ -105,7 +108,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Does this work with Cloudflare R2?",
       answer:
-         "R2 supports DeleteObject and bulk delete the same way. R2 has its own object versioning model — check the Cloudflare docs for current behavior.",
+         "Yes. S3 Viewer supports deleting individual files, selections, and folders on R2. It reports per-object errors and does not require AWS versioning or ownership settings.",
    },
 ];
 
@@ -126,11 +129,9 @@ export default createHowToPage({
          <strong>delete marker</strong> — the object becomes invisible to normal{" "}
          <code>GetObject</code> calls but every prior version is still there
          (and still billed). To actually purge a key, you delete each version
-         explicitly via <code>delete-object --version-id</code>. S3 Viewer is
-         not version-aware: it deletes the current version like any other S3
-         client, so whether that is a soft or a hard delete depends on the
-         bucket&apos;s versioning setting, which is worth checking before you
-         rely on it. For several objects at once, S3 Viewer wraps the{" "}
+         explicitly via <code>delete-object --version-id</code>. S3 Viewer does
+         not purge specific historical versions. Deletion can be permanent on an
+         unversioned bucket. For several objects at once, S3 Viewer wraps the{" "}
          <code>DeleteObjects</code> API (up to 1,000 keys per call) — tick the
          checkboxes and clear them in one round trip.
       </p>

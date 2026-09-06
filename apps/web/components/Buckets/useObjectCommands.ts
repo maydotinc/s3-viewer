@@ -1,11 +1,14 @@
 import { useModalActions } from "@/lib/contexts/ModalContext";
-import useServers from "@/lib/hooks/queries/server/useServers";
 import { useEffectiveRole } from "@/lib/hooks/usePermission";
 import useSessionStore from "@/lib/stores/sessionStore";
 import { getDownloadUrl, saveFromUrl } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
-import { PRESIGN_EXPIRY_SECONDS, Provider, baseName } from "@s3-viewer/types";
+import {
+   PRESIGN_EXPIRY_SECONDS,
+   baseName,
+   type S3DeleteTarget,
+} from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useCallback, useMemo } from "react";
 import { useBucketContext } from "./Context";
@@ -24,7 +27,7 @@ type ObjectCommands = {
       objectKey: string,
       onSuccess?: (newObjectKey: string) => void
    ) => void;
-   remove: (objectKeys: string[], onSuccess?: () => void) => void;
+   remove: (objects: S3DeleteTarget[], onSuccess?: () => void) => void;
 };
 
 const useObjectCommands = (bucketName: string): ObjectCommands => {
@@ -32,11 +35,10 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
    const { openRenameObjectModal, openConfirmDeleteModal } = useModalActions();
    const { refresh } = useBucketContext();
 
-   const { currentServer } = useServers();
    const role = useEffectiveRole(bucketName);
    const canDownload = hasPermission(role, Permission.DOWNLOAD_OBJECT);
    const canDelete = hasPermission(role, Permission.DELETE_OBJECT);
-   const canRename = canDelete && currentServer?.provider === Provider.S3;
+   const canRename = canDelete;
 
    const download = useCallback(
       async (objectKey: string) => {
@@ -88,11 +90,11 @@ const useObjectCommands = (bucketName: string): ObjectCommands => {
    );
 
    const remove = useCallback(
-      (objectKeys: string[], onSuccess?: () => void) =>
+      (objects: S3DeleteTarget[], onSuccess?: () => void) =>
          openConfirmDeleteModal({
             serverId,
             bucketName,
-            objectKeys,
+            objects,
             onDeleteSuccess: () => {
                refresh();
                onSuccess?.();

@@ -24,6 +24,9 @@ onlyBuiltDependencies:
    - sharp
 
 overrides:
+   "@eslint/plugin-kit@0.3": ^0.3.4
+   "@humanfs/node@0.16": ^0.16.8
+   "ajv@6": ^6.14.0
    body-parser: ^2.3.0
    defu: ^6.1.7
    flatted: ^3.4.4

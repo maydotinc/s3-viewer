@@ -1,6 +1,6 @@
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
-import { ApiError, errorMessage } from "@/lib/api";
+import { errorMessage } from "@/lib/api";
 import useRenameObject from "@/lib/hooks/mutations/object/useRenameObject";
 import usePathSuggestion, {
    isAcceptSuggestionKey,
@@ -36,11 +36,6 @@ const validate = (value: string, original: string): string | null => {
    if (value === original) return "That's the current name.";
    return null;
 };
-
-const requestFailure = (error: unknown): string =>
-   error instanceof ApiError && error.status === 409
-      ? "An object with that name already exists."
-      : errorMessage(error);
 
 const RenameObjectModal = ({
    onClose,
@@ -85,7 +80,7 @@ const RenameObjectModal = ({
                onRenameSuccess?.(newKey);
                onClose();
             },
-            onError: (failure) => setRequestError(requestFailure(failure)),
+            onError: (failure) => setRequestError(errorMessage(failure)),
          }
       );
    };

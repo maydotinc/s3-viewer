@@ -63,7 +63,7 @@ const openObjects = () => {
    actions.openConfirmDeleteModal({
       serverId: "server-a",
       bucketName: "backups",
-      objectKeys: ["important.txt"],
+      objects: [{ key: "important.txt", expectedETag: '"original"' }],
    });
    actions.openRenameObjectModal({
       serverId: "server-a",
@@ -117,7 +117,7 @@ describe("modal lifetime follows its opening session and server", () => {
       actions.openConfirmDeleteModal({
          serverId: "server-a",
          bucketName: "backups",
-         objectKeys: ["important.txt"],
+         objects: [{ key: "important.txt", expectedETag: '"original"' }],
       });
       actions.openRenameObjectModal({
          serverId: "server-a",

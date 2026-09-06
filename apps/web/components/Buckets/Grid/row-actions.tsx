@@ -44,7 +44,11 @@ const RowActionsMenu = ({
                {data.isFolder ? (
                   <DropdownMenuItem
                      variant="destructive"
-                     onSelect={() => commands.remove([data.key])}
+                     onSelect={() =>
+                        commands.remove([
+                           { key: data.key, expectedETag: data.eTag },
+                        ])
+                     }
                   >
                      <Trash2 aria-hidden="true" />
                      Delete folder
@@ -82,7 +86,11 @@ const RowActionsMenu = ({
                            )}
                            <DropdownMenuItem
                               variant="destructive"
-                              onSelect={() => commands.remove([data.key])}
+                              onSelect={() =>
+                                 commands.remove([
+                                    { key: data.key, expectedETag: data.eTag },
+                                 ])
+                              }
                            >
                               <Trash2 aria-hidden="true" />
                               Delete

@@ -1,14 +1,17 @@
 import {
    ApiError,
    apiUrl,
+   handleUnauthorized,
    networkError,
    objectsPath,
    qs,
    responseError,
 } from "@/lib/api";
-import type {
-   ApiError as ApiErrorBody,
-   S3ObjectUploaded,
+import useSessionStore from "@/lib/stores/sessionStore";
+import {
+   OBJECT_MUTATION_PATH,
+   type ApiError as ApiErrorBody,
+   type S3ObjectUploaded,
 } from "@s3-viewer/types";
 import { UploadCancelled } from "./upload-cancelled";
 
@@ -37,6 +40,7 @@ const sleep = (ms: number, signal: AbortSignal) =>
    });
 
 type UploadParams = {
+   userId: string;
    serverId: string;
    bucketName: string;
    objectKey: string;
@@ -63,6 +67,7 @@ const putOnce = (
    url: string,
    file: File,
    contentType: string,
+   userId: string,
    onProgress: (loadedBytes: number) => void
 ): UploadHandle => {
    const xhr = new XMLHttpRequest();
@@ -75,6 +80,7 @@ const putOnce = (
       };
       xhr.onload = () => {
          if (xhr.status < 200 || xhr.status >= 300) {
+            if (xhr.status === 401) handleUnauthorized(userId);
             reject(responseError(xhr.status, parseJson<ApiErrorBody>(xhr)));
             return;
          }
@@ -106,6 +112,7 @@ const putOnce = (
 };
 
 const uploadObject = ({
+   userId,
    serverId,
    bucketName,
    objectKey,
@@ -115,23 +122,36 @@ const uploadObject = ({
    onProgress,
 }: UploadParams): UploadHandle => {
    const url = apiUrl(
-      `${objectsPath(serverId, bucketName)}/upload${qs({ objectKey, contentType, expectedETag })}`
+      `${objectsPath(serverId, bucketName)}${OBJECT_MUTATION_PATH}/upload${qs({ objectKey, contentType, expectedETag, expectedUserId: userId })}`
    );
    const controller = new AbortController();
    let current: UploadHandle | null = null;
 
    const run = async (): Promise<S3ObjectUploaded> => {
       for (let attempt = 0; ; attempt++) {
-         if (controller.signal.aborted) throw new UploadCancelled();
-         current = putOnce(url, file, contentType, onProgress);
+         if (
+            controller.signal.aborted ||
+            useSessionStore.getState().userId !== userId
+         )
+            throw new UploadCancelled();
+         current = putOnce(url, file, contentType, userId, onProgress);
          try {
             return await current.done;
          } catch (error) {
             const retry =
                error instanceof ApiError &&
                error.status === 0 &&
+               expectedETag === undefined &&
                attempt < NETWORK_RETRIES;
-            if (!retry) throw error;
+            if (!retry) {
+               if (error instanceof ApiError && error.status === 0)
+                  throw new ApiError(
+                     0,
+                     "Upload result unknown. Refresh the folder and review the file before uploading again.",
+                     "UPLOAD_OUTCOME_UNKNOWN"
+                  );
+               throw error;
+            }
             onProgress(0);
             await sleep(500 * 2 ** attempt, controller.signal);
          }

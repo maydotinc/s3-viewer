@@ -21,10 +21,16 @@ import { useEffect, useRef, useState } from "react";
 type ObjectHeaderProps = {
    bucketName: string;
    objectKey: string;
+   eTag: string | null;
    path: string[];
 };
 
-const ObjectHeader = ({ bucketName, objectKey, path }: ObjectHeaderProps) => {
+const ObjectHeader = ({
+   bucketName,
+   objectKey,
+   path,
+   eTag,
+}: ObjectHeaderProps) => {
    const router = useRouter();
    const { isLoading } = useBucketContext();
    const commands = useObjectCommands(bucketName);
@@ -110,7 +116,7 @@ const ObjectHeader = ({ bucketName, objectKey, path }: ObjectHeaderProps) => {
                variant="destructive"
                onClick={() =>
                   commands.remove(
-                     [objectKey],
+                     [{ key: objectKey, expectedETag: eTag }],
                      () => void router.replace(backHref)
                   )
                }

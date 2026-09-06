@@ -8,6 +8,7 @@ import {
 import { createUploadBudget } from "./upload-budget";
 import { Readable, PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
+vi.mock("./no-retry", () => ({ withoutRetries: (client: S3Client) => client }));
 import {
    UploadIdleError,
    declaredLength,

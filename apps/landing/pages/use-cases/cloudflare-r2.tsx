@@ -47,7 +47,7 @@ const faqs: UseCaseFAQ[] = [
    {
       question: "How do I rename a file in Cloudflare R2?",
       answer:
-         "S3 Viewer's Rename action is currently available only on AWS S3, where concurrent changes can be checked before copying and deleting. For R2, download the object and upload it under a new name, then verify the new copy before deleting the original.",
+         "Use the Rename action in the file menu. S3 Viewer copies the object within R2, protects against replacing an existing destination, checks the copy and original, and then removes the original. If the operation cannot be confirmed, it asks you to check both names before proceeding.",
    },
    {
       question: "How do I search a Cloudflare R2 bucket?",
@@ -96,7 +96,7 @@ export default createUseCasePage({
       {
          icon: PencilLine,
          title: "Preview R2 files",
-         body: "Open supported images, PDFs, text and other files directly in the browser. Rename is currently available only for AWS S3; on R2, download and re-upload under the new name.",
+         body: "Open supported images, PDFs, text and other files directly in the browser. Rename R2 files from the file menu without downloading and re-uploading them.",
       },
       {
          icon: Search,

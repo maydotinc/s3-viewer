@@ -5,6 +5,7 @@ import { immer } from "zustand/middleware/immer";
 import type { UploadFile } from "@/lib/utils/s3/dropEntries";
 import { isCancelled } from "@/lib/utils/s3/upload-cancelled";
 import { uploadObject } from "@/lib/utils/s3/uploadObject";
+import useSessionStore from "@/lib/stores/sessionStore";
 import type { UploadBatch, UploadEntry } from "./types";
 
 const FILE_CONCURRENCY = 3;
@@ -16,6 +17,7 @@ const yieldToEventLoop = () =>
    new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 type Job = {
+   userId: string;
    file: File;
    serverId: string;
    bucketName: string;
@@ -124,6 +126,10 @@ const useUploadStore = create<UploadStore>()(
       const runJob = async (id: string) => {
          const job = jobs.get(id);
          if (!job) return;
+         if (useSessionStore.getState().userId !== job.userId) {
+            get().dismiss();
+            return;
+         }
          const owns = () => jobs.get(id) === job;
          const step = Math.min(
             job.file.size,
@@ -225,6 +231,8 @@ const useUploadStore = create<UploadStore>()(
             onComplete,
          }) => {
             if (files.length === 0) return;
+            const userId = useSessionStore.getState().userId;
+            if (!userId) return;
 
             const deduped = new Map<string, UploadFile>();
             let collisions = 0;
@@ -261,7 +269,11 @@ const useUploadStore = create<UploadStore>()(
                      [...deduped.values()],
                      ENQUEUE_CHUNK_SIZE
                   )) {
-                     if (generation !== enqueueGeneration) return;
+                     if (
+                        generation !== enqueueGeneration ||
+                        useSessionStore.getState().userId !== userId
+                     )
+                        return;
                      set((state) => {
                         const batch =
                            !state.batch || state.batch.settled
@@ -286,6 +298,7 @@ const useUploadStore = create<UploadStore>()(
                               count(batch, prev.status, -1);
                            jobs.get(id)?.abort?.();
                            jobs.set(id, {
+                              userId,
                               file,
                               serverId,
                               bucketName,
@@ -347,5 +360,9 @@ const useUploadStore = create<UploadStore>()(
       };
    })
 );
+
+useSessionStore.subscribe((state, previous) => {
+   if (state.userId !== previous.userId) useUploadStore.getState().dismiss();
+});
 
 export default useUploadStore;

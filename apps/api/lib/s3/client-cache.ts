@@ -12,6 +12,7 @@ import { credentialsUnreadableError } from "./errors";
 
 const CACHE_TTL_MS = 10 * MINUTE_MS;
 const CACHE_MAX_ENTRIES = 500;
+const MAX_CREDENTIAL_READ_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT_MS = 5000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 2;
@@ -20,7 +21,15 @@ const AGENT_MAX_TOTAL_SOCKETS = 500;
 const AGENT_MAX_FREE_SOCKETS = 64;
 const AGENT_IDLE_TIMEOUT_MS = 60_000;
 
-type CacheEntry = { client: S3Client; expiresAt: number };
+type CredentialSnapshot = {
+   credentials: string;
+   provider: keyof typeof Provider;
+};
+type CacheEntry = {
+   client: S3Client;
+   expiresAt: number;
+   snapshot: CredentialSnapshot;
+};
 const cache = new Map<string, CacheEntry>();
 const generations = new Map<string, number>();
 const inFlightFills = new Map<string, number>();
@@ -69,8 +78,6 @@ const buildClient = (
       },
       forcePathStyle: provider !== Provider.S3,
       maxAttempts: MAX_ATTEMPTS,
-      // R2's conditional single PUT streams a known-length body. Avoid the
-      // SDK's optional aws-chunked checksum trailer encoding on that path.
       requestChecksumCalculation:
          provider === Provider.R2 ? "WHEN_REQUIRED" : "WHEN_SUPPORTED",
       requestHandler: {
@@ -110,32 +117,68 @@ const makeRoom = (): void => {
    }
 };
 
-const getS3Client = async (serverId: string): Promise<S3Client> => {
-   // a cached client's endpoint was re-checked when the entry was filled, so a
-   // hit does not repeat the dns lookup until the entry expires
-   const hit = cache.get(serverId);
-   if (hit && hit.expiresAt > Date.now()) return hit.client;
-
-   const generation = generationOf(serverId);
-   beginFill(serverId);
-   try {
-      const server = await prisma.server.findUnique({
-         where: { id: serverId },
-         select: { credentials: true, provider: true },
-      });
-      if (!server) throw new ApiHttpError(404, SERVER_NOT_FOUND);
-
-      const credentials = readStoredCredentials(serverId, server.credentials);
-      await assertPublicEndpoint(credentials.endpoint);
-      const client = buildClient(credentials, Provider[server.provider]);
-      if (generationOf(serverId) === generation) {
-         makeRoom();
-         cache.set(serverId, { client, expiresAt: Date.now() + CACHE_TTL_MS });
-      }
-      return client;
-   } finally {
-      endFill(serverId);
+const readCredentialSnapshot = async (serverId: string) => {
+   const server = await prisma.server.findUnique({
+      where: { id: serverId },
+      select: { credentials: true, provider: true },
+   });
+   if (!server) {
+      cache.delete(serverId);
+      throw new ApiHttpError(404, SERVER_NOT_FOUND);
    }
+   return server;
+};
+
+const sameCredentials = (
+   left: CredentialSnapshot,
+   right: CredentialSnapshot
+): boolean =>
+   left.credentials === right.credentials && left.provider === right.provider;
+
+const getS3Client = async (serverId: string): Promise<S3Client> => {
+   for (let attempt = 0; attempt < MAX_CREDENTIAL_READ_ATTEMPTS; attempt++) {
+      const generation = generationOf(serverId);
+      beginFill(serverId);
+      try {
+         const snapshot = await readCredentialSnapshot(serverId);
+         if (generationOf(serverId) !== generation) continue;
+         const hit = cache.get(serverId);
+         if (
+            hit &&
+            hit.expiresAt > Date.now() &&
+            sameCredentials(hit.snapshot, snapshot)
+         ) {
+            return hit.client;
+         }
+         cache.delete(serverId);
+         const credentials = readStoredCredentials(
+            serverId,
+            snapshot.credentials
+         );
+         await assertPublicEndpoint(credentials.endpoint);
+         const current = await readCredentialSnapshot(serverId);
+         if (
+            generationOf(serverId) !== generation ||
+            !sameCredentials(snapshot, current)
+         ) {
+            continue;
+         }
+         const client = buildClient(credentials, Provider[snapshot.provider]);
+         makeRoom();
+         cache.set(serverId, {
+            client,
+            expiresAt: Date.now() + CACHE_TTL_MS,
+            snapshot,
+         });
+         return client;
+      } finally {
+         endFill(serverId);
+      }
+   }
+   throw new ApiHttpError(
+      409,
+      "Server credentials changed while connecting. Try again."
+   );
 };
 
 const invalidateS3Client = (serverId: string): void => {

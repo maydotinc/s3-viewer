@@ -613,16 +613,31 @@ key back as a block of real lines when you've got it right.
 
 ## 8. Production notes
 
-- **Conditional uploads.** AWS S3 uploads use conditional writes for new files
-  and confirmed replacements, including multipart completion. Cloudflare R2
-  uses a single streamed conditional PUT, requires Content-Length, and is
-  capped at 5 GiB minus 5 MiB (or `MAX_UPLOAD_BYTES`, if lower). R2 multipart
-  conditional publication is not enabled until its exact preconditions are
-  verified. Custom endpoints, including the demo MinIO, remain browsable but
-  reject uploads: a service that ignores conditional headers could otherwise
-  silently overwrite data. See [AWS conditional writes](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html),
-  [R2 PutObject compatibility](https://developers.cloudflare.com/r2/api/s3/api/),
-  and [R2 request limits](https://developers.cloudflare.com/r2/platform/limits/).
+- **Provider compatibility.** AWS S3, Cloudflare R2, and MinIO support browsing,
+  upload and replacement (including multipart), preview, download, rename,
+  single/bulk/folder deletion, and app-managed team access. No provider is
+  blocked from those operations by its label, and versioning is optional.
+  The configured upload and rename size limits apply to every provider.
+  See [provider compatibility](./PROVIDER-COMPATIBILITY.md) for the researched
+  protocol differences, permissions, and test coverage.
+
+- **Destructive operations.** Delete and rename requests are never automatically
+  replayed after an uncertain result. Confirmed per-object failures can be
+  retried; unknown outcomes require refresh and review. AWS ACL-enabled rename
+  needs access to read and preserve the source ACL. MinIO rename retains tags
+  through server-side multipart copy. R2 uses its copy destination conditions
+  and does not receive unsupported AWS ACL, versioning, or ownership requests.
+  Rename is a copy followed by deletion, so unrelated external writers cannot
+  be coordinated atomically. Use your provider's recovery features where
+  available; unversioned deletion may be permanent.
+
+- **Multiple API workers.** Each S3 client lookup checks the current encrypted
+  credentials and provider in PostgreSQL, including cache hits. Database
+  failures refuse storage access. Operations that already obtained a client
+  may finish during rotation. Auth session cookie caching is disabled so
+  revoked sessions cannot manage account login methods. Deploy API and web
+  together: version 3 mutation paths reject older workers and legacy clients
+  must refresh before uploading, deleting, or renaming.
 
 - **Creating buckets.** Existing buckets are never attached by reissuing
   CreateBucket; that can reset ACLs in AWS us-east-1. Duplicate app requests

@@ -106,7 +106,7 @@ the web app, the landing site and the shared packages. Keep it current.
 - Parsers: auth routes first consume a bounded text body (64 KiB, all content
   types, including chunked requests) before Better Auth's adapter parses it;
   compressed auth bodies are rejected (415), oversized bodies return 413.
-  Other routes use `express.json({ limit: "1mb" })`, skipped for `PUT …/objects/upload` and legacy `PUT …/objects`
+  Other routes use `express.json({ limit: "1mb" })`, skipped for `PUT …/objects/v3/upload` and the rejected legacy upload paths
   so the upload body reaches the handler as a raw stream. No urlencoded parser.
 - Cross-site protection: `sameSite: "lax"` cookies plus an `Origin`/`Sec-Fetch-Site`
   check on every non-GET request, `/auth/*` included (allow only the
@@ -119,7 +119,13 @@ the web app, the landing site and the shared packages. Keep it current.
   caps — 50 sockets per host, 500 in total, 64 idle, 60 s socket idle
   timeout — because an agent instance handed to the SDK replaces its own
   50-socket default; connect/request timeouts 5s/30s, `maxAttempts: 2`),
-  invalidated on server delete and credential update.
+  invalidated on server delete and credential update. Every lookup reads the
+  current encrypted credentials and provider from PostgreSQL before reusing
+  a client, so other API workers observe credential updates and server deletion.
+  A database failure never falls back to a cached client. Cache fills recheck
+  the persisted identity after endpoint validation; concurrent changes retry at
+  most three times before returning 409. Requests that already obtained a
+  client may finish while credentials change.
   Credentials are decrypted once per cache fill. The only route that changes
   stored credentials is `PATCH /servers/:serverId/credentials` (owner): it
   decrypts the new blob, checks the endpoint, proves the keys work
@@ -169,17 +175,17 @@ the web app, the landing site and the shared packages. Keep it current.
   confirmation as `expectedETag`, mapped to `IfMatch`. Wildcards, weak ETags
   and ETag lists are rejected. Both AWS `PutObject` and
   `CompleteMultipartUpload` enforce the condition; conflicts return 409 and
-  never fall back to an unconditional write. Network retries keep the same
-  condition, including after an uncertain successful response.
-  AWS S3 uses `@aws-sdk/lib-storage` `Upload` with 2 parts in flight,
-  `leavePartsOnError: false`. R2 uses a single streamed conditional
-  `PutObject` with `requestChecksumCalculation: "WHEN_REQUIRED"`, a required
-  Content-Length (411 when absent), and a maximum of 5 GiB minus 5 MiB (413
-  above that), because its multipart condition lifecycle is not verified.
-  Other endpoints return 409 before the body is read or any object written;
-  provider capability is derived from the actual client's endpoint, not a
-  separately loaded server row. R2 bodies are streamed without full-file
-  buffering and use the same admission budget and inactivity watchdog. A client
+  never fall back to an unconditional write. Storage writes use one SDK
+  attempt. Browser network retries apply only to new files and retain the
+  absent-key condition. Overwrites with uncertain outcomes require a fresh
+  review instead of automatic replay, because ETags can survive metadata changes.
+  AWS S3, R2, and compatible endpoints use `@aws-sdk/lib-storage` `Upload`
+  with 2 parts in flight and `leavePartsOnError: false`. R2 also receives
+  its documented initiation conditions for multipart uploads. There is no
+  provider allowlist or R2-specific single-request size cap. The actual
+  client's endpoint determines protocol adaptations, without loading a
+  separate server snapshot. All providers use the same admission budget,
+  bounded buffers, and inactivity watchdog. A client
   disconnect aborts the input and S3 requests. Reservations are held until
   workers finish and multipart cleanup settles (cleanup has its own 10 s
   deadline). Part size defaults to 5 MiB, configurable
@@ -321,33 +327,48 @@ GET    …/objects/metadata?objectKey                           → S3ObjectMeta
 POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing, eTags }` (≤ 1000 keys; listings first, then ≤ MAX_EXISTS_HEADS = 200 HEADs at 16 in flight; keys past that cap read as existing without an ETag and cannot authorize replacement; one AbortSignal per request, see Limits)
 GET    …/objects/download-url?objectKey                       → S3PresignedUrl
 GET    …/objects/preview-url?objectKey                        → S3ObjectPreview (content type from HeadObject)
-PUT    …/objects/upload?objectKey&contentType&expectedETag?   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (409 on upload conflict/unsupported provider; 413 over MAX_UPLOAD_BYTES/provider limit; 411 for R2 without Content-Length)
-DELETE …/objects                         { objectKeys[] }     → S3DeleteResult (207 if any failed)
-GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ keys, nextToken }` (recursive, one S3 page of ≤ 1000 keys; prefix is a folder key ending in "/", never "/" or the root)
-POST   …/objects/rename                  { objectKey, newObjectKey } → 204 (409 on conflicts, partial copy, unsupported provider or archived source; 413 if > 5 GB)
+PUT    …/objects/v3/upload?expectedUserId&objectKey&contentType&expectedETag?   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (409 on upload conflict; 413 over MAX_UPLOAD_BYTES/object limit)
+DELETE …/objects/v3                      { expectedUserId, objects: [{ key, expectedETag }] }     → S3DeleteResult `{ deleted, failed: [{ key, message, retryable }] }` (207 if any failed; expectedETag may be null)
+GET    …/objects/keys?prefix&continuationToken             → S3KeysPage `{ objects: [{ key, expectedETag }], nextToken }` (recursive, one S3 page of ≤ 1000 keys; prefix is a folder key ending in "/", never "/" or the root)
+POST   …/objects/v3/rename               { expectedUserId, objectKey, newObjectKey } → 204 (409 on conflicts, partial copy, archived source or required object permission failure; 413 if > 5 GB)
 ```
 
-Removed on purpose: a general-purpose copy/move route (no UI for it) —
-`POST …/objects/rename` above is the one copy the API does, and only because
-S3 has no native rename. AWS S3 only: HEAD captures the source ETag;
-`CopyObject` uses `CopySourceIfMatch` and destination `IfNoneMatch: "*"`;
-`DeleteObject` uses `IfMatch` with that same source ETag. Other providers
-return 409 and the web disables Rename, since they may ignore conditions.
-The copy preserves metadata, `StorageClass` and SSE settings. Copy conflicts
-and archived sources return 409. If deletion fails, HEAD checks whether the
-source is gone (report success); otherwise return 409 explaining the partial
-copy. Never delete the destination as rollback: a concurrent writer may own
-it now. The web invalidates both keys on success or failure so both copies
-are visible. Also removed: `does-user-exist`, session IP
-validation, folder-less single delete (use `objectKeys` with one key), and
-presigned upload/multipart routes (uploads stream through the API instead,
-so no bucket CORS is required).
+Object deletion works on AWS S3, R2, and compatible endpoints without requiring
+versioning or additional bucket settings reads. Every destructive request uses
+`withoutRetries`, an SDK client sharing the configured transport with one
+attempt. AWS uses the reviewed ETag when supplied (bare XML ETag); R2 and
+compatible endpoints use ordinary `DeleteObjects` without unsupported fields.
+A null ETag permits ordinary deletion. Both wildcard forms are rejected.
+Confirmed per-key failures can be retried, except stale preconditions. Missing,
+contradictory, and uncertain results are nonretryable and require refresh and
+review. The UI retains them visibly, including after other retries succeed.
+The app never supplies VersionId to purge historical versions. Unversioned
+deletes can be permanent; versioning is an optional provider recovery feature.
 
-API contract version 2 adds `eTags` to existence responses and the dedicated
-`PUT …/objects/upload` path. The web refuses old existence responses, and an
-old API replica returns 404 for the new path rather than accepting an unsafe
-write during rolling deployments. The legacy `PUT …/objects` path remains
-available on the new API, enforcing the same create-only/ETag conditions.
+`POST …/objects/v3/rename` is the only copy operation. It supports AWS S3,
+Cloudflare R2, and compatible endpoints without mandatory versioning or
+bucket owner enforced ownership. AWS uses conditional `CopyObject`; R2 uses
+`cf-copy-destination-if-none-match` with source copy conditions; MinIO and
+other compatible endpoints use server-side multipart copy with conditional
+completion. Source metadata, tags and supported storage attributes are retained.
+AWS ACL-enabled objects preserve their grants instead of resetting to private.
+The app checks the copied destination and rechecks the source before a
+single-attempt source delete. It never removes the destination as rollback.
+The web refreshes both names after success or failure. Copy and delete cannot
+be atomic across two keys or coordinate unrelated console, SDK, or CLI writers.
+See [provider compatibility](./PROVIDER-COMPATIBILITY.md) for provider-specific
+permissions, protocol evidence, and live-test scope.
+
+Removed on purpose: general copy/move, `does-user-exist`, session IP validation,
+separate single-object delete, and presigned upload/multipart routes. Uploads
+stream through the API, so no bucket CORS configuration is required.
+
+API contract version 3 uses `/objects/v3` for delete and its `/upload` and
+`/rename` children for other mutations. Each requires `expectedUserId`, matched
+against the authenticated actor before storage access. Older API workers
+return 404 for these new paths. The new API rejects every legacy mutation
+path with 409 and a refresh message, preventing old clients from bypassing the
+identity and ETag requirements during rolling deployments.
 
 Bucket creation checks existence for every role, including owners. It never
 treats an existing bucket as newly created or retries an uncertain S3 create;
@@ -362,24 +383,34 @@ role still permits creation. Existing grants are retained, never raised.
 A bucket created just before revocation or credential rotation remains in
 storage without new access grants; it is never automatically deleted. The
 advisory lock cannot coordinate external console/CLI bucket creators.
+Bucket removal rechecks the actor's role inside its transaction after acquiring
+the same server row lock as membership and invitation changes, before removing
+bucket scope, grants, or invitations.
 
 ### Limits
 
 - A listing page makes at most 20 `ListObjectsV2` calls; each follow-up call
   asks only for the rows still missing.
 - Every bucket and object route that can make more than one S3 call (bucket
-  listing, object listing, `keys`, `exists`, `DELETE …/objects`) passes one
+  listing, object listing, `keys`, `exists`, `DELETE …/objects/v3`) passes one
   `AbortSignal` per request (`requestSignal`, `lib/http.ts`: aborted when the
   client disconnects or after `S3_ROUTE_TIMEOUT_MS` = 60 s) into every
   `client.send`, so a fan-out never outlives its caller; an aborted call
   surfaces as the classified 502.
-- Recursive folder delete is a client pipeline: `GET …/objects/keys` pages
-  sequentially (S3 tokens are ordered) while up to 4 `DELETE …/objects` calls
-  run concurrently. No request outlives a proxy timeout; closing the dialog
-  aborts the loop and the first failure aborts the rest. There is no size cap;
-  the failure list shown is capped at 100 with a total count.
+- Recursive folder delete lists one page, deletes its captured targets, then
+  advances to the next page. Closing or unmounting the dialog aborts its loop.
+  All failed target keys and original ETags are retained; only their display
+  is capped at 100. Retry submits only confirmed retryable failures. Uncertain
+  outcomes remain visible and require a fresh review. Retry never relists a folder or silently refreshes
+  ETags. Missing/repeated continuation tokens and listing errors leave deletion
+  visibly incomplete, even if all previously listed failures later succeed.
 
 ### Listing semantics
+
+Bucket listings use AWS continuation tokens and R2
+`cf-next-continuation-token` headers. Repeated tokens, missing R2 tokens on
+truncated pages, and the 50-page budget return an error instead of silently
+claiming the listing is complete. Credential probes use the same paginator.
 
 `GET …/objects` returns folders (common prefixes, `isFolder: true`, key ends
 with `/`) and objects merged in S3 key order (UTF-8 bytes), so ordering is
@@ -465,9 +496,9 @@ email failed`) and never fails the request that caused it: the account
   and `validateProfile` strips any `image` off an `/update-user` body.
 - Cookies: `sameSite: "lax"`, `secure` when `NEXT_PUBLIC_API_URL` is https, `httpOnly`.
   `advanced.ipAddress.disableIpTracking: true`. Session 30 days, refreshed daily.
-  The 60 s signed cookie cache only serves Better Auth's own `/get-session`;
-  `authGuard` passes `disableCookieCache: true`, so a revoked session is
-  rejected by the API on its very next request.
+  Better Auth cookie caching is disabled for every auth endpoint, including
+  login-method management. Previously issued cached cookies cannot authorize
+  a revoked session. `authGuard` also passes `disableCookieCache: true`.
   Neither IP address nor user-agent is stored: `ipAddress` stays a column that
   is always null (Better Auth's own option), while `userAgent` has no column
   at all — nothing ever read it, so it's dropped by a
@@ -503,7 +534,10 @@ afterDelete })` and forwards Better Auth's `deleteUser` hooks to whatever is
   fails after `beforeDelete` leaves no entry claiming a deletion happened)
   and sends `AccountDeletedEmail`; an email failure is logged as `Account
   deletion email failed`, never thrown, because the account is already gone.
-- Sign-out clears the react-query cache and the session store.
+- Sign-out immediately clears the session store and cancels and erases queued
+  uploads; it clears the react-query cache after the auth request succeeds.
+  Account changes and confirmed session expiry also discard queued files.
+  Failed sign-out can restore the valid session selection, never old uploads.
 
 ### `/auth/*` routes
 
@@ -526,7 +560,8 @@ calls alike and holds the per-email throttles (429 with code
 - `lib/api.ts`: `api.get/post/patch/delete<T>(path, body?)` throwing `ApiError`
   (from `{message, code}`); all hooks use it. No other `fetch`. The one XHR is
   `utils/s3/uploadObject.ts` (upload progress events), which rejects with the
-  same `ApiError`.
+  same `ApiError`. Unauthorized responses are bound to the initiating user,
+  so a delayed 401 from a prior account cannot sign out the current account.
 - Query keys from `lib/queryKeys.ts`, every key starts with `["user", userId]`;
   `queryClient.clear()` on sign-out. `staleTime` 5 min default;
   `refetchOnWindowFocus: false` for presigned-URL queries.
@@ -548,19 +583,24 @@ calls alike and holds the per-email throttles (429 with code
   Errors show `ApiError.message`.
 - Delete, folder-delete and rename mutation variables capture userId and
   serverId when the dialog opens. Requests and cache invalidation use that
-  captured scope. Dialogs are hidden immediately on user/server changes;
+  captured scope; the API verifies the captured user against the current cookie. Dialogs are hidden immediately on user/server changes;
   stale object row callbacks cannot reopen them for another selection.
 - Loading states are spinners inside containers that already have the final size; skeletons only for large, known-shape areas. Toolbars never swap controls (disable instead).
-- Uploads: one `PUT …/objects/upload` per file, streamed through the API into the
+- Uploads: one `PUT …/objects/v3/upload` per file, streamed through the API into the
   bucket — no bucket configuration needed; `contentType` defaults to
-  `application/octet-stream`; 3 files at a time; 2 retries on network errors
-  only (never on a 4xx/5xx); cancel aborts the request; duplicate-key check
+  `application/octet-stream`; 3 files at a time; new files get 2 retries on
+  network errors only (never on a 4xx/5xx); replacements are not automatically
+  retried; cancel aborts the request; duplicate-key check
   (`POST …/objects/exists`, 1000 keys per call) captures ETags before the
   replacement dialog. Missing ETags refuse replacement and ask for a smaller
   batch. Confirmation never refreshes the snapshot silently. Pending checks
   and replacement dialogs are discarded on user/server changes. Entries use
   a JSON tuple of `[serverId, bucketName, objectKey]`, with independent outcomes
-  and completion callbacks across servers. Batched key requests (`exists`, `DELETE …/objects`)
+  and completion callbacks across servers. Jobs also retain their initiating
+  user, checked before starting and retrying each upload and by the API before
+  consuming its body. Identity changes erase files and results; same-user
+  navigation preserves uploads. Session synchronization listens directly to
+  the auth atom, including during sign-out navigation. Batched key requests (`exists`, `DELETE …/objects/v3`)
   are split by `chunkKeys` (≤ 1000 keys and ≤ 256K characters per call) so a
   body never nears the 1 MB JSON limit. The grid datasource keeps one
   continuation token per 1000-row block and lets AG Grid own the row cache
@@ -602,10 +642,12 @@ Every how-to has a slug in three places: `HOW_TOS` in
 (the proxy and sitemap). A guide missing from the last one 404s in production.
 
 Only describe what ships (see routes and web notes). No
-cross-provider copy, no versioning prompts, no bulk download, no audit log,
-no side-by-side. Rename is AWS S3 only, refuses to overwrite and is limited to 5 GB. Search
+cross-provider copy, no version browsing, no bulk download, no audit log,
+no side-by-side. Rename supports AWS S3, R2, and MinIO, requests an absent
+destination, and is limited to 5 GB. Search
 is a prefix filter inside the current folder. Share link = 15-minute presigned
 URL from the object's "Copy link" action. Uploads stream through the S3 Viewer
-server to the bucket (nothing to configure on the bucket) and retry on network
-errors; downloads go straight from the bucket to the browser. Legal pages must
+server to the bucket (nothing to configure on the bucket); new files retry on
+network errors while replacements require review after an uncertain result.
+Downloads go straight from the bucket to the browser. Legal pages must
 match the README "Data we store" section.

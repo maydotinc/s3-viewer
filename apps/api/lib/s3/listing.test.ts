@@ -234,20 +234,25 @@ describe("listKeysPage", () => {
       const page = await listKeysPage({ client, bucket: "b" }, "f/", undefined);
       expect(inputs[0]).toMatchObject({ Prefix: "f/", MaxKeys: 1000 });
       expect(inputs[0]?.Delimiter).toBeUndefined();
-      expect(page).toEqual({ keys: ["f/a", "f/b"], nextToken: "t1" });
+      expect(page).toEqual({
+         objects: [
+            { key: "f/a", expectedETag: null },
+            { key: "f/b", expectedETag: null },
+         ],
+         nextToken: "t1",
+      });
    });
 
-   it("ends on a repeated token or a final page", async () => {
+   it("rejects a repeated token and accepts a final page", async () => {
       const { client } = fakeClient([
          { Contents: [], IsTruncated: true, NextContinuationToken: "t1" },
          { Contents: [{ Key: "f/c" }], IsTruncated: false },
       ]);
+      await expect(
+         listKeysPage({ client, bucket: "b" }, "f/", "t1")
+      ).rejects.toMatchObject({ status: 502 });
       expect(await listKeysPage({ client, bucket: "b" }, "f/", "t1")).toEqual({
-         keys: [],
-         nextToken: null,
-      });
-      expect(await listKeysPage({ client, bucket: "b" }, "f/", "t1")).toEqual({
-         keys: ["f/c"],
+         objects: [{ key: "f/c", expectedETag: null }],
          nextToken: null,
       });
    });

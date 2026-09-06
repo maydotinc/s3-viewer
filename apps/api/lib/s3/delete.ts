@@ -1,43 +1,81 @@
 import { DeleteObjectsCommand } from "@aws-sdk/client-s3";
 import {
+   Provider,
    S3_MAX_KEYS_PER_REQUEST,
    chunk,
+   type DeleteObjectsInput,
    type S3DeleteResult,
 } from "@s3-viewer/types";
 import { deleteFailureMessage } from "./classify";
 import { throwHttpError } from "./errors";
 import type { S3Scope } from "./listing";
+import { clientProvider } from "./provider";
+import { withoutRetries } from "./no-retry";
 
 const deleteBatch = async (
    { client, bucket, signal }: S3Scope,
-   keys: string[]
+   objects: DeleteObjectsInput["objects"],
+   provider: Provider
 ): Promise<S3DeleteResult> => {
    const out = await client
       .send(
          new DeleteObjectsCommand({
             Bucket: bucket,
-            Delete: { Objects: keys.map((Key) => ({ Key })), Quiet: false },
+            Delete: {
+               Objects: objects.map(({ key, expectedETag }) => ({
+                  Key: key,
+                  ...(provider === Provider.S3 &&
+                     expectedETag !== null && {
+                        ETag: expectedETag.slice(1, -1),
+                     }),
+               })),
+               Quiet: false,
+            },
          }),
          { abortSignal: signal }
       )
       .catch(throwHttpError);
-   return {
-      deleted: (out.Deleted ?? []).flatMap((d) => (d.Key ? [d.Key] : [])),
-      failed: (out.Errors ?? []).flatMap((e) =>
-         e.Key ? [{ key: e.Key, message: deleteFailureMessage(e.Code) }] : []
-      ),
-   };
+   const deleted = new Set((out.Deleted ?? []).map((entry) => entry.Key));
+   const errors = new Map(
+      (out.Errors ?? []).map((entry) => [
+         entry.Key,
+         {
+            message: deleteFailureMessage(entry.Code),
+            retryable:
+               entry.Code !== undefined &&
+               !["PreconditionFailed", "ConditionalRequestConflict"].includes(
+                  entry.Code
+               ),
+         },
+      ])
+   );
+   const result: S3DeleteResult = { deleted: [], failed: [] };
+   for (const { key } of objects) {
+      const failure = errors.get(key);
+      if (!failure && deleted.has(key)) result.deleted.push(key);
+      else
+         result.failed.push({
+            key,
+            message:
+               failure?.message ??
+               "Storage did not confirm deletion. Refresh and check this object.",
+            retryable: !deleted.has(key) && (failure?.retryable ?? false),
+         });
+   }
+   return result;
 };
 
 const deleteKeys = async (
    scope: S3Scope,
-   keys: readonly string[]
+   objects: DeleteObjectsInput["objects"]
 ): Promise<S3DeleteResult> => {
+   const provider = await clientProvider(scope.client);
+   const once = { ...scope, client: withoutRetries(scope.client) };
    const result: S3DeleteResult = { deleted: [], failed: [] };
-   for (const keyBatch of chunk(keys, S3_MAX_KEYS_PER_REQUEST)) {
-      const batch = await deleteBatch(scope, keyBatch);
-      result.deleted.push(...batch.deleted);
-      result.failed.push(...batch.failed);
+   for (const batch of chunk(objects, S3_MAX_KEYS_PER_REQUEST)) {
+      const deleted = await deleteBatch(once, batch, provider);
+      result.deleted.push(...deleted.deleted);
+      result.failed.push(...deleted.failed);
    }
    return result;
 };

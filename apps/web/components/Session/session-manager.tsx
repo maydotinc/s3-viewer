@@ -7,21 +7,18 @@ import { useEffect } from "react";
 // `set`, including our own.
 const SessionManager = () => {
    const serverId = useSessionStore((state) => state.serverId);
-   const setUserId = useSessionStore((state) => state.setUserId);
    const setServerId = useSessionStore((state) => state.setServerId);
-   const clearSession = useSessionStore((state) => state.clearSession);
-   const { data: session, isPending } = authClient.useSession();
+   const { data: session } = authClient.useSession();
    const { servers, isLoading: isServersLoading } = useServers();
    const userId = session?.user.id ?? null;
 
    useEffect(() => {
-      if (isPending) return;
-      if (userId) setUserId(userId);
-      else clearSession();
-   }, [userId, isPending, setUserId, clearSession]);
-
-   useEffect(() => {
-      if (!userId || isServersLoading) return;
+      if (
+         !userId ||
+         isServersLoading ||
+         useSessionStore.getState().userId !== userId
+      )
+         return;
       const next = resolveServerId(servers, serverId);
       if (next !== serverId) setServerId(next);
    }, [userId, isServersLoading, servers, serverId, setServerId]);

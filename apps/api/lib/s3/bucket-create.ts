@@ -2,12 +2,13 @@ import { ApiHttpError } from "@/lib/http";
 import {
    CreateBucketCommand,
    HeadBucketCommand,
-   S3Client,
+   type S3Client,
    S3ServiceException,
    type BucketLocationConstraint,
 } from "@aws-sdk/client-s3";
 import { Provider } from "@s3-viewer/types";
 import { isNotFound, throwBucketError } from "./errors";
+import { withoutRetries } from "./no-retry";
 
 const createNewBucket = async (
    client: S3Client,
@@ -15,15 +16,7 @@ const createNewBucket = async (
    bucketName: string,
    signal: AbortSignal
 ): Promise<void> => {
-   // In us-east-1, repeating a successful CreateBucket resets the existing
-   // bucket's ACL. A lost response must never cause an SDK retry. This client
-   // shares the supplied client's transport, so it must not destroy that handler.
-   const once = new S3Client({
-      ...client.config,
-      maxAttempts: 1,
-      retryStrategy: undefined,
-      serviceConfiguredEndpoint: undefined,
-   });
+   const once = withoutRetries(client);
    const exists = await once
       .send(new HeadBucketCommand({ Bucket: bucketName }), {
          abortSignal: signal,

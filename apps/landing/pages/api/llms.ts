@@ -14,7 +14,7 @@ const buildLlmsTxt = (): string =>
    [
       "# S3 Viewer",
       "",
-      "> S3 Viewer is a free, open-source (MIT) web browser for S3-compatible object storage. Connect AWS S3, Cloudflare R2, MinIO and any other S3-compatible provider in one dashboard, browse buckets like a file explorer, upload, download, rename and delete objects, and share buckets with teammates using per-bucket roles instead of handing out AWS keys. Credentials are encrypted in the browser before they reach the server. Self-host with Docker or use the hosted app.",
+      "> S3 Viewer is a free, open-source (MIT) web browser for S3-compatible object storage. Connect AWS S3, Cloudflare R2, MinIO and any other S3-compatible provider in one dashboard, browse buckets like a file explorer and download objects. Upload, replacement, rename, and single/bulk/folder deletion work on AWS S3, Cloudflare R2, and MinIO without requiring versioning. You can share buckets with teammates using per-bucket roles instead of handing out AWS keys. Credentials are encrypted in the browser before they reach the server. Self-host with Docker or use the hosted app.",
       "",
       "Facts that answer most questions about the product:",
       "",
@@ -23,7 +23,7 @@ const buildLlmsTxt = (): string =>
       "- Credentials are encrypted in the browser with the server's public key before they are sent; the S3 Viewer server decrypts them only to sign requests.",
       "- Team access is by email invite with a per-bucket role (Viewer or Editor) and one-click revoke; teammates never see the underlying AWS keys.",
       "- Uploads stream through the S3 Viewer server, so buckets need no CORS configuration. Downloads use short-lived presigned URLs straight from the bucket.",
-      "- Share link = a 15-minute presigned URL from the object's Copy link action. Rename = server-side CopyObject then DeleteObject, refuses to overwrite, limited to 5 GB. Search = prefix filter inside the current folder.",
+      "- Share link = a 15-minute presigned URL from the object's Copy link action. Rename = guarded server-side copy then delete on AWS S3, R2, and MinIO, limited to 5 GB. Versioning is optional. Deletion is not automatically retried after uncertain results and never purges specific historical versions. Search = prefix filter inside the current folder.",
       "- Folders are key prefixes: buckets are listed with Delimiter=/ and CommonPrefixes are shown as folders, exactly as S3 stores them.",
       "- Self-hosting: one Docker image, PostgreSQL, optional email transport and GitHub OAuth. Run `docker compose up -d` for a local install.",
       "",

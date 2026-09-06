@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/queryKeys";
-import type { S3DeleteResult } from "@s3-viewer/types";
+import type { S3DeleteResult, S3DeleteTarget } from "@s3-viewer/types";
 
 const h = vi.hoisted(() => ({
    client: null as QueryClient | null,
@@ -26,6 +26,8 @@ vi.mock("@/lib/api", () => ({
       `/servers/${serverId}/buckets/${bucket}/objects`,
    qs: () => "",
    cancelledError: () => new Error("cancelled"),
+   isAborted: () => false,
+   errorMessage: String,
 }));
 vi.mock("@s3-viewer/ui/components/toast", () => ({
    toast: { error: vi.fn(), success: vi.fn() },
@@ -47,6 +49,7 @@ const target: Scope = {
    bucketName: "backups",
 };
 const objectKey = "folder/important.txt";
+const objects = [{ key: objectKey, expectedETag: '"reviewed"' }];
 const originalPath = "/servers/original-server/buckets/backups/objects";
 const scopes = [
    target,
@@ -67,8 +70,11 @@ beforeEach(() => {
       h.client.setQueryData(listingKey(scope), "cached listing");
    }
    h.delete.mockImplementation(
-      async (_path, input: { objectKeys: string[] }) =>
-         ({ deleted: input.objectKeys, failed: [] }) satisfies S3DeleteResult
+      async (_path, input: { objects: S3DeleteTarget[] }) =>
+         ({
+            deleted: input.objects.map(({ key }) => key),
+            failed: [],
+         }) satisfies S3DeleteResult
    );
    h.post.mockResolvedValue(undefined);
 });
@@ -88,26 +94,29 @@ const expectOnlyOriginalCacheChanged = () => {
 
 describe("destructive object mutations keep the confirmed target", () => {
    it("deletes on the captured server and invalidates the captured user's cache", async () => {
-      const input = { ...target, objectKeys: [objectKey] };
+      const input = { ...target, objects };
       const mutation = useDeleteObjects() as unknown as Mutation<
          typeof input,
          DeleteSummary
       >;
       const result = await mutation.mutationFn(input);
-      // A newly rendered hook may settle an earlier mutation after navigation/sign-in.
       const latest = useDeleteObjects() as unknown as typeof mutation;
       latest.onSettled(result, null, input);
       expect(h.delete).toHaveBeenCalledWith(
-         originalPath,
-         { objectKeys: [objectKey] },
+         `${originalPath}/v3`,
+         { objects, expectedUserId: target.userId },
          undefined
       );
       expectOnlyOriginalCacheChanged();
    });
 
    it("lists and deletes folder contents only on the captured server", async () => {
-      h.get.mockResolvedValue({ keys: [objectKey], nextToken: null });
-      const input = { ...target, prefix: "folder/" };
+      h.get.mockResolvedValue({ objects, nextToken: null });
+      const input = {
+         ...target,
+         prefix: "folder/",
+         signal: new AbortController().signal,
+      };
       const mutation = useDeletePrefix() as unknown as Mutation<
          typeof input,
          DeleteSummary
@@ -115,14 +124,11 @@ describe("destructive object mutations keep the confirmed target", () => {
       const result = await mutation.mutationFn(input);
       const latest = useDeletePrefix() as unknown as typeof mutation;
       latest.onSettled(result, null, input);
-      expect(h.get).toHaveBeenCalledWith(
-         `${originalPath}/keys`,
-         expect.any(AbortSignal)
-      );
+      expect(h.get).toHaveBeenCalledWith(`${originalPath}/keys`, input.signal);
       expect(h.delete).toHaveBeenCalledWith(
-         originalPath,
-         { objectKeys: [objectKey] },
-         expect.any(AbortSignal)
+         `${originalPath}/v3`,
+         { objects, expectedUserId: target.userId },
+         input.signal
       );
       expectOnlyOriginalCacheChanged();
    });
@@ -145,7 +151,8 @@ describe("destructive object mutations keep the confirmed target", () => {
       await mutation.mutationFn(input);
       const latest = useRenameObject() as unknown as typeof mutation;
       latest.onSettled(undefined, null, input);
-      expect(h.post).toHaveBeenCalledWith(`${originalPath}/rename`, {
+      expect(h.post).toHaveBeenCalledWith(`${originalPath}/v3/rename`, {
+         expectedUserId: target.userId,
          objectKey,
          newObjectKey: input.newObjectKey,
       });

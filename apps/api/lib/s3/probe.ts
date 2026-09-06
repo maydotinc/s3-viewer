@@ -1,12 +1,12 @@
 import {
    HeadBucketCommand,
-   ListBucketsCommand,
    S3ServiceException,
    type S3Client,
 } from "@aws-sdk/client-s3";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
 import { classifyBucketError, classifyS3Error } from "./classify";
+import { listBuckets } from "./bucket-listing";
 
 const CONNECT_TIMEOUT_MS = 15_000;
 
@@ -28,12 +28,12 @@ const countBuckets = async (
    event: string
 ): Promise<number | null> => {
    try {
-      const out = await client.send(new ListBucketsCommand({}), {
-         abortSignal: AbortSignal.timeout(CONNECT_TIMEOUT_MS),
-      });
-      return out.Buckets?.length ?? 0;
+      return (
+         await listBuckets(client, AbortSignal.timeout(CONNECT_TIMEOUT_MS))
+      ).length;
    } catch (err) {
       if (isAccessDenied(err)) return null;
+      if (err instanceof ApiHttpError) throw err;
       throw probeFailure(err, event);
    }
 };

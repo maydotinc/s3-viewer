@@ -1,4 +1,5 @@
 import { publicEnv } from "@/lib/env";
+import useSessionStore from "@/lib/stores/sessionStore";
 import {
    GENERIC_ERROR_MESSAGE,
    type ApiError as ApiErrorBody,
@@ -47,12 +48,17 @@ const setUnauthorizedHandler = (handler: () => void): void => {
    onUnauthorized = handler;
 };
 
+const handleUnauthorized = (userId: string | null): void => {
+   if (useSessionStore.getState().userId === userId) onUnauthorized();
+};
+
 const request = async <T>(
    method: "GET" | "POST" | "PATCH" | "DELETE",
    path: string,
    body?: unknown,
    signal?: AbortSignal
 ): Promise<T> => {
+   const userId = useSessionStore.getState().userId;
    let res: Response;
    try {
       res = await fetch(apiUrl(path), {
@@ -70,7 +76,7 @@ const request = async <T>(
    }
    if (!res.ok) {
       const data = (await res.json().catch(() => null)) as ApiErrorBody | null;
-      if (res.status === 401) onUnauthorized();
+      if (res.status === 401) handleUnauthorized(userId);
       throw responseError(res.status, data);
    }
    if (res.status === 204) return undefined as T;
@@ -131,6 +137,7 @@ export {
    bucketPath,
    cancelledError,
    errorMessage,
+   handleUnauthorized,
    invitePath,
    isAborted,
    memberPath,

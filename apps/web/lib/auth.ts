@@ -3,6 +3,7 @@ import { loginPathFor } from "@/lib/auth-redirect";
 import { publicEnv } from "@/lib/env";
 import { clearQueryCache } from "@/lib/queryClient";
 import useSessionStore from "@/lib/stores/sessionStore";
+import useUploadStore from "@/lib/stores/upload-store/uploadStore";
 import { makeAuthClient, type AuthResult } from "@s3-viewer/auth/client";
 import { SITE_PATHS } from "@s3-viewer/types";
 import Router from "next/router";
@@ -21,7 +22,7 @@ const {
 
 // better-auth types its atoms loosely; this is the slice we rely on
 type SessionValue = {
-   data: unknown;
+   data: { user: { id: string } } | null;
    error: unknown;
    isPending: boolean;
    isRefetching: boolean;
@@ -85,20 +86,46 @@ let signingOut = false;
 // true from the start of `signOut()` until the login page is shown
 const isSigningOut = (): boolean => signingOut;
 
-// a sign-out the server refused leaves the session in place, so it throws
-// for the caller to show and changes nothing locally
+const syncSession = (value: SessionValue): void => {
+   if (signingOut) return;
+   if (value.data) useSessionStore.getState().setUserId(value.data.user.id);
+   else if (
+      isSettledSignedOut(value) &&
+      (!value.error ||
+         (typeof value.error === "object" &&
+            "status" in value.error &&
+            value.error.status === 401))
+   )
+      useSessionStore.getState().clearSession();
+};
+
+if (sessionAtom) {
+   sessionAtom.listen(syncSession);
+   syncSession(sessionAtom.get());
+}
+
 const signOut = async (
    redirectTo: string = SITE_PATHS.login
 ): Promise<void> => {
    signingOut = true;
+   const previous = useSessionStore.getState();
+   useSessionStore.getState().clearSession();
+   useUploadStore.getState().dismiss();
    try {
       await endSession();
       await settleSignedOut();
       clearQueryCache();
       useSessionStore.getState().clearSession();
       await Router.replace(redirectTo);
+   } catch (error) {
+      signingOut = false;
+      if (sessionAtom) syncSession(sessionAtom.get());
+      if (useSessionStore.getState().userId === previous.userId)
+         useSessionStore.getState().setServerId(previous.serverId);
+      throw error;
    } finally {
       signingOut = false;
+      if (sessionAtom) syncSession(sessionAtom.get());
    }
 };
 
@@ -108,6 +135,8 @@ const signOut = async (
 // client already reads signed out is the guard's to handle, and one during a
 // sign-out is that sign-out's own
 setUnauthorizedHandler(() => {
+   useSessionStore.getState().clearSession();
+   useUploadStore.getState().dismiss();
    if (signingOut || sessionAtom?.get().data == null) return;
    void signOut(loginPathFor(Router.asPath, "expired")).catch(() => undefined);
 });

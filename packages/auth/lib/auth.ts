@@ -32,7 +32,6 @@ import { localPart, normalizeEmail } from "./utils";
 const DAY_SECONDS = DAY_MS / SECOND_MS;
 const HOUR_SECONDS = HOUR_MS / SECOND_MS;
 const AUTH_LINK_TTL_SECONDS = AUTH_LINK_TTL_HOURS * HOUR_SECONDS;
-const SESSION_COOKIE_CACHE_SECONDS = 60;
 
 type HookBody = { email?: unknown } | undefined;
 
@@ -110,7 +109,7 @@ const auth = betterAuth({
       expiresIn: SESSION_TTL_DAYS * DAY_SECONDS,
       updateAge: DAY_SECONDS,
       freshAge: SESSION_FRESH_HOURS * HOUR_SECONDS,
-      cookieCache: { enabled: true, maxAge: SESSION_COOKIE_CACHE_SECONDS },
+      cookieCache: { enabled: false },
    },
    user: {
       deleteUser: { enabled: true, ...userDeletionHooks },

@@ -1,12 +1,14 @@
 import { ListObjectsV2Command, type S3Client } from "@aws-sdk/client-s3";
 import {
    S3_MAX_KEYS_PER_REQUEST,
+   observedETagSchema,
    isFolderKey,
    type S3KeysPage,
    type S3Object,
    type S3ObjectListPage,
 } from "@s3-viewer/types";
 import { logger } from "../logger";
+import { ApiHttpError } from "../http";
 import { throwBucketError } from "./errors";
 const MAX_CALLS_PER_PAGE = 20;
 const MAX_EXISTS_PAGES = 20;
@@ -76,6 +78,7 @@ const listPage = async ({
             folders.push({
                key: common.Prefix,
                isFolder: true,
+               eTag: null,
                lastModified: null,
                size: null,
             });
@@ -87,6 +90,7 @@ const listPage = async ({
          objects.push({
             key: object.Key,
             isFolder: false,
+            eTag: object.ETag ?? null,
             lastModified: object.LastModified?.toISOString() ?? null,
             size: object.Size ?? null,
          });
@@ -124,9 +128,27 @@ const listKeysPage = async (
       )
       .catch(throwBucketError);
    const nextToken = page.IsTruncated ? page.NextContinuationToken : undefined;
+   if (page.IsTruncated && (!nextToken || nextToken === continuationToken)) {
+      throw new ApiHttpError(
+         502,
+         "Storage returned an incomplete folder listing. Refresh before trying again."
+      );
+   }
    return {
-      keys: (page.Contents ?? []).flatMap((o) => (o.Key ? [o.Key] : [])),
-      nextToken: nextToken === continuationToken ? null : (nextToken ?? null),
+      objects: (page.Contents ?? []).flatMap((object) =>
+         object.Key
+            ? [
+                 {
+                    key: object.Key,
+                    expectedETag: observedETagSchema.safeParse(object.ETag)
+                       .success
+                       ? object.ETag!
+                       : null,
+                 },
+              ]
+            : []
+      ),
+      nextToken: nextToken ?? null,
    };
 };
 

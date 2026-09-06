@@ -6,7 +6,7 @@ import { usePermission } from "@/lib/hooks/usePermission";
 import { useShortcut } from "@/lib/shortcuts";
 import { Permission } from "@s3-viewer/permissions";
 import usePreferencesStore from "@/lib/stores/preferencesStore";
-import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
+import { MAX_LIST_BLOCK_SIZE, type S3Object } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -93,10 +93,20 @@ const SortMenu = () => {
 
 const ObjectsToolbar = () => {
    const { bucketName, refresh, isLoading } = useBucketContext();
-   const { selectedIds, clearSelection } = useGridContext();
+   const { selectedIds, clearSelection, gridRef } = useGridContext();
    const commands = useObjectCommands(bucketName);
    const canUpload = usePermission(Permission.UPLOAD_OBJECT, bucketName);
    const count = selectedIds.length;
+   const removeSelection = () =>
+      commands.remove(
+         selectedIds.map((key) => {
+            const object = gridRef.current?.api?.getRowNode(key)?.data as
+               | S3Object
+               | undefined;
+            return { key, expectedETag: object?.eTag ?? null };
+         }),
+         clearSelection
+      );
 
    useShortcut({
       keys: "r",
@@ -111,7 +121,7 @@ const ObjectsToolbar = () => {
       label: "Delete selected objects",
       group: "Objects",
       when: () => !isLoading && commands.can.delete && count > 0,
-      handler: () => commands.remove(selectedIds, clearSelection),
+      handler: removeSelection,
    });
 
    // disabled real buttons while loading, not placeholders: a placeholder can
@@ -136,9 +146,7 @@ const ObjectsToolbar = () => {
                   <Button
                      variant="destructive"
                      disabled={isLoading || count === 0}
-                     onClick={() =>
-                        commands.remove(selectedIds, clearSelection)
-                     }
+                     onClick={removeSelection}
                   >
                      <Trash2 aria-hidden="true" />
                      Delete

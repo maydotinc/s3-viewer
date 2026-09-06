@@ -3,6 +3,7 @@ import { ApiHttpError, asyncHandler } from "@/lib/http";
 import type { SessionUser } from "@/lib/middleware/auth";
 import { input } from "@/lib/middleware/validate";
 import { isBucketAllowed } from "@/lib/services/servers";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import {
    Permission,
@@ -44,9 +45,10 @@ const getAuth = (res: Response): AuthContext => res.locals.auth as AuthContext;
 
 const loadServerRole = async (
    userId: string,
-   serverId: string
+   serverId: string,
+   db: Prisma.TransactionClient = prisma
 ): Promise<Role> => {
-   const access = await prisma.serverAccess.findUnique({
+   const access = await db.serverAccess.findUnique({
       where: { userId_serverId: { userId, serverId } },
       select: { role: true },
    });
@@ -59,9 +61,10 @@ type ScopeInput = { serverId: string; bucketName?: string };
 const authorizeServer = async (
    userId: string,
    serverId: string,
-   permission: Permission
+   permission: Permission,
+   db: Prisma.TransactionClient = prisma
 ): Promise<AuthContext> => {
-   const serverRole = await loadServerRole(userId, serverId);
+   const serverRole = await loadServerRole(userId, serverId, db);
    if (!hasPermission(serverRole, permission)) {
       throw new ApiHttpError(403, FORBIDDEN);
    }
@@ -162,6 +165,7 @@ const authorizeMemberAction = (): RequestHandler =>
 
 export {
    authorize,
+   authorizeServer,
    authorizeMemberAction,
    getAuth,
    requireUser,

@@ -11,7 +11,7 @@ const SLUG = "bulk-delete-s3-files";
 const TITLE = "How to bulk-delete S3 files";
 const KEYWORD = "bulk delete S3 files";
 const TLDR =
-   "Use the DeleteObjects API (plural) — up to 1,000 keys per request. From the AWS CLI: aws s3 rm --recursive against a prefix. From a tool: tick the checkboxes in S3 Viewer and hit Delete, which sends the selection as one batch. If the bucket has versioning on, each delete only adds a delete marker — you'll need to delete every version explicitly to actually purge.";
+   "Use the DeleteObjects API (plural) — up to 1,000 keys per request. From the AWS CLI: aws s3 rm --recursive against a prefix. In S3 Viewer on AWS S3, R2, or MinIO: tick the checkboxes in S3 Viewer and hit Delete, which sends the selection as one batch. If the bucket has versioning on, each delete only adds a delete marker — you'll need to delete every version explicitly to actually purge.";
 
 const steps: HowToStep[] = [
    {
@@ -24,7 +24,10 @@ const steps: HowToStep[] = [
             S3 Viewer sends the whole selection as one{" "}
             <code>DeleteObjects</code> call — up to 1,000 keys per request, the
             way the API was designed. If some keys fail, the result tells you
-            which.
+            which. AWS S3, R2, and MinIO are supported without requiring
+            versioning. Confirmed failures remain available for retry; uncertain
+            results require refresh and review and are never automatically
+            replayed.
          </>
       ),
    },
@@ -65,10 +68,8 @@ const steps: HowToStep[] = [
          <>
             On a versioned bucket, a normal delete just adds a delete marker. To
             actually purge, list every version and delete each one explicitly
-            with its <code>VersionId</code>. S3 Viewer is not version-aware — it
-            deletes the current version like any other S3 client, so check the
-            bucket&apos;s versioning setting yourself before you rely on a
-            delete being final.
+            with its <code>VersionId</code>. S3 Viewer does not purge specific
+            versions. On unversioned buckets, deletion can be permanent.
          </>
       ),
       code: "aws s3api list-object-versions \\\n  --bucket my-bucket --prefix old-logs/ \\\n  --query 'Versions[].{Key:Key,VersionId:VersionId}' \\\n  > versions.json",
@@ -114,7 +115,7 @@ const faqs: HowToFAQ[] = [
    {
       question: "Does Cloudflare R2 support bulk delete?",
       answer:
-         "Yes. R2 implements DeleteObjects the same way as AWS S3 — up to 1,000 keys per request. The same CLI commands work with --endpoint-url set to R2; checkbox multi-select and Delete in S3 Viewer work against R2 buckets identically.",
+         "Yes. Yes. S3 Viewer supports single, bulk, and recursive folder deletion on R2 using its S3-compatible API. It reports per-object failures and never automatically retries an uncertain destructive request.",
    },
 ];
 
@@ -134,14 +135,14 @@ export default createHowToPage({
          request and returns a per-key result list — successes and failures
          together. For larger deletes you batch by 1,000 and reissue any failed
          keys. The AWS CLI&apos;s <code>rm --recursive</code> handles the
-         listing and batching for you under the hood. S3 Viewer wraps the same
-         API in a checkbox multi-select: tick the rows, hit Delete, one round
-         trip — and deleting a folder walks the prefix and deletes everything
-         under it recursively. On versioned buckets, every &ldquo;delete&rdquo;
-         is really a soft delete (it writes a delete marker); to actually purge,
-         you have to enumerate versions and delete each one with its{" "}
-         <code>VersionId</code>, which S3 Viewer does not do. For predictable
-         cleanup, lifecycle rules are the right long-term tool.
+         listing and batching for you under the hood. S3 Viewer supports AWS S3,
+         R2, and MinIO in a checkbox multi-select: tick the rows, hit Delete,
+         one round trip — and deleting a folder walks the prefix and deletes
+         everything under it recursively. On versioned buckets, every
+         &ldquo;delete&rdquo; is really a soft delete (it writes a delete
+         marker); to actually purge, you have to enumerate versions and delete
+         each one with its <code>VersionId</code>, which S3 Viewer does not do.
+         For predictable cleanup, lifecycle rules are the right long-term tool.
       </p>
    ),
    faqs,

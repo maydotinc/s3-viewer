@@ -28,6 +28,7 @@ const get = vi.fn(async (path: string): Promise<S3ObjectListPage> => {
       objects.push({
          key: `k${i}`,
          isFolder: false,
+         eTag: '"original"',
          lastModified: null,
          size: 0,
       });

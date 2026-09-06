@@ -1,9 +1,14 @@
 import { S3_ROUTE_TIMEOUT_MS, SERVER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
-import { getAuth, type AuthContext } from "@/lib/middleware/authorize";
+import {
+   authorizeServer,
+   getAuth,
+   type AuthContext,
+} from "@/lib/middleware/authorize";
 import { serverRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { createNewBucket } from "@/lib/s3/bucket-create";
+import { listBuckets } from "@/lib/s3/bucket-listing";
 import { getS3Client, getS3ClientFromCredentials } from "@/lib/s3/client-cache";
 import {
    credentialsUnreadableError,
@@ -20,7 +25,6 @@ import {
 } from "@/lib/services/servers";
 import { assertPublicEndpoint } from "@/lib/utils/endpoint";
 import { decryptCredentials } from "@/lib/utils/encryption";
-import { ListBucketsCommand, type S3Client } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
 import {
@@ -35,8 +39,6 @@ import {
 } from "@s3-viewer/types";
 import { Router } from "express";
 
-const MAX_BUCKET_PAGES = 50;
-
 const bucketsRouter = Router({ mergeParams: true });
 
 const toBucket = (
@@ -44,34 +46,6 @@ const toBucket = (
    userRole: Role,
    creationDate: string | null = null
 ): S3Bucket => ({ name, creationDate, userRole });
-
-const listAllBuckets = async (
-   client: S3Client,
-   signal: AbortSignal
-): Promise<S3Bucket[]> => {
-   const buckets: S3Bucket[] = [];
-   let token: string | undefined;
-   for (let page = 0; page < MAX_BUCKET_PAGES; page++) {
-      const out = await client
-         .send(new ListBucketsCommand({ ContinuationToken: token }), {
-            abortSignal: signal,
-         })
-         .catch(throwListBucketsError);
-      for (const bucket of out.Buckets ?? []) {
-         if (!bucket.Name) continue;
-         buckets.push(
-            toBucket(
-               bucket.Name,
-               Role.OWNER,
-               bucket.CreationDate?.toISOString() ?? null
-            )
-         );
-      }
-      token = out.ContinuationToken;
-      if (!token) break;
-   }
-   return buckets;
-};
 
 const visibleBuckets = async (
    serverId: string,
@@ -92,7 +66,17 @@ const visibleBuckets = async (
    if (scope.restrictedBuckets) {
       return scope.allowedBuckets.map((name) => toBucket(name, Role.OWNER));
    }
-   return listAllBuckets(await getS3Client(serverId), signal);
+   return (
+      await listBuckets(await getS3Client(serverId), signal).catch(
+         throwListBucketsError
+      )
+   ).map((bucket) =>
+      toBucket(
+         bucket.Name!,
+         Role.OWNER,
+         bucket.CreationDate?.toISOString() ?? null
+      )
+   );
 };
 
 bucketsRouter.get(
@@ -225,7 +209,9 @@ bucketsRouter.delete(
       const { serverId, bucketName } = input<BucketScope>(res);
       const { userId } = getAuth(res);
       await prisma.$transaction(async (tx) => {
-         assertBucketRemovable(await lockBucketScope(tx, serverId), bucketName);
+         const scope = await lockBucketScope(tx, serverId);
+         await authorizeServer(userId, serverId, Permission.DELETE_BUCKET, tx);
+         assertBucketRemovable(scope, bucketName);
          await tx.$executeRaw`UPDATE "server" SET "allowedBuckets" = array_remove("allowedBuckets", ${bucketName}) WHERE "id" = ${serverId}`;
          await tx.bucketAccess.deleteMany({ where: { serverId, bucketName } });
          await revokeInvalidInvites(tx, serverId);
