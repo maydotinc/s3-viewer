@@ -156,17 +156,67 @@ describe("delete confirmation retry accounting", () => {
       expect(onClose).toHaveBeenCalledOnce();
    });
 
-   it("retries the original folder targets without relisting or adopting replacements", async () => {
+   it("resumes a folder deletion by relisting what storage still holds", async () => {
       const folder = [{ key: "folder/", expectedETag: null }];
       h.get.mockResolvedValue({ objects: reviewed, nextToken: null });
       const onClose = vi.fn();
       await confirm(folder, onClose);
+      expect(renderModal(folder, onClose).props.confirmLabel).toBe(
+         "Continue deleting"
+      );
       await confirm(folder, onClose);
-      expect(h.get).toHaveBeenCalledTimes(1);
+      expect(h.get).toHaveBeenCalledTimes(2);
       expect(
          h.remove.mock.calls.map(([, input]) => input.objects.length)
       ).toEqual([150, 150]);
       expect(h.remove.mock.calls[1]?.[1].objects).toMatchObject(reviewed);
+      expect(onClose).toHaveBeenCalledOnce();
+   });
+
+   it("keeps deleted progress when a batch fails and totals it across the resume", async () => {
+      const folder = [{ key: "folder/", expectedETag: null }];
+      const succeed = async (
+         _path: string,
+         input: { objects: S3DeleteTarget[] }
+      ): Promise<S3DeleteResult> => ({
+         deleted: input.objects.map(({ key }) => key),
+         failed: [],
+      });
+      h.get
+         .mockResolvedValueOnce({
+            objects: reviewed.slice(0, 100),
+            nextToken: "n2",
+         })
+         .mockResolvedValue({ objects: reviewed.slice(100), nextToken: null });
+      h.remove
+         .mockReset()
+         .mockImplementationOnce(succeed)
+         .mockImplementationOnce(
+            async (
+               _path,
+               input: { objects: S3DeleteTarget[] }
+            ): Promise<S3DeleteResult> => ({
+               deleted: [],
+               failed: input.objects.map(({ key }) => ({
+                  key,
+                  message: "Access denied",
+                  retryable: true,
+               })),
+            })
+         )
+         .mockImplementation(succeed);
+      const onClose = vi.fn();
+      await confirm(folder, onClose);
+      const view = renderModal(folder, onClose);
+      expect(view.props.error).toContain("Deleted 100 of this folder");
+      expect(view.props.error).toContain("50 failed");
+      expect(view.props.confirmLabel).toBe("Continue deleting");
+      expect(onClose).not.toHaveBeenCalled();
+      await confirm(folder, onClose);
+      expect(h.get).toHaveBeenCalledTimes(3);
+      expect(
+         h.remove.mock.calls.map(([, input]) => input.objects.length)
+      ).toEqual([100, 50, 50]);
       expect(onClose).toHaveBeenCalledOnce();
    });
 
@@ -222,18 +272,63 @@ describe("delete confirmation retry accounting", () => {
       expect(onClose).not.toHaveBeenCalled();
    });
 
-   it("keeps incomplete folder enumeration visible after retrying known failures", async () => {
+   it("stops at a failing batch and stays resumable while enumeration is incomplete", async () => {
       const folder = [{ key: "folder/", expectedETag: null }];
       h.get
          .mockResolvedValueOnce({ objects: reviewed, nextToken: "next" })
          .mockRejectedValueOnce(new Error("Listing failed"));
       const onClose = vi.fn();
       await confirm(folder, onClose);
+      const stopped = renderModal(folder, onClose);
+      // the second page is never listed: the first batch failed.
+      expect(h.get).toHaveBeenCalledTimes(1);
+      expect(stopped.props.error).toContain("more remain");
+      expect(stopped.props.confirmLabel).toBe("Continue deleting");
       await confirm(folder, onClose);
       const view = renderModal(folder, onClose);
       expect(view.props.error).toContain("Folder deletion is incomplete");
-      expect(view.props.confirmDisabled).toBe(true);
+      expect(view.props.confirmDisabled).toBe(false);
       expect(onClose).not.toHaveBeenCalled();
       expect(h.get).toHaveBeenCalledTimes(2);
+   });
+
+   it("counts a failing last page as work remaining, not as a clean finish", async () => {
+      const folder = [{ key: "folder/", expectedETag: null }];
+      h.get.mockResolvedValue({ objects: reviewed, nextToken: null });
+      const onClose = vi.fn();
+      await confirm(folder, onClose);
+      const view = renderModal(folder, onClose);
+      // the 150 retryable failures are still in the folder
+      expect(view.props.error).toContain("more remain");
+      expect(view.props.confirmDisabled).toBe(false);
+      expect(view.props.confirmLabel).toBe("Continue deleting");
+      expect(onClose).not.toHaveBeenCalled();
+   });
+
+   it("blocks an unreviewable failure even with pages left to enumerate", async () => {
+      const folder = [{ key: "folder/", expectedETag: null }];
+      h.get.mockResolvedValue({ objects: reviewed, nextToken: "next" });
+      h.remove.mockReset().mockRejectedValue(new Error("Response lost"));
+      const onClose = vi.fn();
+      await confirm(folder, onClose);
+      const view = renderModal(folder, onClose);
+      // a resume relists from the top and stops on the same batch, so the
+      // untouched second page does not make this retryable.
+      expect(view.props.confirmDisabled).toBe(true);
+      expect(view.props.error).toContain("reviewed again");
+   });
+
+   it("blocks a folder resume once only unreviewable failures are left", async () => {
+      const folder = [{ key: "folder/", expectedETag: null }];
+      h.get.mockResolvedValue({ objects: reviewed, nextToken: null });
+      h.remove.mockReset().mockRejectedValue(new Error("Response lost"));
+      const onClose = vi.fn();
+      await confirm(folder, onClose);
+      const view = renderModal(folder, onClose);
+      expect(view.props.confirmDisabled).toBe(true);
+      expect(view.props.error).toContain("reviewed again");
+      await confirm(folder, onClose);
+      expect(h.get).toHaveBeenCalledOnce();
+      expect(onClose).not.toHaveBeenCalled();
    });
 });

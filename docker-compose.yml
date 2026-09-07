@@ -24,7 +24,7 @@ services:
          retries: 20
 
    api:
-      image: ghcr.io/maydotinc/s3-viewer-api:latest
+      image: ghcr.io/maydotinc/s3-viewer-api:${S3_VIEWER_VERSION:-latest}
       build:
          context: .
          dockerfile: apps/api/Dockerfile
@@ -59,13 +59,24 @@ services:
          - UPLOAD_MEMORY_BUDGET_BYTES
          - UPLOAD_IDLE_TIMEOUT_MS
          - LOG_LEVEL
+         - SIGNUP_MODE
+         - ALLOWED_EMAIL_DOMAINS
+         - RATE_LIMIT_STORE
+         - AUDIT_RETENTION_DAYS
+         - KEEP_ALIVE_TIMEOUT_MS
+         - S3_MAX_SOCKETS_PER_HOST
+         - S3_MAX_TOTAL_SOCKETS
+         - S3_REQUESTS_PER_MINUTE
+         # false on every replica but one when running more than one API
+         # instance, so they do not race the same migration on boot.
+         - RUN_MIGRATIONS
       volumes:
          - apidata:/data
       ports:
          - "127.0.0.1:5001:5001"
 
    web:
-      image: ghcr.io/maydotinc/s3-viewer-web:latest
+      image: ghcr.io/maydotinc/s3-viewer-web:${S3_VIEWER_VERSION:-latest}
       build:
          context: .
          dockerfile: apps/web/Dockerfile

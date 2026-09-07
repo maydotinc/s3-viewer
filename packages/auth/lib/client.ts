@@ -11,6 +11,7 @@ type AuthClientOptions = { apiOrigin: string; siteOrigin: string };
 
 type AuthResult = { error: string | null; code?: string };
 type ContinueResult = AuthResult & { created: boolean };
+type ContinueOptions = { allowSignUp?: boolean };
 
 const PASSWORD_PROVIDER = "credential";
 const WRONG_CREDENTIALS = "INVALID_EMAIL_OR_PASSWORD";
@@ -60,13 +61,16 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
    // sign-in and sign-up are one flow: a password that matches signs in, an
    // address with no account is created with it, and anything else is a wrong
    // password. Sign-up already reveals an existing address, so this leaks
-   // nothing new
+   // nothing new. With allowSignUp false there is no second half: a wrong
+   // password stays a wrong password instead of a refusal that would tell an
+   // anonymous visitor which addresses have no account here
    const continueWithPassword = async (
       email: string,
-      password: string
+      password: string,
+      { allowSignUp = true }: ContinueOptions = {}
    ): Promise<ContinueResult> => {
       const signedIn = await signInWithPassword(email, password);
-      if (signedIn.code !== WRONG_CREDENTIALS) {
+      if (!allowSignUp || signedIn.code !== WRONG_CREDENTIALS) {
          return { ...signedIn, created: false };
       }
       const created = await signUpWithPassword(email, password);
@@ -163,4 +167,4 @@ const makeAuthClient = ({ apiOrigin, siteOrigin }: AuthClientOptions) => {
 };
 
 export { makeAuthClient };
-export type { AuthResult, ContinueResult };
+export type { AuthResult, ContinueOptions, ContinueResult };

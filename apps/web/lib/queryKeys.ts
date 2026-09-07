@@ -29,8 +29,13 @@ const queryKeys = {
    sentInvites: (userId: string, serverId: string) =>
       [...server(userId, serverId), "invites"] as const,
    receivedInvites: (userId: string) => ["user", userId, "invites"] as const,
+   auditLog: (userId: string, serverId: string) =>
+      [...server(userId, serverId), "audit"] as const,
    sentInvitesAll: (userId: string) =>
       ["user", userId, "sent-invites"] as const,
+   sessions: (userId: string) => ["user", userId, "sessions"] as const,
+   securityActivity: (userId: string) =>
+      ["user", userId, "security-activity"] as const,
    accountSummary: (userId: string) =>
       ["user", userId, "account-summary"] as const,
    hasPassword: (userId: string) => ["user", userId, "has-password"] as const,

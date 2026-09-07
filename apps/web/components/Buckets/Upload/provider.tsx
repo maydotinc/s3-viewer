@@ -2,7 +2,6 @@ import { useBucketContext } from "@/components/Buckets/Context";
 import { usePermission } from "@/lib/hooks/usePermission";
 import { useStorageCapabilities } from "@/lib/hooks/useStorageCapabilities";
 import { Permission } from "@s3-viewer/permissions";
-import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import { isAborted } from "@/lib/api";
 import { forgetKeys } from "@/lib/hooks/mutations/object/invalidate";
 import useSessionStore, { useUserId } from "@/lib/stores/sessionStore";
@@ -20,6 +19,7 @@ import {
    useRef,
    useState,
 } from "react";
+import { ReplaceDialog } from "./replace-dialog";
 
 type UploadTarget = {
    userId: string;
@@ -205,37 +205,35 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
       canReplace && pending && sameTarget(pending, currentTarget.current)
          ? pending
          : null;
-   const confirmReplace = () => {
+   const replaceAll = () => {
       if (!visiblePending) return;
       start(visiblePending.files, visiblePending, visiblePending.eTags);
       setPending(null);
    };
-
-   const names = visiblePending?.existing.slice(0, 3).join(", ") ?? "";
-   const more =
-      visiblePending && visiblePending.existing.length > 3
-         ? ` and ${visiblePending.existing.length - 3} more`
-         : "";
+   const skipExisting = () => {
+      // the prompt only exists because replacement was on offer; a handler kept
+      // from a render before that changed must not act on it either.
+      if (!visiblePending || !replacementAllowed.current) return;
+      const collisions = new Set(visiblePending.existing);
+      const fresh = visiblePending.files.filter(
+         (file) => !collisions.has(file.relativePath)
+      );
+      setPending(null);
+      // no ETags: nothing is being replaced, so each upload stays conditional
+      // on the key still being absent.
+      if (fresh.length > 0) start(fresh, visiblePending, {});
+   };
 
    return (
       <UploaderContext.Provider value={value}>
          {children}
-         <ConfirmDialog
+         <ReplaceDialog
             open={visiblePending !== null}
-            onClose={() => setPending(null)}
-            title={
-               visiblePending?.existing.length === 1
-                  ? "Replace existing file?"
-                  : "Replace existing files?"
-            }
-            description={
-               visiblePending?.existing.length === 1
-                  ? `${names} already exists in this folder and will be overwritten.`
-                  : `${visiblePending?.existing.length ?? 0} of the selected files already exist in this folder and will be overwritten: ${names}${more}.`
-            }
-            descriptionClassName="break-all"
-            confirmLabel="Replace"
-            onConfirm={confirmReplace}
+            existing={visiblePending?.existing ?? []}
+            total={visiblePending?.files.length ?? 0}
+            onReplaceAll={replaceAll}
+            onSkipExisting={skipExisting}
+            onCancel={() => setPending(null)}
          />
       </UploaderContext.Provider>
    );

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { auditRouter } from "./audit";
 import { connectRouter } from "./connect";
 import { credentialsRouter } from "./credentials";
 import { serverInvitesRouter } from "./invites";
@@ -12,5 +13,6 @@ serversRouter.use(serverCrudRouter);
 serversRouter.use(credentialsRouter);
 serversRouter.use(membersRouter);
 serversRouter.use(serverInvitesRouter);
+serversRouter.use(auditRouter);
 
 export { serversRouter };

@@ -22,6 +22,8 @@ type ConfirmDeleteModalProps = {
    onDeleteSuccess?: () => void;
 };
 
+const count = (value: number) => value.toLocaleString();
+
 const ConfirmDeleteModal = ({
    onClose,
    userId,
@@ -40,9 +42,14 @@ const ConfirmDeleteModal = ({
    const [failed, setFailed] = useState<DeleteSummary["failed"]>([]);
    const [failedTotal, setFailedTotal] = useState(0);
    const [listingError, setListingError] = useState<string | null>(null);
+   const [remaining, setRemaining] = useState(false);
+   const [deleted, setDeleted] = useState(0);
    const [progress, setProgress] = useState(0);
    const abort = useRef<AbortController | null>(null);
    const mounted = useRef(true);
+   // the count already committed by earlier runs, so a resumed folder delete
+   // reports its total rather than restarting at zero.
+   const deletedBefore = useRef(0);
 
    useEffect(() => {
       mounted.current = true;
@@ -52,56 +59,54 @@ const ConfirmDeleteModal = ({
       };
    }, []);
 
+   useEffect(() => {
+      if (!deletePrefix.isPending) return;
+      const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+      window.addEventListener("beforeunload", warn);
+      return () => window.removeEventListener("beforeunload", warn);
+   }, [deletePrefix.isPending]);
+
    const folder =
       objects.length === 1 && objects[0] && isFolderKey(objects[0].key)
          ? objects[0].key
          : null;
-   const count = objects.length;
+   const total = objects.length;
    const isPending = deleteObjects.isPending || deletePrefix.isPending;
    const retryable = failed.filter((failure) => failure.retryable);
    const needsReview = failed.filter((failure) => !failure.retryable);
+   const attempted = deleted > 0 || failedTotal > 0 || Boolean(listingError);
+   // nothing left that another attempt could change: a folder delete restarts
+   // from the top of the prefix and stops at the first failing batch, so an
+   // untouched remainder does not make a non-retryable failure retryable.
+   const stuck = failedTotal > 0 && retryable.length === 0 && !listingError;
 
    const title = folder
       ? "Delete folder"
-      : count === 1
+      : total === 1
         ? "Delete object"
-        : `Delete ${count} objects`;
+        : `Delete ${total} objects`;
    const permanence = isR2
       ? "R2 deletes are permanent. Pause other writers: a file changed during deletion could also be removed."
       : "This may be permanent, depending on your bucket’s versioning and retention settings.";
    const description = folder
       ? isPending && progress > 0
-         ? `Removing current objects under ${folder}… ${progress} deleted so far.`
+         ? `Removing current objects under ${folder}… ${count(deleted + progress)} deleted so far.`
          : `This removes current objects under ${folder}. ${permanence}`
-      : count === 1
+      : total === 1
         ? `This removes ${baseName(objects[0]?.key ?? "")}. ${permanence}`
-        : `This removes ${count} current objects. ${permanence}`;
+        : `This removes ${total} current objects. ${permanence}`;
+
+   const onError = (err: unknown) => {
+      if (isAborted(err) || !mounted.current) return;
+      setError(errorMessage(err));
+   };
 
    const confirm = () => {
-      if (
-         isPending ||
-         ((failed.length > 0 || listingError) && retryable.length === 0)
-      )
-         return;
+      if (isPending || stuck) return;
       setError(null);
-      const options = {
-         onSuccess: (result: DeleteSummary) => {
-            if (!mounted.current) return;
-            if (result.deleted > 0) onDeleteSuccess?.();
-            const remaining = [...needsReview, ...result.failed];
-            setFailed(remaining);
-            setFailedTotal(remaining.length);
-            setListingError(listingError ?? result.listingError);
-            if (remaining.length === 0 && !listingError && !result.listingError)
-               onClose();
-         },
-         onError: (err: unknown) => {
-            if (isAborted(err) || !mounted.current) return;
-            setError(errorMessage(err));
-         },
-      };
-      if (folder && failed.length === 0 && !listingError) {
-         abort.current = new AbortController();
+      abort.current = new AbortController();
+      if (folder) {
+         deletedBefore.current = deleted;
          setProgress(0);
          deletePrefix.mutate(
             {
@@ -110,25 +115,54 @@ const ConfirmDeleteModal = ({
                bucketName,
                prefix: folder,
                signal: abort.current.signal,
-               onProgress: (deleted: number) => {
-                  if (mounted.current) setProgress(deleted);
+               onProgress: (done: number) => {
+                  if (mounted.current) setProgress(done);
                },
             },
-            options
+            {
+               // a resumed folder delete relists, so it re-attempts every
+               // earlier failure: its summary replaces the previous one.
+               onSuccess: (result: DeleteSummary) => {
+                  if (!mounted.current) return;
+                  if (result.deleted > 0) onDeleteSuccess?.();
+                  setDeleted(deletedBefore.current + result.deleted);
+                  setProgress(0);
+                  setFailed(result.failed);
+                  setFailedTotal(result.failed.length);
+                  setListingError(result.listingError);
+                  setRemaining(result.remaining);
+                  if (
+                     result.failed.length === 0 &&
+                     !result.listingError &&
+                     !result.remaining
+                  )
+                     onClose();
+               },
+               onError,
+            }
          );
          return;
       }
-      const targets = failed.length > 0 ? retryable : objects;
-      abort.current = new AbortController();
       deleteObjects.mutate(
          {
             userId,
             serverId,
             bucketName,
-            objects: targets,
+            objects: failedTotal > 0 ? retryable : objects,
             signal: abort.current.signal,
          },
-         options
+         {
+            onSuccess: (result: DeleteSummary) => {
+               if (!mounted.current) return;
+               if (result.deleted > 0) onDeleteSuccess?.();
+               setDeleted(deleted + result.deleted);
+               const left = [...needsReview, ...result.failed];
+               setFailed(left);
+               setFailedTotal(left.length);
+               if (left.length === 0) onClose();
+            },
+            onError,
+         }
       );
    };
 
@@ -137,7 +171,24 @@ const ConfirmDeleteModal = ({
          ? null
          : failedTotal === 1
            ? "This object couldn't be deleted:"
-           : `${failedTotal} objects couldn't be deleted:`;
+           : `${count(failedTotal)} objects couldn't be deleted:`;
+   const folderSummary =
+      folder && attempted
+         ? [
+              `Deleted ${count(deleted)} of this folder`,
+              failedTotal > 0 ? `${count(failedTotal)} failed` : null,
+              remaining ? "more remain" : null,
+           ]
+              .filter(Boolean)
+              .join("; ") + "."
+         : null;
+
+   const detail =
+      listingError ??
+      (needsReview.length > 0
+         ? "Some objects need to be reviewed again. Close this dialog and refresh before deleting them again."
+         : failureSummary);
+   const notice = [folderSummary, detail].filter(Boolean).join(" ");
 
    const displayedFailures = failed.slice(0, 100);
 
@@ -148,19 +199,16 @@ const ConfirmDeleteModal = ({
          title={title}
          description={description}
          descriptionClassName="break-all"
-         error={
-            error ??
-            listingError ??
-            (needsReview.length > 0
-               ? "Some objects need to be reviewed again. Close this dialog and refresh before deleting them again."
-               : failureSummary)
-         }
-         confirmDisabled={
-            (failed.length > 0 || Boolean(listingError)) &&
-            retryable.length === 0
-         }
+         error={error ?? (notice || null)}
+         confirmDisabled={stuck}
          confirmVariant="destructive"
-         confirmLabel={failedTotal > 0 ? "Retry" : "Delete"}
+         confirmLabel={
+            folder && attempted
+               ? "Continue deleting"
+               : failedTotal > 0
+                 ? "Retry"
+                 : "Delete"
+         }
          isPending={isPending}
          onConfirm={confirm}
       >
@@ -175,7 +223,9 @@ const ConfirmDeleteModal = ({
                   </li>
                ))}
                {failedTotal > displayedFailures.length && (
-                  <li>and {failedTotal - displayedFailures.length} more</li>
+                  <li>
+                     and {count(failedTotal - displayedFailures.length)} more
+                  </li>
                )}
             </ul>
          )}

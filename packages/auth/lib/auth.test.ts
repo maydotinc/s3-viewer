@@ -1,9 +1,33 @@
 import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
-import { DAY_MS, SESSION_ABSOLUTE_TTL_DAYS } from "@s3-viewer/types";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+   DAY_MS,
+   SESSION_ABSOLUTE_TTL_DAYS,
+   type AuditEntry,
+   type SignUpMode,
+} from "@s3-viewer/types";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@s3-viewer/db", () => ({ prisma: {} }));
+// the policy is read at call time by the database hook, so tests reassign the
+// fields of this object rather than re-importing the module
+const { policy, invitedAddresses } = vi.hoisted(() => ({
+   policy: {
+      mode: "open" as SignUpMode,
+      allowedEmailDomains: [] as string[],
+   },
+   invitedAddresses: new Set<string>(),
+}));
+
+// the invite lookup is the only query packages/auth makes on its own; the set
+// stands in for the rows a live `pendingInvitation` would return
+vi.mock("@s3-viewer/db", () => ({
+   prisma: {
+      pendingInvitation: {
+         count: async ({ where }: { where: { email: string } }) =>
+            invitedAddresses.has(where.email) ? 1 : 0,
+      },
+   },
+}));
 vi.mock("@s3-viewer/email", () => ({ sendAuthLinkEmail: vi.fn() }));
 vi.mock("./env", () => ({
    authEnv: {
@@ -12,13 +36,38 @@ vi.mock("./env", () => ({
       apiIsHttps: false,
       cookieSameSite: "lax",
       siteOrigin: "http://localhost:3000",
-      github: null,
+      github: {
+         clientId: "test-client-id",
+         clientSecret: "test-client-secret",
+      },
    },
+   signUpPolicy: policy,
 }));
 
-import { auth as configured, onUserDeletion } from "./auth";
+import { auth as configured, onAuthEvent, onUserDeletion } from "./auth";
+
+const PASSWORD = "unique-test-password-2026";
 
 afterEach(() => vi.restoreAllMocks());
+
+beforeEach(() => {
+   policy.mode = "open";
+   policy.allowedEmailDomains = [];
+   invitedAddresses.clear();
+   onAuthEvent(async () => {});
+});
+
+// the audit handler is fire-and-forget, so a test has to let the microtask
+// queue drain before it can see what an endpoint emitted
+const collectAuthEvents = (): AuditEntry[] => {
+   const entries: AuditEntry[] = [];
+   onAuthEvent(async (entry) => {
+      entries.push(entry);
+   });
+   return entries;
+};
+
+const settled = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const createTestAuth = () => {
    const db: Parameters<typeof memoryAdapter>[0] = {
@@ -39,7 +88,7 @@ const createTestAuth = () => {
       const response = await auth.api.signUpEmail({
          body: {
             email,
-            password: "unique-test-password-2026",
+            password: PASSWORD,
             name: "Test User",
          },
          asResponse: true,
@@ -64,7 +113,9 @@ const createTestAuth = () => {
             body: JSON.stringify(body),
          })
       );
-   return { auth, db, signUp, post };
+   const rawSignUp = (email: string) =>
+      post("/sign-up/email", "", { email, password: PASSWORD, name: "New" });
+   return { auth, db, post, rawSignUp, signUp };
 };
 
 describe("account-bound deletion", () => {
@@ -77,6 +128,7 @@ describe("account-bound deletion", () => {
       const response = await post("/delete-user", accountB.cookie, {
          expectedUserId: accountA.user.id,
          confirmedEmail: accountA.user.email,
+         password: PASSWORD,
       });
       expect(response.status).toBe(409);
       expect(await response.json()).toMatchObject({ code: "ACCOUNT_CHANGED" });
@@ -92,7 +144,7 @@ describe("account-bound deletion", () => {
       const { cookie, user } = await signUp("delete-confirm@example.com");
       for (const body of [
          {},
-         { password: "unique-test-password-2026" },
+         { password: PASSWORD },
          { expectedUserId: user.id },
       ]) {
          expect((await post("/delete-user", cookie, body)).status).toBe(400);
@@ -102,6 +154,7 @@ describe("account-bound deletion", () => {
             await post("/delete-user", cookie, {
                expectedUserId: user.id,
                confirmedEmail: "someone-else@example.com",
+               password: PASSWORD,
             })
          ).status
       ).toBe(409);
@@ -118,7 +171,7 @@ describe("account-bound deletion", () => {
       const response = await post("/delete-user", cookie, {
          expectedUserId: user.id,
          confirmedEmail: user.email,
-         password: "unique-test-password-2026",
+         password: PASSWORD,
       });
       expect(response.status).toBe(400);
       expect(await response.json()).toMatchObject({ code: "SESSION_EXPIRED" });
@@ -144,6 +197,7 @@ describe("account-bound deletion", () => {
       const response = await post("/delete-user", cookie, {
          expectedUserId: user.id,
          confirmedEmail: ` ${user.email.toUpperCase()} `,
+         password: PASSWORD,
       });
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({ success: true });
@@ -252,7 +306,7 @@ describe("absolute session expiry", () => {
             await auth.api.signInEmail({
                body: {
                   email: user.email,
-                  password: "unique-test-password-2026",
+                  password: PASSWORD,
                },
                asResponse: true,
             })
@@ -275,7 +329,7 @@ describe("absolute session expiry", () => {
       db.session![0]!.expiresAt = new Date(Date.now() + DAY_MS);
       const response = await post("/sign-in/email", cookie, {
          email: user.email,
-         password: "unique-test-password-2026",
+         password: PASSWORD,
       });
       expect(response.status).toBe(200);
       expect(db.session).toHaveLength(1);
@@ -315,7 +369,7 @@ describe("revoked sessions", () => {
       const signup = await legacy.api.signUpEmail({
          body: {
             email: "cache-regression@example.com",
-            password: "unique-test-password-2026",
+            password: PASSWORD,
             name: "Cache Test",
          },
          asResponse: true,
@@ -356,5 +410,399 @@ describe("revoked sessions", () => {
       );
       expect(unlink.status).toBe(401);
       expect(db.account).toHaveLength(2);
+   });
+});
+
+describe("sign-up policy", () => {
+   // this instance was built while the policy was still open, so what refuses
+   // here is the database hook rather than emailAndPassword.disableSignUp;
+   // env.test.ts covers the option the policy feeds at boot
+   it("refuses every sign-up when the instance is closed", async () => {
+      policy.mode = "closed";
+      const { db, rawSignUp } = createTestAuth();
+      const events = collectAuthEvents();
+      const response = await rawSignUp("Closed@Example.com");
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+         code: "SIGNUP_DISABLED",
+         message:
+            "Sign-ups are disabled on this instance. Ask an administrator for access.",
+      });
+      expect(db.user).toHaveLength(0);
+      await settled();
+      expect(events).toEqual([
+         { action: "auth.sign_up_refused", target: "closed@example.com" },
+      ]);
+   });
+
+   it("refuses an unlisted domain and records the address it turned away", async () => {
+      policy.mode = "domains";
+      policy.allowedEmailDomains = ["acme.com", "acme.dev"];
+      const { db, rawSignUp } = createTestAuth();
+      const events = collectAuthEvents();
+      const response = await rawSignUp("Outsider@Other.COM");
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+         code: "SIGNUP_INVITE_REQUIRED",
+         message:
+            "Sign-ups are limited to @acme.com and @acme.dev addresses, or to invited addresses.",
+      });
+      expect(db.user).toHaveLength(0);
+      await settled();
+      expect(events).toEqual([
+         { action: "auth.sign_up_refused", target: "outsider@other.com" },
+      ]);
+   });
+
+   it("accepts a listed domain", async () => {
+      policy.mode = "domains";
+      policy.allowedEmailDomains = ["acme.com"];
+      const { db, rawSignUp } = createTestAuth();
+      expect((await rawSignUp("worker@acme.com")).status).toBe(200);
+      expect(db.user).toHaveLength(1);
+   });
+
+   // an admin can invite any address; refusing it at sign-up would leave the
+   // invitation unacceptable, because accepting one needs an account
+   it("accepts an off-domain address that holds a live invitation", async () => {
+      policy.mode = "domains";
+      policy.allowedEmailDomains = ["acme.com"];
+      invitedAddresses.add("guest@other.com");
+      const { db, rawSignUp } = createTestAuth();
+      expect((await rawSignUp("Guest@Other.com")).status).toBe(200);
+      expect(db.user).toHaveLength(1);
+   });
+
+   it("refuses an uninvited address in `invite` mode and accepts an invited one", async () => {
+      policy.mode = "invite";
+      invitedAddresses.add("invited@example.com");
+      const { db, rawSignUp } = createTestAuth();
+      const refused = await rawSignUp("stranger@example.com");
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toMatchObject({
+         code: "SIGNUP_INVITE_REQUIRED",
+         message:
+            "Sign-ups are by invitation. Use the address your invitation was sent to.",
+      });
+      expect((await rawSignUp("Invited@Example.com")).status).toBe(200);
+      expect(db.user).toHaveLength(1);
+   });
+
+   // `closed` means closed: an invitation cannot reopen the instance
+   it("ignores an invitation when the instance is closed", async () => {
+      policy.mode = "closed";
+      invitedAddresses.add("invited@example.com");
+      const { db, rawSignUp } = createTestAuth();
+      const response = await rawSignUp("invited@example.com");
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({ code: "SIGNUP_DISABLED" });
+      expect(db.user).toHaveLength(0);
+   });
+
+   // disableSignUp closes better auth's own endpoint; the database hook is the
+   // backstop for any other path that would create a user row
+   it("still refuses a user row when only the database hook is reached", async () => {
+      policy.mode = "closed";
+      const { auth, db } = createTestAuth();
+      const context = await auth.$context;
+      await expect(
+         context.internalAdapter.createUser(
+            {
+               email: "backdoor@example.com",
+               name: "Backdoor",
+               emailVerified: false,
+            },
+            { method: "email" }
+         )
+      ).rejects.toMatchObject({ body: { code: "SIGNUP_DISABLED" } });
+      expect(db.user).toHaveLength(0);
+   });
+});
+
+describe("auth audit events", () => {
+   it("records a sign-up, a sign-in, a failed sign-in and a sign-out", async () => {
+      const { auth, post, rawSignUp } = createTestAuth();
+      const events = collectAuthEvents();
+      const created = await rawSignUp("events@example.com");
+      const cookie = created.headers
+         .getSetCookie()
+         .map((value) => value.split(";")[0])
+         .join("; ");
+      const { user } = await created.json();
+      expect(
+         (
+            await auth.api.signInEmail({
+               body: { email: user.email, password: PASSWORD },
+               asResponse: true,
+            })
+         ).status
+      ).toBe(200);
+      expect(
+         (
+            await post("/sign-in/email", "", {
+               email: " Events@Example.com ",
+               password: "not-the-password",
+            })
+         ).status
+      ).toBe(400);
+      expect((await post("/sign-out", cookie, {})).status).toBe(200);
+      await settled();
+      expect(events).toEqual([
+         {
+            action: "auth.sign_up",
+            actorId: user.id,
+            target: "events@example.com",
+         },
+         { action: "auth.sign_in", actorId: user.id, target: "password" },
+         {
+            action: "auth.sign_in_failed",
+            actorId: user.id,
+            target: "password",
+         },
+         { action: "auth.sign_out", actorId: user.id, target: null },
+      ]);
+   });
+
+   // a raw address in `target` would be unreadable pii: nothing can show a row
+   // for an account that does not exist, so nothing is written for one
+   it("writes nothing for a failed sign-in against an unknown address", async () => {
+      const { post } = createTestAuth();
+      const events = collectAuthEvents();
+      expect(
+         (
+            await post("/sign-in/email", "", {
+               email: "nobody@example.com",
+               password: "not-the-password",
+            })
+         ).status
+      ).toBe(401);
+      await settled();
+      expect(events).toEqual([]);
+   });
+
+   it("records a password change and a session revocation", async () => {
+      const { post, signUp } = createTestAuth();
+      const { cookie, user } = await signUp("events-session@example.com");
+      const events = collectAuthEvents();
+      expect(
+         (
+            await post("/change-password", cookie, {
+               currentPassword: PASSWORD,
+               newPassword: "another-unique-password-2026",
+            })
+         ).status
+      ).toBe(200);
+      expect((await post("/revoke-other-sessions", cookie, {})).status).toBe(
+         200
+      );
+      await settled();
+      expect(events).toEqual([
+         { action: "auth.password_change", actorId: user.id, target: null },
+         { action: "auth.sessions_revoked", actorId: user.id, target: null },
+      ]);
+   });
+
+   it("never fails an auth request because the audit handler threw", async () => {
+      const { post, signUp } = createTestAuth();
+      const { cookie } = await signUp("events-throw@example.com");
+      onAuthEvent(async () => {
+         throw new Error("audit store is down");
+      });
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      expect((await post("/sign-out", cookie, {})).status).toBe(200);
+      await settled();
+   });
+});
+
+describe("password-confirmed deletion", () => {
+   it("refuses a wrong password and deletes on the right one", async () => {
+      const { db, post, signUp } = createTestAuth();
+      const beforeDelete = vi.fn(async () => {});
+      onUserDeletion({ beforeDelete, afterDelete: async () => {} });
+      const { cookie, user } = await signUp("delete-password@example.com");
+      const confirmation = {
+         expectedUserId: user.id,
+         confirmedEmail: user.email,
+      };
+      const wrong = await post("/delete-user", cookie, {
+         ...confirmation,
+         password: "not-the-password",
+      });
+      expect(wrong.status).toBe(400);
+      expect(await wrong.json()).toMatchObject({ code: "INVALID_PASSWORD" });
+      expect(beforeDelete).not.toHaveBeenCalled();
+      expect(db.user).toHaveLength(1);
+      expect(
+         (
+            await post("/delete-user", cookie, {
+               ...confirmation,
+               password: PASSWORD,
+            })
+         ).status
+      ).toBe(200);
+      expect(db.user).toHaveLength(0);
+   });
+
+   it("sends an account with no password to set one first", async () => {
+      const { auth, db, post, signUp } = createTestAuth();
+      const beforeDelete = vi.fn(async () => {});
+      onUserDeletion({ beforeDelete, afterDelete: async () => {} });
+      const { cookie, user } = await signUp("delete-oauth@example.com");
+      const context = await auth.$context;
+      const credential = db.account!.find(
+         (row) => row.providerId === "credential"
+      )!;
+      await context.internalAdapter.deleteAccount(credential.id);
+      const response = await post("/delete-user", cookie, {
+         expectedUserId: user.id,
+         confirmedEmail: user.email,
+         password: PASSWORD,
+      });
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+         code: "PASSWORD_NOT_SET",
+      });
+      expect(beforeDelete).not.toHaveBeenCalled();
+      expect(db.user).toHaveLength(1);
+   });
+});
+
+describe("hashed verification identifiers", () => {
+   it("still completes a password reset, and never stores the raw token", async () => {
+      let resetUrl = "";
+      const db: Parameters<typeof memoryAdapter>[0] = {
+         user: [],
+         session: [],
+         account: [],
+         verification: [],
+      };
+      const auth = betterAuth({
+         ...configured.options,
+         database: memoryAdapter(db),
+         emailVerification: {
+            ...configured.options.emailVerification,
+            sendVerificationEmail: async () => {},
+         },
+         emailAndPassword: {
+            ...configured.options.emailAndPassword,
+            enabled: true,
+            sendResetPassword: async ({ url }) => {
+               resetUrl = url;
+            },
+         },
+      });
+      await auth.api.signUpEmail({
+         body: {
+            email: "reset-hashed@example.com",
+            password: PASSWORD,
+            name: "Reset",
+         },
+      });
+      const events = collectAuthEvents();
+      await auth.api.requestPasswordReset({
+         body: {
+            email: "reset-hashed@example.com",
+            redirectTo: "http://localhost:3000/reset-password",
+         },
+      });
+      const token = new URL(resetUrl).pathname.split("/").at(-1)!;
+      expect(
+         db.verification!.some((row) => row.identifier.includes(token))
+      ).toBe(false);
+      await auth.api.resetPassword({
+         body: { token, newPassword: "a-brand-new-password-2026" },
+      });
+      expect(
+         (
+            await auth.api.signInEmail({
+               body: {
+                  email: "reset-hashed@example.com",
+                  password: "a-brand-new-password-2026",
+               },
+               asResponse: true,
+            })
+         ).status
+      ).toBe(200);
+      await settled();
+      expect(events.map((entry) => entry.action)).toContain(
+         "auth.password_reset"
+      );
+   });
+});
+
+describe("github provider", () => {
+   const PROFILE = {
+      id: 42,
+      login: "octocat",
+      name: "Octo Cat",
+      email: "octo@example.com",
+      avatar_url: "https://avatars.example/octo.png",
+   };
+
+   // the provider reads api.github.com through better-fetch, which uses the
+   // global fetch: stubbing it exercises the real composition of `verified`
+   // and mapProfileToUser instead of asserting the option in isolation
+   const stubGithubApi = (emails: { email: string; verified: boolean }[]) =>
+      vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+         const url = String(input instanceof Request ? input.url : input);
+         const body = url.endsWith("/user/emails")
+            ? emails.map((entry) => ({ ...entry, primary: true }))
+            : PROFILE;
+         return new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+         });
+      });
+
+   const githubProvider = async () => {
+      const { auth } = createTestAuth();
+      const context = await auth.$context;
+      const provider = context.socialProviders.find(
+         (candidate) => candidate.id === "github"
+      );
+      expect(provider).toBeDefined();
+      return provider!;
+   };
+
+   it("keeps github's own verified flag instead of forcing it true", async () => {
+      stubGithubApi([{ email: PROFILE.email, verified: false }]);
+      const provider = await githubProvider();
+      const info = await provider.getUserInfo!({ accessToken: "token" });
+      expect(info?.user.emailVerified).toBe(false);
+      // the avatar is the one thing the map still overrides
+      expect(info?.user.image).toBeUndefined();
+   });
+
+   it("passes a github-verified address through as verified", async () => {
+      stubGithubApi([{ email: PROFILE.email, verified: true }]);
+      const provider = await githubProvider();
+      const info = await provider.getUserInfo!({ accessToken: "token" });
+      expect(info?.user.emailVerified).toBe(true);
+   });
+
+   // github.mjs spreads the map after its own `verified` lookup, so any
+   // emailVerified here would silently replace the provider's answer
+   it("maps nothing but the avatar", async () => {
+      // the map takes no profile argument any more, which is the point: there
+      // is nothing left in it that could depend on what github sent
+      const map = configured.options.socialProviders?.github?.mapProfileToUser;
+      const mapped = await map?.();
+      expect(mapped).toEqual({ image: undefined });
+      expect(Object.hasOwn(mapped ?? {}, "emailVerified")).toBe(false);
+   });
+
+   // trusting a provider skips link-account.mjs:83's check that the provider
+   // itself called the address verified, which is the takeover path
+   it("trusts no provider for account linking", () => {
+      expect(configured.options.account?.accountLinking).toEqual({
+         enabled: true,
+         requireLocalEmailVerified: true,
+      });
+   });
+
+   it("leaves the provider open outside `closed` mode", () => {
+      expect(configured.options.socialProviders?.github?.disableSignUp).toBe(
+         false
+      );
    });
 });

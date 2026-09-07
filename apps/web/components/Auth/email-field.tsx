@@ -5,11 +5,18 @@ import { Label } from "@s3-viewer/ui/components/label";
 type EmailFieldProps = {
    value: string;
    error: string | null;
+   hint?: string;
    disabled: boolean;
    onChange: (value: string) => void;
 };
 
-const EmailField = ({ value, error, disabled, onChange }: EmailFieldProps) => (
+const EmailField = ({
+   value,
+   error,
+   hint,
+   disabled,
+   onChange,
+}: EmailFieldProps) => (
    <div className="flex flex-col gap-1.5">
       <Label htmlFor="email">Email</Label>
       <Input
@@ -27,7 +34,7 @@ const EmailField = ({ value, error, disabled, onChange }: EmailFieldProps) => (
          aria-describedby="email-message"
          onChange={(event) => onChange(event.target.value)}
       />
-      <FieldMessage id="email-message" error={error} reserve />
+      <FieldMessage id="email-message" error={error} hint={hint} reserve />
    </div>
 );
 

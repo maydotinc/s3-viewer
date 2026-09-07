@@ -101,8 +101,21 @@ the web app, the landing site and the shared packages. Keep it current.
 /auth/sign-up/email` additionally 10/hour per IP counting only 2xx
   (`skipFailedRequests`, so the login page's sign-up fallback for a wrong
   password does not spend it); `establish`,
-  `validate-buckets` and `PATCH …/credentials` 30/min per user. `TRUST_PROXY` env (default `loopback`)
-  feeds `app.set("trust proxy", …)`.
+  `validate-buckets` and `PATCH …/credentials` 30/min per user (`connectLimit`);
+  `POST …/objects/exists` 60/min per user (`existsLimit`, since one call can
+  fan out into hundreds of upstream HEADs). `TRUST_PROXY` env (default `loopback`)
+  feeds `app.set("trust proxy", …)`. `RATE_LIMIT_STORE` (`memory` default |
+  `postgres`, `lib/env.ts`) moves the security-relevant limiters —
+  `authRouteLimit`, `signUpLimit`, `connectLimit`, `inviteLimit` and
+  `existsLimit`, each with its own store instance and key prefix
+  (`lib/middleware/rate-limit-store.ts`, backed by `@s3-viewer/db/rate-limit`)
+  — into Postgres, so every API replica shares one budget instead of each
+  keeping its own; `globalIpLimit`, `bucketIpLimit` and `userLimit` always
+  stay in memory on purpose, since a database write before auth on every
+  request would amplify a flood rather than absorb it. With `postgres` and
+  the database unreachable, the shared limiters fail closed (429) rather than
+  passing traffic through unlimited. A background sweep (`lib/maintenance.ts`,
+  hourly, run once at boot) clears their expired rows.
 - Parsers: auth routes first consume a bounded text body (64 KiB, all content
   types, including chunked requests) before Better Auth's adapter parses it;
   compressed auth bodies are rejected (415), oversized bodies return 413.
@@ -116,10 +129,18 @@ the web app, the landing site and the shared packages. Keep it current.
   preflight (cors default), which covers the upload's `Content-Type`.
 - S3 clients are cached per server (`lib/s3/client-cache.ts`, TTL 10 min, at
   most 500 entries, keep-alive agents shared by every client with explicit
-  caps — 50 sockets per host, 500 in total, 64 idle, 60 s socket idle
-  timeout — because an agent instance handed to the SDK replaces its own
-  50-socket default; connect/request timeouts 5s/30s, `maxAttempts: 2`),
-  invalidated on server delete and credential update. Every lookup reads the
+  caps — `S3_MAX_SOCKETS_PER_HOST` per host (100), `S3_MAX_TOTAL_SOCKETS` in
+  total (1000), 64 idle, 60 s socket idle timeout — because an agent instance
+  handed to the SDK replaces its own 50-socket default; connect/request
+  timeouts 5s/30s, `maxAttempts: 2`), invalidated on server delete and
+  credential update. Each cached client (and every regional client built from
+  it in `lib/s3/bucket-client.ts`) also carries a per-server upstream budget:
+  `withRequestBudget` (`lib/s3/request-budget.ts`) adds an SDK middleware that
+  counts `client.send` calls per server in a rolling 60 s in-memory window and,
+  past `S3_REQUESTS_PER_MINUTE` (default 12000, per server **per API process**),
+  throws a 429 `RATE_LIMITED` before the request leaves the process. Clients
+  from `getS3ClientFromCredentials` (connect/validate-buckets/credential
+  probes) are exempt. Every lookup reads the
   current encrypted credentials and provider from PostgreSQL before reusing
   a client, so other API workers observe credential updates and server deletion.
   A database failure never falls back to a cached client. Cache fills recheck
@@ -215,7 +236,12 @@ the web app, the landing site and the shared packages. Keep it current.
   `Retry-After: 5`, and a reservation larger than the entire budget returns 413. The configured base part size must fit or startup fails. This budget
   covers upload buffers, not total process memory.
   `server.requestTimeout = 0` permits long active uploads;
-  `headersTimeout = 60 s` and socket inactivity deadlines bound stalls.
+  `keepAliveTimeout` (`KEEP_ALIVE_TIMEOUT_MS`, default 65 000 ms — set it
+  above any load balancer's own idle timeout, or the balancer reuses a
+  keep-alive socket Node has just closed) and `headersTimeout`
+  (`KEEP_ALIVE_TIMEOUT_MS + 5_000`; Node ignores `headersTimeout` unless it is
+  strictly greater than `keepAliveTimeout`) bound the connection phases, and
+  socket inactivity deadlines bound stalls.
   Auth and pre-handler requests have a two-minute socket deadline; upload
   handlers use a streaming watchdog with `UPLOAD_IDLE_TIMEOUT_MS` (120000),
   returning 408 on an input stall when the connection is still writable.
@@ -273,6 +299,7 @@ the limiter so a health check never spends it.
 
 ```
 POST   /account/password                 { password }         → 204 (sets a first password on the signed-in account)
+GET    /account/audit?cursor&limit                            → AuditLogPage (the caller's own `auth.*`/`account.*` rows, actorId = me; same shape and pagination as the server audit route below)
 GET    /servers                                               → { servers: ServerInfo[] }
 POST   /servers/establish                establishSchema      → { listBucketsAllowed, bucketCount, provider }
 POST   /servers/validate-buckets         validateBucketsSchema→ { results: [{ bucketName, accessible }] } (≤ MAX_VALIDATE_BUCKETS = 20 per call, the web chunks; a host that can't be reached fails the call 502 instead of marking every bucket inaccessible)
@@ -282,6 +309,7 @@ PATCH  /servers/:serverId/credentials    updateCredentialsSchema (UPDATE_CREDENT
 DELETE /servers/:serverId                (OWNER)              → 204
 POST   /servers/:serverId/leave          (non-owner)          → 204
 GET    /servers/:serverId/members        (MANAGE_MEMBERS)     → { members: ServerUser[] }
+GET    /servers/:serverId/audit?cursor&limit (MANAGE_MEMBERS) → AuditLogPage `{ entries: AuditLogEntry[], nextCursor }` (newest first, keyset-paginated on `[serverId, createdAt]` with the row id as tiebreaker; opaque base64url cursor of `createdAt|id`, 400 on a malformed one; `limit` 1–100, default 50; `actorEmail`/`actorName` resolved from the user table, `null` once the account is gone)
 PATCH  /servers/:serverId/members/:userId updateRoleSchema    → { member: ServerUser }
 DELETE /servers/:serverId/members/:userId removeMemberSchema  → 204
 GET    /servers/:serverId/invites        (MANAGE_MEMBERS, unexpired) → { invites: ServerInvite[] }
@@ -341,6 +369,31 @@ don't run through `emailSchema`). Invite and membership lookups compare
 emails with plain equality, never `mode: "insensitive"`, so they use the
 `@@index([email])` index instead of a sequential scan.
 
+One `auditLog` row is written per action in `AuditAction` (`@s3-viewer/types`):
+server/credential/membership/invite changes and bucket/object deletion or
+rename, plus the auth actions below. `recordAudit` (`lib/services/audit.ts`)
+never throws — a failed write is logged, not surfaced to the caller.
+`GET /servers/:serverId/audit` and `GET /account/audit` share one keyset-paginated
+reader, `listAuditPage({ where, cursor, limit })`, differing only in their
+`where` (a server id for the first, `actorId = me` for the second, over the
+same `[actorId, createdAt]` index); `auditQuerySchema` is
+`serverScope.merge(auditPageSchema)`, with `auditPageSchema` (cursor + limit)
+reused by both routes. `AuditLog` also carries a bare `@@index([createdAt])`
+for the prune below, which filters on age alone across every server. Rows are
+kept forever by default; `AUDIT_RETENTION_DAYS` (0, `lib/env.ts`) past 0
+prunes rows older than that many days, deleted in bounded batches of 5000
+with a pause between them rather than one long-locking statement, so turning
+on retention against an old, large backlog doesn't stall other writers.
+`startMaintenance()` (`lib/maintenance.ts`, called from `server.ts` after
+`listen`) runs the prune and `sweepRateLimits()` once at boot and then hourly
+on an `.unref()`ed timer, logging one info line with both totals; every
+replica runs it, and the deletes are idempotent.
+`POST /account/password` (setPassword) records `auth.password_set`; every
+other auth action is emitted by `@s3-viewer/auth`'s `onAuthEvent`, registered
+once as `onAuthEvent(recordAudit)` in `server.ts` (see "Auth" below for the
+full list). Deleting an account rewrites, rather than deletes, the audit rows
+that named the departed user (see "Account deletion").
+
 ```
 
 GET    /servers/:serverId/buckets                             → { buckets: S3Bucket[] }
@@ -348,7 +401,7 @@ POST   /servers/:serverId/buckets        { bucketName }       → { bucket: S3Bu
 DELETE /servers/:serverId/buckets/:bucketName (DELETE_BUCKET; removes from server, DB only) → 204
 GET    /servers/:serverId/buckets/:bucketName/objects?prefix&continuationToken&blockSize → S3ObjectListPage
 GET    …/objects/metadata?objectKey                           → S3ObjectMetadata
-POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing, eTags }` (≤ 1000 keys; listings first, then ≤ MAX_EXISTS_HEADS = 200 HEADs at 16 in flight; keys past that cap read as existing without an ETag and cannot authorize replacement; one AbortSignal per request, see Limits)
+POST   …/objects/exists                  { objectKeys[] }     → S3ObjectsExist `{ existing, eTags }` (UPLOAD_OBJECT, not the broader LIST_OBJECTS every other route on this router takes — only the upload flow calls it; existsLimit; ≤ 1000 keys; listings first, then ≤ MAX_EXISTS_HEADS = 200 HEADs at 16 in flight; keys past that cap read as existing without an ETag and cannot authorize replacement; one AbortSignal per request, see Limits)
 GET    …/objects/download-url?objectKey                       → S3PresignedUrl
 GET    …/objects/preview-url?objectKey                        → S3ObjectPreview (content type from HeadObject)
 PUT    …/objects/v3/upload?expectedUserId&objectKey&contentType&expectedETag?   raw body (streamed)  → 201 S3ObjectUploaded `{ key, size, eTag }` (409 on upload conflict; 413 over MAX_UPLOAD_BYTES/object limit)
@@ -467,6 +520,37 @@ which is exact for listings up to 1000 entries and per-block above that.
   no magic links; email carries exactly two links, both `AuthLinkEmail`
   (`packages/ui/src/emails/auth-link.tsx`), both valid `AUTH_LINK_TTL_HOURS`
   (1).
+- Sign-up policy: `SIGNUP_MODE` (`open` default | `domains` | `invite` |
+  `closed`, `packages/auth/lib/env.ts`) with `ALLOWED_EMAIL_DOMAINS`
+  (comma/whitespace separated, leading `@` stripped, lowercased, deduped); an
+  unset mode infers `domains` when the list is non-empty, `domains` with an
+  empty list is a boot error, and `invite` needs no list. Who may create an
+  account: `open` — anyone; `domains` — a listed domain **or** any address
+  holding a live (unexpired) pending invitation; `invite` — a live pending
+  invitation only; `closed` — nobody, invitation or not (every invite-accept
+  path needs a signed-in user, so `closed` would otherwise dangle an invite
+  its recipient could never accept). Better Auth's own `disableSignUp`
+  (`emailAndPassword` and the GitHub provider) is set only for `closed`;
+  `domains`/`invite` are enforced solely in the `databaseHooks.user.create.before`
+  hook (`assertSignUpAllowed`, `packages/auth/lib/sign-up-policy.ts`, which
+  restates the same live-invite predicate `lib/services/invites.ts` uses,
+  since `packages/auth` cannot import the API app), the one place every user
+  row goes through regardless of provider. Refusals throw `APIError("FORBIDDEN",
+{ code: "SIGNUP_DISABLED" | "SIGNUP_INVITE_REQUIRED" })` with the
+  user-facing message, and always emit `auth.sign_up_refused` (target = the
+  normalized address); existing accounts are never affected, since the policy
+  gates creation only. `GET /config` (`PublicConfig`) reports `signUpMode` and
+  `allowedEmailDomains`; the web hides sign-up copy and passes
+  `allowSignUp: false` to `continueWithPassword` only in `closed` mode (`invite`
+  keeps the sign-up form, since an invited person still has to create an
+  account, and shows the invitation notice instead) — a wrong password then
+  stays a wrong password instead of falling through to sign-up. The client
+  never pre-refuses an address before submitting: an invitation is invisible
+  to the browser, so the server owns every refusal, including in `domains`
+  mode where the hint under the email field now reads "…, or to invited
+  addresses." `/login` never applies this policy, only `/signup`, so an
+  existing account whose domain was later removed from the list is not locked
+  out.
 - Password flow: `emailAndPassword` with `PASSWORD_MIN_LENGTH` (8) /
   `PASSWORD_MAX_LENGTH` (128) from `@s3-viewer/types` (`passwordSchema`),
   `requireEmailVerification: false`, `revokeSessionsOnPasswordReset: true`.
@@ -489,7 +573,11 @@ which is exact for listings up to 1000 entries and per-block above that.
   can reset the account's password) and invites (sending, listing and
   accepting, because they are matched by address). The web checks
   `session.user.emailVerified` first and shows `UnverifiedCallout` instead
-  of the form.
+  of the form. `verification: { storeIdentifier: "hashed" }` stores every
+  verification/reset/delete-account token as its SHA-256, applied
+  symmetrically on write and read, so a leaked database dump cannot be used
+  to mint a valid link; upgrading onto this invalidates every such link
+  issued beforehand (nothing to migrate — the stale rows simply expire).
 - Reset: `/request-password-reset` with `redirectTo = /reset-password`
   (throttled per address, always 200); Better Auth's `/auth/reset-password/:token`
   callback lands on `/reset-password?token=…` (or `?error=INVALID_TOKEN`);
@@ -508,7 +596,20 @@ email failed`) and never fails the request that caused it: the account
 - GitHub OAuth is optional: `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are
   set together or not at all (a boot error otherwise), and that is the only
   switch — the web shows the button when `GET /config` reports
-  `githubLoginEnabled`.
+  `githubLoginEnabled`. `emailVerified` on a GitHub sign-in is whatever GitHub
+  itself reports for that address (`@better-auth/core`'s `github.mjs`
+  computes it from `/user/emails`); `mapProfileToUser: () => ({ image:
+undefined })` only drops the avatar GitHub offers, it does not touch
+  verification. An address GitHub reports unverified is therefore neither
+  linked into an existing account nor marked verified — it creates its own
+  unverified row, gets a verification email, and shows the same
+  "unverified" callout a fresh password sign-up would. `account.accountLinking`
+  is `{ enabled: true, requireLocalEmailVerified: true }` (no
+  `trustedProviders`): an unverified local password account can never be
+  silently linked to a GitHub sign-in for the same address, and neither can
+  a GitHub address GitHub itself has not verified, so on an
+  `EMAIL_TRANSPORT=none` instance an account can never be linked to GitHub by
+  address alone — nothing can verify either side.
 - Email is optional too. `EMAIL_TRANSPORT` is `none` | `resend` | `smtp`;
   unset it is inferred (`resend` if `RESEND_KEY` is set, else `smtp` if
   `SMTP_URL` is set, else `none`), and naming one explicitly without its
@@ -548,8 +649,15 @@ email failed`) and never fails the request that caused it: the account
   column no longer exists to null) plus a migration removing it from
   `session`.
 - Account deletion: `user.deleteUser` is enabled (`POST /auth/delete-user`) and
-  requires `{ expectedUserId, confirmedEmail }` checked against the current
-  database session in the shared auth hook, including direct HTTP calls.
+  requires `{ expectedUserId, confirmedEmail, password }` (`deleteAccountSchema`)
+  checked against the current database session in the shared auth hook,
+  including direct HTTP calls. An account with no credential row (GitHub-only)
+  fails with `400` `PASSWORD_NOT_SET` ("Set a password in Settings before
+  deleting your account.") before Better Auth gets a chance to verify one; a
+  wrong password fails `400` `INVALID_PASSWORD`. This closes the gap where a
+  stolen, still-logged-in session could delete the account outright. The
+  delete dialog has a password field and, for a GitHub-only account, a "Set a
+  password first" state linking to the profile page instead of the form.
   `/delete-user/callback` and token-based deletion are disabled. Passwords do not
   bypass the confirmation or freshness requirements. `GET /account/summary`
   includes `user: { id, email }`; the dialog captures this identity and summary,
@@ -586,6 +694,32 @@ afterDelete })` and forwards Better Auth's `deleteUser` hooks to whatever is
   uploads; it clears the react-query cache after the auth request succeeds.
   Account changes and confirmed session expiry also discard queued files.
   Failed sign-out can restore the valid session selection, never old uploads.
+- Auth audit events: `@s3-viewer/auth` exports `onAuthEvent((entry: AuditEntry)
+=> Promise<void>): void`, registered once from `server.ts` as
+  `onAuthEvent(recordAudit)`; a handler failure is caught and logged, never
+  failing the auth request. Emitted rows (`serverId` always null):
+  `auth.sign_up` (actorId = new user, target = email),
+  `auth.sign_up_refused` (no actor, target = email),
+  `auth.sign_in` (actorId, target `"password"` or `"github"`),
+  `auth.sign_in_failed` (actorId of the existing account the attempt named,
+  target `"password"`; a failed attempt against an address with **no**
+  account writes nothing at all — the attempted address is never persisted,
+  since there would be no reader who could resolve it back to a person),
+  `auth.sign_out`, `auth.password_change`, `auth.password_reset` and
+  `auth.sessions_revoked` (actorId, no target). `auth.password_set` is the one
+  exception, recorded by `POST /account/password` in the API itself rather
+  than through this hook. Settings → Profile has a Sessions card
+  (`authClient.listSessions/revokeSession/revokeOtherSessions`, the raw
+  Better Auth client — no auth-package change needed), which is what drives
+  `auth.sessions_revoked`, listing every session newest-first with a
+  "This device" badge on the current one, a per-row "Sign out", and a
+  card-level "Sign out everywhere else"; and, after it, a Security activity
+  card reading `GET /account/audit` 20 rows at a time (`useSecurityActivity`),
+  showing the caller's own `auth.*` plus `account.verify` rows (server-scoped
+  actions stay in the Share dialog's Activity tab) with relative times and
+  the sign-in method, and a "Show more" button while `nextCursor` is set. Both
+  cards reuse the `ACTION_LABELS` human-label map from
+  `apps/web/components/Share/activity.tsx`.
 
 ### `/auth/*` routes
 
@@ -695,7 +829,7 @@ Every how-to has a slug in three places: `HOW_TOS` in
 (the proxy and sitemap). A guide missing from the last one 404s in production.
 
 Only describe what ships (see routes and web notes). No
-cross-provider copy, no version browsing, no bulk download, no audit log,
+cross-provider copy, no version browsing, no bulk download,
 no side-by-side. Rename is unavailable. Object deletion supports AWS with atomic
 ETag conditions and R2 with a stale-object check followed by ordinary key deletion;
 the latter can remove a concurrent replacement and must not be called atomic.

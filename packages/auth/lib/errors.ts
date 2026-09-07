@@ -8,6 +8,10 @@ type AuthClientError = {
 
 const TOO_MANY_ATTEMPTS = "Too many attempts. Try again in a few minutes.";
 const EXISTS = "An account with this email already exists. Sign in instead.";
+const SIGN_UPS_CLOSED =
+   "Sign-ups are disabled on this instance. Ask an administrator for access.";
+const SIGN_UPS_BY_INVITE =
+   "Sign-ups are by invitation. Use the address your invitation was sent to.";
 
 // better auth error codes the ui gives its own words to; anything else falls
 // back to the generic message so an internal detail never reaches the screen
@@ -27,9 +31,19 @@ const MESSAGES: Readonly<Record<string, string>> = {
       "Your account changed. Reopen the deletion dialog and confirm again.",
    ACCOUNT_CONFIRMATION_REQUIRED:
       "Confirm your account email before deleting your account.",
+   EMAIL_PASSWORD_SIGN_UP_DISABLED: SIGN_UPS_CLOSED,
+   PASSWORD_NOT_SET: "Set a password in Settings before deleting your account.",
 };
 
+// the sign-up policy's refusals name this instance's own domains, so the
+// server's wording is the only accurate one; every other code keeps using the
+// table above so an internal detail never reaches the screen
+const SERVER_WORDED = new Set(["SIGNUP_DISABLED", "SIGNUP_INVITE_REQUIRED"]);
+
 const authErrorMessage = (error: AuthClientError): string => {
+   if (error.code && SERVER_WORDED.has(error.code) && error.message) {
+      return error.message;
+   }
    if (error.code && Object.hasOwn(MESSAGES, error.code)) {
       return MESSAGES[error.code] ?? GENERIC_ERROR_MESSAGE;
    }
@@ -37,5 +51,5 @@ const authErrorMessage = (error: AuthClientError): string => {
    return GENERIC_ERROR_MESSAGE;
 };
 
-export { authErrorMessage };
+export { authErrorMessage, SIGN_UPS_BY_INVITE, SIGN_UPS_CLOSED };
 export type { AuthClientError };

@@ -4,6 +4,7 @@ import {
    encodeCopySource,
    inlineContentType,
    inlineDisposition,
+   keyHash,
 } from "./keys";
 
 describe("encodeCopySource", () => {
@@ -90,5 +91,14 @@ describe("contentDispositionFilename", () => {
       expect(contentDispositionFilename("folder/")).toBe(
          `attachment; filename="folder"; filename*=UTF-8''folder`
       );
+   });
+});
+
+describe("keyHash", () => {
+   it("is a stable 16 hex digest that reveals nothing about the key", () => {
+      const hash = keyHash("invoices/2026/acme-contract.pdf");
+      expect(hash).toMatch(/^[0-9a-f]{16}$/);
+      expect(hash).toBe(keyHash("invoices/2026/acme-contract.pdf"));
+      expect(hash).not.toBe(keyHash("invoices/2026/acme-contract.pdg"));
    });
 });

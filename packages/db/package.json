@@ -5,7 +5,8 @@
    "license": "MIT",
    "type": "module",
    "exports": {
-      ".": "./src/client.ts"
+      ".": "./src/client.ts",
+      "./rate-limit": "./src/rate-limit.ts"
    },
    "scripts": {
       "db:generate": "pnpm exec prisma generate --schema=prisma/schema.prisma",

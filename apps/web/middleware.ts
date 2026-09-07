@@ -1,4 +1,4 @@
-import { contentSecurityPolicy } from "@/lib/csp";
+import { NONCE_HEADER, contentSecurityPolicy } from "@/lib/csp";
 import { landingOrigin } from "@/lib/env";
 import { LANDING_ROUTES, LEGACY_REDIRECTS } from "@/lib/site-config";
 import { NextRequest, NextResponse } from "next/server";
@@ -17,42 +17,84 @@ const isLandingPath = (pathname: string) =>
    pathname.startsWith("/landing/") ||
    LANDING_SECTIONS.some((route) => pathname.startsWith(`${route}/`));
 
-const withPolicy = (response: NextResponse): NextResponse => {
-   response.headers.set("Content-Security-Policy", contentSecurityPolicy());
-   return response;
+const newNonce = (): string => btoa(crypto.randomUUID());
+
+// `set`, never `append`: a client that sends its own `x-nonce` must not get a
+// say in what `_document` stamps on the scripts it emits.
+const withNonce = (request: NextRequest, nonce: string) => {
+   const headers = new Headers(request.headers);
+   headers.set(NONCE_HEADER, nonce);
+   return { request: { headers } };
 };
 
-const route = (request: NextRequest): NextResponse => {
+// the landing app renders marketing pages signed out; it has no session to
+// read and no endpoint to act on one. Forwarding the viewer's cookies (or a
+// bearer token) to it would hand credentials to a service that never needs
+// them, and to whatever cache sits in front of it.
+const withoutCredentials = (request: NextRequest) => {
+   const headers = new Headers(request.headers);
+   headers.delete("cookie");
+   headers.delete("authorization");
+   return { request: { headers } };
+};
+
+// a response rendered by the landing app cannot carry this request's nonce, so
+// its policy keeps the host allowlist instead
+type Routed = { response: NextResponse; landing: boolean };
+
+const route = (request: NextRequest, nonce: string): Routed => {
    const { pathname, search } = request.nextUrl;
 
+   const proxy = (url: URL): Routed => ({
+      response: NextResponse.rewrite(url, withoutCredentials(request)),
+      landing: true,
+   });
+   const own = (response: NextResponse): Routed => ({
+      response,
+      landing: false,
+   });
+
    if (landingOrigin && pathname.startsWith(LANDING_ASSETS)) {
-      return NextResponse.rewrite(new URL(pathname + search, landingOrigin));
+      return proxy(new URL(pathname + search, landingOrigin));
    }
 
    if (pathname === "/sitemap.xml") {
-      return NextResponse.rewrite(new URL("/api/sitemap", request.url));
+      return own(
+         NextResponse.rewrite(
+            new URL("/api/sitemap", request.url),
+            withNonce(request, nonce)
+         )
+      );
    }
 
    // llms.txt describes the marketing pages, so the copy lives with them
    if (landingOrigin && pathname === "/llms.txt") {
-      return NextResponse.rewrite(new URL("/api/llms", landingOrigin));
+      return proxy(new URL("/api/llms", landingOrigin));
    }
 
    const redirect = LEGACY_REDIRECTS[pathname];
    if (redirect) {
-      return NextResponse.redirect(new URL(redirect, request.url), 301);
+      return own(NextResponse.redirect(new URL(redirect, request.url), 301));
    }
 
    if (landingOrigin && isLandingPath(pathname)) {
-      return NextResponse.rewrite(new URL(pathname + search, landingOrigin));
+      return proxy(new URL(pathname + search, landingOrigin));
    }
 
-   return NextResponse.next();
+   return own(NextResponse.next(withNonce(request, nonce)));
 };
 
 // The policy goes on every response rather than on each branch: a rewrite or a
 // redirect that returned it on its own is exactly how one loses the header.
-const middleware = (request: NextRequest) => withPolicy(route(request));
+const middleware = (request: NextRequest): NextResponse => {
+   const nonce = newNonce();
+   const { response, landing } = route(request, nonce);
+   response.headers.set(
+      "Content-Security-Policy",
+      contentSecurityPolicy(landing ? {} : { nonce })
+   );
+   return response;
+};
 
 // everything but the fingerprinted build output: narrowing this further is how
 // api routes, 404s and error pages ship without a policy

@@ -4,6 +4,7 @@ import { signInWithGithub } from "@/lib/auth";
 import { afterLoginPath } from "@/lib/auth-redirect";
 import useInstanceConfig, {
    emailState,
+   signUpPolicyState,
 } from "@/lib/hooks/queries/useInstanceConfig";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -25,6 +26,11 @@ const COPY = {
    },
 } as const;
 
+const SIGN_UPS_CLOSED =
+   "Sign-ups are disabled on this instance. Ask an administrator for access.";
+const SIGN_UPS_BY_INVITE =
+   "Sign-ups are by invitation. Use the address your invitation was sent to.";
+
 const NOTICES: Readonly<Record<string, string>> = {
    reset: "Password updated. Log in with your new password.",
    failed: "Login didn't complete. Try again.",
@@ -35,10 +41,15 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
    const router = useRouter();
    const config = useInstanceConfig();
    const transport = emailState(config);
+   const signUp = signUpPolicyState(config.data).mode;
    const [leavingForGithub, setLeavingForGithub] = useState(false);
 
    const destination = afterLoginPath(router.query.next);
-   const copy = COPY[mode];
+   // with sign-ups closed there is nothing to create, so /signup becomes the
+   // login screen and says why instead of showing a form that always refuses.
+   // `invite` keeps the form: an invited address has an account to create
+   const effectiveMode = signUp === "closed" ? "login" : mode;
+   const copy = COPY[effectiveMode];
    // `error` is what better auth appends when an oauth callback fails and
    // redirects here; `reason` is what our own pages append
    const reason =
@@ -49,9 +60,14 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
            : "";
    // own-property only: ?reason=toString would otherwise hand a prototype
    // function to react as a child.
-   const notice = Object.hasOwn(NOTICES, reason)
-      ? (NOTICES[reason] ?? null)
-      : null;
+   const notice =
+      mode === "signup" && signUp === "closed"
+         ? SIGN_UPS_CLOSED
+         : mode === "signup" && signUp === "invite"
+           ? SIGN_UPS_BY_INVITE
+           : Object.hasOwn(NOTICES, reason)
+             ? (NOTICES[reason] ?? null)
+             : null;
 
    // the guard sends a signed-in visitor on as well, but only once the session
    // refetch lands; going now keeps the form in its pending state until then
@@ -81,7 +97,7 @@ const AuthScreen = ({ mode }: AuthScreenProps) => {
          <StepHeader title={copy.title}>{copy.subtitle}</StepHeader>
          <div className="mt-8">
             <SignInForm
-               mode={mode}
+               mode={effectiveMode}
                notice={notice}
                onGithub={() => void github()}
                onDone={async (created) => {

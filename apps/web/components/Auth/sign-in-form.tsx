@@ -2,10 +2,12 @@ import EmailField from "@/components/Auth/email-field";
 import FieldMessage from "@/components/Auth/field-message";
 import GithubIcon from "@/components/Auth/github-icon";
 import PasswordInput from "@/components/Auth/password-input";
+import { signUpHint } from "@/components/Auth/sign-up-policy";
 import { TEXT_LINK } from "@/components/Auth/text-link";
 import { continueWithPassword } from "@/lib/auth";
 import useInstanceConfig, {
    githubEnabled,
+   signUpPolicyState,
 } from "@/lib/hooks/queries/useInstanceConfig";
 import {
    PASSWORD_MIN_LENGTH,
@@ -34,6 +36,12 @@ const SUBMIT_LABEL: Record<Mode, string> = {
    signup: "Create account",
 };
 
+const POLICY_CODES = new Set([
+   "SIGNUP_DISABLED",
+   "SIGNUP_INVITE_REQUIRED",
+   "EMAIL_PASSWORD_SIGN_UP_DISABLED",
+]);
+
 const SignInForm = ({ mode, notice, onGithub, onDone }: SignInFormProps) => {
    const [email, setEmail] = useState("");
    const [password, setPassword] = useState("");
@@ -41,6 +49,7 @@ const SignInForm = ({ mode, notice, onGithub, onDone }: SignInFormProps) => {
    const [passwordError, setPasswordError] = useState<string | null>(null);
    const [pending, setPending] = useState(false);
    const { data: config } = useInstanceConfig();
+   const { mode: signUp, domains } = signUpPolicyState(config);
 
    const submit = async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -56,10 +65,19 @@ const SignInForm = ({ mode, notice, onGithub, onDone }: SignInFormProps) => {
          );
       }
       if (!address.success || !parsed.success) return;
+      // an off-domain address may still hold an invitation, which only the
+      // server can see, so nothing is refused here: `closed` is the one mode
+      // where no address can create an account
+      const allowSignUp = signUp !== "closed";
       setPending(true);
-      const result = await continueWithPassword(address.data, parsed.data);
+      const result = await continueWithPassword(address.data, parsed.data, {
+         allowSignUp,
+      });
       if (result.error) {
-         setPasswordError(result.error);
+         // a policy refusal is about the address, not the password under it
+         if (result.code && POLICY_CODES.has(result.code)) {
+            setEmailError(result.error);
+         } else setPasswordError(result.error);
          setPending(false);
          return;
       }
@@ -109,6 +127,7 @@ const SignInForm = ({ mode, notice, onGithub, onDone }: SignInFormProps) => {
             <EmailField
                value={email}
                error={emailError}
+               hint={signUpHint(signUp, domains)}
                disabled={pending}
                onChange={(next) => {
                   setEmail(next);
@@ -137,7 +156,7 @@ const SignInForm = ({ mode, notice, onGithub, onDone }: SignInFormProps) => {
                   id="password-message"
                   error={passwordError}
                   hint={
-                     mode === "signup"
+                     mode === "signup" && signUp !== "closed"
                         ? `At least ${PASSWORD_MIN_LENGTH} characters.`
                         : undefined
                   }
@@ -150,7 +169,7 @@ const SignInForm = ({ mode, notice, onGithub, onDone }: SignInFormProps) => {
                className="w-full"
                loading={pending}
             >
-               {SUBMIT_LABEL[mode]}
+               {SUBMIT_LABEL[signUp === "closed" ? "login" : mode]}
             </Button>
             <p className="text-center text-sm text-viewertext">
                <Link href={SITE_PATHS.forgotPassword} className={TEXT_LINK}>

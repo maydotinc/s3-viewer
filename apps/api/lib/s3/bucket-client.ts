@@ -3,6 +3,7 @@ import { MINUTE_MS, Provider } from "@s3-viewer/types";
 import { ApiHttpError } from "../http";
 import { assertPublicEndpoint } from "../utils/endpoint";
 import { clientProvider } from "./provider";
+import { budgetServerOf, withRequestBudget } from "./request-budget";
 
 const REGION_TTL_MS = 10 * MINUTE_MS;
 const MAX_BUCKET_CLIENTS = 500;
@@ -130,6 +131,10 @@ const getBucketClient = async (
       retryStrategy: undefined,
       serviceConfiguredEndpoint: undefined,
    });
+   // a fresh client means a fresh middleware stack: the regional client would
+   // otherwise spend the server's upstream budget without counting against it
+   const serverId = budgetServerOf(client);
+   if (serverId) withRequestBudget(regional, serverId);
    for (const reference of regionalClients) {
       const entry = reference.deref();
       if (!entry) regionalClients.delete(reference);

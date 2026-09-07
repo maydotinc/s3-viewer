@@ -17,8 +17,11 @@ import {
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { authEnv } from "./env";
+import { emitAuthEvent, onAuthEvent } from "./audit";
+import { captureAuditActor, recordAuthEvent } from "./auth-events";
+import { authEnv, signUpPolicy } from "./env";
 import { validateProfile } from "./profile";
+import { assertSignUpAllowed } from "./sign-up-policy";
 import {
    clearExpiredSessionCookie,
    enforceSessionPolicy,
@@ -31,7 +34,7 @@ import {
    type ThrottleKey,
 } from "./throttle";
 import { onUserDeletion, userDeletionHooks } from "./user-deletion";
-import { localPart, normalizeEmail } from "./utils";
+import { describeFailure, localPart, normalizeEmail } from "./utils";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
 const HOUR_SECONDS = HOUR_MS / SECOND_MS;
@@ -86,7 +89,7 @@ const sendLink = async (
          expiresInHours: AUTH_LINK_TTL_HOURS,
       });
    } catch (error) {
-      console.error(`[auth] ${intent} email failed`, error);
+      console.error(`[auth] ${intent} email failed: ${describeFailure(error)}`);
    }
 };
 
@@ -118,14 +121,38 @@ const auth = betterAuth({
    user: {
       deleteUser: { enabled: true, ...userDeletionHooks },
    },
+   // requireLocalEmailVerified is the setting that stops pre-account takeover:
+   // without it, signing up with someone's address before they arrive and then
+   // having them sign in with github would merge the two into one account.
+   // no provider is trusted: link-account.mjs:83 skips the *provider's* own
+   // verified-email check for a trusted one, which would let an address github
+   // itself reports as unverified link into an existing local account
+   account: {
+      accountLinking: {
+         enabled: true,
+         requireLocalEmailVerified: true,
+      },
+   },
+   // tokens live in the verification table's identifier; hashing them means a
+   // read of that table cannot be replayed as a password-reset link
+   verification: { storeIdentifier: "hashed" },
    rateLimit: { enabled: false },
    emailAndPassword: {
       enabled: true,
+      disableSignUp: signUpPolicy.mode === "closed",
       minPasswordLength: PASSWORD_MIN_LENGTH,
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       revokeSessionsOnPasswordReset: true,
       resetPasswordTokenExpiresIn: AUTH_LINK_TTL_SECONDS,
       sendResetPassword: ({ user, url }) => sendLink("reset", user.email, url),
+      // the endpoint itself carries no session, so this is the only place the
+      // reset can be attributed to the account it changed
+      onPasswordReset: async ({ user }) => {
+         emitAuthEvent({
+            action: "auth.password_reset",
+            actorId: user.id,
+         });
+      },
    },
    emailVerification: {
       sendOnSignUp: true,
@@ -151,11 +178,21 @@ const auth = betterAuth({
                code: "RATE_LIMITED",
             });
          }
-         return { context: { context: { absoluteSessionExpired } } };
+         return {
+            context: {
+               context: {
+                  absoluteSessionExpired,
+                  auditActorId: await captureAuditActor(ctx),
+               },
+            },
+         };
       }),
-      after: createAuthMiddleware(async (ctx) =>
-         clearExpiredSessionCookie(ctx)
-      ),
+      // returning anything here would replace the endpoint's response, so both
+      // calls stay side-effect only
+      after: createAuthMiddleware(async (ctx) => {
+         clearExpiredSessionCookie(ctx);
+         recordAuthEvent(ctx);
+      }),
    },
    databaseHooks: {
       account: {
@@ -171,14 +208,26 @@ const auth = betterAuth({
             // nothing fills `image`, and better auth's own sign-up/oauth endpoints
             // bypass emailSchema, so this is the one place every stored email
             // is guaranteed lowercase
-            before: async (user) => ({
-               data: {
-                  ...user,
-                  name: user.name || localPart(user.email),
-                  email: normalizeEmail(user.email),
-                  image: null,
-               },
-            }),
+            before: async (user) => {
+               await assertSignUpAllowed(user.email);
+               return {
+                  data: {
+                     ...user,
+                     name: user.name || localPart(user.email),
+                     email: normalizeEmail(user.email),
+                     image: null,
+                  },
+               };
+            },
+            // every sign-up ends here, password or oauth, and only once the
+            // row is committed
+            after: async (user) => {
+               emitAuthEvent({
+                  action: "auth.sign_up",
+                  actorId: user.id,
+                  target: user.email,
+               });
+            },
          },
          update: {
             before: async (user) => {
@@ -212,13 +261,18 @@ const auth = betterAuth({
       ? {
            github: {
               ...authEnv.github,
+              disableSignUp: signUpPolicy.mode === "closed",
               // undefined overrides avatar_url in the provider spread; the
-              // create hook then writes null
+              // create hook then writes null. nothing else is mapped: the map
+              // is spread *after* the provider's own `verified` lookup
+              // (github.mjs:76-84), so any emailVerified here would overwrite
+              // github's answer with a constant
               mapProfileToUser: () => ({ image: undefined }),
            },
         }
       : undefined,
 });
 
-export { auth, onUserDeletion };
+export { auth, onAuthEvent, onUserDeletion, signUpPolicy };
+export type { SignUpPolicy } from "./env";
 export type { DeletedUser, UserDeletionHooks } from "./user-deletion";

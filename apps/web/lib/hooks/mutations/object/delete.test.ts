@@ -125,6 +125,66 @@ describe("delete retry snapshots", () => {
       expect(h.remove).toHaveBeenCalledTimes(1);
    });
 
+   it("stops at the first failing batch and reports the work left behind", async () => {
+      // the second page is deliberately never mocked: it must not be listed.
+      h.get.mockResolvedValueOnce({
+         objects: objects(2),
+         nextToken: "next",
+      } satisfies S3KeysPage);
+      h.remove.mockResolvedValueOnce({
+         deleted: [],
+         failed: [
+            {
+               key: "folder/secret-0.txt",
+               message: "Access denied",
+               retryable: true,
+            },
+         ],
+      } satisfies S3DeleteResult);
+      const result = await deletePrefix({
+         userId: "user12345",
+         serverId: "server123",
+         bucketName: "bucket",
+         prefix: "folder/",
+      });
+      expect(result).toMatchObject({
+         deleted: 0,
+         failedTotal: 2,
+         remaining: true,
+      });
+      expect(h.get).toHaveBeenCalledOnce();
+      expect(h.remove).toHaveBeenCalledOnce();
+   });
+
+   it("still reports work remaining when the last page is the one that fails", async () => {
+      h.get.mockResolvedValueOnce({
+         objects: objects(2),
+         nextToken: null,
+      } satisfies S3KeysPage);
+      h.remove.mockResolvedValueOnce({
+         deleted: ["folder/secret-1.txt"],
+         failed: [
+            {
+               key: "folder/secret-0.txt",
+               message: "Access denied",
+               retryable: true,
+            },
+         ],
+      } satisfies S3DeleteResult);
+      const result = await deletePrefix({
+         userId: "user12345",
+         serverId: "server123",
+         bucketName: "bucket",
+         prefix: "folder/",
+      });
+      // the failed object is demonstrably still in the folder.
+      expect(result).toMatchObject({
+         deleted: 1,
+         failedTotal: 1,
+         remaining: true,
+      });
+   });
+
    it("refuses a recursive listing that escapes the confirmed folder", async () => {
       h.get.mockResolvedValue({
          objects: [{ key: "elsewhere/private", expectedETag: '"private"' }],

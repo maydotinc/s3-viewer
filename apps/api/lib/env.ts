@@ -58,6 +58,22 @@ const schema = z
       MAX_USER_UPLOADS: positiveInt(3),
       UPLOAD_MEMORY_BUDGET_BYTES: positiveInt(256 * MIB),
       UPLOAD_IDLE_TIMEOUT_MS: positiveInt(120_000),
+      // must sit above the idle timeout of any load balancer in front, or the
+      // balancer reuses a keep-alive socket node has just closed (random 502s)
+      KEEP_ALIVE_TIMEOUT_MS: positiveInt(65_000),
+      // `postgres` shares the security-relevant limiters (sign-in, sign-up,
+      // connect, invites, exists) across replicas; volume limiters stay local
+      RATE_LIMIT_STORE: optionalString
+         .pipe(z.enum(["memory", "postgres"]).optional())
+         .transform((value) => value ?? "memory"),
+      S3_MAX_SOCKETS_PER_HOST: positiveInt(100),
+      S3_MAX_TOTAL_SOCKETS: positiveInt(1000),
+      // upstream S3 calls one server may make per minute, per API process
+      S3_REQUESTS_PER_MINUTE: positiveInt(12_000),
+      // 0 keeps audit rows forever
+      AUDIT_RETENTION_DAYS: optionalString
+         .pipe(z.coerce.number().int().min(0).optional())
+         .transform((value) => value ?? 0),
       MAX_UPLOAD_BYTES: optionalString
          .pipe(z.coerce.number().int().positive().optional())
          .transform((value) => value ?? DEFAULT_MAX_UPLOAD_BYTES),

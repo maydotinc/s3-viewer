@@ -60,7 +60,13 @@ else
    esac
 fi
 
-echo "Applying database migrations ..."
-run node /app/node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma/schema.prisma
+# Unset/anything-but-"false" ⇒ migrate. Set to `false` on every replica but one
+# when running more than one API instance, so they do not race the same migration.
+if [ "$RUN_MIGRATIONS" = "false" ]; then
+   echo "RUN_MIGRATIONS=false: skipping migrate deploy."
+else
+   echo "Applying database migrations ..."
+   run node /app/node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma/schema.prisma
+fi
 
 exec node /app/dist/server.js

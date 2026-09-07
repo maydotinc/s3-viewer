@@ -4,11 +4,13 @@ import { MINUTE_MS, Provider, type ServerCredentials } from "@s3-viewer/types";
 import { Agent as HttpAgent } from "node:http";
 import { Agent as HttpsAgent } from "node:https";
 import { SERVER_NOT_FOUND } from "../constants";
+import { env } from "../env";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
 import { assertPublicEndpoint, publicOnlyLookup } from "../utils/endpoint";
 import { decryptCredentials } from "../utils/encryption";
 import { credentialsUnreadableError } from "./errors";
+import { withRequestBudget } from "./request-budget";
 import {
    BucketClientInvalidatedError,
    getBucketClient,
@@ -21,8 +23,6 @@ const MAX_CREDENTIAL_READ_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT_MS = 5000;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_ATTEMPTS = 2;
-const AGENT_MAX_SOCKETS = 50;
-const AGENT_MAX_TOTAL_SOCKETS = 500;
 const AGENT_MAX_FREE_SOCKETS = 64;
 const AGENT_IDLE_TIMEOUT_MS = 60_000;
 
@@ -67,8 +67,8 @@ const endFill = (serverId: string): void => {
 const agentOptions = {
    keepAlive: true,
    lookup: publicOnlyLookup,
-   maxSockets: AGENT_MAX_SOCKETS,
-   maxTotalSockets: AGENT_MAX_TOTAL_SOCKETS,
+   maxSockets: env.S3_MAX_SOCKETS_PER_HOST,
+   maxTotalSockets: env.S3_MAX_TOTAL_SOCKETS,
    maxFreeSockets: AGENT_MAX_FREE_SOCKETS,
    timeout: AGENT_IDLE_TIMEOUT_MS,
 };
@@ -178,7 +178,10 @@ const getCachedClient = async (serverId: string): Promise<S3Client> => {
          ) {
             continue;
          }
-         const client = buildClient(credentials, Provider[snapshot.provider]);
+         const client = withRequestBudget(
+            buildClient(credentials, Provider[snapshot.provider]),
+            serverId
+         );
          makeRoom();
          removeCachedClient(serverId);
          cache.set(serverId, {

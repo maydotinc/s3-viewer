@@ -40,6 +40,25 @@ services:
           value: none
         - key: EMAIL_TRANSPORT
           value: none
+        # All four are optional and default sensibly in code (RUN_MIGRATIONS=
+        # true, RATE_LIMIT_STORE=memory, SIGNUP_MODE=open, no domain allowlist).
+        # SIGNUP_MODE also accepts domains | invite | closed — see SELF-HOSTING.md.
+        # `sync: false` only prompts once, at Blueprint creation, and Render
+        # ignores these keys on later Blueprint syncs — a later dashboard edit
+        # sticks. If the creation prompt won't accept a blank value, enter the
+        # default shown above; that is equivalent to leaving it unset. Scaling
+        # this service to more than one instance needs RATE_LIMIT_STORE=postgres
+        # (see SELF-HOSTING.md); a second, non-migrating replica needs its own
+        # RUN_MIGRATIONS=false set by hand, since Blueprint services share one
+        # env var value across their instances.
+        - key: RUN_MIGRATIONS
+          sync: false
+        - key: RATE_LIMIT_STORE
+          sync: false
+        - key: SIGNUP_MODE
+          sync: false
+        - key: ALLOWED_EMAIL_DOMAINS
+          sync: false
 
    - type: web
      name: s3-viewer-web

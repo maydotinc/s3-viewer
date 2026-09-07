@@ -1,6 +1,8 @@
+import PasswordInput from "@/components/Auth/password-input";
 import FormError from "@/components/Modals/form-error";
 import { authClient, deleteAccount, signOut } from "@/lib/auth";
 import { loginPathFor } from "@/lib/auth-redirect";
+import { useHasPassword } from "@/lib/hooks/queries/user/useHasPassword";
 import { pluralize } from "@/lib/utils/format";
 import {
    GENERIC_ERROR_MESSAGE,
@@ -22,7 +24,9 @@ import {
 } from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 // the summary is loaded by the danger-zone card before this opens, so the
@@ -34,6 +38,7 @@ type DeleteAccountModalProps = {
 
 const FRESH_SESSION_MS = SESSION_FRESH_HOURS * HOUR_MS;
 const SESSION_EXPIRED = "SESSION_EXPIRED";
+const PASSWORD_NOT_SET = "PASSWORD_NOT_SET";
 const STALE_SESSION_MESSAGE = `For your security, deleting your account needs a sign-in from the last ${SESSION_FRESH_HOURS} hours. Sign in again, then come back here to finish.`;
 const SUCCESS_MESSAGE = `Your ${PRODUCT_NAME} account has been deleted. Your buckets and files were not touched. A confirmation email is on its way.`;
 
@@ -95,6 +100,24 @@ const removedRows = (summary: AccountSummary): Row[] => {
    return rows;
 };
 
+// deletion is irreversible and a stolen cookie must not be enough to trigger
+// it, so an oauth-only account is sent to set a password first rather than
+// being offered a field the api will always refuse
+const NeedsPassword = () => (
+   <div className="flex flex-col gap-2 rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
+      <p>
+         Deleting your account needs your password, and this account signs in
+         with GitHub only.
+      </p>
+      <Link
+         href={SITE_PATHS.settingsProfile}
+         className="font-medium text-viewerblack underline underline-offset-2"
+      >
+         Set a password first
+      </Link>
+   </div>
+);
+
 const SectionLabel = ({ children }: { children: string }) => (
    <p className="text-[11px] font-medium tracking-wide text-viewerlighttext uppercase">
       {children}
@@ -140,8 +163,10 @@ const UntouchedCallout = () => (
 
 const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
    const { data: session, isPending, isRefetching } = authClient.useSession();
+   const { data: hasPassword, isPending: passwordPending } = useHasPassword();
    const [confirmedSummary] = useState(summary);
    const [typed, setTyped] = useState("");
+   const [password, setPassword] = useState("");
    const [error, setError] = useState<string | null>(null);
    const [deleting, setDeleting] = useState(false);
    const [sessionExpired, setSessionExpired] = useState(false);
@@ -159,11 +184,14 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
       (session !== null &&
          session !== undefined &&
          isStale(session.session.createdAt));
+   const needsPassword = hasPassword === false;
    const confirmed =
       !isPending &&
       !isRefetching &&
       sessionMatches &&
       !needsFreshSignIn &&
+      !needsPassword &&
+      password.length > 0 &&
       email.length > 0 &&
       typed.trim().toLowerCase() === email.toLowerCase();
 
@@ -176,6 +204,7 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
          result = await deleteAccount({
             expectedUserId,
             confirmedEmail: typed.trim(),
+            password,
          });
       } catch {
          setError(GENERIC_ERROR_MESSAGE);
@@ -184,7 +213,10 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
       }
       if (result.error) {
          if (result.code === SESSION_EXPIRED) setSessionExpired(true);
-         else if (result.code === "ACCOUNT_CHANGED") {
+         else if (result.code === PASSWORD_NOT_SET) {
+            toast.error(result.error);
+            onClose();
+         } else if (result.code === "ACCOUNT_CHANGED") {
             toast.error(result.error);
             onClose();
          } else setError(result.error);
@@ -220,26 +252,48 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
                   <div className="rounded-lg bg-viewergray px-4 py-3 text-sm text-viewertext">
                      {STALE_SESSION_MESSAGE}
                   </div>
+               ) : passwordPending ? (
+                  <Skeleton className="h-[4.5rem] w-full" />
+               ) : needsPassword ? (
+                  <NeedsPassword />
                ) : (
-                  <div className="flex flex-col gap-2">
-                     <Label htmlFor="delete-account-email">
-                        Type your email to confirm
-                     </Label>
-                     <Input
-                        id="delete-account-email"
-                        type="email"
-                        value={typed}
-                        autoComplete="off"
-                        spellCheck={false}
-                        placeholder={email}
-                        disabled={deleting}
-                        aria-invalid={error ? true : undefined}
-                        onChange={(event) => {
-                           setTyped(event.target.value);
-                           if (error) setError(null);
-                        }}
-                     />
-                     <FormError>{error}</FormError>
+                  <div className="flex flex-col gap-4">
+                     <div className="flex flex-col gap-2">
+                        <Label htmlFor="delete-account-email">
+                           Type your email to confirm
+                        </Label>
+                        <Input
+                           id="delete-account-email"
+                           type="email"
+                           value={typed}
+                           autoComplete="off"
+                           spellCheck={false}
+                           placeholder={email}
+                           disabled={deleting}
+                           aria-invalid={error ? true : undefined}
+                           onChange={(event) => {
+                              setTyped(event.target.value);
+                              if (error) setError(null);
+                           }}
+                        />
+                     </div>
+                     <div className="flex flex-col gap-2">
+                        <Label htmlFor="delete-account-password">
+                           Your password
+                        </Label>
+                        <PasswordInput
+                           id="delete-account-password"
+                           autoComplete="current-password"
+                           value={password}
+                           disabled={deleting}
+                           aria-invalid={error ? true : undefined}
+                           onChange={(event) => {
+                              setPassword(event.target.value);
+                              if (error) setError(null);
+                           }}
+                        />
+                        <FormError>{error}</FormError>
+                     </div>
                   </div>
                )}
             </DialogBody>
@@ -248,7 +302,7 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
                   <Button type="button" onClick={signInAgain}>
                      Sign in again to continue
                   </Button>
-               ) : (
+               ) : needsPassword ? null : (
                   <Button
                      type="button"
                      variant="destructive"

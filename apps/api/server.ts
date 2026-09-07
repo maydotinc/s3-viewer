@@ -4,6 +4,7 @@ import { env, siteOrigin } from "@/lib/env";
 import { publicConfig } from "@/lib/config";
 import { errorHandler, fail } from "@/lib/http";
 import { banner, logger } from "@/lib/logger";
+import { startMaintenance } from "@/lib/maintenance";
 import { authGuard } from "@/lib/middleware/auth";
 import { authBodyLimit } from "@/lib/middleware/auth-body";
 import { originCheck } from "@/lib/middleware/origin";
@@ -16,12 +17,13 @@ import {
    userLimit,
 } from "@/lib/middleware/rate-limit";
 import { accountDeletionHooks } from "@/lib/services/account";
+import { recordAudit } from "@/lib/services/audit";
 import { assertPrivateKey } from "@/lib/utils/encryption";
 import { accountRouter } from "@/routes/account";
 import { invitesRouter } from "@/routes/invites";
 import { s3Router } from "@/routes/s3";
 import { serversRouter } from "@/routes/servers";
-import { auth, onUserDeletion } from "@s3-viewer/auth";
+import { auth, onAuthEvent, onUserDeletion } from "@s3-viewer/auth";
 import {
    API_CONTRACT_VERSION,
    AUTH_BASE_PATH,
@@ -40,8 +42,10 @@ import type { Socket } from "node:net";
 
 assertPrivateKey();
 onUserDeletion(accountDeletionHooks);
+onAuthEvent(recordAudit);
 
-const HEADERS_TIMEOUT_MS = 60_000;
+// node ignores headersTimeout when it is not strictly above keepAliveTimeout
+const HEADERS_TIMEOUT_MS = env.KEEP_ALIVE_TIMEOUT_MS + 5_000;
 const IDLE_TIMEOUT_MS = 2 * MINUTE_MS;
 
 const app = express();
@@ -114,7 +118,11 @@ app.use(errorHandler);
 // requestTimeout is global and cannot be raised per route, so it stays 0 for
 // long uploads; the header phase and idle sockets are bounded instead
 const server = createServer(
-   { requestTimeout: 0, headersTimeout: HEADERS_TIMEOUT_MS },
+   {
+      requestTimeout: 0,
+      headersTimeout: HEADERS_TIMEOUT_MS,
+      keepAliveTimeout: env.KEEP_ALIVE_TIMEOUT_MS,
+   },
    app
 );
 
@@ -132,6 +140,7 @@ server.listen(env.PORT, () => {
       `   🔌 api      ${env.NEXT_PUBLIC_API_URL}`,
       `   📬 email    ${EMAIL_NOTE[env.EMAIL_TRANSPORT]}`,
    ]);
+   startMaintenance();
 });
 
 const sockets = new Set<Socket>();

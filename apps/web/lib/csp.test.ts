@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const load = async (env: Record<string, string>) => {
+const load = async (
+   env: Record<string, string>,
+   options: { nonce?: string } = {}
+) => {
    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
    const { contentSecurityPolicy } = await import("./csp");
-   const policy = contentSecurityPolicy();
+   const policy = contentSecurityPolicy(options);
    return Object.fromEntries(
       policy.split("; ").map((directive) => {
          const [name, ...values] = directive.split(" ");
@@ -80,6 +83,42 @@ describe("landing origin", () => {
       expect(policy["script-src"]).toContain("http://landing:3001");
       expect(policy["style-src"]).toContain("http://landing:3001");
       expect(policy["font-src"]).toContain("http://landing:3001");
+   });
+});
+
+describe("script nonce", () => {
+   const HTTPS = { NEXT_PUBLIC_SITE_URL: "https://s3.example.com" };
+
+   it("trades 'unsafe-inline' for the request's nonce in production", async () => {
+      const policy = await load(HTTPS, { nonce: "n0nc3" });
+      expect(policy["script-src"]).toBe(
+         "'self' 'nonce-n0nc3' 'strict-dynamic'"
+      );
+   });
+
+   it("keeps inline styles working, which have no nonce to carry", async () => {
+      const policy = await load(HTTPS, { nonce: "n0nc3" });
+      expect(policy["style-src"]).toContain("'unsafe-inline'");
+   });
+
+   it("leaves a proxied landing page on the host allowlist", async () => {
+      vi.stubEnv("LANDING_ORIGIN", "http://landing:3001");
+      const policy = await load(HTTPS);
+      expect(policy["script-src"]).toContain("'unsafe-inline'");
+      expect(policy["script-src"]).toContain("http://landing:3001");
+      expect(policy["script-src"]).not.toContain("'strict-dynamic'");
+   });
+
+   it("keeps the dev server's eval and inline refresh scripts allowed", async () => {
+      vi.stubEnv("NODE_ENV", "development");
+      const policy = await load(
+         { NEXT_PUBLIC_SITE_URL: "http://localhost:3000" },
+         { nonce: "n0nc3" }
+      );
+      expect(policy["script-src"]).toContain("'unsafe-inline'");
+      expect(policy["script-src"]).toContain("'unsafe-eval'");
+      // a nonce alongside 'unsafe-inline' would disable it and break hmr
+      expect(policy["script-src"]).not.toContain("nonce-");
    });
 });
 

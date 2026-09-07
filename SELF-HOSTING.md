@@ -47,7 +47,10 @@ compiled server, the Prisma migrations, a generated client with its query
 engine, the Prisma CLI that the entrypoint runs `migrate deploy` with on every
 boot, and the email stack (`react-dom/server` is CommonJS, so it stays
 unbundled). Everything else is pruned at build time, so pnpm and the Prisma CLI
-are present but the rest of the dependency tree is not.
+are present but the rest of the dependency tree is not. Neither the web nor the
+landing build reaches out to fonts.googleapis.com: Inter is vendored into
+`packages/ui` and loaded with `next/font/local`, so a build behind a firewall
+or with no outbound network access at all still succeeds.
 
 For a real deployment you'll want to set the two public URLs and, if you're
 putting Caddy in front, the hostnames; see [Reverse proxy / Caddy](#reverse-proxy--caddy)
@@ -234,6 +237,31 @@ This verifies only that account, revokes its sessions, and records an
 public verification endpoint or automatic first-user exemption. Password
 recovery and invites still need an email transport.
 
+### Sign-up policy (optional)
+
+`SIGNUP_MODE` in `apps/api/.env` controls who can create a new account:
+
+| Mode             | Who can sign up                                                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `open` (default) | Anyone.                                                                                                                 |
+| `domains`        | An address in `ALLOWED_EMAIL_DOMAINS`, **or** any address holding a live (unexpired) pending invitation, domain or not. |
+| `invite`         | Only an address holding a live pending invitation.                                                                      |
+| `closed`         | Nobody — not even an invited address. Existing accounts still sign in.                                                  |
+
+`ALLOWED_EMAIL_DOMAINS` (a comma- and/or whitespace-separated list, a leading
+`@` optional, e.g. `acme.com, acme.dev`) is only read in `domains` mode, and
+setting it without `SIGNUP_MODE` infers `domains` — an operator who bothered
+to list domains never meant sign-up to stay open to everyone — but `domains`
+with an empty list is a boot-time error rather than a silent no-op. `invite`
+needs no list at all. `domains` and `invite` exist because an invited address
+should always be able to accept its invitation, which requires creating an
+account first; `closed` is the one mode where that isn't true; an invitation
+sent to a `closed` instance simply cannot be accepted until the mode changes.
+None of these modes touch sign-in: an existing account whose domain was later
+removed from the list can still sign in, and `closed` still lets every current
+member in. Every refused attempt is written to the audit log as
+`auth.sign_up_refused`.
+
 ### GitHub OAuth (optional)
 
 The only switch is setting `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET`
@@ -249,6 +277,17 @@ https://api.s3-viewer.example.com/auth/callback/github
 ```
 
 (locally, `http://localhost:5001/auth/callback/github`.)
+
+A GitHub sign-in is verified exactly when GitHub itself reports that address
+verified — S3 Viewer trusts GitHub's own flag rather than assuming every
+GitHub address is good. An address GitHub reports unverified gets its own
+unverified local row (a verification email if you have one configured) and
+is never attached to an existing account. Even for a verified GitHub address,
+if someone already has an unverified password account under that address,
+S3 Viewer will not silently attach the GitHub sign-in to it: the local
+address has to be verified first, so a stranger who merely controls a
+matching GitHub account can't take over an existing, unverified local
+account.
 
 ### Demo MinIO / private endpoints (optional)
 
@@ -397,16 +436,21 @@ managed Postgres and a 1 GB disk on the API.
 
 1. Use the **Deploy to Render** button in the README, or **New → Blueprint** in
    the dashboard against your fork.
-2. Render prompts once for the two `sync: false` variables. Paste the origins
-   the services are about to get: `https://s3-viewer-web.onrender.com` for
-   `NEXT_PUBLIC_SITE_URL` and `https://s3-viewer-api.onrender.com` for
+2. Render prompts once for the Blueprint's `sync: false` variables. Paste the
+   origins the services are about to get: `https://s3-viewer-web.onrender.com`
+   for `NEXT_PUBLIC_SITE_URL` and `https://s3-viewer-api.onrender.com` for
    `NEXT_PUBLIC_API_URL`. Render's cross-service references only yield a host,
-   never a full origin, which is why these are typed rather than wired.
+   never a full origin, which is why these are typed rather than wired. The API
+   service also prompts for `RUN_MIGRATIONS`, `RATE_LIMIT_STORE`, `SIGNUP_MODE`
+   and `ALLOWED_EMAIL_DOMAINS`; all four are optional and default sensibly in
+   code (see the [env reference](#7-full-env-reference)), so leave the prompt
+   blank for any of them you don't need to change.
 3. If either service name was taken Render appends a suffix. Correct both
    values on both services under **Environment** and redeploy — likewise when
    you point a custom domain at the web service.
 4. `/data` is the disk on `s3-viewer-api`. Blueprint updates ignore
-   `sync: false` variables, so those two are only ever changed by hand.
+   `sync: false` variables, so all six above are only ever changed by hand,
+   under that service's **Environment** tab.
 
 A disk needs a paid instance type, so the API cannot run on `free` and stays at
 one instance; the web service can drop to `plan: free` if you accept it
@@ -530,6 +574,8 @@ opaque error.
 | `SUPPORT_EMAIL`              |                                             | unset                                                                   | `support@yourdomain.com`                                                 | Contact shown to admins who hit the pending-invite cap, and in the account-deletion confirmation email. Unset ⇒ omitted; the email points at GitHub issues instead.                                                                                                                                                                    |
 | `GITHUB_CLIENT_ID`           |                                             | unset                                                                   | GitHub OAuth app id                                                      | Set together with the secret, or leave both unset. The only switch for GitHub login.                                                                                                                                                                                                                                                   |
 | `GITHUB_CLIENT_SECRET`       |                                             | unset                                                                   | GitHub OAuth app secret                                                  | Set together with the id, or leave both unset.                                                                                                                                                                                                                                                                                         |
+| `SIGNUP_MODE`                |                                             | `open`                                                                  | `open`, `domains`, `invite` or `closed`                                  | Who can create a new account. `domains` needs `ALLOWED_EMAIL_DOMAINS` (and also always admits a live invited address). `invite` admits only a live invited address. `closed` admits nobody, invited or not. None affect sign-in. See [Sign-up policy](#sign-up-policy-optional).                                                       |
+| `ALLOWED_EMAIL_DOMAINS`      |          if `SIGNUP_MODE=domains`           | unset                                                                   | `acme.com, acme.dev`                                                     | Comma- and/or whitespace-separated allowlist, read only in `domains` mode; a leading `@` is optional. Empty with `SIGNUP_MODE=domains` is a boot error. Ignored (and unneeded) in `invite` mode.                                                                                                                                       |
 | `ALLOW_PRIVATE_ENDPOINTS`    |                                             | unset, or `true` if the wizard's demo-bucket question is yes            | unset                                                                    | Exactly `true` lets S3 endpoints resolve to private, loopback or link-local addresses (a MinIO on your LAN, the local demo bucket) and allows `http://` in production too. Default false, which is the SSRF-safe setting. Logs a loud boot warning when true.                                                                          |
 | `PORT`                       |                                             | `5001`                                                                  | `5001`                                                                   | Port the API listens on.                                                                                                                                                                                                                                                                                                               |
 | `TRUST_PROXY`                |                                             | `loopback`                                                              | `1` behind a single reverse proxy (`docker-compose.proxy.yml` sets this) | Express `trust proxy`; behind a load balancer use the hop count. See the [warning](#8-production-notes) below before changing this.                                                                                                                                                                                                    |
@@ -540,6 +586,13 @@ opaque error.
 | `MAX_USER_UPLOADS`           |                                             | `3`                                                                     | `3`                                                                      | Maximum active uploads per user per API process.                                                                                                                                                                                                                                                                                       |
 | `UPLOAD_MEMORY_BUDGET_BYTES` |                                             | `268435456`                                                             | `268435456`                                                              | Shared buffer reservation budget (256 MiB). At least four part buffers must fit. Leave headroom for Node, TLS and other requests; this does not cap total process memory.                                                                                                                                                              |
 | `UPLOAD_IDLE_TIMEOUT_MS`     |                                             | `120000`                                                                | `120000`                                                                 | Upload inactivity deadline in milliseconds; stalled uploads abort and release capacity after S3 cleanup.                                                                                                                                                                                                                               |
+| `RUN_MIGRATIONS`             |                                             | `true`                                                                  | `true`; `false` on every replica but one                                 | Whether the Docker entrypoint runs `prisma migrate deploy` on boot. Set `false` on every API replica but one when running more than one, so they don't race the same migration; anything but the literal string `false` runs them.                                                                                                     |
+| `RATE_LIMIT_STORE`           |                                             | `memory`                                                                | `memory`, or `postgres` with more than one API replica                   | `memory` keeps every rate limit per process (the default, right for one replica). `postgres` moves the sign-in, sign-up, connect and invite limits, plus the upload duplicate-key check, into the database so every replica shares one budget; the high-volume per-IP/per-user limiters always stay in memory.                         |
+| `KEEP_ALIVE_TIMEOUT_MS`      |                                             | `65000`                                                                 | above your load balancer's own idle timeout                              | HTTP keep-alive timeout; `headersTimeout` is set to this plus 5 seconds, which Node requires. Too low a value behind a load balancer causes intermittent 502s from a keep-alive socket Node has just closed.                                                                                                                           |
+| `S3_MAX_SOCKETS_PER_HOST`    |                                             | `100`                                                                   | `100`                                                                    | Max concurrent sockets the outbound S3 HTTP agent keeps open per host.                                                                                                                                                                                                                                                                 |
+| `S3_MAX_TOTAL_SOCKETS`       |                                             | `1000`                                                                  | `1000`                                                                   | Max concurrent sockets the outbound S3 HTTP agent keeps open in total.                                                                                                                                                                                                                                                                 |
+| `S3_REQUESTS_PER_MINUTE`     |                                             | `12000`                                                                 | `12000`                                                                  | Upstream S3 requests allowed per connected server per API process per minute; past it, storage routes for that server answer 429 for a minute. With N replicas the real ceiling is N × this.                                                                                                                                           |
+| `AUDIT_RETENTION_DAYS`       |                                             | `0` (keep forever)                                                      | set to your jurisdiction's retention window                              | An hourly background sweep deletes `audit_log` rows older than this many days. `0` never prunes.                                                                                                                                                                                                                                       |
 | `LOG_LEVEL`                  |                                             | `debug`                                                                 | `warn`                                                                   | `debug`, `info`, `warn` or `error`. Unset ⇒ `warn` in production, `debug` otherwise.                                                                                                                                                                                                                                                   |
 
 ### `apps/web/.env`
@@ -568,34 +621,44 @@ this file. Every value has a working default, so `docker compose up -d`
 serves `http://localhost:3000` with no `.env` at all. Copy `.env.example` to
 `.env` at the repo root to override any of it.
 
-| Variable                     | Default                 | What it does                                                                                                                                                              |
-| ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SITE_URL`                   | `http://localhost:3000` | Public origin of the web app: what people type in the browser.                                                                                                            |
-| `API_URL`                    | `http://localhost:5001` | Public origin of the API: must be reachable from the browser, not just from `web`.                                                                                        |
-| `POSTGRES_PASSWORD`          | `s3viewer`              | Password for the bundled Postgres container.                                                                                                                              |
-| `TRUST_PROXY`                | unset (⇒ `loopback`)    | Passed through to the API; `docker-compose.proxy.yml` makes it `1`. Setting it here overrides both, for a proxy of your own or a second hop.                              |
-| `COOKIE_SAMESITE`            | unset (⇒ `lax`)         | Set `none` only when the web app and the API are different sites, which needs an `https://` `API_URL`. See [Platform deploys](#5-platform-deploys).                       |
-| `BETTER_AUTH_SECRET`         | unset (⇒ generated)     | Only for migrating an existing install: overrides the secret the API generates into its `/data` volume. Existing sessions survive.                                        |
-| `ENCRYPTION_PRIVATE_KEY`     | unset (⇒ generated)     | Only for migrating an existing install: the RSA key that decrypts already-stored S3 credentials. See the one-line PEM note below.                                         |
-| `LANDING_ORIGIN`             | unset                   | Origin of the landing container; set it to `http://landing:3001` with the `landing` profile. Leave commented out (not blank) otherwise.                                   |
-| `SITE_HOSTNAME`              | unset                   | Hostname Caddy serves the web app on (`proxy` profile).                                                                                                                   |
-| `API_HOSTNAME`               | unset                   | Hostname Caddy serves the API on (`proxy` profile).                                                                                                                       |
-| `ACME_EMAIL`                 | unset                   | Address Let's Encrypt notifies about expiring certificates (`proxy` profile).                                                                                             |
-| `EMAIL_TRANSPORT`            | unset (⇒ inferred)      | `none`, `resend` or `smtp`; see the [`apps/api/.env` table](#appsapienv) above.                                                                                           |
-| `RESEND_KEY`                 | unset                   | Resend API key; sending email switches on as soon as this is set.                                                                                                         |
-| `SMTP_URL`                   | unset                   | SMTP connection string.                                                                                                                                                   |
-| `EMAIL_FROM`                 | unset                   | From address on outgoing email.                                                                                                                                           |
-| `SUPPORT_EMAIL`              | unset                   | Contact shown to admins who hit the pending-invite cap.                                                                                                                   |
-| `GITHUB_CLIENT_ID`           | unset                   | GitHub OAuth app client id; set both id and secret or neither.                                                                                                            |
-| `GITHUB_CLIENT_SECRET`       | unset                   | GitHub OAuth app client secret.                                                                                                                                           |
-| `ALLOW_PRIVATE_ENDPOINTS`    | unset                   | `true` allows S3 endpoints on private/loopback addresses (a LAN MinIO).                                                                                                   |
-| `MAX_UPLOAD_BYTES`           | unset (⇒ 5 GiB)         | Largest upload body in bytes.                                                                                                                                             |
-| `UPLOAD_PART_BYTES`          | unset (⇒ 5 MiB)         | Multipart part size in bytes. Min 5 MiB, max 5 GiB.                                                                                                                       |
-| `MAX_CONCURRENT_UPLOADS`     | unset (⇒ `6`)           | Maximum active uploads per API process; excess requests receive 429 with Retry-After.                                                                                     |
-| `MAX_USER_UPLOADS`           | unset (⇒ `3`)           | Maximum active uploads per user per API process.                                                                                                                          |
-| `UPLOAD_MEMORY_BUDGET_BYTES` | unset (⇒ `268435456`)   | Shared buffer reservation budget (256 MiB). At least four part buffers must fit. Leave headroom for Node, TLS and other requests; this does not cap total process memory. |
-| `UPLOAD_IDLE_TIMEOUT_MS`     | unset (⇒ `120000`)      | Upload inactivity deadline in milliseconds; stalled uploads abort and release capacity after S3 cleanup.                                                                  |
-| `LOG_LEVEL`                  | unset (⇒ `warn`)        | `debug`, `info`, `warn` or `error`.                                                                                                                                       |
+| Variable                     | Default                 | What it does                                                                                                                                                                                                  |
+| ---------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SITE_URL`                   | `http://localhost:3000` | Public origin of the web app: what people type in the browser.                                                                                                                                                |
+| `API_URL`                    | `http://localhost:5001` | Public origin of the API: must be reachable from the browser, not just from `web`.                                                                                                                            |
+| `POSTGRES_PASSWORD`          | `s3viewer`              | Password for the bundled Postgres container.                                                                                                                                                                  |
+| `S3_VIEWER_VERSION`          | unset (⇒ `latest`)      | Pins the `ghcr.io/maydotinc/s3-viewer-{api,web}` image tags. Set it to a released tag (`vX.Y.Z`) before going to production; unpinned `latest` moves under a running stack on the next `docker compose pull`. |
+| `TRUST_PROXY`                | unset (⇒ `loopback`)    | Passed through to the API; `docker-compose.proxy.yml` makes it `1`. Setting it here overrides both, for a proxy of your own or a second hop.                                                                  |
+| `COOKIE_SAMESITE`            | unset (⇒ `lax`)         | Set `none` only when the web app and the API are different sites, which needs an `https://` `API_URL`. See [Platform deploys](#5-platform-deploys).                                                           |
+| `BETTER_AUTH_SECRET`         | unset (⇒ generated)     | Only for migrating an existing install: overrides the secret the API generates into its `/data` volume. Existing sessions survive.                                                                            |
+| `ENCRYPTION_PRIVATE_KEY`     | unset (⇒ generated)     | Only for migrating an existing install: the RSA key that decrypts already-stored S3 credentials. See the one-line PEM note below.                                                                             |
+| `LANDING_ORIGIN`             | unset                   | Origin of the landing container; set it to `http://landing:3001` with the `landing` profile. Leave commented out (not blank) otherwise.                                                                       |
+| `SITE_HOSTNAME`              | unset                   | Hostname Caddy serves the web app on (`proxy` profile).                                                                                                                                                       |
+| `API_HOSTNAME`               | unset                   | Hostname Caddy serves the API on (`proxy` profile).                                                                                                                                                           |
+| `ACME_EMAIL`                 | unset                   | Address Let's Encrypt notifies about expiring certificates (`proxy` profile).                                                                                                                                 |
+| `EMAIL_TRANSPORT`            | unset (⇒ inferred)      | `none`, `resend` or `smtp`; see the [`apps/api/.env` table](#appsapienv) above.                                                                                                                               |
+| `RESEND_KEY`                 | unset                   | Resend API key; sending email switches on as soon as this is set.                                                                                                                                             |
+| `SMTP_URL`                   | unset                   | SMTP connection string.                                                                                                                                                                                       |
+| `EMAIL_FROM`                 | unset                   | From address on outgoing email.                                                                                                                                                                               |
+| `SUPPORT_EMAIL`              | unset                   | Contact shown to admins who hit the pending-invite cap.                                                                                                                                                       |
+| `GITHUB_CLIENT_ID`           | unset                   | GitHub OAuth app client id; set both id and secret or neither.                                                                                                                                                |
+| `GITHUB_CLIENT_SECRET`       | unset                   | GitHub OAuth app client secret.                                                                                                                                                                               |
+| `SIGNUP_MODE`                | unset (⇒ `open`)        | `open`, `domains`, `invite` or `closed`; see [Sign-up policy](#sign-up-policy-optional).                                                                                                                      |
+| `ALLOWED_EMAIL_DOMAINS`      | unset                   | Comma/whitespace-separated allowlist for `domains` mode, e.g. `acme.com, acme.dev`.                                                                                                                           |
+| `ALLOW_PRIVATE_ENDPOINTS`    | unset                   | `true` allows S3 endpoints on private/loopback addresses (a LAN MinIO).                                                                                                                                       |
+| `MAX_UPLOAD_BYTES`           | unset (⇒ 5 GiB)         | Largest upload body in bytes.                                                                                                                                                                                 |
+| `UPLOAD_PART_BYTES`          | unset (⇒ 5 MiB)         | Multipart part size in bytes. Min 5 MiB, max 5 GiB.                                                                                                                                                           |
+| `MAX_CONCURRENT_UPLOADS`     | unset (⇒ `6`)           | Maximum active uploads per API process; excess requests receive 429 with Retry-After.                                                                                                                         |
+| `MAX_USER_UPLOADS`           | unset (⇒ `3`)           | Maximum active uploads per user per API process.                                                                                                                                                              |
+| `UPLOAD_MEMORY_BUDGET_BYTES` | unset (⇒ `268435456`)   | Shared buffer reservation budget (256 MiB). At least four part buffers must fit. Leave headroom for Node, TLS and other requests; this does not cap total process memory.                                     |
+| `UPLOAD_IDLE_TIMEOUT_MS`     | unset (⇒ `120000`)      | Upload inactivity deadline in milliseconds; stalled uploads abort and release capacity after S3 cleanup.                                                                                                      |
+| `RUN_MIGRATIONS`             | unset (⇒ `true`)        | Set `false` on every API replica but one when running more than one, so they don't race the same migration on boot.                                                                                           |
+| `RATE_LIMIT_STORE`           | unset (⇒ `memory`)      | `postgres` shares the sign-in/sign-up/connect/invite/exists limits across more than one API replica; the high-volume limiters always stay per replica.                                                        |
+| `AUDIT_RETENTION_DAYS`       | unset (⇒ `0`)           | Positive value prunes `audit_log` rows older than this many days, hourly. `0` keeps them forever.                                                                                                             |
+| `KEEP_ALIVE_TIMEOUT_MS`      | unset (⇒ `65000`)       | HTTP keep-alive timeout; set above your load balancer's own idle timeout.                                                                                                                                     |
+| `S3_MAX_SOCKETS_PER_HOST`    | unset (⇒ `100`)         | Max concurrent sockets the outbound S3 agent keeps open per host.                                                                                                                                             |
+| `S3_MAX_TOTAL_SOCKETS`       | unset (⇒ `1000`)        | Max concurrent sockets the outbound S3 agent keeps open in total.                                                                                                                                             |
+| `S3_REQUESTS_PER_MINUTE`     | unset (⇒ `12000`)       | Upstream S3 requests allowed per connected server per API process per minute.                                                                                                                                 |
+| `LOG_LEVEL`                  | unset (⇒ `warn`)        | `debug`, `info`, `warn` or `error`.                                                                                                                                                                           |
 
 Leave an unwanted line commented out rather than setting it to an empty
 string; compose treats an empty value as a value, not as unset.
@@ -701,11 +764,19 @@ EXCEPTION` if two accounts collide once their addresses are lowercased
   the API then sees only Caddy's container address, so every per-IP limit
   becomes one global limit shared by every visitor.
 
-- **Rate limiting is in-memory and per-instance.** `express-rate-limit` uses
-  the default in-memory store; there is no shared Redis/store backing it.
-  Run N API instances behind a load balancer and the effective limit is N×
-  the documented number, and every counter resets on restart or redeploy.
-  Treat the numbers as a soft ceiling, not a hard guarantee.
+- **Rate limiting is in-memory by default, per instance.** `express-rate-limit`
+  uses the default in-memory store unless you set `RATE_LIMIT_STORE=postgres`.
+  With the default (`memory`), run N API instances behind a load balancer and
+  the effective limit is N× the documented number, and every counter resets on
+  restart or redeploy. `RATE_LIMIT_STORE=postgres` moves the security-relevant
+  limiters — sign-in, sign-up, connecting a server, invites, and the upload
+  duplicate-key check — into the database, so those stay correct no matter how
+  many replicas you run; the high-volume per-IP/per-user limiters stay in
+  memory either way, since a database write before authentication on every
+  request would amplify a flood rather than absorb it. **Set this whenever you
+  run more than one API replica.** With it set and the database briefly
+  unreachable, those limiters fail closed (429) rather than passing traffic
+  through unlimited.
 
 - **A broken mail provider fails silently to the client.** Verification and
   reset links are sent after the request has already succeeded, and the
@@ -735,17 +806,22 @@ failed` / `[auth] reset email failed`). Alert on those lines, not on
      scratch. If you set `ENCRYPTION_PRIVATE_KEY` yourself instead of relying
      on `DATA_DIR` generation, back up wherever you keep that value instead.
 
-- **Audit log retention.** The audit log is never pruned automatically and
-  has no foreign keys, so it grows without bound by design. Set a retention
-  window that suits your jurisdiction, for example a nightly:
-
-   ```sql
-   DELETE FROM "audit_log" WHERE "createdAt" < now() - interval '1 year';
-   ```
+- **Audit log retention.** The audit log has no foreign keys, so it deliberately
+  outlives the user or server a row refers to. By default it is kept forever;
+  set `AUDIT_RETENTION_DAYS` to a positive number of days that suits your
+  jurisdiction and an hourly background sweep prunes anything older, deleting
+  in batches of 5,000 rows with a short pause between them (indexed on
+  `createdAt` alone) rather than one long-locking statement — turning on
+  retention against an old, large backlog won't stall other writers. Anyone
+  with permission to manage a server's members can read its trail from
+  `GET /servers/:serverId/audit` (surfaced in the app as the Share dialog's
+  Activity tab); everyone can read their own account-level history (sign-ins,
+  password changes, session revocations) from `GET /account/audit`, surfaced
+  as the Security activity card on `/settings/profile`.
 
 ## 9. Updating
 
-Docker path:
+Docker path, unpinned (fine for a single-user or low-stakes install):
 
 ```bash
 git pull
@@ -757,6 +833,17 @@ docker compose up -d
 `--build` images instead; rebuild with `docker compose up -d --build`.)
 Migrations run automatically on the API container's next boot.
 
+For anything you'd call production, pin `S3_VIEWER_VERSION` in the root `.env`
+to a released tag instead of tracking `latest`:
+
+```dotenv
+S3_VIEWER_VERSION=v1.4.0
+```
+
+then bump it deliberately and redeploy the same way (`docker compose pull &&
+docker compose up -d`). This is what makes an update a decision you make,
+rather than whatever `latest` happened to be the moment a container restarted.
+
 pnpm path:
 
 ```bash
@@ -767,6 +854,17 @@ pnpm dev
 
 `pnpm dev` applies any pending migrations before starting the apps, same as
 always.
+
+**Running more than one API replica?** Two things need attention that don't
+come up on a single instance:
+
+- Set `RATE_LIMIT_STORE=postgres` so the sign-in, sign-up, connect, invite and
+  upload duplicate-key limits are enforced across every replica instead of
+  each one keeping its own budget; the high-volume per-IP/per-user limiters
+  stay per replica regardless, on purpose.
+- Set `RUN_MIGRATIONS=false` on every replica but one, so they don't all try
+  to run `prisma migrate deploy` against the same database at once during a
+  rolling deploy. Leave it unset (⇒ `true`) on the one that should migrate.
 
 ### Upgrading from an earlier version
 
@@ -790,6 +888,32 @@ config, none of them touch your data.
 - **`packages/db` no longer needs an env file.** `DATABASE_URL` always comes
   from `apps/api/.env`, which the `db:*` scripts load before running Prisma.
   Delete `packages/db/.env` if you have one.
+
+The hardening pass that added the env vars in this section also changed a
+few behaviours worth knowing before you upgrade:
+
+- **Password reset, email verification and delete-account links issued
+  before the upgrade stop working.** Verification identifiers are now stored
+  hashed rather than in plain text. Nothing needs cleaning up — the stale
+  rows simply expire on their own — but anyone with a pending link needs to
+  request a new one afterwards.
+- **Deleting an account now requires your password**, on top of the existing
+  email confirmation and 24-hour session-freshness check. An account with no
+  password set (GitHub-only) is guided to set one first.
+- **A GitHub sign-in now trusts GitHub's own verified flag**, rather than
+  treating every GitHub address as verified. An unverified local password
+  account can no longer be silently linked to one for the same address either
+  way; the local account has to be verified first. This only affects accounts
+  created or linked after the upgrade.
+- **New environment variables, none of them required.** `SIGNUP_MODE` /
+  `ALLOWED_EMAIL_DOMAINS` (default `open`, unrestricted, same as before),
+  `AUDIT_RETENTION_DAYS` (default `0`, unchanged: keep forever),
+  `RATE_LIMIT_STORE` (default `memory`, unchanged for a single replica),
+  `RUN_MIGRATIONS` (default `true`, unchanged), `KEEP_ALIVE_TIMEOUT_MS`,
+  `S3_MAX_SOCKETS_PER_HOST`, `S3_MAX_TOTAL_SOCKETS` and
+  `S3_REQUESTS_PER_MINUTE` all default to today's behaviour, so an upgrade
+  with no `.env` changes behaves the same. See the
+  [env reference](#7-full-env-reference) for what each one does.
 
 Moving an existing install onto the Docker stack? The API generates
 `BETTER_AUTH_SECRET` and its RSA key into the `/data` volume on first boot,

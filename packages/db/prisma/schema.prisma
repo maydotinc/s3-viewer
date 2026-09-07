@@ -60,9 +60,9 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  @@index([userId])
   @@unique([providerId, accountId])
   @@unique([issuer, accountId])
+  @@index([userId])
   @@map("account")
 }
 
@@ -185,7 +185,20 @@ model AuditLog {
   @@index([serverId, createdAt])
   @@index([actorId, createdAt])
   @@index([target])
+  // AUDIT_RETENTION_DAYS prunes by age alone, across every server
+  @@index([createdAt])
   @@map("audit_log")
+}
+
+// fixed-window counters shared by every API replica (RATE_LIMIT_STORE=postgres):
+// the security-relevant limiters must not reset per process
+model RateLimit {
+  key     String   @id
+  hits    Int
+  resetAt DateTime
+
+  @@index([resetAt])
+  @@map("rate_limit")
 }
 
 enum Role {

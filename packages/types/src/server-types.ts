@@ -98,11 +98,22 @@ type AccountSummary = {
    receivedInvites: number;
 };
 
+// who may create an account here: `open` to anyone, `domains` to the listed
+// email domains, `closed` to nobody. allowedEmailDomains is only meaningful
+// in `domains` mode, where the sign-in form lists it
+/**
+ * `open` anyone, `domains` a listed domain or a live invitation,
+ * `invite` a live invitation only, `closed` nobody (existing users only).
+ */
+type SignUpMode = "open" | "domains" | "invite" | "closed";
+
 /** GET /config: what an install can do, read by the web app at runtime */
 type PublicConfig = {
    encryptionPublicKey: string;
    githubLoginEnabled: boolean;
    emailEnabled: boolean;
+   signUpMode: SignUpMode;
+   allowedEmailDomains: string[];
 };
 
 export { Provider, Role };
@@ -121,4 +132,5 @@ export type {
    StorageCapabilities,
    ServerInvite,
    ServerUser,
+   SignUpMode,
 };

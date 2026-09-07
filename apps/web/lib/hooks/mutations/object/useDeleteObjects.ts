@@ -23,6 +23,8 @@ type DeleteSummary = {
    failedTotal: number;
    failed: (S3DeleteTarget & { message: string; retryable: boolean })[];
    listingError: string | null;
+   /** the run stopped early, so objects it never reached may still be there. */
+   remaining: boolean;
 };
 
 const emptySummary = (): DeleteSummary => ({
@@ -30,6 +32,7 @@ const emptySummary = (): DeleteSummary => ({
    failedTotal: 0,
    failed: [],
    listingError: null,
+   remaining: false,
 });
 
 const addPage = (summary: DeleteSummary, page: DeleteSummary) => {
@@ -37,6 +40,7 @@ const addPage = (summary: DeleteSummary, page: DeleteSummary) => {
    summary.failed.push(...page.failed);
    summary.failedTotal = summary.failed.length;
    summary.listingError ??= page.listingError;
+   summary.remaining ||= page.remaining;
 };
 
 const deleteObjects = async (
@@ -117,23 +121,26 @@ const reportDeleteResult = ({
    failedTotal,
    failed,
    listingError,
+   remaining,
 }: DeleteSummary) => {
-   if (failedTotal > 0 || listingError) {
-      const names = failed
-         .slice(0, 3)
-         .map((f) => f.key)
-         .join(", ");
-      const more = failedTotal > 3 ? ` and ${failedTotal - 3} more` : "";
-      toast.error("Deletion is incomplete", {
-         description:
-            listingError ??
-            `${deleted} deleted, ${failedTotal} failed: ${names}${more}`,
-      });
-   } else if (deleted > 0) {
-      toast.success(
-         deleted === 1 ? "1 object deleted." : `${deleted} objects deleted.`
-      );
+   if (failedTotal === 0 && !listingError && !remaining) {
+      if (deleted > 0)
+         toast.success(
+            deleted === 1 ? "1 object deleted." : `${deleted} objects deleted.`
+         );
+      return;
    }
+   const names = failed
+      .slice(0, 3)
+      .map((f) => f.key)
+      .join(", ");
+   const more = failedTotal > 3 ? ` and ${failedTotal - 3} more` : "";
+   const left = remaining ? " More objects remain." : "";
+   toast.error("Deletion is incomplete", {
+      description:
+         listingError ??
+         `${deleted} deleted, ${failedTotal} failed: ${names}${more}.${left}`,
+   });
 };
 
 const useDeleteObjects = () => {

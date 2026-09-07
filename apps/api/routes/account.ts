@@ -3,12 +3,15 @@ import { requireUser } from "@/lib/middleware/authorize";
 import { validatedRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { accountSummary } from "@/lib/services/account";
+import { listAuditPage, recordAudit } from "@/lib/services/audit";
 import { auth } from "@s3-viewer/auth";
 import {
    ErrorCode,
    HOUR_MS,
    SESSION_FRESH_HOURS,
+   auditPageSchema,
    passwordSchema,
+   type AuditPageQuery,
 } from "@s3-viewer/types";
 import { fromNodeHeaders } from "better-auth/node";
 import { Router, type Request, type Response } from "express";
@@ -30,7 +33,7 @@ const FRESH_SESSION_MS = SESSION_FRESH_HOURS * HOUR_MS;
 // stolen cookie must not be enough to claim the account, so the session has
 // to be as fresh as account deletion requires
 const setPassword = async (req: Request, res: Response) => {
-   requireUser(req);
+   const { id: actorId } = requireUser(req);
    const createdAt = new Date(req.session?.createdAt ?? 0).getTime();
    if (Date.now() - createdAt >= FRESH_SESSION_MS) {
       throw new ApiHttpError(
@@ -44,10 +47,20 @@ const setPassword = async (req: Request, res: Response) => {
       body: { newPassword: password },
       headers: fromNodeHeaders(req.headers),
    });
+   await recordAudit({ action: "auth.password_set", actorId });
    noContent(res);
 };
 
+// the caller's own rows only: `auth.*` events carry no serverId, so this is
+// the only way anyone ever reads them back
+const getOwnAudit = async (req: Request, res: Response) => {
+   const { id } = requireUser(req);
+   const { cursor, limit } = input<AuditPageQuery>(res);
+   res.json(await listAuditPage({ where: { actorId: id }, cursor, limit }));
+};
+
 accountRouter.get("/summary", asyncHandler(getSummary));
+accountRouter.get("/audit", ...validatedRoute(auditPageSchema, getOwnAudit));
 accountRouter.post(
    "/password",
    ...validatedRoute(setPasswordSchema, setPassword)

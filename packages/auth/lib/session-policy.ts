@@ -57,7 +57,7 @@ const enforceSessionPolicy = async (
    if (!confirmation.success) {
       throw new APIError("BAD_REQUEST", {
          message:
-            "Confirm the account ID and email before deleting your account.",
+            "Confirm the account ID, email and password before deleting your account.",
          code: "ACCOUNT_CONFIRMATION_REQUIRED",
       });
    }
@@ -95,6 +95,18 @@ const enforceSessionPolicy = async (
    if (ctx.body?.token) {
       throw new APIError("BAD_REQUEST", {
          message: "Deletion tokens are not supported.",
+      });
+   }
+   // Better Auth verifies the supplied password itself, but only when the
+   // account has a credential row: without this an oauth-only account would
+   // be deletable by anyone holding the session cookie alone.
+   const credential = await ctx.context.internalAdapter.findCredentialAccount(
+      current.user.id
+   );
+   if (!credential?.password) {
+      throw new APIError("BAD_REQUEST", {
+         message: "Set a password in Settings before deleting your account.",
+         code: "PASSWORD_NOT_SET",
       });
    }
    return expired;

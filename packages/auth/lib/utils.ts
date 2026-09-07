@@ -7,4 +7,10 @@ const localPart = (email: string): string => {
    return local || trimmed;
 };
 
-export { localPart, normalizeEmail };
+// name and message only: a transport error's full object can carry the
+// recipient address or a request body, and the auth package has no scrubbing
+// logger of its own
+const describeFailure = (error: unknown): string =>
+   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+export { describeFailure, localPart, normalizeEmail };

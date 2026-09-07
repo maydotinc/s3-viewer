@@ -44,13 +44,24 @@ const deletePrefix = async ({
             throw new Error("Storage returned an object outside this folder.");
       } catch (error) {
          if (isAborted(error)) throw error;
-         summary.listingError = `${errorMessage(error)} Folder deletion is incomplete. Close this dialog and refresh before trying again.`;
+         summary.listingError = `${errorMessage(error)} Folder deletion is incomplete.`;
+         summary.remaining = true;
          break;
       }
       if (page.nextToken) tokens.add(page.nextToken);
       continuationToken = page.nextToken ?? undefined;
-      addPage(summary, await deleteObjects(path, page.objects, userId, signal));
+      const batch = await deleteObjects(path, page.objects, userId, signal);
+      addPage(summary, batch);
       onProgress?.(summary.deleted);
+      // stop at the first failing batch rather than burning through the rest of
+      // the folder: everything already deleted is kept, and re-running the
+      // mutation resumes, because storage only lists what is still there.
+      // the objects this batch failed on are demonstrably still in the folder,
+      // so they count as remaining even when this was the last listing page.
+      if (batch.failed.length > 0) {
+         summary.remaining = true;
+         break;
+      }
    } while (continuationToken);
    return summary;
 };

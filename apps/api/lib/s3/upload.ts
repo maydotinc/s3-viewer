@@ -10,6 +10,7 @@ import { Provider, backblazeRegion } from "@s3-viewer/types";
 import { Transform, type Readable } from "node:stream";
 import { ApiHttpError } from "../http";
 import { logger } from "../logger";
+import { keyHash } from "./keys";
 import { withoutRetries } from "./no-retry";
 import { clientProvider } from "./provider";
 import { UPLOAD_QUEUE_SIZE } from "./upload-budget";
@@ -313,7 +314,8 @@ const runStreamUpload = async ({
                "Multipart upload failed before cleanup was confirmed",
                {
                   bucket,
-                  key,
+                  keyHash: keyHash(key),
+                  keyLength: key.length,
                   uploadId: upload.uploadId,
                }
             );

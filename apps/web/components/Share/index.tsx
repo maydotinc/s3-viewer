@@ -1,5 +1,6 @@
 import { Page, PageHeader } from "@/components/Layout/page";
 import useBuckets, { NO_BUCKETS } from "@/lib/hooks/queries/s3/useBuckets";
+import useAuditLog from "@/lib/hooks/queries/server/useAuditLog";
 import { useSentInvites } from "@/lib/hooks/queries/server/useInvites";
 import useMembers from "@/lib/hooks/queries/server/useMembers";
 import useServers from "@/lib/hooks/queries/server/useServers";
@@ -14,6 +15,7 @@ import { ChevronLeft, ShieldOff, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Activity from "./activity";
 import InviteDialog from "./invite-dialog";
 import Members from "./members";
 import PendingInvites from "./pending-invites";
@@ -46,7 +48,7 @@ const ErrorState = ({ message }: { message: string }) => (
    </div>
 );
 
-type Tab = "members" | "invites";
+type Tab = "members" | "invites" | "activity";
 
 type ShareTabsProps = {
    serverId: string;
@@ -64,11 +66,50 @@ const ShareTabs = ({
    const [tab, setTab] = useState<Tab>("members");
    const members = useMembers(serverId);
    const invites = useSentInvites(serverId);
+   // the whole page is already behind MANAGE_MEMBERS, which is what the audit
+   // endpoint asks for too; the log is fetched only once its tab is opened
+   const audit = useAuditLog(serverId, tab === "activity");
    const inviteList = invites.data ?? NO_INVITES;
    const memberCount =
       members.isLoading || members.error ? undefined : members.members.length;
    const inviteCount =
       invites.isLoading || invites.error ? undefined : inviteList.length;
+
+   const panel =
+      tab === "members" ? (
+         members.error ? (
+            <TableError>{members.error.message}</TableError>
+         ) : (
+            <Members
+               serverId={serverId}
+               myRole={myRole}
+               buckets={buckets}
+               isBucketsLoading={isBucketsLoading}
+               members={members.members}
+               isLoading={members.isLoading}
+            />
+         )
+      ) : tab === "invites" ? (
+         invites.error ? (
+            <TableError>{invites.error.message}</TableError>
+         ) : (
+            <PendingInvites
+               serverId={serverId}
+               invites={inviteList}
+               isLoading={invites.isLoading}
+            />
+         )
+      ) : audit.error ? (
+         <TableError>{audit.error.message}</TableError>
+      ) : (
+         <Activity
+            entries={audit.entries}
+            isLoading={audit.isLoading}
+            hasNextPage={audit.hasNextPage}
+            isFetchingNextPage={audit.isFetchingNextPage}
+            onLoadMore={() => void audit.fetchNextPage()}
+         />
+      );
 
    return (
       <div className="flex min-w-0 shrink-0 flex-col gap-4">
@@ -91,6 +132,14 @@ const ShareTabs = ({
             >
                Pending invites
             </TabButton>
+            <TabButton
+               id="share-tab-activity"
+               aria-controls="share-tabpanel"
+               active={tab === "activity"}
+               onClick={() => setTab("activity")}
+            >
+               Activity
+            </TabButton>
          </TabList>
          <section
             id="share-tabpanel"
@@ -98,28 +147,7 @@ const ShareTabs = ({
             aria-labelledby={`share-tab-${tab}`}
             className="min-w-0 overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite"
          >
-            {tab === "members" ? (
-               members.error ? (
-                  <TableError>{members.error.message}</TableError>
-               ) : (
-                  <Members
-                     serverId={serverId}
-                     myRole={myRole}
-                     buckets={buckets}
-                     isBucketsLoading={isBucketsLoading}
-                     members={members.members}
-                     isLoading={members.isLoading}
-                  />
-               )
-            ) : invites.error ? (
-               <TableError>{invites.error.message}</TableError>
-            ) : (
-               <PendingInvites
-                  serverId={serverId}
-                  invites={inviteList}
-                  isLoading={invites.isLoading}
-               />
-            )}
+            {panel}
          </section>
       </div>
    );

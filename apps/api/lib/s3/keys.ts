@@ -1,6 +1,12 @@
 import { baseName } from "@s3-viewer/types";
+import { createHash } from "node:crypto";
 
 const FALLBACK_FILENAME = "download";
+
+// object keys are user data (names, ids, whole paths): logs correlate on a
+// truncated digest instead, which still matches two lines about the same object
+const keyHash = (key: string): string =>
+   createHash("sha256").update(key, "utf8").digest("hex").slice(0, 16);
 
 const encodeCopySource = (bucket: string, key: string): string =>
    `${bucket}/${key.split("/").map(encodeURIComponent).join("/")}`;
@@ -50,4 +56,5 @@ export {
    encodeCopySource,
    inlineContentType,
    inlineDisposition,
+   keyHash,
 };

@@ -1,12 +1,17 @@
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/queryKeys";
+import type { SignUpMode } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
 type InstanceConfig = {
    encryptionPublicKey: string;
    githubLoginEnabled: boolean;
    emailEnabled: boolean;
+   signUpMode: SignUpMode;
+   allowedEmailDomains: string[];
 };
+
+type SignUpPolicyState = { mode: SignUpMode; domains: string[] };
 
 type ConfigQuery = { data?: InstanceConfig; isPending: boolean };
 
@@ -44,9 +49,25 @@ const emailState = ({ data, isPending }: ConfigQuery): EmailState => {
    return isPending ? "loading" : "enabled";
 };
 
+// like emailState, an unreachable config falls back to the permissive answer:
+// hiding sign-up on a working open instance is the worse failure, and the
+// server refuses the request anyway when it is not
+const signUpPolicyState = (
+   config: InstanceConfig | undefined
+): SignUpPolicyState => ({
+   mode: config?.signUpMode ?? "open",
+   domains: config?.allowedEmailDomains ?? [],
+});
+
 const encryptionState = ({ data, isPending }: ConfigQuery): EncryptionState =>
    data?.encryptionPublicKey ? "ready" : isPending ? "loading" : "error";
 
 export default useInstanceConfig;
-export { CONFIG_ERROR, emailState, encryptionState, githubEnabled };
-export type { EmailState, EncryptionState, InstanceConfig };
+export {
+   CONFIG_ERROR,
+   emailState,
+   encryptionState,
+   githubEnabled,
+   signUpPolicyState,
+};
+export type { EmailState, EncryptionState, InstanceConfig, SignUpPolicyState };

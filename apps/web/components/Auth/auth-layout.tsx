@@ -2,6 +2,9 @@ import BrandPanel from "@/components/Auth/brand-panel";
 import { LEGAL_LINK, TEXT_LINK } from "@/components/Auth/text-link";
 import { afterLoginPath } from "@/lib/auth-redirect";
 import { publicEnv } from "@/lib/env";
+import useInstanceConfig, {
+   signUpPolicyState,
+} from "@/lib/hooks/queries/useInstanceConfig";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/site-config";
 import { PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
 import Image from "next/image";
@@ -32,10 +35,17 @@ const REMEMBERED: Switch = {
 
 const AccountSwitch = () => {
    const { pathname, query } = useRouter();
+   const { data: config } = useInstanceConfig();
    const destination = afterLoginPath(query.next);
    const next =
       destination === SITE_PATHS.dashboard ? undefined : { next: destination };
    const { prompt, label, href } = SWITCHES[pathname] ?? REMEMBERED;
+   // nothing sends a visitor to a page that can only refuse them
+   if (
+      href === SITE_PATHS.signup &&
+      signUpPolicyState(config).mode === "closed"
+   )
+      return null;
    return (
       <p className="text-sm text-viewertext">
          <span className="hidden sm:inline">{prompt} </span>

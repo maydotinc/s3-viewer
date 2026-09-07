@@ -37,3 +37,13 @@ export type RenameServerInput = z.infer<typeof renameServerSchema>;
 
 export const updateCredentialsSchema = serverScope.merge(establishSchema);
 export type UpdateCredentialsInput = z.infer<typeof updateCredentialsSchema>;
+
+// the cursor is opaque to the client: base64 of the last row's timestamp and id
+export const auditPageSchema = z.object({
+   cursor: z.string().min(1).max(256).optional(),
+   limit: z.coerce.number().int().min(1).max(100).default(50),
+});
+export type AuditPageQuery = z.infer<typeof auditPageSchema>;
+
+export const auditQuerySchema = serverScope.merge(auditPageSchema);
+export type AuditQuery = z.infer<typeof auditQuerySchema>;

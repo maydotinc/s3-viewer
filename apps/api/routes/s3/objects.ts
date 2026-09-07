@@ -2,6 +2,7 @@ import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, fail, requestSignal } from "@/lib/http";
 import { requireExpectedUser } from "@/lib/middleware/expected-user";
+import { existsLimit } from "@/lib/middleware/rate-limit";
 import { bucketRoute } from "@/lib/middleware/route";
 import { input } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
@@ -124,10 +125,13 @@ objectsRouter.get(
    )
 );
 
+// only the upload flow asks this, so it carries the upload permission rather
+// than the far broader LIST_OBJECTS a viewer holds
 objectsRouter.post(
    "/exists",
+   existsLimit,
    ...bucketRoute(
-      Permission.LIST_OBJECTS,
+      Permission.UPLOAD_OBJECT,
       objectKeysBodySchema,
       async (req, res) => {
          const { serverId, bucketName, objectKeys } =

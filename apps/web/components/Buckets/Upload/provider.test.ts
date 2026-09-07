@@ -86,9 +86,7 @@ vi.mock("@/lib/hooks/useStorageCapabilities", () => ({
    }),
 }));
 vi.mock("@/lib/hooks/usePermission", () => ({ usePermission: () => true }));
-vi.mock("@/components/Modals/confirm-dialog", () => ({
-   ConfirmDialog: () => null,
-}));
+vi.mock("./replace-dialog", () => ({ ReplaceDialog: () => null }));
 vi.mock("@/lib/hooks/mutations/object/invalidate", () => ({
    forgetKeys: h.forgetKeys,
 }));
@@ -111,7 +109,14 @@ type Uploader = {
    upload: (files: UploadFile[]) => Promise<void>;
    isChecking: boolean;
 };
-type Dialog = { open: boolean; onConfirm: () => void };
+type Dialog = {
+   open: boolean;
+   existing: string[];
+   total: number;
+   onReplaceAll: () => void;
+   onSkipExisting: () => void;
+   onCancel: () => void;
+};
 type Tree = React.ReactElement<{
    value: Uploader;
    children: [unknown, React.ReactElement<Dialog>];
@@ -184,7 +189,7 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
       const oldDialog = render().dialog;
       h.canReplace = false;
       expect(render().dialog.open).toBe(false);
-      oldDialog.onConfirm();
+      oldDialog.onReplaceAll();
       expect(h.enqueue).not.toHaveBeenCalled();
    });
    it("does not preflight or enqueue files when provider uploads are unavailable", async () => {
@@ -199,7 +204,7 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
       const oldDialog = render().dialog;
       h.canUpload = false;
       expect(render().dialog.open).toBe(false);
-      oldDialog.onConfirm();
+      oldDialog.onReplaceAll();
       expect(h.enqueue).not.toHaveBeenCalled();
    });
    it("confirms only the originally observed ETag without a new preflight and invalidates the original target", async () => {
@@ -212,7 +217,7 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
          existing: ["p/old.txt"],
          eTags: { "p/old.txt": '"new-unseen-version"' },
       });
-      dialog.onConfirm();
+      dialog.onReplaceAll();
       expect(h.post).toHaveBeenCalledTimes(1);
       expect(h.enqueue).toHaveBeenCalledWith(
          expect.objectContaining({
@@ -240,6 +245,60 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
          ["p/old.txt", "p/new.txt"]
       );
       expect(h.refresh).not.toHaveBeenCalled();
+   });
+
+   it("uploads only the non-colliding files when existing ones are skipped", async () => {
+      const { uploader } = mount();
+      await uploader.upload(files);
+      const { dialog } = render();
+      expect(dialog).toMatchObject({
+         open: true,
+         existing: ["old.txt"],
+         total: 2,
+      });
+      dialog.onSkipExisting();
+      expect(h.post).toHaveBeenCalledTimes(1);
+      expect(h.enqueue).toHaveBeenCalledWith(
+         expect.objectContaining({
+            prefix: "p/",
+            files: [files[1]],
+            // no snapshot is carried, so the upload stays conditional on the
+            // key still being absent instead of overwriting a late arrival.
+            eTags: {},
+         })
+      );
+      expect(render().dialog.open).toBe(false);
+   });
+
+   it("enqueues nothing when every selected file already exists", async () => {
+      h.post.mockResolvedValue({
+         existing: ["p/old.txt", "p/new.txt"],
+         eTags: { "p/old.txt": '"a"', "p/new.txt": '"b"' },
+      });
+      const { uploader } = mount();
+      await uploader.upload(files);
+      const { dialog } = render();
+      expect(dialog.existing).toEqual(["old.txt", "new.txt"]);
+      dialog.onSkipExisting();
+      expect(h.enqueue).not.toHaveBeenCalled();
+      expect(render().dialog.open).toBe(false);
+   });
+
+   it("discards the pending files when the replace prompt is cancelled", async () => {
+      const { uploader } = mount();
+      await uploader.upload(files);
+      render().dialog.onCancel();
+      expect(h.enqueue).not.toHaveBeenCalled();
+      expect(render().dialog.open).toBe(false);
+   });
+
+   it("refuses a skip after replacement capability is removed", async () => {
+      await mount().uploader.upload(files);
+      const oldDialog = render().dialog;
+      h.canReplace = false;
+      expect(render().dialog.open).toBe(false);
+      oldDialog.onSkipExisting();
+      expect(h.enqueue).not.toHaveBeenCalled();
    });
 
    it("starts new files without replacement permission", async () => {
@@ -271,7 +330,7 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
          const savedDialog = render().dialog;
          h.session = session;
          // Even an old event handler cannot start an upload before React rerenders.
-         savedDialog.onConfirm();
+         savedDialog.onReplaceAll();
          expect(h.enqueue).not.toHaveBeenCalled();
          expect(render().dialog.open).toBe(false);
          flushEffects();
