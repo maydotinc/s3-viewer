@@ -1,0 +1,74 @@
+name: s3-viewer-dev
+
+services:
+   postgres:
+      image: postgres:16
+      profiles: [core]
+      restart: unless-stopped
+      environment:
+         POSTGRES_USER: s3viewer
+         POSTGRES_PASSWORD: s3viewer
+         POSTGRES_DB: s3viewer
+      ports:
+         - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      volumes:
+         - pgdata:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U s3viewer -d s3viewer"]
+         interval: 5s
+         timeout: 5s
+         retries: 10
+
+   mailpit:
+      image: axllent/mailpit:v1.31.4
+      profiles: [email]
+      restart: unless-stopped
+      ports:
+         - "127.0.0.1:8025:8025"
+         - "127.0.0.1:1025:1025"
+      healthcheck:
+         test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025/readyz"]
+         interval: 5s
+         timeout: 5s
+         retries: 10
+
+   rustfs:
+      image: rustfs/rustfs:1.0.1
+      profiles: [demo]
+      restart: unless-stopped
+      environment:
+         RUSTFS_ACCESS_KEY: rustfsadmin
+         RUSTFS_SECRET_KEY: rustfsadmin
+         RUSTFS_CONSOLE_ENABLE: "true"
+      ports:
+         - "127.0.0.1:9000:9000"
+         - "127.0.0.1:9001:9001"
+      volumes:
+         - rustfsdata:/data
+
+   demo-bootstrap:
+      image: amazon/aws-cli:2.37.9
+      profiles: [demo]
+      depends_on:
+         - rustfs
+      environment:
+         AWS_ACCESS_KEY_ID: rustfsadmin
+         AWS_SECRET_ACCESS_KEY: rustfsadmin
+         AWS_REGION: us-east-1
+         AWS_ENDPOINT_URL: http://rustfs:9000
+      entrypoint:
+         - /bin/sh
+         - -c
+         - |
+            until aws s3api list-buckets > /dev/null; do sleep 1; done
+            aws s3api head-bucket --bucket demo 2> /dev/null || aws s3api create-bucket --bucket demo > /dev/null &&
+            printf 'Sample objects for the S3 Viewer demo bucket.\n' > /tmp/README.txt &&
+            printf 'id,name,size\n1,alpha,120\n2,beta,340\n' > /tmp/inventory.csv &&
+            printf '# Notes\n\nAnything you upload here stays in the local RustFS volume.\n' > /tmp/notes.md &&
+            aws s3 cp /tmp/README.txt s3://demo/README.txt &&
+            aws s3 cp /tmp/inventory.csv s3://demo/reports/inventory.csv &&
+            aws s3 cp /tmp/notes.md s3://demo/reports/notes.md
+
+volumes:
+   pgdata:
+   rustfsdata:

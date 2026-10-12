@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+@source "../";
+
+@theme static {
+   --color-viewerblue: #3658c1;
+   --color-viewerdarkblue: #253977;
+   --color-viewerwhite: #ffffff;
+   --color-viewerborder: #e1e4ea;
+   --color-viewergray: #f7f7f7;
+   --color-viewertext: #525866;
+   --color-viewerblack: #0e121b;
+   --color-viewerlighttext: #6d778a;
+   --color-viewertextred: #fb3748;
+   --color-viewerbgred: #feebec;
+
+   --color-jsonkey: #253977;
+   --color-jsonstring: #146b52;
+   --color-jsonnumber: #9a5700;
+   --color-jsonliteral: #7b3fbf;
+}
+
+:root {
+   --radius: 0.5rem;
+   --background: var(--color-viewerwhite);
+   --foreground: var(--color-viewertext);
+   --border: var(--color-viewerborder);
+}
+
+@theme inline {
+   --color-background: var(--background);
+   --color-foreground: var(--foreground);
+   --font-sans: var(--font-inter), Inter, system-ui, sans-serif;
+   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+   --color-border: var(--border);
+   --radius-sm: calc(var(--radius) - 4px);
+   --radius-md: calc(var(--radius) - 2px);
+   --radius-lg: var(--radius);
+   --radius-xl: calc(var(--radius) + 4px);
+}
+
+html {
+   scroll-padding-top: 5rem;
+}
+
+html,
+body {
+   overscroll-behavior-y: none;
+   background: var(--background);
+   color: var(--foreground);
+   font-family: var(--font-sans);
+}
+
+/* Safari leaves the strip under its toolbars uncovered by fixed overlays and paints the page background there. */
+html:has([data-backdrop]),
+html:has([data-backdrop]) body {
+   background: color-mix(
+      in srgb,
+      var(--color-viewerblack) 40%,
+      var(--color-viewerwhite)
+   );
+}
+
+@layer base {
+   * {
+      @apply border-border;
+   }
+
+   body {
+      @apply bg-background text-foreground;
+   }
+
+   h1,
+   h2,
+   h3,
+   h4,
+   h5,
+   h6 {
+      color: var(--color-viewerblack);
+   }
+}
+
+@layer components {
+   .text-title {
+      @apply text-[30px] leading-[36px] font-semibold tracking-tight text-viewerblack;
+   }
+
+   .text-body {
+      @apply text-[16px] leading-[28px] font-normal text-viewertext;
+   }
+
+   .text-meta {
+      @apply text-[12px] leading-[18px] font-medium text-viewerlighttext;
+   }
+}
+
+@keyframes fade-in {
+   from {
+      opacity: 0;
+      transform: translateY(2px);
+   }
+   to {
+      opacity: 1;
+      transform: translateY(0);
+   }
+}
+
+@utility animate-fade-in {
+   animation: fade-in 120ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+   .animate-fade-in {
+      animation: none;
+   }
+}

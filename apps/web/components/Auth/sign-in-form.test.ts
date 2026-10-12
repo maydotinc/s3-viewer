@@ -1,0 +1,107 @@
+// @vitest-environment happy-dom
+import { act, createElement, type ReactNode } from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { flushRuntime, mountRuntime } from "@/lib/test/runtime";
+import SignInForm, { type Mode } from "./sign-in-form";
+
+const h = vi.hoisted(() => ({
+   continueWithPassword: vi.fn(),
+   onEmail: (_value: string) => {},
+   onPassword: (_event: { target: { value: string } }) => {},
+}));
+
+vi.mock("@/lib/auth", () => ({
+   continueWithPassword: h.continueWithPassword,
+}));
+vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
+   default: () => ({ data: { signUpMode: "open" }, isPending: false }),
+   githubEnabled: () => false,
+   signUpPolicyState: () => ({ mode: "open", domains: [] }),
+}));
+vi.mock("next/link", () => ({
+   default: ({ children }: { children: ReactNode }) =>
+      createElement("a", null, children),
+}));
+vi.mock("./email-field", () => ({
+   default: (props: { onChange: (value: string) => void }) => {
+      h.onEmail = props.onChange;
+      return null;
+   },
+}));
+vi.mock("./password-input", () => ({
+   default: (props: { onChange: typeof h.onPassword }) => {
+      h.onPassword = props.onChange;
+      return null;
+   },
+}));
+
+const mounted: Awaited<ReturnType<typeof mountRuntime>>[] = [];
+
+beforeEach(() => {
+   h.continueWithPassword.mockReset();
+   h.continueWithPassword.mockResolvedValue({
+      error: "Wrong email or password.",
+      code: "INVALID_EMAIL_OR_PASSWORD",
+      created: false,
+   });
+});
+
+afterEach(async () => {
+   while (mounted.length) await mounted.pop()!.unmount();
+});
+
+const submitAs = async (mode: Mode, inviteId?: string) => {
+   const runtime = await mountRuntime(
+      createElement(SignInForm, {
+         mode,
+         notice: null,
+         inviteId,
+         onGithub: () => {},
+         onDone: async () => {},
+      })
+   );
+   mounted.push(runtime);
+   await act(async () => h.onEmail("typo@gmial.com"));
+   await act(async () =>
+      h.onPassword({ target: { value: "a-long-enough-password" } })
+   );
+   await act(async () => {
+      runtime.container
+         .querySelector("form")!
+         .dispatchEvent(
+            new Event("submit", { bubbles: true, cancelable: true })
+         );
+   });
+   await flushRuntime();
+   return runtime.container;
+};
+
+describe("password sign-in", () => {
+   it("never creates an account from the login page", async () => {
+      const container = await submitAs("login");
+      expect(h.continueWithPassword).toHaveBeenCalledWith(
+         "typo@gmial.com",
+         "a-long-enough-password",
+         { allowSignUp: false, inviteId: undefined }
+      );
+      expect(container.textContent).toContain("Wrong email or password.");
+   });
+
+   it("creates the account from the sign-up page", async () => {
+      await submitAs("signup");
+      expect(h.continueWithPassword).toHaveBeenCalledWith(
+         "typo@gmial.com",
+         "a-long-enough-password",
+         { allowSignUp: true, inviteId: undefined }
+      );
+   });
+
+   it("still lets an invitation link create the invited account from the login page", async () => {
+      await submitAs("login", "invite-token-123");
+      expect(h.continueWithPassword).toHaveBeenCalledWith(
+         "typo@gmial.com",
+         "a-long-enough-password",
+         { allowSignUp: true, inviteId: "invite-token-123" }
+      );
+   });
+});

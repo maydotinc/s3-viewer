@@ -1,0 +1,31 @@
+{
+   "name": "@s3-viewer/email",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "type": "module",
+   "exports": {
+      ".": "./src/index.ts",
+      "./transport": "./src/transport.ts"
+   },
+   "scripts": {
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
+   "dependencies": {
+      "@react-email/render": "^1.2.1",
+      "@s3-viewer/permissions": "workspace:*",
+      "@s3-viewer/types": "workspace:*",
+      "@s3-viewer/ui": "workspace:*",
+      "nodemailer": "^10.0.14",
+      "resend": "^6.0.1"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@types/node": "^22",
+      "eslint": "catalog:",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

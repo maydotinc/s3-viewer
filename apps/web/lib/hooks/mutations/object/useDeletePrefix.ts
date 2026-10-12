@@ -1,0 +1,44 @@
+import { objectsPath } from "@/lib/api";
+import type { BucketTarget } from "@/lib/types";
+import { runPrefixBatches } from "@/lib/utils/s3/batch";
+import useObjectMutation, { forgetMatching } from "./object-mutation";
+import { deleteObjects, reportDeleteResult } from "./useDeleteObjects";
+
+type DeletePrefixInput = BucketTarget & {
+   prefix: string;
+   signal?: AbortSignal;
+   onProgress?: (deleted: number) => void;
+};
+
+const deletePrefix = ({
+   userId,
+   serverId,
+   bucketName,
+   prefix,
+   signal,
+   onProgress,
+}: DeletePrefixInput) => {
+   const path = objectsPath(serverId, bucketName);
+   return runPrefixBatches({
+      path,
+      prefix,
+      signal,
+      incomplete: "Folder deletion is incomplete.",
+      run: (page) => deleteObjects(path, page.objects, userId, signal),
+      onProgress,
+   });
+};
+
+const useDeletePrefix = () =>
+   useObjectMutation({
+      mutationFn: deletePrefix,
+      onSuccess: reportDeleteResult,
+      settle: forgetMatching(
+         ({ prefix }) =>
+            (key) =>
+               key.startsWith(prefix)
+      ),
+   });
+
+export { deletePrefix };
+export default useDeletePrefix;

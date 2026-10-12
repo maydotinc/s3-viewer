@@ -1,0 +1,151 @@
+// @vitest-environment happy-dom
+import { buttonByText } from "@/components/test-helpers";
+import { mountRuntime } from "@/lib/test/runtime";
+import { Role, type ServerUser } from "@s3-viewer/types";
+import { act, createElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const h = vi.hoisted(() => ({ remove: vi.fn() }));
+
+vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "owner" }));
+vi.mock("@/lib/hooks/mutations/invites/useUpdateRole", () => ({
+   default: () => ({ isPending: false, mutate: vi.fn() }),
+}));
+vi.mock("@/lib/hooks/mutations/invites/useRemoveMember", () => ({
+   default: () => ({ isPending: false, mutate: h.remove }),
+}));
+vi.mock("@s3-viewer/ui/components/tooltip", () => ({
+   SimpleTooltip: ({ children }: { children: ReactNode }) => children,
+}));
+vi.mock("@/components/Modals/confirm-dialog", () => ({
+   ConfirmDialog: (props: {
+      confirmVariant?: string;
+      confirmLabel: string;
+      onConfirm: () => void;
+      onClose: () => void;
+   }) =>
+      createElement(
+         "div",
+         { role: "dialog", "data-variant": props.confirmVariant },
+         createElement(
+            "button",
+            { onClick: props.onConfirm },
+            props.confirmLabel
+         ),
+         createElement("button", { onClick: props.onClose }, "Cancel")
+      ),
+}));
+vi.mock("./bucket-access-dialog", () => ({ default: () => null }));
+vi.mock("./role-select", () => ({ default: () => null }));
+import Members from "./members";
+
+const member = (id: string, role: Role): ServerUser => ({
+   id,
+   name: `Person ${id}`,
+   email: `${id}@example.test`,
+   role,
+   bucketAccess: [],
+});
+
+const props = ({
+   members,
+   error = null,
+   hasNextPage = false,
+}: {
+   members: ServerUser[];
+   error?: string | null;
+   hasNextPage?: boolean;
+}) => ({
+   serverId: "server",
+   myRole: Role.OWNER,
+   buckets: [],
+   isBucketsLoading: false,
+   members,
+   isLoading: false,
+   pages: {
+      hasNextPage,
+      error: error === null ? null : new Error(error),
+      isFetching: false,
+      isFetchNextPageError: error !== null,
+      fetchNextPage: async () => {},
+      refetch: async () => {},
+   },
+});
+
+describe("the members table", () => {
+   const render = (options: { error: string | null; hasNextPage: boolean }) =>
+      renderToStaticMarkup(
+         createElement(
+            Members,
+            props({
+               members: [member("owner", Role.OWNER), member("a", Role.EDITOR)],
+               ...options,
+            })
+         )
+      );
+
+   it("keeps the loaded members when the next page fails, with a way to try again", () => {
+      const html = render({ error: "Network error", hasNextPage: true });
+      expect(html).toContain("a@example.test");
+      expect(html).toContain('role="alert"');
+      expect(html).toContain("Network error");
+      expect(html).toContain("Try again");
+   });
+
+   it("shows no footer once everything has loaded", () => {
+      const html = render({ error: null, hasNextPage: false });
+      expect(html).toContain("a@example.test");
+      expect(html).not.toContain("Load more");
+      expect(html).not.toContain('role="alert"');
+   });
+});
+
+describe("removing a member", () => {
+   let runtime: Awaited<ReturnType<typeof mountRuntime>>;
+   const dialog = () =>
+      runtime.container.querySelector<HTMLElement>("[role=dialog]");
+   const click = (button: HTMLButtonElement | null | undefined) =>
+      act(async () => button!.click());
+   const button = (text: string) => buttonByText(runtime.container, text);
+
+   beforeEach(async () => {
+      vi.clearAllMocks();
+      runtime = await mountRuntime(
+         createElement(Members, props({ members: [member("a", Role.EDITOR)] }))
+      );
+      await click(
+         runtime.container.querySelector<HTMLButtonElement>(
+            'button[aria-label="Remove Person a"]'
+         )
+      );
+   });
+   afterEach(async () => {
+      await runtime.unmount();
+      runtime.queryClient.clear();
+      vi.unstubAllGlobals();
+   });
+
+   it("asks first instead of removing on the first click", () => {
+      expect(h.remove).not.toHaveBeenCalled();
+      expect(dialog()?.dataset.variant).toBe("destructive");
+   });
+
+   it("removes them once confirmed, and closes when that succeeds", async () => {
+      await click(button("Remove"));
+      expect(h.remove).toHaveBeenCalledOnce();
+      const [variables, options] = h.remove.mock.calls[0] as [
+         unknown,
+         { onSuccess: () => void },
+      ];
+      expect(variables).toEqual({ serverId: "server", userId: "a" });
+      await act(async () => options.onSuccess());
+      expect(dialog()).toBeNull();
+   });
+
+   it("keeps them when cancelled", async () => {
+      await click(button("Cancel"));
+      expect(dialog()).toBeNull();
+      expect(h.remove).not.toHaveBeenCalled();
+   });
+});

@@ -1,0 +1,61 @@
+import type { AuditLogEntry } from "@s3-viewer/types";
+import { describe, expect, it } from "vitest";
+import { ACTION_FAMILY_LABELS, ACTION_LABELS, metaOf } from "./labels";
+
+const refusal = (detail: AuditLogEntry["detail"]) =>
+   metaOf({ action: "access.denied", detail } as AuditLogEntry);
+
+describe("a refused action in the activity log", () => {
+   it("says what was tried and why it was refused", () => {
+      expect(
+         refusal({ permission: "DELETE_SERVER", reason: "forbidden" })
+      ).toBe("tried to delete the server · role too low");
+   });
+
+   it("marks a refusal whose request did not provably come from the app", () => {
+      expect(
+         refusal({
+            permission: "DELETE_SERVER",
+            reason: "forbidden",
+            unverifiedOrigin: true,
+         })
+      ).toBe(
+         "tried to delete the server · role too low · request origin not verified"
+      );
+   });
+});
+
+describe("access removed as a side effect", () => {
+   const meta = (action: AuditLogEntry["action"], reason?: string) =>
+      metaOf({
+         action,
+         detail: reason === undefined ? null : { reason },
+      } as AuditLogEntry);
+
+   it("explains an invite revoked because its sender lost the authority to grant it", () => {
+      expect(meta("invite.revoke", "sender_authority")).toBe(
+         "sender can no longer grant this access"
+      );
+   });
+
+   it("explains departures and revoked invites caused by a deleted account", () => {
+      expect(meta("server.leave", "account_deleted")).toBe("account deleted");
+      expect(meta("invite.revoke", "account_deleted")).toBe("account deleted");
+   });
+
+   it("adds nothing to a direct revoke or an ordinary departure", () => {
+      expect(meta("invite.revoke")).toBeNull();
+      expect(meta("server.leave")).toBeNull();
+      expect(meta("invite.revoke", "something-new")).toBeNull();
+   });
+});
+
+describe("the action filter", () => {
+   it("has a family for every action the log records", () => {
+      const families = Object.keys(ACTION_FAMILY_LABELS);
+      const unreachable = Object.keys(ACTION_LABELS).filter(
+         (action) => !families.some((family) => action.startsWith(`${family}.`))
+      );
+      expect(unreachable).toEqual([]);
+   });
+});

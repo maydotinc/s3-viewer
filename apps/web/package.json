@@ -1,0 +1,44 @@
+{
+   "name": "web",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "type": "module",
+   "scripts": {
+      "dev": "next dev",
+      "build": "next build",
+      "start": "next start",
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
+   "dependencies": {
+      "@s3-viewer/auth": "workspace:*",
+      "@s3-viewer/permissions": "workspace:*",
+      "@s3-viewer/types": "workspace:*",
+      "@s3-viewer/ui": "workspace:*",
+      "@tanstack/react-query": "^5.77.2",
+      "@tanstack/react-virtual": "^3.13.12",
+      "ag-grid-community": "^33.3.2",
+      "ag-grid-react": "^33.3.2",
+      "immer": "^10.1.1",
+      "lucide-react": "^0.475.0",
+      "next": "catalog:",
+      "react": "catalog:",
+      "react-dom": "catalog:",
+      "zustand": "^5.0.5"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@tailwindcss/postcss": "catalog:",
+      "@types/node": "^22",
+      "@types/react": "^19",
+      "@types/react-dom": "^19",
+      "eslint": "catalog:",
+      "happy-dom": "^20.14.5",
+      "postcss": "^8.5.3",
+      "tailwindcss": "catalog:",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

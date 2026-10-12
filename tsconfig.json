@@ -1,0 +1,8 @@
+{
+   "extends": "@s3-viewer/ts-config/base",
+   "compilerOptions": {
+      "lib": ["es2022"],
+      "types": ["node"]
+   },
+   "include": ["scripts/**/*.ts"]
+}

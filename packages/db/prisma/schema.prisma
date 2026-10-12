@@ -1,0 +1,282 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String
+  emailVerified Boolean
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  name          String
+  image         String?
+
+  ownedServers    Server[]            @relation("ServerOwner")
+  serverAccess    ServerAccess[]
+  bucketAccess    BucketAccess[]
+  sentInvitations PendingInvitation[] @relation("InvitationSender")
+  sessions        Session[]
+  accounts        Account[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  // Better Auth keys accounts by (issuer, accountId), including local:credential.
+  issuer                String
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([providerId, accountId])
+  @@unique([issuer, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@index([identifier])
+  @@index([expiresAt])
+  @@map("verification")
+}
+
+model Server {
+  id                 String     @id @default(cuid())
+  name               String
+  provider           Provider   @default(Other)
+  credentials        String
+  allowedBuckets     String[]   @default([])
+  restrictedBuckets  Boolean    @default(false)
+  auditEnabled       Boolean    @default(false)
+  auditViewRole      Role       @default(OWNER)
+  auditManageRole    Role       @default(OWNER)
+  auditRetentionDays Int        @default(0)
+  auditLevel         AuditLevel @default(ALL)
+  capabilities       Json?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  ownerId            String
+  owner              User                @relation("ServerOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  serverAccess       ServerAccess[]
+  bucketAccess       BucketAccess[]
+  pendingInvitations PendingInvitation[]
+
+  @@unique([ownerId, name])
+  @@index([name, id])
+  @@map("server")
+}
+
+model ServerAccess {
+  id        String   @id @default(cuid())
+  role      Role     @default(VIEWER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId String
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serverId])
+  @@index([serverId, createdAt, id])
+  @@map("server_access")
+}
+
+model PendingInvitation {
+  id        String   @id @default(cuid())
+  token     String   @unique @default(dbgenerated("replace(((gen_random_uuid())::text || (gen_random_uuid())::text), '-'::text, ''::text)"))
+  email     String
+  role      Role
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serverId    String
+  server      Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  invitedById String
+  invitedBy   User   @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  bucketAccess InvitationBucketAccess[]
+
+  @@unique([email, serverId])
+  @@index([email, createdAt, id])
+  @@index([invitedById, createdAt, id])
+  @@index([serverId])
+  @@index([expiresAt])
+  @@map("pending_invitation")
+}
+
+model BucketAccess {
+  id                String   @id @default(cuid())
+  bucketName        String
+  role              Role     @default(VIEWER)
+  // the migration's CHECK constraints keep these consistent and admins bucket-wide.
+  restrictedFolders Boolean  @default(false)
+  allowedFolders    String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serverId String
+  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serverId, bucketName])
+  @@index([serverId])
+  @@map("bucket_access")
+}
+
+model InvitationBucketAccess {
+  id                String   @id @default(cuid())
+  bucketName        String
+  role              Role     @default(VIEWER)
+  restrictedFolders Boolean  @default(false)
+  allowedFolders    String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  invitationId String
+  invitation   PendingInvitation @relation(fields: [invitationId], references: [id], onDelete: Cascade)
+
+  @@unique([invitationId, bucketName])
+  @@map("invitation_bucket_access")
+}
+
+// no relations: audit records must survive deletion of the actor or server; maintenance purges a deleted server's rows only after the retention floor.
+model AuditLog {
+  id         String   @id @default(cuid())
+  serverId   String
+  seq        Int
+  actorId    String
+  actorEmail String
+  action     String
+  bucket     String?
+  target     String?
+  detail     Json?
+  prevHash   String
+  hash       String
+  createdAt  DateTime @default(now())
+
+  @@unique([serverId, seq])
+  @@index([serverId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([serverId, actorId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([serverId, bucket, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([serverId, action, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([target(ops: raw("gin_trgm_ops"))], type: Gin, map: "audit_log_target_trgm_idx")
+  @@map("audit_log")
+}
+
+model RateLimit {
+  key     String   @id
+  hits    Int
+  resetAt DateTime
+
+  @@index([resetAt])
+  @@map("rate_limit")
+}
+
+model InstanceSecret {
+  name        String   @id
+  fingerprint String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("instance_secret")
+}
+
+// the separate head detects deletion of the newest audit rows.
+model AuditChainHead {
+  serverId         String   @id
+  seq              Int
+  hash             String
+  prunedThroughSeq Int?
+  updatedAt        DateTime @updatedAt
+
+  @@map("audit_chain_head")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum AuditLevel {
+  ALL
+  CHANGES
+}
+
+enum Provider {
+  S3
+  R2
+  Other
+}
+
+model ArchiveTicket {
+  id        String   @id
+  userId    String
+  serverId  String
+  bucket    String
+  payload   Json
+  bytes     Int
+  failures  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([userId, createdAt, id])
+  @@map("archive_ticket")
+}
+
+model BucketCreation {
+  namespace  String
+  bucketName String
+  operation  String   @unique
+  userId     String
+  submitted  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@id([namespace, bucketName])
+  @@index([userId])
+  @@map("bucket_creation")
+}

@@ -1,0 +1,52 @@
+{
+   "name": "api",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "type": "module",
+   "scripts": {
+      "dev": "tsx watch --tsconfig tsconfig.dev.json server.ts",
+      "build": "tsup",
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
+   "dependencies": {
+      "@aws-sdk/client-s3": "^3.1127.0",
+      "@aws-sdk/lib-storage": "^3.1127.0",
+      "@aws-sdk/s3-request-presigner": "^3.1127.0",
+      "@prisma/client": "catalog:",
+      "@react-email/components": "^0.5.1",
+      "@react-email/render": "^1.2.1",
+      "@s3-viewer/auth": "workspace:*",
+      "@s3-viewer/db": "workspace:*",
+      "@s3-viewer/email": "workspace:*",
+      "@s3-viewer/permissions": "workspace:*",
+      "@s3-viewer/types": "workspace:*",
+      "archiver": "^8.0.0",
+      "better-auth": "catalog:",
+      "cors": "^2.8.5",
+      "dotenv": "^16.5.0",
+      "express": "^5.1.0",
+      "express-rate-limit": "^8.7.0",
+      "helmet": "^8.3.0",
+      "nodemailer": "^10.0.14",
+      "prisma": "catalog:",
+      "react": "catalog:",
+      "react-dom": "catalog:",
+      "resend": "^6.0.1",
+      "zod": "catalog:"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@types/archiver": "^8.0.0",
+      "@types/cors": "^2.8.17",
+      "@types/express": "^5.0.2",
+      "@types/node": "^22",
+      "eslint": "catalog:",
+      "tsup": "^8.4.0",
+      "tsx": "^4.19.4",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

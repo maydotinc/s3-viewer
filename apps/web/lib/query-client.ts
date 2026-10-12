@@ -1,0 +1,56 @@
+import { ApiError, setFolderRefusalHandler } from "./api";
+import { isBucketsKey } from "./query-keys";
+import { MINUTE_MS } from "@s3-viewer/types";
+import { QueryClient } from "@tanstack/react-query";
+
+const shouldRetry = (failureCount: number, error: unknown): boolean => {
+   if (error instanceof ApiError && error.status >= 400 && error.status < 500)
+      return false;
+   return failureCount < 1;
+};
+
+const createQueryClient = (): QueryClient =>
+   new QueryClient({
+      defaultOptions: {
+         queries: {
+            staleTime: 5 * MINUTE_MS,
+            retry: shouldRetry,
+            refetchOnWindowFocus: false,
+            // error views render their own retry; refetching on mount would unmount them in a loop.
+            retryOnMount: false,
+         },
+      },
+   });
+
+const refreshFolderScopes = (queryClient: QueryClient) => {
+   let pending = false;
+   return (): void => {
+      if (pending) return;
+      pending = true;
+      void queryClient
+         .invalidateQueries({
+            predicate: ({ queryKey }) => isBucketsKey(queryKey),
+         })
+         .finally(() => {
+            pending = false;
+         });
+   };
+};
+
+let browserClient: QueryClient | null = null;
+
+// not a React state initialiser: strict mode double-invokes those, orphaning this reference.
+const getQueryClient = (): QueryClient => {
+   if (typeof window === "undefined") return createQueryClient();
+   if (!browserClient) {
+      browserClient = createQueryClient();
+      setFolderRefusalHandler(refreshFolderScopes(browserClient));
+   }
+   return browserClient;
+};
+
+const clearQueryCache = (): void => {
+   browserClient?.clear();
+};
+
+export { clearQueryCache, getQueryClient, refreshFolderScopes };

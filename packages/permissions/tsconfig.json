@@ -1,0 +1,5 @@
+{
+   "extends": "@s3-viewer/ts-config/base",
+   "include": ["**/*.ts"],
+   "exclude": ["dist", "build", "node_modules"]
+}

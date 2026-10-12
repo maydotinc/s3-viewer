@@ -1,0 +1,17 @@
+node_modules
+.pnpm-store
+.pnpm-debug.log*
+coverage/
+.next/
+.turbo
+*.tsbuildinfo
+next-env.d.ts
+/apps/api/dist
+.env*
+!.env.example
+*.pem
+*.bak-*
+.DS_Store
+.vscode
+.claude/launch.json
+.claude/settings.local.json

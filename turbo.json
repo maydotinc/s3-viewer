@@ -1,0 +1,71 @@
+{
+   "$schema": "https://turborepo.com/schema.json",
+   "globalDependencies": ["**/.env.*local", "**/.env"],
+   "globalEnv": [
+      "NEXT_PUBLIC_*",
+      "ACCEPT_NEW_AUDIT_CHAIN_KEY",
+      "ACCEPT_NEW_ENCRYPTION_KEY",
+      "ALLOWED_EMAIL_DOMAINS",
+      "ALLOW_PRIVATE_ENDPOINTS",
+      "AUDIT_CHAIN_KEY",
+      "AUDIT_RETENTION_DAYS",
+      "BETTER_AUTH_SECRET",
+      "COOKIE_SAMESITE",
+      "DATABASE_URL",
+      "DATA_DIR",
+      "EMAIL_FROM",
+      "EMAIL_TRANSPORT",
+      "ENCRYPTION_PRIVATE_KEY",
+      "GITHUB_CLIENT_ID",
+      "GITHUB_CLIENT_SECRET",
+      "KEEP_ALIVE_TIMEOUT_MS",
+      "LANDING_ORIGIN",
+      "LOG_LEVEL",
+      "MAX_ARCHIVE_BYTES",
+      "MAX_ARCHIVE_OBJECTS",
+      "MAX_CONCURRENT_UPLOADS",
+      "MAX_IP_UPLOADS",
+      "MAX_UPLOAD_BYTES",
+      "MAX_USER_UPLOADS",
+      "NODE_ENV",
+      "PORT",
+      "PRISMA_LOG_QUERIES",
+      "RATE_LIMIT_STORE",
+      "RESEND_KEY",
+      "RUN_MIGRATIONS",
+      "S3_MAX_SOCKETS_PER_HOST",
+      "S3_MAX_TOTAL_SOCKETS",
+      "S3_REQUESTS_PER_MINUTE",
+      "SIGNUP_MODE",
+      "SMTP_URL",
+      "SUPPORT_EMAIL",
+      "TRUST_PROXY",
+      "UNVERIFIED_ACCOUNT_TTL_DAYS",
+      "UPLOAD_IDLE_TIMEOUT_MS",
+      "UPLOAD_MEMORY_BUDGET_BYTES",
+      "UPLOAD_PART_BYTES",
+      "UPLOAD_SLOT_MAX_MS"
+   ],
+   "ui": "tui",
+   "tasks": {
+      "db:generate": {
+         "cache": false
+      },
+      "build": {
+         "dependsOn": ["^db:generate", "^build"],
+         "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+         "inputs": [".env*", "$TURBO_DEFAULT$"]
+      },
+      "dev": {
+         "dependsOn": ["^db:generate"],
+         "persistent": true,
+         "cache": false
+      },
+      "lint": {
+         "dependsOn": ["^db:generate"]
+      },
+      "check-types": {
+         "dependsOn": ["^db:generate", "^build"]
+      }
+   }
+}
