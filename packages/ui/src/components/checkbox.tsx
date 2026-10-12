@@ -17,6 +17,7 @@ function Checkbox({
             "data-[state=checked]:border-viewerblue data-[state=checked]:bg-viewerblue data-[state=checked]:text-viewerwhite",
             "data-[state=indeterminate]:border-viewerblue data-[state=indeterminate]:bg-viewerblue data-[state=indeterminate]:text-viewerwhite",
             "focus-visible:border-viewerblue aria-invalid:border-viewertextred",
+            "data-[state=checked]:focus-visible:border-viewerdarkblue data-[state=checked]:focus-visible:bg-viewerdarkblue",
             "disabled:cursor-not-allowed disabled:opacity-50",
             className
          )}
