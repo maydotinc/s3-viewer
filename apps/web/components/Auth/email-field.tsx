@@ -8,6 +8,7 @@ type EmailFieldProps = {
    hint?: string;
    disabled: boolean;
    onChange: (value: string) => void;
+   onEnter?: () => void;
 };
 
 const EmailField = ({
@@ -16,6 +17,7 @@ const EmailField = ({
    hint,
    disabled,
    onChange,
+   onEnter,
 }: EmailFieldProps) => (
    <Field label="Email" htmlFor="email">
       <Input
@@ -32,6 +34,11 @@ const EmailField = ({
          aria-invalid={error ? true : undefined}
          aria-describedby="email-message"
          onChange={(event) => onChange(event.target.value)}
+         onKeyDown={(event) => {
+            if (!onEnter || event.key !== "Enter") return;
+            event.preventDefault();
+            onEnter();
+         }}
       />
       <FormError id="email-message" size="sm" reserve={false} hint={hint}>
          {error}

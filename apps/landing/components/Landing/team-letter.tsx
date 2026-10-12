@@ -4,16 +4,18 @@ import { team } from "@/lib/team";
 import Image from "next/image";
 import BasicBlock, { Eyebrow, SectionTitle } from "../basic-block";
 
+// stacks on phones; on wide screens the title and signature share the left
+// column while the letter fills the right, so the card has no empty half.
 const TeamLetter = () => {
    return (
       <BasicBlock>
-         <div className="flex flex-col gap-6 rounded-xl border border-viewerborder bg-viewerwhite p-6 sm:p-10">
-            <div className="flex flex-col gap-3">
+         <div className="grid grid-cols-1 gap-6 rounded-xl border border-viewerborder bg-viewerwhite p-6 sm:p-10 lg:grid-cols-[1fr_1.7fr] lg:grid-rows-[auto_1fr] lg:gap-x-16">
+            <div className="flex flex-col gap-3 lg:col-start-1 lg:row-start-1">
                <Eyebrow>A letter</Eyebrow>
                <SectionTitle>From the team</SectionTitle>
             </div>
 
-            <div className="flex max-w-2xl flex-col gap-4 text-viewertext">
+            <div className="flex max-w-2xl flex-col gap-4 text-viewertext lg:col-start-2 lg:row-span-2 lg:row-start-1">
                <p>
                   We built S3 Viewer because we were tired of being locked into
                   provider-specific interfaces. AWS won&apos;t let you view your
@@ -29,7 +31,7 @@ const TeamLetter = () => {
                </p>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 border-t border-viewerborder pt-6">
+            <div className="flex flex-wrap items-center gap-3 border-t border-viewerborder pt-6 lg:col-start-1 lg:row-start-2 lg:self-end">
                <div className="flex shrink-0 items-center -space-x-2">
                   {team.map((member, i) => {
                      const src = `/landing/profiles/${member.profile}.png`;

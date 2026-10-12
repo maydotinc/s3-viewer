@@ -71,7 +71,7 @@ export const AppHeroFigure = () => {
    return (
       <ScaledFrame
          width={1024}
-         height={640}
+         height={500}
          narrow={{ width: 400, height: 540 }}
          label="S3 Viewer dashboard: sidebar with the server switcher open and the buckets table for May Inc."
       >

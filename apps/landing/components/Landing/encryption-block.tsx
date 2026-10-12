@@ -43,11 +43,11 @@ const EncryptionBlock = () => {
             description="Your server credentials are encrypted at rest, and decrypted only to run the S3 operations you ask for."
          />
 
-         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+         <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
             {POINTS.map(({ icon: Icon, title, body }) => (
                <div
                   key={title}
-                  className="flex flex-col gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-6"
+                  className="flex flex-col gap-4 rounded-xl border border-viewerborder bg-viewerwhite p-6 last:sm:col-span-2 last:md:col-span-1"
                >
                   <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-viewergray">
                      <Icon className="size-5 text-viewerblack" />

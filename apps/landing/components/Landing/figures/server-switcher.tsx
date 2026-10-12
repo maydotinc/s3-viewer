@@ -187,6 +187,8 @@ export const ServerSwitcherFigure = () => {
          <ScaledFrame
             width={480}
             height={360}
+            narrow={{ width: 380, height: 330 }}
+            narrowAt="sm"
             label="The server switcher in the S3 Viewer sidebar: May Inc. on Cloudflare R2 and Backup S3 on Amazon S3, with the bucket list underneath"
          >
             <div className="grid size-full cursor-default place-items-center">

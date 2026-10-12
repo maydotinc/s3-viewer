@@ -20,7 +20,7 @@ import {
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 
 type Mode = "login" | "signup";
 
@@ -65,6 +65,7 @@ const SignInForm = ({
    const [emailError, setEmailError] = useState<string | null>(null);
    const [passwordError, setPasswordError] = useState<string | null>(null);
    const [pending, setPending] = useState(false);
+   const passwordRef = useRef<HTMLInputElement>(null);
    const { data: config } = useInstanceConfig();
    const { mode: signUp, domains } = signUpPolicyState(config);
 
@@ -127,6 +128,7 @@ const SignInForm = ({
                      setEmail(next);
                      if (emailError) setEmailError(null);
                   }}
+                  onEnter={() => passwordRef.current?.focus()}
                />
                <Field
                   label="Password"
@@ -143,6 +145,7 @@ const SignInForm = ({
                   }
                >
                   <PasswordInput
+                     ref={passwordRef}
                      id="password"
                      name="password"
                      autoComplete={
@@ -188,12 +191,13 @@ const SignInForm = ({
                      <Button
                         type="button"
                         variant="outline"
+                        size="lg"
                         className="w-full"
                         loading={githubPending}
                         disabled={pending}
                         onClick={onGithub}
                      >
-                        <GithubIcon className="size-4" />
+                        <GithubIcon className="size-5" />
                         Continue with GitHub
                      </Button>
                   </>

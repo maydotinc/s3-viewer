@@ -1,13 +1,18 @@
 import Reserve from "@/components/reserve";
 import BrandPanel from "./brand-panel";
-import { LEGAL_LINK, TEXT_LINK } from "./text-link";
+import { COMPANY_LINK, LEGAL_LINK, TEXT_LINK } from "./text-link";
 import { afterLoginPath } from "@/lib/auth-redirect";
 import { publicEnv } from "@/lib/env";
 import useInstanceConfig, {
    signUpPolicyState,
 } from "@/lib/hooks/queries/useInstanceConfig";
 import { PRIVACY_URL, TERMS_URL } from "@/lib/site-config";
-import { COMPANY_NAME, PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
+import {
+   COMPANY_NAME,
+   COMPANY_URL,
+   PRODUCT_NAME,
+   SITE_PATHS,
+} from "@s3-viewer/types";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -66,23 +71,25 @@ type AuthLayoutProps = {
 const AuthLayout = ({ busy, children }: AuthLayoutProps) => (
    <div className="flex min-h-dvh w-full min-w-0 flex-col lg:flex-row">
       <main className="flex min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 lg:w-[46%] lg:flex-none xl:w-[42%]">
+         <header className="flex items-center pb-6">
+            <a
+               href={`${publicEnv.siteOrigin}/`}
+               aria-label={`${PRODUCT_NAME} home`}
+               className="inline-flex rounded-sm border border-transparent outline-none focus-visible:border-viewerblue"
+            >
+               <Image
+                  src="/icons/viewer.svg"
+                  alt=""
+                  width={150}
+                  height={32}
+                  priority
+                  draggable={false}
+                  className="h-7 w-[131px]"
+               />
+            </a>
+         </header>
          <div className="flex flex-1 flex-col items-center justify-center py-8">
             <div className="flex w-full max-w-[360px] flex-col gap-6 [overflow-wrap:anywhere]">
-               <a
-                  href={`${publicEnv.siteOrigin}/`}
-                  aria-label={`${PRODUCT_NAME} home`}
-                  className="mx-auto inline-flex rounded-sm border border-transparent outline-none focus-visible:border-viewerblue"
-               >
-                  <Image
-                     src="/icons/viewer.svg"
-                     alt=""
-                     width={150}
-                     height={32}
-                     priority
-                     draggable={false}
-                     className="h-7 w-[131px]"
-                  />
-               </a>
                {busy ? (
                   <div className="flex h-56 items-center justify-center">
                      {busy}
@@ -107,7 +114,15 @@ const AuthLayout = ({ busy, children }: AuthLayoutProps) => (
          </div>
          <footer className="flex items-center justify-between gap-3 pt-6 text-sm text-viewertext">
             <span className="whitespace-nowrap">
-               © {new Date().getFullYear()} {COMPANY_NAME}
+               © {new Date().getFullYear()}{" "}
+               <a
+                  href={COMPANY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={COMPANY_LINK}
+               >
+                  {COMPANY_NAME}
+               </a>
             </span>
             <AccountSwitch />
          </footer>

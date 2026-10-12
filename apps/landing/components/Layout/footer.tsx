@@ -1,5 +1,4 @@
 import { ExternalLink } from "@/components/external-link";
-import { useCurrentYear } from "@/lib/hooks/use-current-year";
 import {
    GITHUB_URL,
    MAY_NAME,
@@ -104,8 +103,6 @@ const Column = ({
 );
 
 const Footer = () => {
-   const year = useCurrentYear();
-
    return (
       <footer
          className="w-full border-t border-viewerborder bg-viewerwhite"
@@ -152,7 +149,7 @@ const Footer = () => {
                      <span>{MAY_NAME}</span>
                   </ExternalLink>
                   <span className="text-xs text-viewerlighttext">
-                     © {year} {MAY_NAME} S3 Viewer is open source under MIT.
+                     S3 Viewer is open source under MIT.
                   </span>
                </div>
 

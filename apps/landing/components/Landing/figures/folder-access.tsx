@@ -18,6 +18,8 @@ export const FolderAccessFigure = () => (
    <ScaledFrame
       width={480}
       height={360}
+      narrow={{ width: 380, height: 330 }}
+      narrowAt="sm"
       label="The bucket access picker in S3 Viewer: an Editor on company-assets limited to the landing folder, with the other buckets left unshared"
    >
       <div className="grid size-full cursor-default place-items-center">

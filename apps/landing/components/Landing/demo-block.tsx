@@ -23,13 +23,13 @@ const DemoCard = ({
 }) => (
    <div
       className={cn(
-         "flex flex-col gap-5 rounded-xl border border-viewerborder bg-viewerwhite p-6",
+         "flex flex-col gap-5 rounded-xl border border-viewerborder bg-viewerwhite p-4 sm:p-6",
          className
       )}
    >
       <div
          className={cn(
-            "aspect-[4/3] w-full overflow-hidden rounded-lg bg-viewergray",
+            "w-full overflow-hidden rounded-lg bg-viewergray",
             figureClassName
          )}
       >
@@ -78,7 +78,7 @@ const DemoBlock = () => (
                figure={<FolderAccessFigure />}
                title="Share one folder, not the whole bucket"
                className="md:col-span-2 md:flex-row md:items-center md:gap-8"
-               figureClassName="md:w-1/2"
+               figureClassName="md:w-1/2 md:shrink-0"
                bodyClassName="md:w-1/2"
             >
                Invite a contractor to <code>landing/</code> and nothing else.

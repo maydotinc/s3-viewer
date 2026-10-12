@@ -79,8 +79,7 @@ const ForgotPasswordScreen = () => {
          {step === "email" ? (
             <div key={step} className="contents">
                <StepHeader title="Reset your password">
-                  Enter your email and we&apos;ll send you a link. If you signed
-                  up with GitHub, this is also how you add a password.
+                  Enter your email and we&apos;ll send you a reset link.
                </StepHeader>
                <form
                   onSubmit={(event) => void submit(event)}

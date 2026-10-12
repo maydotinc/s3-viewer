@@ -4,4 +4,6 @@ const TEXT_LINK = `rounded-sm font-medium text-viewerblue underline-offset-4 out
 
 const LEGAL_LINK = `rounded-sm underline underline-offset-4 outline-none hover:text-viewertext ${FOCUS_RING}`;
 
-export { LEGAL_LINK, TEXT_LINK };
+const COMPANY_LINK = `rounded-sm underline-offset-4 outline-none hover:text-viewerblack hover:underline ${FOCUS_RING}`;
+
+export { COMPANY_LINK, LEGAL_LINK, TEXT_LINK };

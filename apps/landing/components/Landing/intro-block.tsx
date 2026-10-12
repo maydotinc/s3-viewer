@@ -12,9 +12,25 @@ import { AppHeroFigure } from "./figures/app-hero";
 const IntroBlock = () => {
    return (
       <section className="w-full">
-         <div className="mx-auto w-full max-w-6xl px-6 pt-14 pb-16 sm:pt-24 2xl:max-w-7xl">
+         <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16 sm:pt-28 2xl:max-w-7xl">
             <div className="flex flex-col items-center text-center">
-               <h1 className="max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance text-viewerblack sm:text-5xl md:text-6xl">
+               <ExternalLink
+                  href={MAY_URL}
+                  className="inline-flex items-center gap-2 text-sm text-viewerlighttext transition-colors hover:text-viewerblack"
+               >
+                  <span>Built by</span>
+                  <Image
+                     src={MAY_ROUNDED_LOGO_URL}
+                     alt=""
+                     width={20}
+                     height={20}
+                     className="size-5 rounded-[5px]"
+                     draggable={false}
+                  />
+                  <span>{MAY_NAME}</span>
+               </ExternalLink>
+
+               <h1 className="mt-6 max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance text-viewerblack sm:text-5xl md:text-6xl">
                   Browse every{" "}
                   <span className="whitespace-nowrap">S3-compatible</span>{" "}
                   bucket in one place
@@ -29,22 +45,6 @@ const IntroBlock = () => {
                   primary={{ href: APP_PATH, label: "Connect your server" }}
                   className="mt-8"
                />
-
-               <ExternalLink
-                  href={MAY_URL}
-                  className="mt-7 inline-flex items-center gap-2 text-sm text-viewerlighttext transition-colors hover:text-viewerblack"
-               >
-                  <span>Built by</span>
-                  <Image
-                     src={MAY_ROUNDED_LOGO_URL}
-                     alt=""
-                     width={20}
-                     height={20}
-                     className="size-5 rounded-[5px]"
-                     draggable={false}
-                  />
-                  <span>{MAY_NAME}</span>
-               </ExternalLink>
             </div>
 
             <div className="mx-auto mt-12 w-full max-w-5xl overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite shadow-sm sm:mt-16 2xl:max-w-6xl">

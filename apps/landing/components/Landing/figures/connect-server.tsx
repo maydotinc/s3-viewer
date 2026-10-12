@@ -107,6 +107,8 @@ export const ConnectServerFigure = () => {
          <ScaledFrame
             width={480}
             height={360}
+            narrow={{ width: 380, height: 330 }}
+            narrowAt="sm"
             label="Connecting a server in S3 Viewer: the empty state, the connect form, the server-found confirmation and the connected sidebar"
          >
             <div className="flex h-full cursor-default flex-col items-center justify-center">
