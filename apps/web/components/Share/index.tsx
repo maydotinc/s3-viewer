@@ -32,7 +32,8 @@ type Tab = "members" | "invites";
 
 type ShareTabsProps = {
    serverId: string;
-   myRole: Role;
+   // null while the server loads; both lists fetch in parallel and stay skeletons until then
+   myRole: Role | null;
    buckets: S3Bucket[];
    isBucketsLoading: boolean;
 };
@@ -47,16 +48,17 @@ const ShareTabs = ({
    const members = useMembers(serverId);
    const invites = useSentInvites(serverId);
    const inviteList = invites.data ?? NO_INVITES;
+   const pending = myRole === null;
    const completeMemberCount =
-      members.isLoading || members.error || members.hasNextPage
+      pending || members.isLoading || members.error || members.hasNextPage
          ? null
          : members.members.length;
    const inviteCount =
-      invites.isLoading || invites.error ? null : inviteList.length;
+      pending || invites.isLoading || invites.error ? null : inviteList.length;
 
    const panel =
       tab === "members" ? (
-         members.error && members.members.length === 0 ? (
+         !pending && members.error && members.members.length === 0 ? (
             <TableError
                title="Couldn't load members"
                retrying={members.isFetching}
@@ -75,7 +77,7 @@ const ShareTabs = ({
                pages={members}
             />
          )
-      ) : invites.error ? (
+      ) : !pending && invites.error ? (
          <TableError
             title="Couldn't load pending invites"
             retrying={invites.isFetching}
@@ -132,11 +134,11 @@ const Share = ({ serverId }: { serverId: string }) => {
    );
    const { buckets, isBucketsLoading } = useBuckets();
    const [inviting, setInviting] = useState(false);
+   const pending = isLoading || !serverId;
 
-   if (isLoading || !serverId || !server || !allowed)
+   if (!pending && (!server || !allowed))
       return (
          <ServerPageStatus
-            loading={isLoading || !serverId}
             denied={
                server &&
                "You need admin access to invite people to this server."
@@ -144,6 +146,8 @@ const Share = ({ serverId }: { serverId: string }) => {
          />
       );
 
+   // the page shell renders before the server loads so a refresh never passes through a spinner
+   const ready = pending ? null : server;
    const bucketProps = {
       buckets: bucketsAdopted ? buckets : NO_BUCKETS,
       isBucketsLoading: !bucketsAdopted || isBucketsLoading,
@@ -152,27 +156,31 @@ const Share = ({ serverId }: { serverId: string }) => {
    return (
       <Page>
          <BackHeader
-            title={`Share ${server.name}`}
+            title={ready ? `Share ${ready.name}` : null}
             description="Invite people and choose which buckets they can see."
             onBack={goBack}
             actions={
-               <Button type="button" onClick={() => setInviting(true)}>
+               <Button
+                  type="button"
+                  disabled={!ready}
+                  onClick={() => setInviting(true)}
+               >
                   <UserRoundPlus aria-hidden="true" />
                   Invite people
                </Button>
             }
          />
-         {inviting && (
+         {inviting && ready && (
             <InviteDialog
-               serverId={server.id}
-               myRole={server.userRole}
+               serverId={ready.id}
+               myRole={ready.userRole}
                onClose={() => setInviting(false)}
                {...bucketProps}
             />
          )}
          <ShareTabs
-            serverId={server.id}
-            myRole={server.userRole}
+            serverId={serverId}
+            myRole={ready?.userRole ?? null}
             {...bucketProps}
          />
       </Page>

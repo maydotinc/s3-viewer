@@ -160,7 +160,8 @@ function DropdownMenuSubTrigger({
 
 function DropdownMenuSubContent({
    className,
-   sideOffset = 4,
+   // anchored to the trigger row, so clear the parent menu's p-1 + border before the visible gap
+   sideOffset = 12,
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
    return (

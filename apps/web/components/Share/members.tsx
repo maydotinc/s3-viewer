@@ -50,7 +50,9 @@ type MemberRowProps = {
    isMe: boolean;
 };
 
-type MembersProps = Omit<MemberRowProps, "member" | "isMe"> & {
+type MembersProps = Omit<MemberRowProps, "member" | "isMe" | "myRole"> & {
+   // null until the server loads: rows need the viewer's role, so the list stays a skeleton
+   myRole: Role | null;
    members: ServerUser[];
    isLoading: boolean;
    pages: LoadMoreQuery;
@@ -195,12 +197,19 @@ const MemberRow = ({
    );
 };
 
-const Members = ({ members, isLoading, pages, ...rowProps }: MembersProps) => {
+const Members = ({
+   members,
+   isLoading,
+   myRole,
+   pages,
+   ...rowProps
+}: MembersProps) => {
    const myUserId = useUserId();
+   const loading = isLoading || myRole === null;
 
    return (
       <>
-         <Table className={STACKED_TABLE} aria-busy={isLoading || undefined}>
+         <Table className={STACKED_TABLE} aria-busy={loading || undefined}>
             <TableHeader>
                <TableRow>
                   <TableHead className="md:px-6">Member</TableHead>
@@ -212,7 +221,7 @@ const Members = ({ members, isLoading, pages, ...rowProps }: MembersProps) => {
                </TableRow>
             </TableHeader>
             <TableBody>
-               {isLoading ? (
+               {loading ? (
                   <TableSkeletonRows
                      columns={Array.from({ length: COLUMNS }, () => ({}))}
                      rowClassName="h-16 [&>td:first-child]:md:px-6"
@@ -227,13 +236,14 @@ const Members = ({ members, isLoading, pages, ...rowProps }: MembersProps) => {
                         key={member.id}
                         member={member}
                         isMe={member.id === myUserId}
+                        myRole={myRole}
                         {...rowProps}
                      />
                   ))
                )}
             </TableBody>
          </Table>
-         {!isLoading && <ListPagination variant="footer" {...pages} />}
+         {!loading && <ListPagination variant="footer" {...pages} />}
       </>
    );
 };

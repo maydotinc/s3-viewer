@@ -1,3 +1,4 @@
+import { CellBar } from "@/components/DataGrid/skeleton";
 import QueryStatus from "@/components/query-status";
 import { formatBytes, formatDate } from "@/lib/utils/format";
 import type { S3ObjectMetadata, S3ObjectSettings } from "@s3-viewer/types";
@@ -39,6 +40,26 @@ const HEADER_ROWS: {
 const DETAIL_LIST =
    "grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm";
 
+// one bar per detail row, sized like the values they stand in for, so the loaded rows land where the bars were
+const SKELETON_ROWS: [label: string, value: string][] = [
+   ["w-8", "w-14"],
+   ["w-16", "w-full"],
+   ["w-24", "w-28"],
+   ["w-24", "w-4"],
+   ["w-10", "w-full"],
+];
+
+const SkeletonRow = ({ label, value }: { label: string; value: string }) => (
+   <div className="contents">
+      <div className="flex h-5 items-center">
+         <CellBar className={label} />
+      </div>
+      <div className="flex h-5 items-center">
+         <CellBar className={value} />
+      </div>
+   </div>
+);
+
 const Row = ({ label, value }: { label: string; value: string }) => (
    <div className="contents">
       <dt className="min-w-0 break-all text-viewertext">{label}</dt>
@@ -75,9 +96,6 @@ const ObjectDetails = ({
          </h2>
          <QueryStatus
             error={error}
-            loading={isLoading || !details}
-            loadingLabel="Loading details"
-            loadingClassName="min-h-0 flex-1"
             icon={onRetry ? CircleAlert : Lock}
             tone={onRetry ? "error" : "neutral"}
             title={onRetry ? "Couldn't load details" : "Details unavailable"}
@@ -85,8 +103,8 @@ const ObjectDetails = ({
             retrying={retrying}
             onRetry={onRetry}
          >
-            {details && (
-               <div className="min-h-0 flex-1 space-y-4 overflow-y-auto [scrollbar-gutter:stable]">
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto [scrollbar-gutter:stable]">
+               {details ? (
                   <dl className={DETAIL_LIST}>
                      {ROWS.map(({ label, value }) => (
                         <Row key={label} label={label} value={value(details)} />
@@ -95,20 +113,26 @@ const ObjectDetails = ({
                         <Row key={row.label} {...row} />
                      ))}
                   </dl>
-                  {custom.length > 0 && (
-                     <div className="flex flex-col gap-3 border-t border-viewerborder pt-4">
-                        <h3 className="text-sm font-semibold text-viewerblack">
-                           Metadata
-                        </h3>
-                        <dl className={DETAIL_LIST}>
-                           {custom.map(([name, value]) => (
-                              <Row key={name} label={name} value={value} />
-                           ))}
-                        </dl>
-                     </div>
-                  )}
-               </div>
-            )}
+               ) : (
+                  <div className={DETAIL_LIST} aria-hidden="true">
+                     {SKELETON_ROWS.map(([label, value], index) => (
+                        <SkeletonRow key={index} label={label} value={value} />
+                     ))}
+                  </div>
+               )}
+               {custom.length > 0 && (
+                  <div className="flex flex-col gap-3 border-t border-viewerborder pt-4">
+                     <h3 className="text-sm font-semibold text-viewerblack">
+                        Metadata
+                     </h3>
+                     <dl className={DETAIL_LIST}>
+                        {custom.map(([name, value]) => (
+                           <Row key={name} label={name} value={value} />
+                        ))}
+                     </dl>
+                  </div>
+               )}
+            </div>
          </QueryStatus>
       </aside>
    );

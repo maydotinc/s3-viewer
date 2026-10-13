@@ -101,7 +101,8 @@ const ObjectViewSession = () => {
                editing={isEditing}
                onEdit={() => setIsEditing(true)}
             />
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-y-auto max-lg:min-h-80 lg:flex-row">
+            {/* the strip under both cards holds the preview's reload button, so they stay the same height in every state */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 overflow-y-auto max-lg:min-h-80 lg:flex-row lg:pb-10">
                <ObjectDetails
                   details={metadata}
                   isLoading={metadataPending}
@@ -119,7 +120,7 @@ const ObjectViewSession = () => {
                   }
                   retrying={metadataQuery.isFetching}
                />
-               <div className="flex h-[28rem] min-w-0 shrink-0 flex-col pb-10 lg:h-full lg:min-h-0 lg:flex-1">
+               <div className="flex h-[28rem] min-w-0 shrink-0 flex-col max-lg:pb-10 lg:h-full lg:min-h-0 lg:flex-1">
                   {isEditing ? (
                      <ObjectEditor
                         bucketName={bucketName}

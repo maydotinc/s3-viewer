@@ -14,11 +14,16 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { Button } from "@s3-viewer/ui/components/button";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import { useState } from "react";
 import { previewBodyVersion } from "@/lib/utils/s3/preview-body";
+import ArchivePreview from "./archive-preview";
 import { usePreviewSource, type RefreshPreview } from "./preview-source";
 import { PreviewMessage } from "./preview-message";
 import JsonPreview from "./json-preview";
 import {
+   MediaFrame,
+   paintClass,
    PREVIEW_ASPECT,
    PREVIEW_BOX,
    PreviewLoading,
@@ -88,6 +93,8 @@ const ObjectPreview = ({
    }
 
    const kind = previewKind(preview.contentType, fileName);
+   if (kind === "archive")
+      return <ArchivePreview preview={preview} fileName={fileName} />;
    if (kind === "none") {
       return (
          <PreviewMessage
@@ -147,7 +154,16 @@ const ActivePreview = ({
       loaded,
    } = usePreviewSource(preview, refreshPreview);
    const kind = previewKind(preview.contentType, fileName);
+   const [painted, setPainted] = useState(false);
    const onError = () => void recover();
+   const onPainted = () => {
+      setPainted(true);
+      loaded();
+   };
+   const onMetadata = () => {
+      setPainted(true);
+      restorePlayback();
+   };
    const content = failed ? (
       <PreviewLoadError objectKey={objectKey} onRetry={() => recover(true)} />
    ) : kind === "text" ? (
@@ -169,7 +185,7 @@ const ActivePreview = ({
    ) : (
       <div className={PREVIEW_BOX}>
          {kind === "image" && (
-            <div className={`${PREVIEW_ASPECT} relative`}>
+            <MediaFrame painted={painted} className={PREVIEW_ASPECT}>
                <Image
                   key={generation}
                   src={source.url}
@@ -177,28 +193,31 @@ const ActivePreview = ({
                   fill
                   unoptimized
                   sizes="(min-width: 1024px) 60vw, 100vw"
-                  className="object-contain"
+                  className={cn("object-contain", paintClass(painted))}
                   draggable={false}
                   onError={onError}
-                  onLoad={loaded}
+                  onLoad={onPainted}
                />
-            </div>
+            </MediaFrame>
          )}
          {kind === "video" && (
-            <div className={`${PREVIEW_ASPECT} relative`}>
+            <MediaFrame painted={painted} className={PREVIEW_ASPECT}>
                <video
                   key={generation}
                   ref={media as React.Ref<HTMLVideoElement>}
                   src={source.url}
                   onError={onError}
-                  onLoadedMetadata={restorePlayback}
+                  onLoadedMetadata={onMetadata}
                   onTimeUpdate={playbackProgress}
                   controls
-                  className="absolute inset-0 size-full rounded-lg object-contain"
+                  className={cn(
+                     "absolute inset-0 size-full rounded-lg object-contain",
+                     paintClass(painted)
+                  )}
                >
                   Your browser can&apos;t play this video.
                </video>
-            </div>
+            </MediaFrame>
          )}
          {kind === "audio" && (
             <div className="flex w-full max-w-md flex-col items-center gap-4">
@@ -221,16 +240,21 @@ const ActivePreview = ({
             </div>
          )}
          {kind === "pdf" && (
-            // Chrome won't render a PDF in any sandboxed frame; preview URLs are served as application/pdf, never markup.
-            <iframe
-               key={generation}
-               src={source.url}
-               title={`Preview of ${fileName}`}
-               referrerPolicy="no-referrer"
-               onError={onError}
-               onLoad={loaded}
-               className="size-full rounded-lg border border-viewerborder bg-viewerwhite"
-            />
+            <MediaFrame painted={painted} className="size-full">
+               {/* Chrome won't render a PDF in any sandboxed frame; preview URLs are served as application/pdf, never markup. */}
+               <iframe
+                  key={generation}
+                  src={source.url}
+                  title={`Preview of ${fileName}`}
+                  referrerPolicy="no-referrer"
+                  onError={onError}
+                  onLoad={onPainted}
+                  className={cn(
+                     "size-full rounded-lg border border-viewerborder bg-viewerwhite",
+                     paintClass(painted)
+                  )}
+               />
+            </MediaFrame>
          )}
       </div>
    );

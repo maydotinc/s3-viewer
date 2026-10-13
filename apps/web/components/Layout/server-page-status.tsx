@@ -3,11 +3,14 @@ import { Page } from "@/components/Layout/page";
 import CenteredSpinner from "@/components/centered-spinner";
 
 type ServerPageStatusProps = {
-   loading: boolean;
+   loading?: boolean;
    denied: string | null;
 };
 
-const ServerPageStatus = ({ loading, denied }: ServerPageStatusProps) =>
+const ServerPageStatus = ({
+   loading = false,
+   denied,
+}: ServerPageStatusProps) =>
    loading ? (
       <Page>
          <CenteredSpinner label="Loading server" />

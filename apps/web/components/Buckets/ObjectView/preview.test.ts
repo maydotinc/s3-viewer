@@ -99,6 +99,23 @@ describe("empty files", () => {
    );
 });
 
+describe("archives", () => {
+   it("names the archive instead of refusing to preview it", async () => {
+      await mount({
+         ...initialPreview("application/zip"),
+         contentLength: 2 * 1024 ** 3,
+      });
+      const text = view.current.container.textContent ?? "";
+      expect(text).toContain("ZIP archive");
+      expect(text).toContain("2.0 GiB");
+      expect(text).toContain("Archives can't be previewed");
+      expect(text).not.toContain("Too large");
+      expect(
+         view.current.container.querySelector("img, iframe, video, button")
+      ).toBeNull();
+   });
+});
+
 describe("large files", () => {
    const huge = 2 * 1024 ** 3;
 

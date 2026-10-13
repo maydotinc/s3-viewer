@@ -1,11 +1,13 @@
 import { PageHeader, PageTitle } from "./page";
 import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { ChevronLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 type BackHeaderProps = {
-   title: string;
+   // null while the title is still loading; the header keeps its height so nothing below it shifts
+   title: string | null;
    description: string;
    onBack: () => void;
    actions?: ReactNode;
@@ -32,7 +34,11 @@ const BackHeader = ({
             </Button>
          </SimpleTooltip>
          <div className="flex min-w-0 flex-col gap-1">
-            <PageTitle title={title}>{title}</PageTitle>
+            {title === null ? (
+               <Skeleton className="my-1 h-5 w-48" />
+            ) : (
+               <PageTitle title={title}>{title}</PageTitle>
+            )}
             <p className="text-sm text-viewertext">{description}</p>
          </div>
       </div>

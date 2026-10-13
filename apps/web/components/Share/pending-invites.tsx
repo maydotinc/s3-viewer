@@ -15,7 +15,8 @@ import { MailOpen } from "lucide-react";
 
 type PendingInvitesProps = {
    serverId: string;
-   myRole: Role;
+   // null until the server loads: rows need the viewer's role, so the list stays a skeleton
+   myRole: Role | null;
    invites: ServerInvite[];
    isLoading: boolean;
 };
@@ -33,9 +34,10 @@ const PendingInvites = ({
    invites,
    isLoading,
 }: PendingInvitesProps) => {
+   const loading = isLoading || myRole === null;
    return (
-      <InviteTable columns={COLUMNS} actionsWidth="w-24" loading={isLoading}>
-         {invites.length === 0 ? (
+      <InviteTable columns={COLUMNS} actionsWidth="w-24" loading={loading}>
+         {loading ? null : invites.length === 0 ? (
             <EmptyRow colSpan={COLUMNS.length + 1} icon={MailOpen}>
                No pending invites
             </EmptyRow>
