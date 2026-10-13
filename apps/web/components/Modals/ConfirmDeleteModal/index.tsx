@@ -11,9 +11,47 @@ import useDeleteObjects, {
 import useDeletePrefix from "@/lib/hooks/mutations/object/useDeletePrefix";
 import { formatCount } from "@/lib/utils/format";
 import { batchProgressSentence } from "@/lib/utils/s3/batch";
-import { Provider, baseName, isFolderKey } from "@s3-viewer/types";
+import { Provider, isFolderKey, type S3DeleteTarget } from "@s3-viewer/types";
 
 type ConfirmDeleteModalProps = ModalProps<"confirmDelete">;
+
+const MAX_LISTED = 100;
+
+// the full keys, so what gets deleted is confirmed by sight rather than by a file name in a sentence
+const Targets = ({
+   folder,
+   objects,
+}: {
+   folder: string | null;
+   objects: S3DeleteTarget[];
+}) => {
+   const keys = folder ? [folder] : objects.map((object) => object.key);
+   const shown = keys.slice(0, MAX_LISTED);
+   const hidden = keys.length - shown.length;
+   return (
+      <div className="flex flex-col gap-1.5 pb-1.5">
+         <p className="text-xs font-medium text-viewertext">
+            {folder
+               ? "Folder"
+               : keys.length === 1
+                 ? "Object"
+                 : `Objects · ${formatCount(keys.length)}`}
+         </p>
+         <ul className="max-h-40 overflow-y-auto rounded-lg border border-viewerborder bg-viewergray px-3 py-2 text-sm font-medium text-viewerblack [overflow-wrap:anywhere]">
+            {shown.map((key) => (
+               <li key={key} className="py-0.5">
+                  {key}
+               </li>
+            ))}
+            {hidden > 0 && (
+               <li className="py-0.5 font-normal text-viewertext">
+                  and {formatCount(hidden)} more
+               </li>
+            )}
+         </ul>
+      </div>
+   );
+};
 
 const ConfirmDeleteModal = ({
    onClose,
@@ -65,9 +103,9 @@ const ConfirmDeleteModal = ({
       ? "R2 deletes are permanent."
       : "This may be permanent, depending on your bucket's versioning and retention settings.";
    const description = folder
-      ? `This removes current objects under ${folder}. ${permanence}`
+      ? `This removes every current object under the folder. ${permanence}`
       : total === 1
-        ? `This removes ${baseName(objects[0]?.key ?? "")}. ${permanence}`
+        ? `This removes the object. ${permanence}`
         : `This removes ${formatCount(total)} current objects. ${permanence}`;
 
    const settle = (result: DeleteSummary) =>
@@ -140,7 +178,6 @@ const ConfirmDeleteModal = ({
          onClose={onClose}
          title={title}
          description={description}
-         reserveErrorSpace
          error={progressNotice ? null : (error ?? (notice || null))}
          hint={progressNotice}
          confirmDisabled={stuck}
@@ -156,6 +193,7 @@ const ConfirmDeleteModal = ({
          onConfirm={confirm}
          onAbort={() => task.cancel()}
       >
+         <Targets folder={folder} objects={objects} />
          <DeletionProtectionNotice serverId={serverId} action="delete" />
          <FailureList failures={failed} />
       </ConfirmDialog>

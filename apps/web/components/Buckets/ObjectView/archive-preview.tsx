@@ -28,7 +28,7 @@ const ArchivePreview = ({
                {fileName}
             </p>
             <p className="flex items-center gap-2 text-xs">
-               <span className="rounded-md border border-viewerborder bg-viewergray px-2 py-0.5 font-medium text-viewertext">
+               <span className="select-none rounded-md border border-viewerborder bg-viewergray px-2 py-0.5 font-medium text-viewertext">
                   {archiveLabel(preview.contentType, fileName) ??
                      "Compressed archive"}
                </span>

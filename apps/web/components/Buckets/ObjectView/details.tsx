@@ -37,8 +37,9 @@ const HEADER_ROWS: {
    { label: "Version", value: (s) => s.versionId },
 ];
 
+// a fixed label column keeps the main rows and the metadata rows aligned and leaves dates room to stay on one line
 const DETAIL_LIST =
-   "grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-3 text-sm";
+   "grid grid-cols-[8rem_minmax(0,1fr)] gap-x-3 gap-y-3 text-sm";
 
 // one bar per detail row, sized like the values they stand in for, so the loaded rows land where the bars were
 const SKELETON_ROWS: [label: string, value: string][] = [
@@ -62,7 +63,9 @@ const SkeletonRow = ({ label, value }: { label: string; value: string }) => (
 
 const Row = ({ label, value }: { label: string; value: string }) => (
    <div className="contents">
-      <dt className="min-w-0 break-all text-viewertext">{label}</dt>
+      <dt className="min-w-0 text-viewertext [overflow-wrap:anywhere]">
+         {label}
+      </dt>
       <dd className="min-w-0 break-all font-medium text-viewerblack">
          {value}
       </dd>
@@ -88,7 +91,7 @@ const ObjectDetails = ({
 
    return (
       <aside
-         className="flex h-80 min-w-0 w-full shrink-0 flex-col gap-4 overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite p-4 sm:p-6 lg:h-full lg:w-80"
+         className="flex h-80 min-w-0 w-full shrink-0 flex-col gap-4 overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite p-4 sm:p-6 lg:h-full lg:w-96"
          aria-busy={isLoading || undefined}
       >
          <h2 className="shrink-0 text-base font-semibold text-viewerblack">

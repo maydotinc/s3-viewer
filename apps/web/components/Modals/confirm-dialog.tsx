@@ -54,7 +54,11 @@ const ConfirmDialog = ({
       >
          {hasBody && (
             <DialogBody className="flex flex-col gap-1.5">
-               {showError && <FormError hint={hint}>{error}</FormError>}
+               {showError && (
+                  <FormError hint={hint} reserve={reserveErrorSpace}>
+                     {error}
+                  </FormError>
+               )}
                {children}
             </DialogBody>
          )}

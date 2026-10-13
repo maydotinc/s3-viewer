@@ -1,6 +1,6 @@
 import { cn } from "@s3-viewer/ui/lib/utils";
 
-type SpinnerSize = "sm" | "md" | "lg";
+type SpinnerSize = "xs" | "sm" | "md" | "lg";
 
 type SpinnerProps = {
    size?: SpinnerSize;
@@ -9,6 +9,7 @@ type SpinnerProps = {
 };
 
 const SIZE_CLASS: Record<SpinnerSize, string> = {
+   xs: "size-3.5 border-[1.5px]",
    sm: "size-4 border-2",
    md: "size-6 border-2",
    lg: "size-8 border-[3px]",

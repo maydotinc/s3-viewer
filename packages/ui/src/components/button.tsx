@@ -47,7 +47,7 @@ const buttonVariants = cva(
 const LoadingOverlay = () => (
    <span className="absolute inset-0 flex items-center justify-center">
       <Spinner
-         size="sm"
+         size="xs"
          className="border-current border-r-transparent"
          label="Loading"
       />
