@@ -182,6 +182,38 @@ describe("JSON preview containment", () => {
    );
 });
 
+describe("JSON view toggle", () => {
+   it("switches between the tree and the source without losing folds", async () => {
+      h.text = '{"nested":{"value":1}}';
+      await view.mount(createElement(Probe));
+      const branch = () =>
+         [
+            ...view.current.container.querySelectorAll("button[aria-expanded]"),
+         ].find((button) =>
+            button.textContent?.includes('"nested"')
+         ) as HTMLButtonElement;
+      await act(async () => branch().click());
+      const folded = branch().getAttribute("aria-expanded");
+      await act(async () =>
+         buttonByText(view.current.container, "Source")!.click()
+      );
+      expect(view.current.container.querySelector("pre")?.textContent).toBe(
+         h.text
+      );
+      expect(
+         buttonByText(view.current.container, "Expand all")
+      ).toBeUndefined();
+      expect(
+         view.current.container.querySelector("button[aria-expanded]")
+      ).toBeNull();
+      await act(async () =>
+         buttonByText(view.current.container, "Preview")!.click()
+      );
+      expect(view.current.container.querySelector("pre")).toBeNull();
+      expect(branch().getAttribute("aria-expanded")).toBe(folded);
+   });
+});
+
 describe("JSON tree keyboard folding", () => {
    it("keeps focus on a branch row when it is collapsed and expanded", async () => {
       h.text = '{"nested":{"value":1}}';

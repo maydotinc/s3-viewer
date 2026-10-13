@@ -23,6 +23,9 @@ import {
    CopyButton,
    Panel,
    RawText,
+   RawTextBody,
+   type ViewMode,
+   ViewTabs,
 } from "./preview-panel";
 
 const INDENT = 14;
@@ -296,6 +299,7 @@ const JsonTree = ({ value, nodes, text }: ParsedJson & { text: string }) => {
    const small = nodes < SMALL_DOCUMENT;
    const canExpandAll = nodes < EXPAND_ALL_LIMIT;
 
+   const [mode, setMode] = useState<ViewMode>("preview");
    const [expandAll, setExpandAll] = useState<boolean | null>(null);
    const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(
       () => new Map()
@@ -329,16 +333,23 @@ const JsonTree = ({ value, nodes, text }: ParsedJson & { text: string }) => {
          summary={summary}
          actions={
             <>
-               <ExpandAllButton
-                  collapsing={collapsing}
-                  blocked={!collapsing && !canExpandAll}
-                  onClick={toggleAll}
-               />
+               <ViewTabs mode={mode} onChange={setMode} />
+               {mode === "preview" && (
+                  <ExpandAllButton
+                     collapsing={collapsing}
+                     blocked={!collapsing && !canExpandAll}
+                     onClick={toggleAll}
+                  />
+               )}
                <CopyButton text={text} />
             </>
          }
       >
-         <VirtualRows rows={rows} onToggle={onToggle} />
+         {mode === "preview" ? (
+            <VirtualRows rows={rows} onToggle={onToggle} />
+         ) : (
+            <RawTextBody text={text} />
+         )}
       </Panel>
    );
 };

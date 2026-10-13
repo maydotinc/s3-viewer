@@ -11,6 +11,7 @@ import { formatBytes } from "@/lib/utils/format";
 import { previewBodyVersion } from "@/lib/utils/s3/preview-body";
 import type { S3ObjectPreview } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
+import { TabButton, TabList } from "@s3-viewer/ui/components/tabs";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Copy, FileWarning } from "lucide-react";
 import type { ReactNode } from "react";
@@ -46,6 +47,33 @@ const Panel = ({
          {children}
       </div>
    </div>
+);
+
+type ViewMode = "preview" | "source";
+
+const VIEW_MODES: { mode: ViewMode; label: string }[] = [
+   { mode: "preview", label: "Preview" },
+   { mode: "source", label: "Source" },
+];
+
+const ViewTabs = ({
+   mode,
+   onChange,
+}: {
+   mode: ViewMode;
+   onChange: (mode: ViewMode) => void;
+}) => (
+   <TabList aria-label="View as">
+      {VIEW_MODES.map((entry) => (
+         <TabButton
+            key={entry.mode}
+            active={mode === entry.mode}
+            onClick={() => onChange(entry.mode)}
+         >
+            {entry.label}
+         </TabButton>
+      ))}
+   </TabList>
 );
 
 const CopyButton = ({ text }: { text: string }) => (
@@ -160,5 +188,5 @@ const BodyPreview = ({
    });
 };
 
-export { BodyPreview, CopyButton, Panel, RawText, RawTextBody };
-export type { BodyPreviewProps };
+export { BodyPreview, CopyButton, Panel, RawText, RawTextBody, ViewTabs };
+export type { BodyPreviewProps, ViewMode };

@@ -1,5 +1,4 @@
 import { pluralize } from "@/lib/utils/format";
-import { TabButton, TabList } from "@s3-viewer/ui/components/tabs";
 import ErrorBoundary from "@s3-viewer/ui/error-boundary";
 import { useMemo, useState } from "react";
 import { MarkdownContent } from "./markdown";
@@ -10,16 +9,16 @@ import {
    Panel,
    RawText,
    RawTextBody,
+   type ViewMode,
+   ViewTabs,
 } from "./preview-panel";
-
-type Mode = "preview" | "source";
 
 // runs of letters or digits, so list markers, fences and table rules don't count
 const countWords = (text: string): number =>
    text.match(/[\p{L}\p{N}]+/gu)?.length ?? 0;
 
 const MarkdownBody = ({ text }: { text: string }) => {
-   const [mode, setMode] = useState<Mode>("preview");
+   const [mode, setMode] = useState<ViewMode>("preview");
    const words = useMemo(() => countWords(text), [text]);
    return (
       <Panel
@@ -27,20 +26,7 @@ const MarkdownBody = ({ text }: { text: string }) => {
          mono={mode === "source"}
          actions={
             <>
-               <TabList aria-label="Markdown view">
-                  <TabButton
-                     active={mode === "preview"}
-                     onClick={() => setMode("preview")}
-                  >
-                     Preview
-                  </TabButton>
-                  <TabButton
-                     active={mode === "source"}
-                     onClick={() => setMode("source")}
-                  >
-                     Source
-                  </TabButton>
-               </TabList>
+               <ViewTabs mode={mode} onChange={setMode} />
                <CopyButton text={text} />
             </>
          }
