@@ -2,26 +2,40 @@ import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import { PROVIDER_NAMES } from "@/lib/constants";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
+import { Role } from "@s3-viewer/types";
 import { Spinner } from "@s3-viewer/ui/components/spinner";
-import { ServerIcon, UserIcon } from "lucide-react";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import {
+   Crown,
+   Eye,
+   PenLine,
+   ServerIcon,
+   ShieldCheck,
+   UserIcon,
+   type LucideIcon,
+} from "lucide-react";
+
+const ROLE_ICONS: Record<Role, LucideIcon> = {
+   [Role.OWNER]: Crown,
+   [Role.ADMIN]: ShieldCheck,
+   [Role.EDITOR]: PenLine,
+   [Role.VIEWER]: Eye,
+};
 
 const CHIP =
-   "flex h-9 min-w-0 items-center gap-2 rounded-lg border border-viewerborder px-3 text-sm text-viewerblack";
+   "flex h-9 max-w-full min-w-0 items-center rounded-lg border border-viewerborder text-sm text-viewerblack";
+
+const SEGMENT = "flex h-full min-w-0 items-center gap-2 px-3";
+
+const ICON = "size-4 shrink-0 text-viewerlighttext";
 
 const ServerInfo = () => {
    const { currentServer, isLoading } = useCurrentServer();
 
    if (isLoading) {
       return (
-         <div
-            className="grid w-64 max-w-full grid-cols-[minmax(0,1fr)_6.5rem] gap-2"
-            aria-busy="true"
-         >
-            {["provider", "role"].map((chip) => (
-               <div key={chip} className={`${CHIP} justify-center`}>
-                  <Spinner label={`Loading ${chip}`} />
-               </div>
-            ))}
+         <div className={cn(CHIP, "w-56 justify-center")} aria-busy="true">
+            <Spinner size="sm" label="Loading server details" />
          </div>
       );
    }
@@ -30,30 +44,27 @@ const ServerInfo = () => {
       ? PROVIDER_NAMES[currentServer.provider]
       : "—";
    const role = currentServer ? ROLE_LABELS[currentServer.userRole] : "—";
+   const RoleIcon = currentServer
+      ? ROLE_ICONS[currentServer.userRole]
+      : UserIcon;
 
    return (
-      <div className="grid w-64 max-w-full grid-cols-[minmax(0,1fr)_6.5rem] gap-2">
-         <div className={CHIP}>
+      <div className={CHIP}>
+         <div className={SEGMENT} title={provider}>
             {currentServer ? (
                <ServerLogo provider={currentServer.provider} />
             ) : (
-               <ServerIcon
-                  className="size-4 shrink-0 text-viewerlighttext"
-                  aria-hidden="true"
-               />
+               <ServerIcon className={ICON} aria-hidden="true" />
             )}
-            <span className="truncate" title={provider}>
-               {provider}
-            </span>
+            <span className="truncate">{provider}</span>
          </div>
-         <div className={CHIP}>
-            <UserIcon
-               className="size-4 shrink-0 text-viewerlighttext"
-               aria-hidden="true"
-            />
-            <span className="truncate" title={role}>
-               {role}
-            </span>
+         <div
+            className="w-px self-stretch bg-viewerborder"
+            aria-hidden="true"
+         />
+         <div className={SEGMENT} title={`Your role: ${role}`}>
+            <RoleIcon className={ICON} aria-hidden="true" />
+            <span className="truncate">{role}</span>
          </div>
       </div>
    );

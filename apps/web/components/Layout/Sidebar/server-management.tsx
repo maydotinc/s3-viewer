@@ -13,16 +13,12 @@ const ServerManagement = () => {
    return (
       <div className="flex min-h-0 flex-1 flex-col gap-6">
          <div className="flex shrink-0 flex-col gap-2">
-            <SectionLabel as="span" className="px-2">
-               Servers
-            </SectionLabel>
+            <SectionLabel as="span">Servers</SectionLabel>
             <ServerSelect />
          </div>
          <div className="flex min-h-0 flex-1 flex-col gap-2">
             <div className="flex h-8 shrink-0 items-center justify-between">
-               <SectionLabel as="span" className="px-2">
-                  Buckets
-               </SectionLabel>
+               <SectionLabel as="span">Buckets</SectionLabel>
                {canCreateBucket && (
                   <Button
                      variant="ghost"

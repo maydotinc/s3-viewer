@@ -2,7 +2,7 @@ import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { PublicConfig, SignUpMode } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 
 type SignUpPolicyState = { mode: SignUpMode; domains: string[] };
 
@@ -44,6 +44,11 @@ const isCachedConfig = (value: unknown): value is CachedConfig =>
    typeof (value as CachedConfig).signUpMode === "string" &&
    Array.isArray((value as CachedConfig).allowedEmailDomains);
 
+const isPublicConfig = (value: unknown): value is PublicConfig =>
+   isCachedConfig(value) &&
+   typeof (value as PublicConfig).encryptionPublicKey === "string" &&
+   typeof (value as PublicConfig).allowInsecureEndpoints === "boolean";
+
 const placeholderFrom = ({
    emailEnabled,
    githubLoginEnabled,
@@ -72,23 +77,27 @@ const readCachedConfig = (): PublicConfig | undefined => {
    return cached ?? undefined;
 };
 
-const rememberConfig = (config: PublicConfig): PublicConfig => {
-   const subset = placeholderFrom(config);
-   cached = subset;
+const cacheEntry = ({
+   emailEnabled,
+   githubLoginEnabled,
+   signUpMode,
+   allowedEmailDomains,
+}: CachedConfig): CachedConfig => ({
+   emailEnabled,
+   githubLoginEnabled,
+   signUpMode,
+   allowedEmailDomains,
+});
+
+const rememberConfig = (config: PublicConfig): void => {
+   const serialized = JSON.stringify(cacheEntry(config));
+   if (cached && JSON.stringify(cacheEntry(cached)) === serialized) return;
+   cached = placeholderFrom(config);
    try {
-      window.localStorage.setItem(
-         CACHE_KEY,
-         JSON.stringify({
-            emailEnabled: subset.emailEnabled,
-            githubLoginEnabled: subset.githubLoginEnabled,
-            signUpMode: subset.signUpMode,
-            allowedEmailDomains: subset.allowedEmailDomains,
-         })
-      );
+      window.localStorage.setItem(CACHE_KEY, serialized);
    } catch {
       // private mode or full storage: the next visit just fetches first
    }
-   return config;
 };
 
 const noSubscription = () => () => {};
@@ -100,15 +109,21 @@ const usePublicConfig = () => {
       readCachedConfig,
       () => undefined
    );
-   return useQuery({
+   const query = useQuery({
       queryKey: queryKeys.instanceConfig,
-      queryFn: () => api.get<PublicConfig>("/config").then(rememberConfig),
+      queryFn: () => api.get<PublicConfig>("/config"),
       placeholderData,
       staleTime: Infinity,
       gcTime: Infinity,
       retry: RETRIES,
       retryOnMount: true,
    });
+   // auth pages arrive with the config already seeded by the server, so the cache follows the data shown
+   const { data, isPlaceholderData } = query;
+   useEffect(() => {
+      if (data && !isPlaceholderData) rememberConfig(data);
+   }, [data, isPlaceholderData]);
+   return query;
 };
 
 const githubEnabled = (config: PublicConfig | undefined): boolean =>
@@ -155,6 +170,7 @@ export {
    encryptionNotice,
    encryptionState,
    githubEnabled,
+   isPublicConfig,
    signUpPolicyState,
 };
 export type { EncryptionState };

@@ -1,5 +1,6 @@
 import AuthScreen from "@/components/Auth/auth-screen";
 import Seo from "@/components/seo";
+import { getInstanceConfigProps as getServerSideProps } from "@/lib/instance-config-props";
 import { PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
 
 const LoginPage = () => (
@@ -15,3 +16,4 @@ const LoginPage = () => (
 );
 
 export default LoginPage;
+export { getServerSideProps };

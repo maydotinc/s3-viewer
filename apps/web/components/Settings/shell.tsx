@@ -15,9 +15,9 @@ const SECTIONS = [
 const SettingsShell = ({ children }: { children: ReactNode }) => {
    const { pathname } = useRouter();
    return (
-      <Page>
+      <Page className="overflow-y-hidden">
          <PageHeader title="Settings" />
-         <div className="flex min-w-0 shrink-0 flex-col gap-6 lg:flex-row lg:gap-8">
+         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
             <nav
                aria-label="Settings"
                className="flex shrink-0 gap-1 overflow-x-auto lg:w-40 lg:flex-col"
@@ -47,7 +47,7 @@ const SettingsShell = ({ children }: { children: ReactNode }) => {
                   );
                })}
             </nav>
-            <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
+            <div className="flex min-h-0 w-full min-w-0 max-w-3xl flex-col gap-6 overflow-y-auto [scrollbar-gutter:stable] lg:pr-2">
                {children}
             </div>
          </div>

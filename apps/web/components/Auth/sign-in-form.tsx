@@ -218,8 +218,7 @@ const SignInForm = ({
                   {SUBMIT_LABEL[mode]}
                </Button>
                {githubEnabled(config) && (
-                  // the server renders without the instance config, so this arrives a beat later
-                  <div className="animate-fade-in flex flex-col gap-4">
+                  <>
                      <Divider />
                      <Button
                         type="button"
@@ -233,7 +232,7 @@ const SignInForm = ({
                         <GithubIcon className="size-5" />
                         Continue with GitHub
                      </Button>
-                  </div>
+                  </>
                )}
             </div>
          </form>

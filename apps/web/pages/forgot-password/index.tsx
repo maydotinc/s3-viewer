@@ -1,5 +1,6 @@
 import ForgotPasswordScreen from "@/components/Auth/forgot-password-screen";
 import Seo from "@/components/seo";
+import { getInstanceConfigProps as getServerSideProps } from "@/lib/instance-config-props";
 import { PRODUCT_NAME, SITE_PATHS } from "@s3-viewer/types";
 
 const ForgotPasswordPage = () => (
@@ -14,3 +15,4 @@ const ForgotPasswordPage = () => (
 );
 
 export default ForgotPasswordPage;
+export { getServerSideProps };

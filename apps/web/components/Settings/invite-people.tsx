@@ -84,7 +84,7 @@ const InvitePeople = () => {
             title="Invite people"
             description="Choose the server to share."
          >
-            <DialogBody>
+            <DialogBody className="pt-1">
                <Field label="Server" htmlFor="invite-server" className="gap-2">
                   <Select value={serverId} onValueChange={setServerId}>
                      <SelectTrigger id="invite-server">

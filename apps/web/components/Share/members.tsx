@@ -1,5 +1,4 @@
 import Avatar from "@/components/avatar";
-import CenteredSpinner from "@/components/centered-spinner";
 import FolderLimitNote from "@/components/folder-limit-note";
 import {
    EmptyRow,
@@ -12,6 +11,7 @@ import ListPagination, {
 import { ConfirmButton } from "@/components/Modals/confirm-button";
 import useRemoveMember from "@/lib/hooks/mutations/invites/useRemoveMember";
 import useUpdateRole from "@/lib/hooks/mutations/invites/useUpdateRole";
+import TableSkeletonRows from "@/components/table-skeleton";
 import { useUserId } from "@/lib/stores/session-store";
 import { pluralize } from "@/lib/utils/format";
 import {
@@ -198,12 +198,9 @@ const MemberRow = ({
 const Members = ({ members, isLoading, pages, ...rowProps }: MembersProps) => {
    const myUserId = useUserId();
 
-   if (isLoading)
-      return <CenteredSpinner label="Loading members" className="h-48" />;
-
    return (
       <>
-         <Table className={STACKED_TABLE}>
+         <Table className={STACKED_TABLE} aria-busy={isLoading || undefined}>
             <TableHeader>
                <TableRow>
                   <TableHead className="md:px-6">Member</TableHead>
@@ -215,7 +212,12 @@ const Members = ({ members, isLoading, pages, ...rowProps }: MembersProps) => {
                </TableRow>
             </TableHeader>
             <TableBody>
-               {members.length === 0 ? (
+               {isLoading ? (
+                  <TableSkeletonRows
+                     columns={Array.from({ length: COLUMNS }, () => ({}))}
+                     rowClassName="h-16 [&>td:first-child]:md:px-6"
+                  />
+               ) : members.length === 0 ? (
                   <EmptyRow colSpan={COLUMNS} icon={Users}>
                      No members yet
                   </EmptyRow>
@@ -231,7 +233,7 @@ const Members = ({ members, isLoading, pages, ...rowProps }: MembersProps) => {
                )}
             </TableBody>
          </Table>
-         <ListPagination variant="footer" {...pages} />
+         {!isLoading && <ListPagination variant="footer" {...pages} />}
       </>
    );
 };

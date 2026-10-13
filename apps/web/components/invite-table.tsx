@@ -12,6 +12,7 @@ import { ConfirmButton } from "@/components/Modals/confirm-button";
 import QueryStatus from "@/components/query-status";
 import SettingsCard from "@/components/Settings/card";
 import StatusMessage from "@/components/status-message";
+import TableSkeletonRows from "@/components/table-skeleton";
 import useRevokeInvite from "@/lib/hooks/mutations/invites/useRevokeInvite";
 import { useNow } from "@/lib/hooks/useNow";
 import { formatDay } from "@/lib/utils/format";
@@ -34,11 +35,18 @@ type Column = { label: string; align?: "left" | "right"; width?: string };
 type InviteTableProps = {
    columns: readonly Column[];
    actionsWidth: string;
-   children: ReactNode;
+   loading?: boolean;
+   children?: ReactNode;
 };
 
-const InviteTable = ({ columns, actionsWidth, children }: InviteTableProps) => (
+const InviteTable = ({
+   columns,
+   actionsWidth,
+   loading = false,
+   children,
+}: InviteTableProps) => (
    <Table
+      aria-busy={loading || undefined}
       className={cn(
          STACKED_TABLE,
          "md:[&_tr>*:first-child]:pl-6 md:[&_tr>*:last-child]:pr-6"
@@ -59,7 +67,13 @@ const InviteTable = ({ columns, actionsWidth, children }: InviteTableProps) => (
             </TableHead>
          </TableRow>
       </TableHeader>
-      <TableBody>{children}</TableBody>
+      <TableBody>
+         {loading ? (
+            <TableSkeletonRows columns={[...columns, { align: "right" }]} />
+         ) : (
+            children
+         )}
+      </TableBody>
    </Table>
 );
 
@@ -187,12 +201,11 @@ const InviteListCard = <T extends { id: string }>({
    const loading = pending || query.isLoading;
    const failed = !loading && invites.length === 0 ? error : null;
 
-   const body = (
+   const body = loading ? (
+      <InviteTable columns={columns} actionsWidth={actionsWidth} loading />
+   ) : (
       <QueryStatus
          error={failed}
-         loading={loading}
-         loadingLabel="Loading invites"
-         loadingClassName="min-h-0 flex-1"
          icon={MailX}
          title={errorTitle}
          retrying={query.isFetching}

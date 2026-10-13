@@ -1,3 +1,4 @@
+import RefreshIcon from "@/components/refresh-icon";
 import Reserve from "@/components/reserve";
 import { useModalActions } from "@/lib/contexts/modal-context";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
@@ -9,14 +10,14 @@ import { focusToolbarFilter } from "@/lib/utils/dom";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
-import { Plus, RefreshCw, UserRoundPlus } from "lucide-react";
+import { Plus, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
 
 const BucketActions = () => {
    const { open } = useModalActions();
    const { currentServer, isLoading: pending } = useCurrentServer();
-   const { refetch } = useBuckets();
+   const { refetch, isFetching } = useBuckets();
    const canShare = usePermission(Permission.MANAGE_MEMBERS);
    const canCreate = useCanCreateBucket();
    const actionsRef = useRef<HTMLDivElement>(null);
@@ -55,7 +56,7 @@ const BucketActions = () => {
                className="max-sm:w-9 max-sm:px-0"
                onClick={() => void refetch()}
             >
-               <RefreshCw aria-hidden="true" />
+               <RefreshIcon spinning={isFetching} />
                <span className="max-sm:sr-only">Refresh</span>
             </Button>
          </SimpleTooltip>

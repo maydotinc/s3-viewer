@@ -1,6 +1,6 @@
 import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 import { Kbd } from "@s3-viewer/ui/components/kbd";
-import { ChevronRight, CircleIcon } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { ENTER, SURFACE } from "@s3-viewer/ui/lib/classes";
@@ -112,13 +112,12 @@ function DropdownMenuRadioItem({
    return (
       <DropdownMenuPrimitive.RadioItem
          data-slot="dropdown-menu-radio-item"
-         className={cn(ITEM_BASE, ITEM_DEFAULT, "pl-8", className)}
+         className={cn(ITEM_BASE, ITEM_DEFAULT, "group pl-8", className)}
          {...props}
       >
-         <span className="pointer-events-none absolute left-2.5 flex size-4 items-center justify-center">
-            <CircleIcon className="size-3.5 text-viewerborder" />
-            <DropdownMenuPrimitive.ItemIndicator className="absolute">
-               <CircleIcon className="size-3.5 fill-viewerblue text-viewerblue" />
+         <span className="pointer-events-none absolute left-2.5 flex size-4 items-center justify-center rounded-full border border-viewerlighttext/50 transition-colors group-data-[state=checked]:border-viewerblue">
+            <DropdownMenuPrimitive.ItemIndicator>
+               <span className="block size-2 rounded-full bg-viewerblue" />
             </DropdownMenuPrimitive.ItemIndicator>
          </span>
          {children}

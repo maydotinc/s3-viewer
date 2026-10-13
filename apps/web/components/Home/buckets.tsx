@@ -7,7 +7,7 @@ import { LazyGrid } from "@/components/DataGrid/lazy-grid";
 import { FittedGridSkeleton } from "@/components/DataGrid/skeleton";
 import { EmptyState, GridLoadError } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
-import { Page, PageHeader } from "@/components/Layout/page";
+import { Page, PageHeader, Toolbar } from "@/components/Layout/page";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import { useServerId } from "@/lib/stores/session-scope";
@@ -98,10 +98,10 @@ const Buckets = () => {
       <GridProvider>
          <Page>
             <PageHeader title="Buckets" actions={<ServerInfo />} />
-            <div className="grid min-w-0 shrink-0 grid-cols-1 items-center gap-2 xl:grid-cols-[18rem_minmax(0,1fr)]">
+            <Toolbar>
                <BucketFilter value={filter} onChange={setFilter} />
                <BucketActions />
-            </div>
+            </Toolbar>
             <BucketsPanel filter={filter} />
          </Page>
       </GridProvider>

@@ -63,4 +63,13 @@ const PageHeader = ({
    </div>
 );
 
-export { Page, PageHeader, PageTitle };
+// the filter takes its own row only when the toolbar itself is narrow, not when the viewport is.
+const Toolbar = ({ children }: { children: ReactNode }) => (
+   <div className="@container min-w-0 shrink-0">
+      <div className="grid min-w-0 grid-cols-1 items-center gap-2 @2xl:grid-cols-[18rem_minmax(0,1fr)]">
+         {children}
+      </div>
+   </div>
+);
+
+export { Page, PageHeader, PageTitle, Toolbar };

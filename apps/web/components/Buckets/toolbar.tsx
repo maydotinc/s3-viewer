@@ -12,6 +12,8 @@ import {
 import { folderHref, segmentsFromKey } from "@/lib/utils/s3/paths";
 import { MAX_LIST_BLOCK_SIZE, observedETagSchema } from "@s3-viewer/types";
 import { COMPACT } from "@/components/compact-button";
+import { Toolbar } from "@/components/Layout/page";
+import RefreshIcon from "@/components/refresh-icon";
 import Reserve from "@/components/reserve";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
@@ -38,7 +40,6 @@ import {
    FolderPlus,
    Info,
    Replace,
-   RotateCcw,
    Trash2,
 } from "lucide-react";
 import { useRouter } from "next/router";
@@ -118,7 +119,8 @@ const SortMenu = () => {
 
 const ObjectsToolbar = () => {
    const router = useRouter();
-   const { bucketName, prefix, reach, refresh, isLoading } = useBucketContext();
+   const { bucketName, prefix, reach, refresh, isLoading, isRefreshing } =
+      useBucketContext();
    const { selectedIds, selectedObjects, clearSelection } = useGridContext();
    const commands = useObjectCommands();
    const { canUpload, blockedReason, notice } = useUploader();
@@ -205,7 +207,7 @@ const ObjectsToolbar = () => {
    );
 
    return (
-      <div className="grid min-w-0 shrink-0 grid-cols-1 items-center gap-2 xl:grid-cols-[18rem_minmax(0,1fr)]">
+      <Toolbar>
          <PrefixSearch className="w-full min-w-0" />
          <div
             className="@container -mx-1 flex h-11 min-w-0 items-center gap-2 overflow-x-auto px-1 [&>*]:shrink-0"
@@ -248,7 +250,7 @@ const ObjectsToolbar = () => {
                         aria-label="Refresh"
                         onClick={refresh}
                      >
-                        <RotateCcw aria-hidden="true" />
+                        <RefreshIcon spinning={isRefreshing} />
                      </Button>
                   </SimpleTooltip>
                   {commands.can.delete && (
@@ -369,7 +371,7 @@ const ObjectsToolbar = () => {
                </>
             )}
          </div>
-      </div>
+      </Toolbar>
    );
 };
 

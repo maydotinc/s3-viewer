@@ -8,6 +8,7 @@ import SessionManager from "@/components/Session/session-manager";
 import HelpDialog from "@/components/Shortcuts/help-dialog";
 import { ModalProvider } from "@/lib/contexts/modal-context";
 import { serverRuntimeEnv, setRuntimeEnv, type RuntimeEnv } from "@/lib/env";
+import type { InstanceConfigProps } from "@/lib/instance-config-props";
 import { getQueryClient } from "@/lib/query-client";
 import { ShortcutsProvider } from "@/lib/shortcuts";
 import { PRODUCT_NAME } from "@s3-viewer/types";
@@ -17,7 +18,7 @@ import Toaster from "@s3-viewer/ui/components/toast";
 import { TooltipProvider } from "@s3-viewer/ui/components/tooltip";
 import "@s3-viewer/ui/globals.css";
 import { inter } from "@/lib/fonts";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { HydrationBoundary, QueryClientProvider } from "@tanstack/react-query";
 import type { NextPage } from "next";
 import NextApp, {
    type AppContext,
@@ -48,6 +49,7 @@ const App = ({
    }, []);
    const [queryClient] = useState(getQueryClient);
    const getLayout = Component.getLayout ?? ((page) => page);
+   const { dehydratedState } = pageProps as InstanceConfigProps;
 
    return (
       <QueryClientProvider client={queryClient}>
@@ -63,24 +65,26 @@ const App = ({
             {FAVICON_LINKS}
             <style>{`:root{--font-inter:${inter.style.fontFamily}}`}</style>
          </Head>
-         <ErrorBoundary resetKey={router.asPath}>
-            <ModalProvider>
-               <SessionManager />
-               <AuthGuard>
-                  <TooltipProvider>
-                     <ShortcutsProvider>
-                        <SidebarProvider>
-                           {getLayout(<Component {...pageProps} />)}
-                           <CommandMenu />
-                           <ModalManager />
-                           <Toaster />
-                           <HelpDialog />
-                        </SidebarProvider>
-                     </ShortcutsProvider>
-                  </TooltipProvider>
-               </AuthGuard>
-            </ModalProvider>
-         </ErrorBoundary>
+         <HydrationBoundary state={dehydratedState}>
+            <ErrorBoundary resetKey={router.asPath}>
+               <ModalProvider>
+                  <SessionManager />
+                  <AuthGuard>
+                     <TooltipProvider>
+                        <ShortcutsProvider>
+                           <SidebarProvider>
+                              {getLayout(<Component {...pageProps} />)}
+                              <CommandMenu />
+                              <ModalManager />
+                              <Toaster />
+                              <HelpDialog />
+                           </SidebarProvider>
+                        </ShortcutsProvider>
+                     </TooltipProvider>
+                  </AuthGuard>
+               </ModalProvider>
+            </ErrorBoundary>
+         </HydrationBoundary>
       </QueryClientProvider>
    );
 };

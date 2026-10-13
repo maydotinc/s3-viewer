@@ -4,16 +4,13 @@ import CenteredSpinner from "@/components/centered-spinner";
 import Field from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import { ModalShell } from "@/components/Modals/modal-shell";
-import SectionLabel from "@/components/section-label";
-import StaleSignIn, { signInAgain } from "@/components/stale-sign-in";
-import StatusMessage from "@/components/status-message";
+import { signInAgain } from "@/components/stale-sign-in";
 import { authClient, deleteAccount, signOut } from "@/lib/auth";
 import { useHasPassword } from "@/lib/hooks/queries/user/useHasPassword";
 import { AuthErrorCode, SHARED_SERVERS_CODE } from "@s3-viewer/auth/client";
 import { pluralize } from "@/lib/utils/format";
 import {
    ErrorCode,
-   isSessionFresh,
    PRODUCT_NAME,
    SITE_PATHS,
    type AccountSummary,
@@ -24,7 +21,6 @@ import { DialogBody, DialogFooter } from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { toast } from "@s3-viewer/ui/components/toast";
-import { KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -138,31 +134,28 @@ const SharedServersNotice = ({
 );
 
 const NeedsPassword = () => (
-   <StatusMessage
-      icon={KeyRound}
-      title="Set a password first"
-      className="py-4"
-      actions={
-         <Button asChild variant="outline" size="sm">
-            <Link href={SITE_PATHS.settingsProfile}>
-               Go to password settings
-            </Link>
-         </Button>
-      }
-   >
-      Deleting your account needs your password, and this account signs in with
-      GitHub only.
-   </StatusMessage>
+   <Callout role="note">
+      <p className="font-medium text-viewerblack">Set a password first</p>
+      <p>
+         Deleting your account needs your password, and this account signs in
+         with GitHub only.
+      </p>
+      <Button asChild variant="outline" size="sm">
+         <Link href={SITE_PATHS.settingsProfile}>Go to password settings</Link>
+      </Button>
+   </Callout>
 );
 
 const RemovedList = ({ summary }: { summary: AccountSummary }) => (
-   <div className="flex flex-col gap-2">
-      <SectionLabel>{`Removed from ${PRODUCT_NAME}`}</SectionLabel>
+   <div className="flex flex-col gap-1">
+      <h3 className="text-sm font-medium text-viewerblack">
+         Removed from {PRODUCT_NAME}
+      </h3>
       <ul className="divide-y divide-viewerborder text-sm">
          {removedRows(summary).map((row) => (
             <li
                key={row.key}
-               className="flex min-h-10 flex-col justify-center gap-1 py-2 sm:flex-row sm:items-center sm:gap-4"
+               className="flex min-h-9 flex-col justify-center gap-0.5 py-1.5 sm:flex-row sm:items-center sm:gap-4"
             >
                <span className="min-w-0 flex-1 text-viewerblack [overflow-wrap:anywhere]">
                   {row.label}
@@ -179,22 +172,6 @@ const RemovedList = ({ summary }: { summary: AccountSummary }) => (
          Audit log entries on servers shared with you keep your email, so their
          history stays complete.
       </p>
-   </div>
-);
-
-const UntouchedCallout = () => (
-   <div className="flex flex-col gap-2">
-      <SectionLabel>Never touched</SectionLabel>
-      <Callout className="gap-0">
-         <p className="font-medium text-viewerblack">
-            Your buckets, files and S3 servers stay exactly as they are.
-         </p>
-         <p>
-            {PRODUCT_NAME} only stores the address and keys it uses to reach
-            your storage. Deleting your account throws those away and never
-            reads, changes or deletes anything on your S3 servers.
-         </p>
-      </Callout>
    </div>
 );
 
@@ -221,17 +198,12 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
       if (!isPending && !isRefetching && !sessionMatches && !deleting)
          onClose();
    }, [isPending, isRefetching, sessionMatches, deleting, onClose]);
-   const needsFreshSignIn =
-      sessionExpired ||
-      (session !== null &&
-         session !== undefined &&
-         !isSessionFresh(session.session.createdAt));
    const needsPassword = hasPassword === false;
    const confirmed =
       !isPending &&
       !isRefetching &&
       sessionMatches &&
-      !needsFreshSignIn &&
+      !sessionExpired &&
       !needsPassword &&
       password.length > 0 &&
       (!mustAcknowledge || acknowledged) &&
@@ -249,9 +221,10 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
          ...(mustAcknowledge && { acknowledgeSharedServers: acknowledged }),
       });
       if (result.error) {
-         if (result.code === AuthErrorCode.SESSION_EXPIRED)
+         if (result.code === AuthErrorCode.SESSION_EXPIRED) {
             setSessionExpired(true);
-         else if (result.code === SHARED_SERVERS_CODE) {
+            setError(result.error);
+         } else if (result.code === SHARED_SERVERS_CODE) {
             // someone joined after this dialog opened; ask before deleting their server.
             setMustAcknowledge(true);
             setAcknowledged(false);
@@ -270,103 +243,118 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
       toast.success(SUCCESS_MESSAGE);
    };
 
+   const clearError = () => {
+      if (error) setError(null);
+   };
+
    return (
       <ModalShell
          closable={!deleting}
+         showCloseButton={false}
          onClose={onClose}
          title={`Delete your ${PRODUCT_NAME} account`}
-         description={`Permanently removes what ${PRODUCT_NAME} stores about you. Nothing in your S3 storage is affected.`}
-         height="xl"
+         description={`Permanently removes what ${PRODUCT_NAME} stores about you. Your buckets, files and S3 servers are never touched.`}
          className="max-w-lg"
       >
-         <DialogBody className="flex min-h-0 flex-1 flex-col gap-6 [&>*]:shrink-0">
-            <UntouchedCallout />
+         <DialogBody className="flex flex-col gap-5">
             <RemovedList summary={confirmedSummary} />
-            <div className="flex h-56 flex-col overflow-y-auto">
-               {needsFreshSignIn ? (
-                  <StaleSignIn
-                     title="This needs a recent sign-in"
-                     action="deleting your account"
-                     className="py-4"
-                  />
-               ) : passwordPending ? (
-                  <CenteredSpinner
-                     label="Loading account confirmation"
-                     className="h-full"
-                  />
-               ) : needsPassword ? (
-                  <NeedsPassword />
-               ) : (
-                  <div className="flex flex-col gap-4">
-                     {mustAcknowledge && (
-                        <SharedServersNotice
-                           names={sharedNames}
-                           checked={acknowledged}
-                           disabled={deleting}
-                           onCheckedChange={(next) => {
-                              setAcknowledged(next);
-                              if (error) setError(null);
-                           }}
-                        />
+            <Callout>
+               {PRODUCT_NAME} only stores the address and keys it uses to reach
+               your storage. Deleting your account throws those away and never
+               reads, changes or deletes anything on your S3 servers.
+            </Callout>
+            {passwordPending ? (
+               <CenteredSpinner
+                  label="Loading account confirmation"
+                  className="h-24"
+               />
+            ) : needsPassword ? (
+               <NeedsPassword />
+            ) : (
+               <div className="flex flex-col gap-4">
+                  {mustAcknowledge && (
+                     <SharedServersNotice
+                        names={sharedNames}
+                        checked={acknowledged}
+                        disabled={deleting}
+                        onCheckedChange={(next) => {
+                           setAcknowledged(next);
+                           clearError();
+                        }}
+                     />
+                  )}
+                  <Field
+                     label="Type your email to confirm"
+                     htmlFor="delete-account-email"
+                     className="gap-2"
+                  >
+                     <Input
+                        id="delete-account-email"
+                        type="email"
+                        value={typed}
+                        autoComplete="off"
+                        spellCheck={false}
+                        placeholder={email}
+                        disabled={deleting}
+                        aria-invalid={error ? true : undefined}
+                        onChange={(event) => {
+                           setTyped(event.target.value);
+                           clearError();
+                        }}
+                     />
+                  </Field>
+                  <Field
+                     label="Your password"
+                     htmlFor="delete-account-password"
+                     className="gap-2"
+                  >
+                     <PasswordInput
+                        id="delete-account-password"
+                        autoComplete="current-password"
+                        value={password}
+                        disabled={deleting}
+                        aria-invalid={error ? true : undefined}
+                        onChange={(event) => {
+                           setPassword(event.target.value);
+                           clearError();
+                        }}
+                     />
+                     <FormError reserve={false}>{error}</FormError>
+                     {sessionExpired && (
+                        <Button
+                           type="button"
+                           variant="link"
+                           size="sm"
+                           className="h-auto self-start px-0"
+                           onClick={signInAgain}
+                        >
+                           Sign in again
+                        </Button>
                      )}
-                     <Field
-                        label="Type your email to confirm"
-                        htmlFor="delete-account-email"
-                        className="gap-2"
-                     >
-                        <Input
-                           id="delete-account-email"
-                           type="email"
-                           value={typed}
-                           autoComplete="off"
-                           spellCheck={false}
-                           placeholder={email}
-                           disabled={deleting}
-                           aria-invalid={error ? true : undefined}
-                           onChange={(event) => {
-                              setTyped(event.target.value);
-                              if (error) setError(null);
-                           }}
-                        />
-                     </Field>
-                     <Field
-                        label="Your password"
-                        htmlFor="delete-account-password"
-                        className="gap-2"
-                     >
-                        <PasswordInput
-                           id="delete-account-password"
-                           autoComplete="current-password"
-                           value={password}
-                           disabled={deleting}
-                           aria-invalid={error ? true : undefined}
-                           onChange={(event) => {
-                              setPassword(event.target.value);
-                              if (error) setError(null);
-                           }}
-                        />
-                        <FormError>{error}</FormError>
-                     </Field>
-                  </div>
-               )}
-            </div>
-         </DialogBody>
-         <DialogFooter className="min-h-16">
-            {needsFreshSignIn ? (
-               <Button type="button" onClick={signInAgain}>
-                  Sign in again to continue
-               </Button>
-            ) : needsPassword ? null : (
-               <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => void confirm()}
-                  disabled={!confirmed}
-                  loading={deleting}
-               >
-                  Delete {PRODUCT_NAME} account
-               </Button>
+                  </Field>
+               </div>
             )}
+         </DialogBody>
+         <DialogFooter>
+            <Button
+               type="button"
+               variant="outline"
+               className="flex-1 sm:flex-initial"
+               disabled={deleting}
+               onClick={onClose}
+            >
+               Cancel
+            </Button>
+            <Button
+               type="button"
+               variant="destructive"
+               className="flex-1 sm:flex-initial"
+               onClick={() => void confirm()}
+               disabled={!confirmed}
+               loading={deleting}
+            >
+               Delete account
+            </Button>
          </DialogFooter>
       </ModalShell>
    );

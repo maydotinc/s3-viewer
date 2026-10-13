@@ -1,4 +1,3 @@
-import CenteredSpinner from "@/components/centered-spinner";
 import {
    ActionsCell,
    ExpiresCell,
@@ -34,13 +33,8 @@ const PendingInvites = ({
    invites,
    isLoading,
 }: PendingInvitesProps) => {
-   if (isLoading)
-      return (
-         <CenteredSpinner label="Loading pending invites" className="h-48" />
-      );
-
    return (
-      <InviteTable columns={COLUMNS} actionsWidth="w-24">
+      <InviteTable columns={COLUMNS} actionsWidth="w-24" loading={isLoading}>
          {invites.length === 0 ? (
             <EmptyRow colSpan={COLUMNS.length + 1} icon={MailOpen}>
                No pending invites
