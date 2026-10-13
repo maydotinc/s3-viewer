@@ -285,7 +285,7 @@ const BucketAccessPicker = ({
          <div
             role="group"
             aria-label={label}
-            className="relative h-64 min-h-0 min-w-0 overflow-y-auto [scrollbar-gutter:stable]"
+            className="relative grid max-h-64 min-h-10 min-w-0 overflow-y-auto [scrollbar-gutter:stable]"
          >
             {list}
          </div>

@@ -21,7 +21,7 @@ const FormError = ({
          role={children ? "alert" : undefined}
          className={cn(
             "shrink-0 break-words leading-5",
-            reserve && "h-10 overflow-y-auto [scrollbar-gutter:stable]",
+            reserve && "min-h-5",
             size === "sm" ? "text-sm" : "text-xs",
             children ? "text-viewertextred" : "text-viewertext"
          )}

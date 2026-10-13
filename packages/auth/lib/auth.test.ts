@@ -541,6 +541,21 @@ describe("absolute session expiry", () => {
    });
 });
 
+describe("session listing", () => {
+   it("lists sessions older than the fresh window", async () => {
+      const { auth, db, signUp } = createTestAuth();
+      const { cookie } = await signUp("list-stale@example.com");
+      db.session![0]!.createdAt = new Date(Date.now() - 2 * DAY_MS);
+      const response = await auth.handler(
+         new Request("http://localhost:5001/auth/list-sessions", {
+            headers: { cookie },
+         })
+      );
+      expect(response.status).toBe(200);
+      expect(await response.json()).toHaveLength(1);
+   });
+});
+
 describe("revocation takes effect immediately", () => {
    it("rejects a session revoked between two get-session calls", async () => {
       const { auth, db, signUp } = createTestAuth();

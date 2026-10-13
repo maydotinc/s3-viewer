@@ -1,9 +1,10 @@
+import GithubIcon from "@/components/Auth/github-icon";
 import Avatar from "@/components/avatar";
 import { authClient, signOut } from "@/lib/auth";
 import { SUPPORT_URL } from "@/lib/site-config";
 import { isModifiedClick } from "@/lib/utils/events";
 import { toastFailure } from "@/lib/utils/toast";
-import { SITE_PATHS } from "@s3-viewer/types";
+import { GITHUB_URL, SITE_PATHS } from "@s3-viewer/types";
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -82,6 +83,12 @@ const ProfileDropdown = () => {
                   Settings
                   <DropdownMenuShortcut keys="g s" />
                </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+               <a href={GITHUB_URL} target="_blank" rel="noreferrer">
+                  <GithubIcon aria-hidden="true" />
+                  View source code
+               </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
                <a href={SUPPORT_URL} target="_blank" rel="noreferrer">

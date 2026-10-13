@@ -15,7 +15,6 @@ import {
    PASSWORD_MAX_LENGTH,
    PASSWORD_MIN_LENGTH,
    SECOND_MS,
-   SESSION_FRESH_HOURS,
    SESSION_TTL_DAYS,
    SITE_PATHS,
    VERIFICATION_CODE_ATTEMPTS,
@@ -369,7 +368,9 @@ const auth = betterAuth({
    session: {
       expiresIn: SESSION_TTL_DAYS * DAY_SECONDS,
       updateAge: DAY_SECONDS,
-      freshAge: SESSION_FRESH_HOURS * HOUR_SECONDS,
+      // better auth would refuse /list-sessions after a day; the actions that need a recent
+      // sign-in (password, server and account deletion) check isSessionFresh themselves.
+      freshAge: 0,
       cookieCache: { enabled: false },
    },
    user: {

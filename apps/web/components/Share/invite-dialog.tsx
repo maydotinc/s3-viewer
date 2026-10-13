@@ -143,7 +143,6 @@ const InviteDialog = ({
          isPending={sendInvite.isPending}
          title="Invite people"
          description={`Invites expire after ${INVITE_TTL_DAYS} days and members only see the buckets you grant.`}
-         height="xl"
          contentClassName="max-w-lg"
          bodyClassName="relative"
          formAutoComplete="off"
@@ -186,7 +185,7 @@ const InviteDialog = ({
                      setEmailError(null);
                   }}
                />
-               <ul className="flex min-h-[22px] min-w-0 flex-wrap gap-1.5">
+               <ul className="flex min-w-0 flex-wrap gap-1.5 empty:hidden">
                   {list.map((address) => (
                      <RemovableChip
                         key={address}

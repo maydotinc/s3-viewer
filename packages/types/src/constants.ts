@@ -35,8 +35,8 @@ export const SESSION_TTL_DAYS = 30;
 export const SESSION_ABSOLUTE_TTL_DAYS = 90;
 export const SESSION_FRESH_HOURS = 24;
 
-export const GITHUB_ISSUES_URL =
-   "https://github.com/maydotinc/s3-viewer/issues";
+export const GITHUB_URL = "https://github.com/maydotinc/s3-viewer";
+export const GITHUB_ISSUES_URL = `${GITHUB_URL}/issues`;
 
 export const SITE_PATHS = {
    dashboard: "/dashboard",
