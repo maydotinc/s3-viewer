@@ -18,7 +18,10 @@ const Hub = () => {
             </div>
          </PageHero>
 
-         <BasicBlock className="flex flex-col gap-14">
+         <BasicBlock
+            sectionClassName="bg-viewergray"
+            className="flex flex-col gap-14"
+         >
             {HOW_TO_CATEGORIES.map((cat) => {
                const items = HOW_TOS.filter((h) => h.category === cat);
                return (

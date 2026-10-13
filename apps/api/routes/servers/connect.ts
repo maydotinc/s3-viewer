@@ -1,4 +1,4 @@
-import { requireVerifiedUser } from "@/lib/middleware/authorize";
+import { requireUser } from "@/lib/middleware/authorize";
 import { connectLimit } from "@/lib/middleware/rate-limit";
 import { validatedRoute } from "@/lib/middleware/route";
 import { getS3ClientFromCredentials } from "@/lib/s3/client-cache";
@@ -25,7 +25,7 @@ const establish = async (
    res: Response,
    input: EstablishInput
 ) => {
-   const user = requireVerifiedUser(req);
+   const user = requireUser(req);
    const { encryptedCredentials } = input;
    const { credentials, provider } = await openCredentials(
       encryptedCredentials,
@@ -48,7 +48,7 @@ const validateBuckets = async (
    res: Response,
    input: ValidateBucketsInput
 ) => {
-   const user = requireVerifiedUser(req);
+   const user = requireUser(req);
    const { encryptedCredentials, bucketNames } = input;
    const { credentials, provider } = await openCredentials(
       encryptedCredentials,

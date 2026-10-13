@@ -63,12 +63,9 @@ const AccountSwitch = () => {
    );
 };
 
-type AuthLayoutProps = {
-   busy?: ReactNode;
-   children: ReactNode;
-};
+type AuthLayoutProps = { children: ReactNode };
 
-const AuthLayout = ({ busy, children }: AuthLayoutProps) => (
+const AuthLayout = ({ children }: AuthLayoutProps) => (
    <div className="flex min-h-dvh w-full min-w-0 flex-col lg:flex-row">
       <main className="flex min-w-0 flex-1 flex-col px-6 py-8 sm:px-10 lg:w-[46%] lg:flex-none xl:w-[42%]">
          <header className="flex items-center pb-6">
@@ -90,15 +87,7 @@ const AuthLayout = ({ busy, children }: AuthLayoutProps) => (
          </header>
          <div className="flex flex-1 flex-col items-center justify-center py-8">
             <div className="flex w-full max-w-[360px] flex-col gap-6 [overflow-wrap:anywhere]">
-               {busy ? (
-                  <div className="flex h-56 items-center justify-center">
-                     {busy}
-                  </div>
-               ) : (
-                  <div className="animate-fade-in flex flex-col gap-6">
-                     {children}
-                  </div>
-               )}
+               {children}
                <p className="text-meta text-balance text-center">
                   By continuing you agree to the{" "}
                   <a href={TERMS_URL} className={LEGAL_LINK}>

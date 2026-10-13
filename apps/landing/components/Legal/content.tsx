@@ -22,7 +22,7 @@ const LegalContent = ({ content }: { content: LegalContentItemProps[] }) => {
    );
 
    return (
-      <BasicBlock>
+      <BasicBlock sectionClassName="bg-viewergray">
          <div className="grid lg:grid-cols-[240px_1fr] gap-10 lg:gap-16">
             <OnThisPage items={items} />
 

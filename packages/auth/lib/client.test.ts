@@ -90,7 +90,8 @@ describe("requests the server never answers", () => {
          client.signUpWithPassword("a@example.test", "password"),
          client.requestPasswordReset("a@example.test"),
          client.resetPassword("reset-token", "new-password"),
-         client.sendVerificationEmail("a@example.test"),
+         client.sendVerificationCode("a@example.test"),
+         client.verifyEmailCode("a@example.test", "123456", "password"),
          client.changePassword("old-password", "new-password"),
          client.deleteAccount({
             expectedUserId: "account-a",
@@ -172,6 +173,20 @@ describe("continueWithPassword", () => {
       ).resolves.toEqual({
          error: "Wrong email or password.",
          code: "INVALID_EMAIL_OR_PASSWORD",
+         created: false,
+      });
+   });
+
+   it("stops at an unverified account without trying to create it again", async () => {
+      const client = answers([
+         403,
+         { code: "EMAIL_NOT_VERIFIED", message: "Email not verified" },
+      ]);
+      await expect(
+         client.continueWithPassword("a@example.test", "password")
+      ).resolves.toEqual({
+         error: "Verify your email to continue.",
+         code: "EMAIL_NOT_VERIFIED",
          created: false,
       });
    });

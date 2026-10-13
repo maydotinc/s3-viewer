@@ -71,7 +71,7 @@ const BrandKit = () => {
             </div>
          </PageHero>
 
-         <BasicBlock>
+         <BasicBlock sectionClassName="bg-viewergray">
             <div className="grid lg:grid-cols-[220px_1fr] gap-10 lg:gap-16">
                <OnThisPage items={SECTIONS} />
 

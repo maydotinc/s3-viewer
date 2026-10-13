@@ -7,15 +7,13 @@ import {
    type Column,
 } from "@/components/invite-table";
 import { ConfirmButton } from "@/components/Modals/confirm-button";
-import { ApiError } from "@/lib/api";
 import useAcceptInvite from "@/lib/hooks/mutations/invites/useAcceptInvite";
 import useRejectInvite from "@/lib/hooks/mutations/invites/useRejectInvite";
 import { useReceivedInvites } from "@/lib/hooks/queries/server/useInvites";
 import { useUserId } from "@/lib/stores/session-store";
-import { ErrorCode, type ServerInvite } from "@s3-viewer/types";
+import type { ServerInvite } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { MailOpen } from "lucide-react";
-import UnverifiedCallout from "./unverified-callout";
 
 const COLUMNS: readonly Column[] = [
    { label: "Server" },
@@ -58,19 +56,11 @@ const InviteActions = ({ invite }: { invite: ServerInvite }) => {
 const ReceivedInvites = () => {
    const userId = useUserId();
    const query = useReceivedInvites();
-   const unverified =
-      query.error instanceof ApiError &&
-      query.error.code === ErrorCode.EMAIL_UNVERIFIED;
 
    return (
       <InviteListCard
          title="Received"
          description="Servers other people have invited you to."
-         blocked={
-            unverified && (
-               <UnverifiedCallout panel action="see the invites sent to it" />
-            )
-         }
          pending={!userId}
          query={query}
          errorTitle="Couldn't load your invites"

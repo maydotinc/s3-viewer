@@ -7,6 +7,7 @@ type EmailFieldProps = {
    error: string | null;
    hint?: string;
    disabled: boolean;
+   autoFocus?: boolean;
    onChange: (value: string) => void;
    onEnter?: () => void;
 };
@@ -16,6 +17,7 @@ const EmailField = ({
    error,
    hint,
    disabled,
+   autoFocus = true,
    onChange,
    onEnter,
 }: EmailFieldProps) => (
@@ -26,7 +28,7 @@ const EmailField = ({
          type="email"
          inputMode="email"
          autoComplete="email"
-         autoFocus
+         autoFocus={autoFocus}
          required
          placeholder="you@example.com"
          value={value}

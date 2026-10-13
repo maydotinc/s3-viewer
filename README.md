@@ -21,8 +21,8 @@ open [localhost:3000](http://localhost:3000). the first run builds the apps,
 starts Postgres, generates your keys, and sets up the database. no `.env` needed.
 `docker compose ps` shows when everything is ready.
 
-sign up in the app. email is off by default, so verify your account from the
-terminal before connecting your first bucket:
+sign up in the app. email is off by default, so the app tells you the account
+has to be verified by whoever runs the instance. that's you, from the terminal:
 
 ```bash
 # use the email you signed up with
@@ -32,7 +32,7 @@ docker compose exec api node dist/verify-email.js you@example.com
 docker compose exec api node dist/verify-email.js you@example.com ACCOUNT_ID
 ```
 
-sign in again, connect your storage, and you're in.
+log in, connect your storage, and you're in.
 
 for your own domain, email, or a different host, see the
 [self-hosting guide](./SELF-HOSTING.md).
@@ -55,7 +55,7 @@ the app's 5 GiB limit on R2 server-side copy, move, rename, and metadata updates
 ## 🔐 accounts and data
 
 email and password sign-in works out of the box. GitHub login is optional.
-add SMTP or Resend for verification emails, password resets, and team invites.
+add SMTP or Resend for verification codes, password resets, and team invites.
 anyone can sign up by default. to limit sign-ups to invited people or your email
 domains, or close them, set `SIGNUP_MODE` in `.env` (see
 [sign-up policy](./SELF-HOSTING.md#sign-up-policy)).

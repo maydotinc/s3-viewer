@@ -16,7 +16,7 @@ import {
 } from "@s3-viewer/types";
 
 const accountSummary = async (
-   user: Pick<DeletedUser, "id" | "email" | "emailVerified">
+   user: Pick<DeletedUser, "id" | "email">
 ): Promise<AccountSummary> => {
    const notOwned = { server: { ownerId: { not: user.id } } };
    const [owned, memberships, sentInvites, receivedInvites] = await Promise.all(
@@ -39,11 +39,9 @@ const accountSummary = async (
          prisma.pendingInvitation.count({
             where: { invitedById: user.id, ...notOwned, ...liveInvite() },
          }),
-         user.emailVerified
-            ? prisma.pendingInvitation.count({
-                 where: { email: normalizeEmail(user.email), ...liveInvite() },
-              })
-            : 0,
+         prisma.pendingInvitation.count({
+            where: { email: normalizeEmail(user.email), ...liveInvite() },
+         }),
       ]
    );
    return {

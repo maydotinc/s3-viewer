@@ -79,12 +79,13 @@ const assertSignUpAllowed = async (
    throw new APIError("FORBIDDEN", refusal);
 };
 
+// refusals must come from this hook: with verification required, Better Auth turns a
+// refusal raised while creating the user into a fake success.
 const assertPasswordSignUpAllowed = async (
    email: unknown,
    inviteToken: string | undefined
 ): Promise<void> => {
-   const { mode } = signUpPolicy;
-   if (mode !== "invite" && mode !== "domains") return;
+   if (signUpPolicy.mode === "open") return;
    const address = emailSchema.safeParse(email);
    if (!address.success) return;
    await assertSignUpAllowed(address.data, {

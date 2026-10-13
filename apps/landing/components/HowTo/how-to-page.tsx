@@ -105,13 +105,13 @@ const HowToPage = ({
             </HeroGrid>
          </PageHero>
 
-         <BasicBlock>
+         <BasicBlock sectionClassName="bg-viewergray">
             <SplitSection eyebrow="Steps" title="Step-by-step.">
                <StepList steps={steps} />
             </SplitSection>
          </BasicBlock>
 
-         <BasicBlock sectionClassName="border-t border-viewerborder bg-viewergray">
+         <BasicBlock sectionClassName="border-t border-viewerborder">
             <SplitSection
                eyebrow="Under the hood"
                title="What's actually happening."
@@ -127,10 +127,9 @@ const HowToPage = ({
             </SplitSection>
          </BasicBlock>
 
-         <FaqSection faqs={faqs} />
+         <FaqSection faqs={faqs} sectionClassName="bg-viewergray" />
 
          <CtaBand
-            sectionClassName="bg-viewergray"
             eyebrow="Use S3 Viewer for this"
             title="Skip the CLI. Try it in the browser."
             text="S3 Viewer turns the steps above into a single click. Open source, self-hostable, free."
@@ -138,7 +137,10 @@ const HowToPage = ({
          />
 
          {(useCases.length > 0 || related.length > 0) && (
-            <BasicBlock className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <BasicBlock
+               sectionClassName="border-t border-viewerborder bg-viewergray"
+               className="grid grid-cols-1 lg:grid-cols-2 gap-12"
+            >
                {useCases.length > 0 && (
                   <RelatedLinks
                      compact

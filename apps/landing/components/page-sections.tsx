@@ -109,11 +109,15 @@ export const StepList = ({ steps }: { steps: Step[] }) => (
 export const FaqSection = ({
    faqs,
    intro,
+   sectionClassName,
 }: {
    faqs: Faq[];
    intro?: ReactNode;
+   sectionClassName?: string;
 }) => (
-   <BasicBlock sectionClassName="border-t border-viewerborder">
+   <BasicBlock
+      sectionClassName={cn("border-t border-viewerborder", sectionClassName)}
+   >
       <SplitSection eyebrow="FAQ" title="Common questions." intro={intro}>
          <FaqList faqs={faqs} />
       </SplitSection>

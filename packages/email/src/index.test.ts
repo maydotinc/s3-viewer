@@ -5,9 +5,9 @@ vi.mock("@s3-viewer/ui/emails/server-invite", async (original) => ({
    ...(await original<typeof import("@s3-viewer/ui/emails/server-invite")>()),
    ServerInviteEmail: () => null,
 }));
-vi.mock("@s3-viewer/ui/emails/auth-link", async (original) => ({
-   ...(await original<typeof import("@s3-viewer/ui/emails/auth-link")>()),
-   AuthLinkEmail: () => null,
+vi.mock("@s3-viewer/ui/emails/password-reset", async (original) => ({
+   ...(await original<typeof import("@s3-viewer/ui/emails/password-reset")>()),
+   PasswordResetEmail: () => null,
 }));
 vi.mock("@s3-viewer/ui/emails/account-deleted", async (original) => ({
    ...(await original<typeof import("@s3-viewer/ui/emails/account-deleted")>()),
@@ -34,9 +34,8 @@ const sendOneOfEach = async (
       expiresAt: new Date("2030-01-01T00:00:00.000Z"),
       invitesUrl: "https://app.example/settings/invites?invite=secret-token",
    });
-   await email.sendAuthLinkEmail({
+   await email.sendPasswordResetEmail({
       to: "member@corp.example",
-      intent: "reset",
       url: "https://api.example/auth/reset-password/secret-reset",
       expiresInHours: 1,
    });
@@ -56,9 +55,8 @@ describe("email with no transport", () => {
       vi.resetModules();
       const email = await import("./index");
       await expect(
-         email.sendAuthLinkEmail({
+         email.sendPasswordResetEmail({
             to: "member@corp.example",
-            intent: "reset",
             url: "https://api.example/auth/reset-password/secret-reset",
             expiresInHours: 1,
          })

@@ -60,7 +60,7 @@ const Contact = () => {
             </div>
          </PageHero>
 
-         <BasicBlock>
+         <BasicBlock sectionClassName="bg-viewergray">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 items-stretch">
                {CHANNELS.map((channel) => (
                   <LinkCard

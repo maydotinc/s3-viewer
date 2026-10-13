@@ -8,17 +8,23 @@ import {
    type AccountDeletedEmailProps,
 } from "@s3-viewer/ui/emails/account-deleted";
 import {
-   AuthLinkEmail,
-   authLinkEmailSubject,
-   authLinkEmailText,
-   type AuthLinkEmailProps,
-} from "@s3-viewer/ui/emails/auth-link";
+   PasswordResetEmail,
+   passwordResetEmailSubject,
+   passwordResetEmailText,
+   type PasswordResetEmailProps,
+} from "@s3-viewer/ui/emails/password-reset";
 import {
    ServerInviteEmail,
    serverInviteEmailSubject,
    serverInviteEmailText,
    type ServerInviteEmailProps,
 } from "@s3-viewer/ui/emails/server-invite";
+import {
+   VerificationCodeEmail,
+   verificationCodeEmailSubject,
+   verificationCodeEmailText,
+   type VerificationCodeEmailProps,
+} from "@s3-viewer/ui/emails/verification-code";
 import {
    deliverEmail,
    resendDelivery,
@@ -27,7 +33,7 @@ import {
 } from "./delivery";
 import type { EmailTransportName } from "./transport";
 
-type MessageKind = AuthLinkEmailProps["intent"] | "invite" | "account-deleted";
+type MessageKind = "code" | "reset" | "invite" | "account-deleted";
 
 type Message = {
    kind: MessageKind;
@@ -52,11 +58,12 @@ const DEV_FROM = `${PRODUCT_NAME} <dev@localhost>`;
 
 const deliveringTransport = (deliver: Delivery, from: string): Transport => {
    return async ({ kind, to, subject, html, text }) => {
-      const authLink = kind === "verify" || kind === "reset";
+      // a lost code or reset link locks the person out, so only those are retried.
+      const retry = kind === "code" || kind === "reset";
       await deliverEmail(
          deliver,
          { from, to, subject, html: await render(html), text },
-         { lane: kind === "invite" ? "invite" : "account", retry: authLink }
+         { lane: kind === "invite" ? "invite" : "account", retry }
       );
    };
 };
@@ -93,18 +100,35 @@ const send: Transport = (message) => {
    return configured(message);
 };
 
-type SendAuthLinkEmailInput = AuthLinkEmailProps & { to: string };
+type SendVerificationCodeEmailInput = VerificationCodeEmailProps & {
+   to: string;
+};
 
-const sendAuthLinkEmail = async ({
+const sendVerificationCodeEmail = async ({
    to,
    ...props
-}: SendAuthLinkEmailInput): Promise<void> => {
+}: SendVerificationCodeEmailInput): Promise<void> => {
    await send({
-      kind: props.intent,
+      kind: "code",
       to,
-      subject: authLinkEmailSubject(props.intent),
-      html: AuthLinkEmail(props),
-      text: authLinkEmailText(props),
+      subject: verificationCodeEmailSubject(props.code),
+      html: VerificationCodeEmail(props),
+      text: verificationCodeEmailText(props),
+   });
+};
+
+type SendPasswordResetEmailInput = PasswordResetEmailProps & { to: string };
+
+const sendPasswordResetEmail = async ({
+   to,
+   ...props
+}: SendPasswordResetEmailInput): Promise<void> => {
+   await send({
+      kind: "reset",
+      to,
+      subject: passwordResetEmailSubject(),
+      html: PasswordResetEmail(props),
+      text: passwordResetEmailText(props),
    });
 };
 
@@ -163,6 +187,7 @@ const sendAccountDeletedEmail = async ({
 export {
    configureEmail,
    sendAccountDeletedEmail,
-   sendAuthLinkEmail,
+   sendPasswordResetEmail,
    sendServerInviteEmail,
+   sendVerificationCodeEmail,
 };

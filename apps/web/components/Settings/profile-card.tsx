@@ -1,19 +1,11 @@
-import { TEXT_LINK } from "@/components/Auth/text-link";
 import Field from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import { authClient } from "@/lib/auth";
-import useResendVerification from "@/lib/hooks/mutations/user/useResendVerification";
 import useUpdateProfile from "@/lib/hooks/mutations/user/useUpdateProfile";
-import useInstanceConfig, {
-   emailState,
-} from "@/lib/hooks/queries/useInstanceConfig";
 import { INVALID_NAME_MESSAGE } from "@s3-viewer/auth/client";
 import { PROFILE_NAME_MAX, profileNameSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
-import { toast } from "@s3-viewer/ui/components/toast";
-import { cn } from "@s3-viewer/ui/lib/utils";
-import { useRouter } from "next/router";
 import { useEffect, useState, type FormEvent } from "react";
 import SettingsCard, { FORM_GRID } from "./card";
 
@@ -25,20 +17,8 @@ const ProfileCard = () => {
    const [name, setName] = useState(currentName);
    const [nameError, setNameError] = useState<string | null>(null);
    const update = useUpdateProfile();
-   const resend = useResendVerification();
-   const transport = emailState(useInstanceConfig());
-   const router = useRouter();
 
    useEffect(() => setName(currentName), [currentName]);
-
-   const linkError = typeof router.query.error === "string";
-   useEffect(() => {
-      if (!linkError) return;
-      toast.error("That verification link didn't work", {
-         description: "It may have expired. Send a new one below.",
-      });
-      void router.replace(router.pathname, undefined, { shallow: true });
-   }, [linkError, router]);
 
    const dirty = name.trim() !== currentName;
 
@@ -86,32 +66,9 @@ const ProfileCard = () => {
                   />
                   <p
                      id="profile-email-message"
-                     className={cn(
-                        "text-xs leading-5 break-words text-viewertext",
-                        user?.emailVerified
-                           ? "min-h-5"
-                           : "h-20 overflow-y-auto [scrollbar-gutter:stable]"
-                     )}
+                     className="min-h-5 text-xs leading-5 break-words text-viewertext"
                   >
-                     {user?.emailVerified ? (
-                        "Email can't be changed."
-                     ) : !user || transport === "loading" ? (
-                        ""
-                     ) : transport === "disabled" ? (
-                        "Not verified. Ask the instance operator to verify your account or enable email, then sign in again."
-                     ) : (
-                        <>
-                           Not verified yet.{" "}
-                           <button
-                              type="button"
-                              disabled={resend.isPending}
-                              onClick={() => user && resend.mutate(user.email)}
-                              className={TEXT_LINK}
-                           >
-                              Resend verification email
-                           </button>
-                        </>
-                     )}
+                     Email can&apos;t be changed.
                   </p>
                </Field>
             </div>

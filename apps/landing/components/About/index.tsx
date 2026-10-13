@@ -135,7 +135,7 @@ const About = () => {
             </HeroGrid>
          </PageHero>
 
-         <BasicBlock>
+         <BasicBlock sectionClassName="bg-viewergray">
             <div className="flex flex-col gap-3 mb-10 max-w-[680px]">
                <Eyebrow>What we believe</Eyebrow>
                <SectionTitle>Three rules we don&apos;t break.</SectionTitle>
@@ -154,7 +154,7 @@ const About = () => {
             </div>
          </BasicBlock>
 
-         <BasicBlock sectionClassName="border-t border-viewerborder bg-viewergray">
+         <BasicBlock sectionClassName="border-t border-viewerborder">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
                <div className="lg:col-span-5 flex flex-col gap-5">
                   <SectionTitle>Built with love.</SectionTitle>
@@ -228,6 +228,7 @@ const About = () => {
          </BasicBlock>
 
          <CtaBand
+            sectionClassName="bg-viewergray"
             eyebrow="Get started"
             title="Connect a bucket and start browsing."
             text="Works with AWS S3, Cloudflare R2, MinIO, Backblaze B2, Wasabi, and any S3-compatible API."

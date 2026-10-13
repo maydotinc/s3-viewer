@@ -61,7 +61,10 @@ describe("sign-up policy", () => {
          GITHUB_CLIENT_SECRET: "client-secret",
       });
       vi.doMock("@s3-viewer/db", () => ({ prisma: {} }));
-      vi.doMock("@s3-viewer/email", () => ({ sendAuthLinkEmail: vi.fn() }));
+      vi.doMock("@s3-viewer/email", () => ({
+         sendPasswordResetEmail: vi.fn(),
+         sendVerificationCodeEmail: vi.fn(),
+      }));
       const { auth } = await import("./auth");
       expect(auth.options.emailAndPassword?.disableSignUp).toBe(true);
       expect(auth.options.socialProviders?.github?.disableSignUp).toBe(true);
@@ -74,7 +77,10 @@ describe("sign-up policy", () => {
          GITHUB_CLIENT_SECRET: "client-secret",
       });
       vi.doMock("@s3-viewer/db", () => ({ prisma: {} }));
-      vi.doMock("@s3-viewer/email", () => ({ sendAuthLinkEmail: vi.fn() }));
+      vi.doMock("@s3-viewer/email", () => ({
+         sendPasswordResetEmail: vi.fn(),
+         sendVerificationCodeEmail: vi.fn(),
+      }));
       const { auth } = await import("./auth");
       expect(auth.options.emailAndPassword?.disableSignUp).toBe(false);
       expect(auth.options.socialProviders?.github?.disableSignUp).toBe(false);

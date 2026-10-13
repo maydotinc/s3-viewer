@@ -18,7 +18,6 @@ vi.mock("@/lib/hooks/mutations/invites/useAcceptInvite", () => ({
 vi.mock("@/lib/hooks/mutations/invites/useRejectInvite", () => ({
    default: () => ({ isPending: false, mutate: vi.fn() }),
 }));
-vi.mock("./unverified-callout", () => ({ default: () => null }));
 
 const view = mountedRuntime(() => vi.unstubAllGlobals());
 

@@ -84,6 +84,21 @@ const link = {
    color: colors.brand,
 };
 
+const code = {
+   backgroundColor: colors.page,
+   border: `1px solid ${colors.border}`,
+   borderRadius: "8px",
+   color: colors.heading,
+   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace",
+   fontSize: "32px",
+   fontWeight: 600,
+   letterSpacing: "0.3em",
+   lineHeight: "40px",
+   margin: "0 0 24px",
+   padding: "16px 24px",
+   textAlign: "center" as const,
+};
+
 const mutedLink = {
    color: colors.muted,
 };
@@ -104,6 +119,7 @@ const signatureText = {
 export {
    button,
    buttonWrapper,
+   code,
    container,
    footerText,
    signatureText,

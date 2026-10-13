@@ -20,17 +20,27 @@ import {
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 type Mode = "login" | "signup";
+
+type Credentials = { email: string; password: string };
+
+// `verificationRequired` means no session exists yet: the code step comes next
+type Outcome = Credentials & {
+   created: boolean;
+   verificationRequired: boolean;
+};
 
 type SignInFormProps = {
    mode: Mode;
    notice: string | null;
    inviteId?: string | undefined;
+   initialEmail?: string;
+   focusPassword?: boolean;
    githubPending?: boolean;
    onGithub: () => void;
-   onDone: (created: boolean) => Promise<void>;
+   onDone: (outcome: Outcome) => Promise<void>;
 };
 
 const SUBMIT_LABEL: Record<Mode, string> = {
@@ -56,11 +66,13 @@ const SignInForm = ({
    mode,
    notice,
    inviteId,
+   initialEmail = "",
+   focusPassword = false,
    githubPending = false,
    onGithub,
    onDone,
 }: SignInFormProps) => {
-   const [email, setEmail] = useState("");
+   const [email, setEmail] = useState(initialEmail);
    const [password, setPassword] = useState("");
    const [emailError, setEmailError] = useState<string | null>(null);
    const [passwordError, setPasswordError] = useState<string | null>(null);
@@ -68,6 +80,11 @@ const SignInForm = ({
    const passwordRef = useRef<HTMLInputElement>(null);
    const { data: config } = useInstanceConfig();
    const { mode: signUp, domains } = signUpPolicyState(config);
+
+   // a remembered address arrives after mount; never overwrite what the person typed
+   useEffect(() => {
+      if (initialEmail) setEmail((current) => current || initialEmail);
+   }, [initialEmail]);
 
    const submit = async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
@@ -92,6 +109,15 @@ const SignInForm = ({
          allowSignUp,
          inviteId,
       });
+      const credentials = { email: address.data, password: parsed.data };
+      if (result.code === AuthErrorCode.EMAIL_NOT_VERIFIED) {
+         await onDone({
+            ...credentials,
+            created: false,
+            verificationRequired: true,
+         });
+         return;
+      }
       if (result.error) {
          if (result.code && POLICY_CODES.has(result.code)) {
             setEmailError(result.error);
@@ -99,7 +125,11 @@ const SignInForm = ({
          setPending(false);
          return;
       }
-      await onDone(result.created);
+      await onDone({
+         ...credentials,
+         created: result.created,
+         verificationRequired: result.created,
+      });
    };
 
    return (
@@ -124,6 +154,7 @@ const SignInForm = ({
                   error={emailError}
                   hint={signUpHint(signUp, domains)}
                   disabled={pending}
+                  autoFocus={!focusPassword}
                   onChange={(next) => {
                      setEmail(next);
                      if (emailError) setEmailError(null);
@@ -151,6 +182,7 @@ const SignInForm = ({
                      autoComplete={
                         mode === "login" ? "current-password" : "new-password"
                      }
+                     autoFocus={focusPassword}
                      required
                      value={password}
                      disabled={pending}
@@ -186,7 +218,8 @@ const SignInForm = ({
                   {SUBMIT_LABEL[mode]}
                </Button>
                {githubEnabled(config) && (
-                  <>
+                  // the server renders without the instance config, so this arrives a beat later
+                  <div className="animate-fade-in flex flex-col gap-4">
                      <Divider />
                      <Button
                         type="button"
@@ -200,7 +233,7 @@ const SignInForm = ({
                         <GithubIcon className="size-5" />
                         Continue with GitHub
                      </Button>
-                  </>
+                  </div>
                )}
             </div>
          </form>
@@ -209,4 +242,4 @@ const SignInForm = ({
 };
 
 export default SignInForm;
-export type { Mode };
+export type { Mode, Outcome };

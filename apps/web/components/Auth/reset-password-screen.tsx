@@ -9,7 +9,6 @@ import {
    passwordSchema,
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useState, type FormEvent } from "react";
@@ -19,19 +18,17 @@ const ResetPasswordScreen = () => {
    const [password, setPassword] = useState("");
    const [error, setError] = useState<string | null>(null);
    const [pending, setPending] = useState(false);
-   const [token, setToken] = useState<string | null>(null);
+   // the query is known on first render because _app's getInitialProps opts every page out of static optimisation
+   const [token] = useState(() =>
+      typeof router.query.token === "string" ? router.query.token : ""
+   );
 
    // keep the token out of the address bar and history once it is in memory.
    useEffect(() => {
-      if (!router.isReady || token !== null) return;
-      const fromUrl =
-         typeof router.query.token === "string" ? router.query.token : "";
-      setToken(fromUrl);
-      if (fromUrl) {
-         void router.replace(SITE_PATHS.resetPassword, undefined, {
-            shallow: true,
-         });
-      }
+      if (!token || typeof router.query.token !== "string") return;
+      void router.replace(SITE_PATHS.resetPassword, undefined, {
+         shallow: true,
+      });
    }, [router, token]);
 
    const submit = async (event: FormEvent<HTMLFormElement>) => {
@@ -54,15 +51,6 @@ const ResetPasswordScreen = () => {
          query: { reason: "reset" },
       });
    };
-
-   if (!router.isReady || token === null)
-      return (
-         <AuthLayout
-            busy={<Spinner size="lg" label="Loading password reset" />}
-         >
-            {null}
-         </AuthLayout>
-      );
 
    if (!token) {
       return (

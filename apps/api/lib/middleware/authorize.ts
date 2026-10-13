@@ -100,18 +100,6 @@ const requireUser = (req: Request): SessionUser => {
    return user;
 };
 
-const requireVerifiedUser = (req: Request): SessionUser => {
-   const user = requireUser(req);
-   if (!user.emailVerified) {
-      throw new ApiHttpError(
-         403,
-         "Verify your email address first",
-         ErrorCode.EMAIL_UNVERIFIED
-      );
-   }
-   return user;
-};
-
 const getAuth = (res: Response): AuthContext => {
    const auth = res.locals.auth;
    if (!auth) throw new Error("no authorize gate has run on this route");
@@ -536,6 +524,5 @@ export {
    lockedPermission,
    refuse,
    requireUser,
-   requireVerifiedUser,
 };
 export type { AuditContext, AuthContext, AuthorizeOptions, Denial };

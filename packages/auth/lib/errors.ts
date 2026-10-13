@@ -8,6 +8,7 @@ import {
 
 const AuthErrorCode = {
    ACCOUNT_CONFIRMATION_REQUIRED: "ACCOUNT_CONFIRMATION_REQUIRED",
+   EMAIL_NOT_VERIFIED: "EMAIL_NOT_VERIFIED",
    INVALID_EMAIL_OR_PASSWORD: "INVALID_EMAIL_OR_PASSWORD",
    NETWORK: "NETWORK",
    PASSWORD_NOT_SET: "PASSWORD_NOT_SET",
@@ -47,7 +48,10 @@ const MESSAGES: Readonly<Record<string, string>> = {
    CREDENTIAL_ACCOUNT_NOT_FOUND: "This account has no password yet.",
    INVALID_TOKEN: "That link is invalid or has expired. Request a new one.",
    TOKEN_EXPIRED: "That link has expired. Request a new one.",
-   EMAIL_ALREADY_VERIFIED: "This email is already verified.",
+   [AuthErrorCode.EMAIL_NOT_VERIFIED]: "Verify your email to continue.",
+   INVALID_OTP: "That code isn't right. Check it and try again.",
+   OTP_EXPIRED: "That code has expired. Resend to get a new one.",
+   TOO_MANY_ATTEMPTS: "Too many tries. Resend to get a new code.",
    [AuthErrorCode.RATE_LIMITED]: TOO_MANY_ATTEMPTS,
    [ErrorCode.ACCOUNT_CHANGED]: ACCOUNT_CHANGED_MESSAGE,
    [AuthErrorCode.ACCOUNT_CONFIRMATION_REQUIRED]:
@@ -78,6 +82,7 @@ const authErrorMessage = (error: AuthClientError): string => {
 export {
    AuthErrorCode,
    authErrorMessage,
+   EXISTS,
    INVALID_EMAIL_MESSAGE,
    INVALID_NAME_MESSAGE,
    PASSWORD_NOT_SET_MESSAGE,

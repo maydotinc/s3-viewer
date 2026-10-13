@@ -7,6 +7,7 @@ import {
    profileNameSchema,
    type DeleteAccountInput,
 } from "@s3-viewer/types";
+import { emailOTPClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import {
    AuthErrorCode,
@@ -44,6 +45,7 @@ const makeAuthClient = ({
       baseURL: apiOrigin,
       basePath: AUTH_BASE_PATH,
       fetchOptions: { credentials: "include" },
+      plugins: [emailOTPClient()],
    });
 
    const accountFetchOptions = (expectedUserId = getExpectedUserId?.()) => ({
@@ -86,7 +88,6 @@ const makeAuthClient = ({
                profileNameSchema.safeParse(
                   localPart(email).slice(0, PROFILE_NAME_MAX)
                ).data ?? "New user",
-            callbackURL: siteUrl(SITE_PATHS.settingsProfile),
             ...(inviteId && {
                fetchOptions: { headers: { [INVITE_TOKEN_HEADER]: inviteId } },
             }),
@@ -134,12 +135,24 @@ const makeAuthClient = ({
    ): Promise<AuthResult> =>
       settled(authClient.resetPassword({ token, newPassword }));
 
-   const sendVerificationEmail = (email: string): Promise<AuthResult> =>
+   const sendVerificationCode = (email: string): Promise<AuthResult> =>
       settled(
-         authClient.sendVerificationEmail({
+         authClient.emailOtp.sendVerificationOtp({
             email,
-            callbackURL: siteUrl(SITE_PATHS.settingsProfile),
-            fetchOptions: accountFetchOptions(),
+            type: "email-verification",
+         })
+      );
+
+   // the server accepts a code only together with the password; success opens the session.
+   const verifyEmailCode = (
+      email: string,
+      code: string,
+      password: string
+   ): Promise<AuthResult> =>
+      settled(
+         authClient.$fetch("/email-otp/verify-email", {
+            method: "POST",
+            body: { email, otp: code, password },
          })
       );
 
@@ -203,11 +216,12 @@ const makeAuthClient = ({
       hasPassword,
       requestPasswordReset,
       resetPassword,
-      sendVerificationEmail,
+      sendVerificationCode,
       signInWithGithub,
       signInWithPassword,
       signOut,
       signUpWithPassword,
+      verifyEmailCode,
    };
 };
 

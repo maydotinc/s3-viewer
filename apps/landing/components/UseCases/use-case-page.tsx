@@ -19,6 +19,7 @@ import { pickBySlug } from "@/lib/every-slug";
 import type { LinkRef } from "@/lib/link-ref";
 import type { Faq } from "@/lib/types";
 import type { HowToSlug, UseCaseSlug } from "@s3-viewer/types";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { Check } from "lucide-react";
 import type { NextPage } from "next";
 import type { ReactNode } from "react";
@@ -83,7 +84,7 @@ const UseCasePage = ({
             </HeroGrid>
          </PageHero>
 
-         <BasicBlock>
+         <BasicBlock sectionClassName="bg-viewergray">
             <div className="flex flex-col gap-3 mb-10 max-w-[680px]">
                <Eyebrow>Why teams pick S3 Viewer</Eyebrow>
                <SectionTitle>{headline}</SectionTitle>
@@ -102,7 +103,7 @@ const UseCasePage = ({
             </div>
          </BasicBlock>
 
-         <BasicBlock sectionClassName="border-t border-viewerborder bg-viewergray">
+         <BasicBlock sectionClassName="border-t border-viewerborder">
             <SplitSection
                eyebrow="How it works"
                title="Three steps to your bucket."
@@ -115,11 +116,12 @@ const UseCasePage = ({
 
          <FaqSection
             faqs={faqs}
+            sectionClassName="bg-viewergray"
             intro="Direct answers we wish we'd had when picking a viewer."
          />
 
          {relatedHowTos.length > 0 && (
-            <BasicBlock sectionClassName="border-t border-viewerborder bg-viewergray">
+            <BasicBlock sectionClassName="border-t border-viewerborder">
                <RelatedLinks
                   eyebrow="Related guides"
                   heading={<SectionTitle>Step-by-step how-tos.</SectionTitle>}
@@ -130,7 +132,12 @@ const UseCasePage = ({
             </BasicBlock>
          )}
 
-         <BasicBlock>
+         <BasicBlock
+            sectionClassName={cn(
+               "border-t border-viewerborder",
+               relatedHowTos.length > 0 && "bg-viewergray"
+            )}
+         >
             <RelatedLinks
                eyebrow="Keep exploring"
                heading={<SectionTitle>Other use cases</SectionTitle>}

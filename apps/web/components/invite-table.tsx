@@ -159,7 +159,6 @@ type InviteListCardProps<T extends { id: string }> = {
    description: string;
    action?: ReactNode;
    notice?: ReactNode;
-   blocked?: ReactNode;
    pending: boolean;
    query: LoadMoreQuery & { invites: T[]; isLoading: boolean };
    errorTitle: string;
@@ -175,7 +174,6 @@ const InviteListCard = <T extends { id: string }>({
    description,
    action,
    notice,
-   blocked,
    pending,
    query,
    errorTitle,
@@ -189,33 +187,30 @@ const InviteListCard = <T extends { id: string }>({
    const loading = pending || query.isLoading;
    const failed = !loading && invites.length === 0 ? error : null;
 
-   const body =
-      !loading && blocked ? (
-         blocked
-      ) : (
-         <QueryStatus
-            error={failed}
-            loading={loading}
-            loadingLabel="Loading invites"
-            loadingClassName="min-h-0 flex-1"
-            icon={MailX}
-            title={errorTitle}
-            retrying={query.isFetching}
-            onRetry={() => void loadNext(query)}
-         >
-            {invites.length === 0 ? (
-               <StatusMessage icon={emptyIcon} className={EMPTY_NOTICE}>
-                  {empty}
-               </StatusMessage>
-            ) : (
-               <InviteTable columns={columns} actionsWidth={actionsWidth}>
-                  {invites.map((invite) => (
-                     <TableRow key={invite.id}>{renderRow(invite)}</TableRow>
-                  ))}
-               </InviteTable>
-            )}
-         </QueryStatus>
-      );
+   const body = (
+      <QueryStatus
+         error={failed}
+         loading={loading}
+         loadingLabel="Loading invites"
+         loadingClassName="min-h-0 flex-1"
+         icon={MailX}
+         title={errorTitle}
+         retrying={query.isFetching}
+         onRetry={() => void loadNext(query)}
+      >
+         {invites.length === 0 ? (
+            <StatusMessage icon={emptyIcon} className={EMPTY_NOTICE}>
+               {empty}
+            </StatusMessage>
+         ) : (
+            <InviteTable columns={columns} actionsWidth={actionsWidth}>
+               {invites.map((invite) => (
+                  <TableRow key={invite.id}>{renderRow(invite)}</TableRow>
+               ))}
+            </InviteTable>
+         )}
+      </QueryStatus>
+   );
 
    return (
       <SettingsCard
@@ -227,14 +222,11 @@ const InviteListCard = <T extends { id: string }>({
          <div className="flex min-h-72 flex-col md:h-72 md:overflow-auto md:[scrollbar-gutter:stable]">
             {notice}
             {body}
-            {!loading &&
-               !blocked &&
-               !failed &&
-               (query.hasNextPage || error) && (
-                  <div className="px-4 py-4 sm:px-6">
-                     <ListPagination {...query} label="Load more invites" />
-                  </div>
-               )}
+            {!loading && !failed && (query.hasNextPage || error) && (
+               <div className="px-4 py-4 sm:px-6">
+                  <ListPagination {...query} label="Load more invites" />
+               </div>
+            )}
          </div>
       </SettingsCard>
    );

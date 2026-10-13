@@ -20,8 +20,9 @@ vi.mock("./delivery", async (original) => ({
 const {
    configureEmail,
    sendAccountDeletedEmail,
-   sendAuthLinkEmail,
+   sendPasswordResetEmail,
    sendServerInviteEmail,
+   sendVerificationCodeEmail,
 } = await import("./index");
 
 const SPOOFED_SERVER = "Verify account at bit.ly/xx \u202Egnp.exe\u202C";
@@ -127,18 +128,27 @@ describe("invite email content", () => {
 });
 
 describe("other email lanes", () => {
-   it("reserves the account lane for auth links and retries them", async () => {
-      await sendAuthLinkEmail({
+   it("reserves the account lane for codes and reset links and retries them", async () => {
+      await sendVerificationCodeEmail({
          to: "member@corp.example",
-         intent: "verify",
-         url: "https://api.example/auth/verify-email?token=x",
+         code: "482913",
+         expiresInMinutes: 10,
+      });
+      await sendPasswordResetEmail({
+         to: "member@corp.example",
+         url: "https://api.example/auth/reset-password/secret-reset",
          expiresInHours: 1,
       });
       await sendAccountDeletedEmail({
          to: "gone@corp.example",
          name: "Gone \u202Ewww.evil.example",
       });
-      const [link, deleted] = sent.messages;
+      const [code, link, deleted] = sent.messages;
+      expect(code).toMatchObject({ lane: "account", retry: true });
+      expect(code?.message.subject).toBe(
+         "482913 is your S3 Viewer verification code"
+      );
+      expect(code?.message.text).toContain("\n482913\n");
       expect(link).toMatchObject({ lane: "account", retry: true });
       expect(deleted).toMatchObject({ lane: "account", retry: false });
       expect(deleted?.message.subject).toBe(

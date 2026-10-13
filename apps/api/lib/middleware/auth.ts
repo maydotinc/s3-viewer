@@ -1,7 +1,7 @@
 import { RetryableError, asyncHandler, fail, isAuthApiError } from "@/lib/http";
 import { withReadResponse } from "@/lib/s3/read-budget";
 import { auth } from "@s3-viewer/auth";
-import { EXPECTED_USER_ID_HEADER } from "@s3-viewer/types";
+import { ErrorCode, EXPECTED_USER_ID_HEADER } from "@s3-viewer/types";
 import { fromNodeHeaders } from "better-auth/node";
 import type { Request } from "express";
 import { accountChanged } from "./expected-user";
@@ -31,6 +31,16 @@ const authGuard = asyncHandler(async (req, res, next) => {
    const session = await readSession(req);
    if (!session) {
       fail(res, 401, "Sign in required");
+      return;
+   }
+   // sign-in refuses unverified accounts; a session that predates that rule is not honoured either.
+   if (!session.user.emailVerified) {
+      fail(
+         res,
+         401,
+         "Verify your email to continue",
+         ErrorCode.EMAIL_UNVERIFIED
+      );
       return;
    }
    const expectedUserId = req.headers[EXPECTED_USER_ID_HEADER.toLowerCase()];

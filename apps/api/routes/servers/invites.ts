@@ -6,7 +6,7 @@ import {
    getAuth,
    lockedPermission,
    refuse,
-   requireVerifiedUser,
+   requireUser,
 } from "@/lib/middleware/authorize";
 import { inviteLimit } from "@/lib/middleware/rate-limit";
 import { memberRoute } from "@/lib/middleware/route";
@@ -276,7 +276,7 @@ const sendInvites = async (
    res: Response,
    input: SendInviteInput
 ) => {
-   const actor = requireVerifiedUser(req);
+   const actor = requireUser(req);
    const { serverId, emails, role, bucketAccess } = input;
    invitingRole(res, getAuth(res).serverRole, Role[role]);
    const write: InviteWrite = {

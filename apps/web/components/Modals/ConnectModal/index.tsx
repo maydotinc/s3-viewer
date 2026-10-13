@@ -3,8 +3,6 @@ import FormError from "@/components/Modals/form-error";
 import { ModalShell } from "@/components/Modals/modal-shell";
 import { errorMessage } from "@/lib/api";
 import type { ModalProps } from "@/lib/contexts/modal-props";
-import UnverifiedCallout from "@/components/Settings/unverified-callout";
-import { authClient } from "@/lib/auth";
 import { parseServerName } from "@/lib/utils/server-name";
 import { PROVIDER_NAMES } from "@/lib/constants";
 import useCreateServer from "@/lib/hooks/mutations/server/useCreateServer";
@@ -46,8 +44,6 @@ const EMPTY: Fields = { ...EMPTY_CREDENTIALS, name: "" };
 const parseBucketNames = (raw: string): string[] => splitList(raw, /[\s,]+/);
 
 const ConnectModal = ({ onClose }: ConnectModalProps) => {
-   const { data: session } = authClient.useSession();
-   const unverified = session?.user.emailVerified === false;
    const config = useInstanceConfig();
    const userId = useUserId();
    const keyState = encryptionState(config);
@@ -226,13 +222,11 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       setError(null);
    };
 
-   const found = !unverified && keyState === "ready" ? detected : undefined;
+   const found = keyState === "ready" ? detected : undefined;
    const title = found ? "Server found" : "Connect a server";
-   const description = unverified
-      ? "Credentials stay with the address that owns this account."
-      : found
-        ? `${PROVIDER_NAMES[found.provider]}${found.listBucketsAllowed ? ` · ${pluralize(found.bucketCount, "bucket")}` : ""}`
-        : "Works with Amazon S3, Cloudflare R2 and anything S3-compatible. Credentials are encrypted before they leave your browser.";
+   const description = found
+      ? `${PROVIDER_NAMES[found.provider]}${found.listBucketsAllowed ? ` · ${pluralize(found.bucketCount, "bucket")}` : ""}`
+      : "Works with Amazon S3, Cloudflare R2 and anything S3-compatible. Credentials are encrypted before they leave your browser.";
 
    return (
       <ModalShell
@@ -244,11 +238,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
          className="sm:max-w-md"
          headerClassName="text-left"
       >
-         {unverified ? (
-            <DialogBody className="flex min-h-0 flex-1 flex-col pb-6">
-               <UnverifiedCallout panel action="connect a server" />
-            </DialogBody>
-         ) : keyState !== "ready" ? (
+         {keyState !== "ready" ? (
             <>
                <DialogBody className="flex min-h-0 flex-1 items-center justify-center pb-6">
                   <EncryptionStatus state={keyState} />

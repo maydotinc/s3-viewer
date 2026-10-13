@@ -2,10 +2,15 @@ import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type { PublicConfig, SignUpMode } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
+import { useSyncExternalStore } from "react";
 
 type SignUpPolicyState = { mode: SignUpMode; domains: string[] };
 
-type ConfigQuery = { data?: PublicConfig; isPending: boolean };
+type ConfigQuery = {
+   data?: PublicConfig;
+   isPending: boolean;
+   isPlaceholderData?: boolean;
+};
 
 type EncryptionState = "loading" | "error" | "insecure" | "ready";
 
@@ -21,15 +26,90 @@ const ENCRYPTION_ERROR = "Couldn't encrypt the credentials in this browser";
 
 const RETRIES = 3;
 
-const usePublicConfig = () =>
-   useQuery({
+const CACHE_KEY = "instance-config";
+
+// only what the auth screens paint before the fetch answers; the encryption key never comes from a cache
+type CachedConfig = Pick<
+   PublicConfig,
+   "emailEnabled" | "githubLoginEnabled" | "signUpMode" | "allowedEmailDomains"
+>;
+
+let cached: PublicConfig | null | undefined;
+
+const isCachedConfig = (value: unknown): value is CachedConfig =>
+   typeof value === "object" &&
+   value !== null &&
+   typeof (value as CachedConfig).emailEnabled === "boolean" &&
+   typeof (value as CachedConfig).githubLoginEnabled === "boolean" &&
+   typeof (value as CachedConfig).signUpMode === "string" &&
+   Array.isArray((value as CachedConfig).allowedEmailDomains);
+
+const placeholderFrom = ({
+   emailEnabled,
+   githubLoginEnabled,
+   signUpMode,
+   allowedEmailDomains,
+}: CachedConfig): PublicConfig => ({
+   emailEnabled,
+   githubLoginEnabled,
+   signUpMode,
+   allowedEmailDomains,
+   encryptionPublicKey: "",
+   allowInsecureEndpoints: false,
+});
+
+// the config is static per deployment, so the last one seen stands in until the fresh copy lands.
+const readCachedConfig = (): PublicConfig | undefined => {
+   if (cached !== undefined) return cached ?? undefined;
+   try {
+      const parsed: unknown = JSON.parse(
+         window.localStorage.getItem(CACHE_KEY) ?? "null"
+      );
+      cached = isCachedConfig(parsed) ? placeholderFrom(parsed) : null;
+   } catch {
+      cached = null;
+   }
+   return cached ?? undefined;
+};
+
+const rememberConfig = (config: PublicConfig): PublicConfig => {
+   const subset = placeholderFrom(config);
+   cached = subset;
+   try {
+      window.localStorage.setItem(
+         CACHE_KEY,
+         JSON.stringify({
+            emailEnabled: subset.emailEnabled,
+            githubLoginEnabled: subset.githubLoginEnabled,
+            signUpMode: subset.signUpMode,
+            allowedEmailDomains: subset.allowedEmailDomains,
+         })
+      );
+   } catch {
+      // private mode or full storage: the next visit just fetches first
+   }
+   return config;
+};
+
+const noSubscription = () => () => {};
+
+const usePublicConfig = () => {
+   // server markup never has the cache, so the client first renders without it and then adds it before painting
+   const placeholderData = useSyncExternalStore(
+      noSubscription,
+      readCachedConfig,
+      () => undefined
+   );
+   return useQuery({
       queryKey: queryKeys.instanceConfig,
-      queryFn: () => api.get<PublicConfig>("/config"),
+      queryFn: () => api.get<PublicConfig>("/config").then(rememberConfig),
+      placeholderData,
       staleTime: Infinity,
       gcTime: Infinity,
       retry: RETRIES,
       retryOnMount: true,
    });
+};
 
 const githubEnabled = (config: PublicConfig | undefined): boolean =>
    config?.githubLoginEnabled === true;
@@ -51,8 +131,13 @@ const encryptionSupported = (): boolean =>
    (window.isSecureContext === true &&
       typeof window.crypto?.subtle?.encrypt === "function");
 
-const encryptionState = ({ data, isPending }: ConfigQuery): EncryptionState => {
+const encryptionState = ({
+   data,
+   isPending,
+   isPlaceholderData,
+}: ConfigQuery): EncryptionState => {
    if (!encryptionSupported()) return "insecure";
+   if (isPlaceholderData) return "loading";
    return data?.encryptionPublicKey ? "ready" : isPending ? "loading" : "error";
 };
 

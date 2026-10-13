@@ -1,7 +1,7 @@
 import { decodeCursor, encodeCursor, pageOf } from "@/lib/cursor";
 import { ApiHttpError, noContent } from "@/lib/http";
 import { recordFor } from "@/lib/middleware/audit-record";
-import { requireVerifiedUser } from "@/lib/middleware/authorize";
+import { requireUser } from "@/lib/middleware/authorize";
 import { validatedRoute } from "@/lib/middleware/route";
 import {
    senderCanStillGrant,
@@ -53,7 +53,7 @@ const listReceived = async (
    res: Response,
    { cursor, limit }: PageInput
 ) => {
-   const user = requireVerifiedUser(req);
+   const user = requireUser(req);
    let position = cursor ? decodeCursor(cursor) : undefined;
    const grantable: Awaited<ReturnType<typeof receivedInvitePage>> = [];
    let more = false;
@@ -81,7 +81,7 @@ const listSent = async (
    res: Response,
    { cursor, limit }: PageInput
 ) => {
-   const user = requireVerifiedUser(req);
+   const user = requireUser(req);
    const rows = await sentInvitePage(
       user.id,
       MANAGING_ROLES,
@@ -100,7 +100,7 @@ const acceptInvite = async (
    res: Response,
    input: InviteIdInput
 ) => {
-   const user = requireVerifiedUser(req);
+   const user = requireUser(req);
    const { inviteId } = input;
    const { server, role, grants, audit } = await prisma.$transaction(
       async (tx) => {
@@ -175,7 +175,7 @@ const rejectInvite = async (
    res: Response,
    input: InviteIdInput
 ) => {
-   const user = requireVerifiedUser(req);
+   const user = requireUser(req);
    const { inviteId } = input;
    const invite = await prisma.pendingInvitation.findUnique({
       where: { id: inviteId },

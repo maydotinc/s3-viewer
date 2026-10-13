@@ -1,6 +1,6 @@
 import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError, rethrowDbError } from "@/lib/http";
-import { getAuth, requireVerifiedUser } from "@/lib/middleware/authorize";
+import { getAuth, requireUser } from "@/lib/middleware/authorize";
 import { connectLimit } from "@/lib/middleware/rate-limit";
 import { serverRoute } from "@/lib/middleware/route";
 import {
@@ -61,7 +61,7 @@ const updateCredentials = async (
    res: Response,
    input: UpdateCredentialsInput
 ) => {
-   requireVerifiedUser(req);
+   requireUser(req);
    const { serverId, encryptedCredentials } = input;
    const {
       userId,

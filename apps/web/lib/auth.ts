@@ -21,16 +21,17 @@ const {
    hasPassword,
    requestPasswordReset,
    resetPassword,
-   sendVerificationEmail,
+   sendVerificationCode,
    signInWithGithub,
    signOut: endSession,
+   verifyEmailCode,
 } = makeAuthClient({
    ...publicEnv,
    getExpectedUserId: () => useSessionStore.getState().userId,
 });
 
 type SessionValue = {
-   data: { user: { id: string } } | null;
+   data: { user: { id: string; emailVerified?: boolean } } | null;
    error: unknown;
    isPending: boolean;
    isRefetching: boolean;
@@ -190,8 +191,9 @@ export {
    refetchSession,
    requestPasswordReset,
    resetPassword,
-   sendVerificationEmail,
+   sendVerificationCode,
    setPassword,
    signInWithGithub,
    signOut,
+   verifyEmailCode,
 };

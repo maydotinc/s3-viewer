@@ -1,6 +1,5 @@
 import { betterAuth } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
-import { createEmailVerificationToken } from "better-auth/api";
 import {
    CLIENT_IP_HEADER,
    EXPECTED_USER_ID_HEADER,
@@ -38,7 +37,10 @@ vi.mock("@s3-viewer/db", () => ({
       },
    },
 }));
-vi.mock("@s3-viewer/email", () => ({ sendAuthLinkEmail: vi.fn() }));
+vi.mock("@s3-viewer/email", () => ({
+   sendPasswordResetEmail: vi.fn(),
+   sendVerificationCodeEmail: vi.fn(),
+}));
 vi.mock("./env", () => ({
    authEnv: {
       secret: "regression-test-secret-at-least-thirty-two-chars",
@@ -54,7 +56,10 @@ vi.mock("./env", () => ({
    signUpPolicy: policy,
 }));
 
-import { sendAuthLinkEmail } from "@s3-viewer/email";
+import {
+   sendPasswordResetEmail,
+   sendVerificationCodeEmail,
+} from "@s3-viewer/email";
 import { auth as configured, onUserDeletion } from "./auth";
 
 const PASSWORD = "unique-test-password-2026";
@@ -100,20 +105,19 @@ const createTestAuth = (enforceOrigin = false, fastPasswords = false) => {
             disableCSRFCheck: false,
          },
       }),
-      emailVerification: {
-         ...configured.options.emailVerification,
-         sendVerificationEmail: async () => {},
-      },
    });
+   const signIn = (email: string, password = PASSWORD) =>
+      auth.api.signInEmail({ body: { email, password }, asResponse: true });
+   // most tests start past verification: the account is verified in place and signed in.
    const signUp = async (email: string) => {
-      const response = await auth.api.signUpEmail({
-         body: {
-            email,
-            password: PASSWORD,
-            name: "Test User",
-         },
+      const created = await auth.api.signUpEmail({
+         body: { email, password: PASSWORD, name: "Test User" },
          asResponse: true,
       });
+      expect(created.status).toBe(200);
+      db.user!.find((row) => row.email === email.toLowerCase())!.emailVerified =
+         true;
+      const response = await signIn(email);
       expect(response.status).toBe(200);
       const cookie = response.headers
          .getSetCookie()
@@ -147,7 +151,7 @@ const createTestAuth = (enforceOrigin = false, fastPasswords = false) => {
          { email, password: PASSWORD, name: "New" },
          inviteToken ? { [INVITE_TOKEN_HEADER]: inviteToken } : {}
       );
-   return { auth, db, post, rawSignUp, signUp };
+   return { auth, db, post, rawSignUp, signIn, signUp };
 };
 
 describe("account-bound authenticated writes", () => {
@@ -555,14 +559,15 @@ describe("revocation takes effect immediately", () => {
 
 describe("revoked sessions", () => {
    it("rejects legacy cached cookies immediately after revocation", async () => {
-      const db = { user: [], session: [], account: [], verification: [] };
+      const db: Parameters<typeof memoryAdapter>[0] = {
+         user: [],
+         session: [],
+         account: [],
+         verification: [],
+      };
       const options = {
          ...configured.options,
          database: memoryAdapter(db),
-         emailVerification: {
-            ...configured.options.emailVerification,
-            sendVerificationEmail: async () => {},
-         },
       };
       const legacy = betterAuth({
          ...options,
@@ -572,12 +577,16 @@ describe("revoked sessions", () => {
          },
       });
       const auth = betterAuth(options);
-      const signup = await legacy.api.signUpEmail({
+      await legacy.api.signUpEmail({
          body: {
             email: "cache-regression@example.com",
             password: PASSWORD,
             name: "Cache Test",
          },
+      });
+      db.user![0]!.emailVerified = true;
+      const signup = await legacy.api.signInEmail({
+         body: { email: "cache-regression@example.com", password: PASSWORD },
          asResponse: true,
       });
       expect(signup.status).toBe(200);
@@ -897,10 +906,6 @@ describe("hashed verification identifiers", () => {
       const auth = betterAuth({
          ...configured.options,
          database: memoryAdapter(db),
-         emailVerification: {
-            ...configured.options.emailVerification,
-            sendVerificationEmail: async () => {},
-         },
          emailAndPassword: {
             ...configured.options.emailAndPassword,
             enabled: true,
@@ -929,6 +934,8 @@ describe("hashed verification identifiers", () => {
       await auth.api.resetPassword({
          body: { token, newPassword: "a-brand-new-password-2026" },
       });
+      // the account was never verified by code: following the reset link counts.
+      expect(db.user![0]!.emailVerified).toBe(true);
       expect(
          (
             await auth.api.signInEmail({
@@ -955,9 +962,10 @@ describe("auth link delivery", () => {
    it("answers a reset request without waiting for the email, so timing reveals no account", async () => {
       const { auth, signUp } = createTestAuth();
       await signUp("slow-mail@example.com");
-      vi.mocked(sendAuthLinkEmail).mockClear();
+      vi.spyOn(Date, "now").mockReturnValue(Date.now() + 61_000);
+      vi.mocked(sendPasswordResetEmail).mockClear();
       let deliver!: () => void;
-      vi.mocked(sendAuthLinkEmail).mockImplementationOnce(
+      vi.mocked(sendPasswordResetEmail).mockImplementationOnce(
          () =>
             new Promise<void>((resolve) => {
                deliver = resolve;
@@ -966,11 +974,8 @@ describe("auth link delivery", () => {
       await expect(requestReset(auth)).resolves.toMatchObject({
          status: true,
       });
-      expect(sendAuthLinkEmail).toHaveBeenCalledWith(
-         expect.objectContaining({
-            to: "slow-mail@example.com",
-            intent: "reset",
-         })
+      expect(sendPasswordResetEmail).toHaveBeenCalledWith(
+         expect.objectContaining({ to: "slow-mail@example.com" })
       );
       deliver();
    });
@@ -978,8 +983,9 @@ describe("auth link delivery", () => {
    it("logs a failed delivery instead of failing the request", async () => {
       const { auth, signUp } = createTestAuth();
       await signUp("failing-mail@example.com");
+      vi.spyOn(Date, "now").mockReturnValue(Date.now() + 61_000);
       const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-      vi.mocked(sendAuthLinkEmail).mockRejectedValueOnce(
+      vi.mocked(sendPasswordResetEmail).mockRejectedValueOnce(
          new Error("SMTP unavailable")
       );
       await expect(
@@ -1195,7 +1201,7 @@ describe("per-account throttles", () => {
          post(
             path,
             "",
-            { email: `fan-${ip}-${n}@example.com` },
+            { email: `fan-${ip}-${n}@example.com`, type: "email-verification" },
             { [CLIENT_IP_HEADER]: ip }
          );
       for (let n = 0; n < 10; n++) {
@@ -1208,7 +1214,7 @@ describe("per-account throttles", () => {
       }
       for (const path of [
          "/request-password-reset",
-         "/send-verification-email",
+         "/email-otp/send-verification-otp",
       ]) {
          const refused = await ask(path, "198.51.100.7", 10);
          expect(refused.status).toBe(429);
@@ -1480,10 +1486,10 @@ describe("throttles nobody else can spend for you", () => {
    it("answers every reset request but mails one address at most once a minute", async () => {
       const { post, signUp } = createTestAuth();
       await signUp("mail-victim@example.com");
-      vi.mocked(sendAuthLinkEmail).mockClear();
+      vi.mocked(sendPasswordResetEmail).mockClear();
       const sent = () =>
          vi
-            .mocked(sendAuthLinkEmail)
+            .mocked(sendPasswordResetEmail)
             .mock.calls.filter(
                ([mail]) => mail.to === "mail-victim@example.com"
             ).length;
@@ -1497,7 +1503,8 @@ describe("throttles nobody else can spend for you", () => {
             },
             { [CLIENT_IP_HEADER]: ip }
          );
-      const now = Date.now();
+      // the sign-up code took the address's slot for this minute
+      const now = Date.now() + 61_000;
       vi.spyOn(Date, "now").mockReturnValue(now);
       expect((await ask("198.51.100.80")).status).toBe(200);
       await vi.waitFor(() => expect(sent()).toBe(1));
@@ -1511,127 +1518,161 @@ describe("throttles nobody else can spend for you", () => {
 });
 
 describe("email verification", () => {
-   const verify = async (
+   // the per-address mail limit is module state, so each test gets its own address
+   let EMAIL = "";
+   let count = 0;
+   const codesTo = (email: string) =>
+      vi
+         .mocked(sendVerificationCodeEmail)
+         .mock.calls.filter(([mail]) => mail.to === email)
+         .map(([mail]) => mail.code);
+   const lastCode = (email = EMAIL) => codesTo(email).at(-1)!;
+   const verify = (
+      post: ReturnType<typeof createTestAuth>["post"],
+      body: Record<string, unknown>
+   ) =>
+      post("/email-otp/verify-email", "", {
+         email: EMAIL,
+         password: PASSWORD,
+         ...body,
+      });
+   const sessionOf = (
       auth: ReturnType<typeof createTestAuth>["auth"],
-      email: string,
-      cookie = ""
-   ) => {
-      const token = await createEmailVerificationToken(
-         configured.options.secret!,
-         email
-      );
-      return auth.handler(
-         new Request(`http://localhost:5001/auth/verify-email?token=${token}`, {
-            headers: { cookie },
-         })
-      );
-   };
+      response: Response
+   ) =>
+      auth.api.getSession({
+         headers: new Headers({ cookie: cookieOf(response) }),
+      });
 
-   it("leaves the verifier with the only session when someone pre-registered the address", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      const attacker = await signUp("pre-hijack@example.com");
-      const response = await verify(auth, "pre-hijack@example.com");
+   beforeEach(() => {
+      EMAIL = `fresh-${count++}@example.com`;
+      vi.mocked(sendVerificationCodeEmail).mockClear();
+      vi.mocked(sendVerificationCodeEmail).mockResolvedValue(undefined);
+   });
+
+   it("mails a code on sign-up and opens no session until it is entered", async () => {
+      const { db, rawSignUp, signIn } = createTestAuth();
+      const created = await rawSignUp(EMAIL);
+      expect(created.status).toBe(200);
+      expect(await created.json()).toMatchObject({ token: null });
+      expect(created.headers.getSetCookie()).toEqual([]);
+      expect(db.session).toHaveLength(0);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
+      expect(lastCode()).toMatch(/^\d{6}$/);
+      const refused = await signIn(EMAIL);
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toMatchObject({
+         code: "EMAIL_NOT_VERIFIED",
+      });
+      expect(db.session).toHaveLength(0);
+   });
+
+   it("re-mails the same code on a repeated sign-in, so every copy in the inbox works", async () => {
+      const { rawSignUp, signIn, post, auth } = createTestAuth();
+      await rawSignUp(EMAIL);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
+      const now = Date.now();
+      vi.spyOn(Date, "now").mockReturnValue(now + 61_000);
+      expect((await signIn(EMAIL)).status).toBe(403);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(2));
+      expect(new Set(codesTo(EMAIL)).size).toBe(1);
+      const response = await verify(post, { otp: lastCode() });
       expect(response.status).toBe(200);
+      expect(await sessionOf(auth, response)).toMatchObject({
+         user: { email: EMAIL, emailVerified: true },
+      });
+   });
+
+   it("accepts the code only together with the password", async () => {
+      const { auth, db, rawSignUp, post } = createTestAuth();
+      await rawSignUp(EMAIL);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
+      const wrong = await verify(post, {
+         otp: lastCode(),
+         password: "not-the-password",
+      });
+      expect(wrong.status).toBe(401);
+      expect(await wrong.json()).toMatchObject({
+         code: "INVALID_EMAIL_OR_PASSWORD",
+      });
+      const missing = await verify(post, {
+         otp: lastCode(),
+         password: undefined,
+      });
+      expect(missing.status).toBe(401);
+      expect(db.user![0]!.emailVerified).toBe(false);
+      expect(db.session).toHaveLength(0);
+      const right = await verify(post, { otp: lastCode() });
+      expect(right.status).toBe(200);
       expect(db.user![0]!.emailVerified).toBe(true);
-      expect(
-         await auth.api.getSession({
-            headers: new Headers({ cookie: attacker.cookie }),
-         })
-      ).toBeNull();
-      const verifier = cookieOf(response);
-      expect(
-         await auth.api.getSession({
-            headers: new Headers({ cookie: verifier }),
-         })
-      ).toMatchObject({ user: { email: "pre-hijack@example.com" } });
-      expect(db.session).toHaveLength(1);
+      expect(await sessionOf(auth, right)).not.toBeNull();
    });
 
-   it("voids the squatter's password when a third party verifies the address", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      await signUp("squatted@example.com");
-      expect(db.account).toHaveLength(1);
-      const response = await verify(auth, "squatted@example.com");
-      expect(response.status).toBe(200);
-      expect(db.account).toHaveLength(0);
-      await expect(
-         auth.api.signInEmail({
-            body: { email: "squatted@example.com", password: PASSWORD },
-         })
-      ).rejects.toThrow();
-      expect(
-         await auth.api.getSession({
-            headers: new Headers({ cookie: cookieOf(response) }),
-         })
-      ).toMatchObject({ user: { email: "squatted@example.com" } });
+   it("rejects wrong codes and locks the code after too many tries", async () => {
+      const { db, rawSignUp, post } = createTestAuth(false, true);
+      await rawSignUp(EMAIL);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
+      const guess = lastCode() === "000000" ? "111111" : "000000";
+      for (let attempt = 0; attempt < 5; attempt++) {
+         const response = await verify(post, { otp: guess });
+         expect(response.status).toBe(400);
+         expect(await response.json()).toMatchObject({ code: "INVALID_OTP" });
+      }
+      const locked = await verify(post, { otp: lastCode() });
+      expect(locked.status).toBe(403);
+      expect(await locked.json()).toMatchObject({ code: "TOO_MANY_ATTEMPTS" });
+      expect(db.user![0]!.emailVerified).toBe(false);
    });
 
-   it("drops reset links outstanding when a third party verifies the address", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      const { user } = await signUp("squatted-reset@example.com");
-      db.verification!.push({
-         id: "reset-row",
-         identifier: "hashed-reset-token",
-         value: user.id,
-         expiresAt: new Date(Date.now() + 60_000),
+   it("charges code attempts to the same budget as sign-in attempts", async () => {
+      const { rawSignUp, post } = createTestAuth(false, true);
+      await rawSignUp(EMAIL);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
+      for (let attempt = 0; attempt < 10; attempt++) {
+         expect(
+            (await verify(post, { otp: "000000", password: "wrong-password" }))
+               .status
+         ).toBe(401);
+      }
+      expect((await verify(post, { otp: lastCode() })).status).toBe(429);
+      const signedIn = await post("/sign-in/email", "", {
+         email: EMAIL,
+         password: PASSWORD,
       });
-      await verify(auth, "squatted-reset@example.com");
-      expect(db.verification!).toHaveLength(0);
+      expect(signedIn.status).toBe(429);
    });
 
-   it("keeps the verifier's own session when they verify while signed in", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      const owner = await signUp("self-verify@example.com");
-      const response = await verify(
-         auth,
-         "self-verify@example.com",
-         owner.cookie
-      );
-      expect(response.status).toBe(200);
-      expect(db.session).toHaveLength(1);
-      expect(
-         await auth.api.getSession({
-            headers: new Headers({ cookie: owner.cookie }),
-         })
-      ).not.toBeNull();
-   });
-
-   it("keeps the password when the signing-up browser verifies", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      const owner = await signUp("same-browser@example.com");
-      await verify(auth, "same-browser@example.com", owner.cookie);
-      expect(db.account).toHaveLength(1);
-      await expect(
-         auth.api.signInEmail({
-            body: { email: "same-browser@example.com", password: PASSWORD },
-         })
-      ).resolves.toBeTruthy();
-   });
-
-   it("does not credit another user's session as the verifier's own", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      const bystander = await signUp("bystander@example.com");
-      await signUp("squatted-other@example.com");
-      await verify(auth, "squatted-other@example.com", bystander.cookie);
-      expect(
-         db.account!.filter((account) => account.providerId === "credential")
-      ).toHaveLength(1);
-   });
-
-   it("does not touch sessions when an already-used link is opened again", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      await signUp("replayed@example.com");
-      const owner = await verify(auth, "replayed@example.com");
-      await auth.api.setPassword({
-         body: { newPassword: PASSWORD },
-         headers: new Headers({ cookie: cookieOf(owner) }),
+   it("names a taken address on sign-up instead of pretending to create it", async () => {
+      const { rawSignUp } = createTestAuth();
+      expect((await rawSignUp(EMAIL)).status).toBe(200);
+      const again = await rawSignUp(EMAIL.toUpperCase());
+      expect(again.status).toBe(422);
+      expect(await again.json()).toMatchObject({
+         code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
       });
-      await auth.api.signInEmail({
-         body: { email: "replayed@example.com", password: PASSWORD },
-      });
-      expect(db.session).toHaveLength(2);
-      expect((await verify(auth, "replayed@example.com")).status).toBe(200);
-      expect(db.session).toHaveLength(2);
+   });
+
+   it("only mails verification codes, never passwordless sign-in codes", async () => {
+      const { rawSignUp, post } = createTestAuth();
+      await rawSignUp(EMAIL);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
+      for (const type of ["sign-in", "forget-password", "change-email"]) {
+         const refused = await post("/email-otp/send-verification-otp", "", {
+            email: EMAIL,
+            type,
+         });
+         expect(refused.status, type).toBe(400);
+      }
+      for (const path of [
+         "/sign-in/email-otp",
+         "/email-otp/request-password-reset",
+         "/email-otp/check-verification-otp",
+         "/send-verification-email",
+      ]) {
+         const response = await post(path, "", { email: EMAIL, otp: "000000" });
+         expect(response.status, path).toBe(404);
+      }
+      expect(codesTo(EMAIL)).toHaveLength(1);
    });
 });
 
@@ -1699,12 +1740,17 @@ describe("password changes", () => {
    });
 
    it("drops outstanding reset links and other sessions on change-password, even if the caller opts out", async () => {
-      const { auth, links, requestLink } = resetAuth();
-      const signedUp = await auth.api.signUpEmail({
+      const { auth, db, links, requestLink } = resetAuth();
+      await auth.api.signUpEmail({
          body: { email: "change@example.com", password: PASSWORD, name: "C" },
-         asResponse: true,
       });
-      const first = cookieOf(signedUp);
+      db.user![0]!.emailVerified = true;
+      const first = cookieOf(
+         await auth.api.signInEmail({
+            body: { email: "change@example.com", password: PASSWORD },
+            asResponse: true,
+         })
+      );
       const second = cookieOf(
          await auth.api.signInEmail({
             body: { email: "change@example.com", password: PASSWORD },

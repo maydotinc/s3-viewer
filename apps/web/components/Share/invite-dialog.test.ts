@@ -52,9 +52,6 @@ vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
    default: () => ({}),
    emailState: () => "enabled",
 }));
-vi.mock("@/components/Settings/unverified-callout", () => ({
-   default: () => null,
-}));
 vi.mock("./bucket-access-picker", () => ({
    default: (props: PickerProps) => {
       h.picker = props;

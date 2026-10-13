@@ -9,7 +9,6 @@ import useInstanceConfig, {
 } from "@/lib/hooks/queries/useInstanceConfig";
 import { AUTH_LINK_TTL_HOURS, emailSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { useState, type FormEvent } from "react";
 
@@ -24,6 +23,7 @@ const ForgotPasswordScreen = () => {
    const [pending, setPending] = useState(false);
    const [resent, setResent] = useState(false);
 
+   // the form renders at once; an instance without email swaps to this once the config says so
    if (transport === "disabled") {
       return (
          <AuthLayout>
@@ -69,15 +69,9 @@ const ForgotPasswordScreen = () => {
    };
 
    return (
-      <AuthLayout
-         busy={
-            transport === "loading" && (
-               <Spinner size="lg" label="Loading password reset" />
-            )
-         }
-      >
+      <AuthLayout>
          {step === "email" ? (
-            <div key={step} className="contents">
+            <div key={step} className="flex flex-col gap-6">
                <StepHeader title="Reset your password">
                   Enter your email and we&apos;ll send you a reset link.
                </StepHeader>
@@ -101,7 +95,7 @@ const ForgotPasswordScreen = () => {
                </form>
             </div>
          ) : (
-            <div key={step} className="contents">
+            <div key={step} className="animate-fade-in flex flex-col gap-6">
                <StepHeader title="Check your inbox">
                   If{" "}
                   <span className="font-medium text-viewerblack">{email}</span>{" "}

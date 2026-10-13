@@ -28,7 +28,7 @@ const asBetterAuthFailure = (): APIError =>
    });
 
 const session = {
-   user: { id: "user1" },
+   user: { id: "user1", emailVerified: true },
    session: { id: "session1" },
 };
 
@@ -111,6 +111,17 @@ describe("authGuard", () => {
          expect(result.req.user).toBeUndefined();
       }
    );
+
+   it("answers 401 for a session whose email was never verified", async () => {
+      getSession.mockResolvedValue({
+         ...session,
+         user: { ...session.user, emailVerified: false },
+      });
+      const result = await runGuard();
+      expect(result.status).toBe(401);
+      expect(result.body).toMatchObject({ code: "EMAIL_UNVERIFIED" });
+      expect(result.passed).toBe(false);
+   });
 
    it("answers 401 when there is no session", async () => {
       getSession.mockResolvedValue(null);

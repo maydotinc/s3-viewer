@@ -14,7 +14,7 @@ docker compose up -d
 
 open [localhost:3000](http://localhost:3000) once the first build finishes. no `.env` needed — the API runs migrations and saves generated secrets in its `/data` volume. the app and API are only reachable from your machine by default.
 
-create an account, then [verify it below](#verify-an-account-without-email) to connect your first storage server. email is off by default.
+create an account. nobody gets in before their email is verified, and email is off by default, so the app asks you to [verify the account below](#verify-an-account-without-email) from the terminal.
 
 ### verify an account without email
 
@@ -30,7 +30,7 @@ make sure it's your account, or check with the owner outside the app. then run i
 docker compose exec api node dist/verify-email.js you@example.com ACCOUNT_ID
 ```
 
-sign in again — verification ends the account's existing sessions. from source, use `pnpm account:verify you@example.com [ACCOUNT_ID]`. on another Docker host, run `node dist/verify-email.js` with the same arguments in the API container.
+then log in. from source, use `pnpm account:verify you@example.com [ACCOUNT_ID]`. on another Docker host, run `node dist/verify-email.js` with the same arguments in the API container.
 
 ## reverse proxy / Caddy
 
@@ -63,7 +63,7 @@ both public URLs need to work in the browser. two subdomains of the same domain 
 
 ## email
 
-add email for verification links, password resets, and team invites. for SMTP, add this to the root `.env`:
+add email for verification codes, password resets, and team invites. for SMTP, add this to the root `.env`:
 
 ```dotenv
 EMAIL_TRANSPORT=smtp
@@ -73,7 +73,7 @@ EMAIL_FROM="S3 Viewer <hello@example.com>"
 
 for Resend, set `EMAIL_TRANSPORT=resend`, `RESEND_KEY`, and `EMAIL_FROM` instead. run your Compose command again to apply changes. `apps/api/.env.example` documents each email variable, including the SMTP URL forms.
 
-with `none`, password sign-in still works. use the command above to verify accounts; emailed recovery and invites stay off. in development, unsent messages appear in the API log. check that log too if your email provider isn't delivering.
+with `none`, password sign-in still works once an account is verified. use the command above to verify accounts; emailed recovery and invites stay off. in development, unsent messages appear in the API log. check that log too if your email provider isn't delivering.
 
 ## sign-up policy
 

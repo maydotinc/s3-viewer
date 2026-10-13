@@ -19,7 +19,7 @@ const main = async () => {
    if (user.emailVerified) {
       process.stdout.write(
          result.changed
-            ? "Account verified. All sessions were revoked; sign in again.\n"
+            ? "Account verified. Log in to continue.\n"
             : "This account is already verified.\n"
       );
       return;

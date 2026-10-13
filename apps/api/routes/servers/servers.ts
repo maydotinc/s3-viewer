@@ -6,7 +6,6 @@ import {
    getAuth,
    lockedPermission,
    requireUser,
-   requireVerifiedUser,
 } from "@/lib/middleware/authorize";
 import { serverCreateLimit } from "@/lib/middleware/rate-limit";
 import { serverRoute, validatedRoute } from "@/lib/middleware/route";
@@ -65,7 +64,7 @@ const createServer = async (
    res: Response,
    input: CreateServerInput
 ) => {
-   const user = requireVerifiedUser(req);
+   const user = requireUser(req);
    const { encryptedCredentials, serverName, bucketNames } = input;
    const { credentials, provider } = await openCredentials(
       encryptedCredentials,

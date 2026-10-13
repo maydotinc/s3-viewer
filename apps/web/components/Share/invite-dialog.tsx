@@ -5,8 +5,6 @@ import FormError from "@/components/Modals/form-error";
 import NoEmailNotice from "@/components/no-email-notice";
 import RemovableChip from "@/components/removable-chip";
 import Reserve from "@/components/reserve";
-import UnverifiedCallout from "@/components/Settings/unverified-callout";
-import { ApiError } from "@/lib/api";
 import useSendInvite from "@/lib/hooks/mutations/invites/useSendInvite";
 import useInstanceConfig, {
    emailState,
@@ -14,7 +12,6 @@ import useInstanceConfig, {
 import { splitList } from "@/lib/utils/split-list";
 import { assignableRoles } from "@s3-viewer/permissions";
 import {
-   ErrorCode,
    INVITE_TTL_DAYS,
    MAX_INVITE_EMAILS,
    Role,
@@ -87,9 +84,6 @@ const InviteDialog = ({
 
    const list = splitEmails(emails);
    const tooMany = list.length > MAX_INVITE_EMAILS;
-   const unverified =
-      sendInvite.error instanceof ApiError &&
-      sendInvite.error.code === ErrorCode.EMAIL_UNVERIFIED;
    const emailErrorId = `${emailsId}-error`;
    const check = { buckets, myRole, serverRole: role };
    const [invalidAccess] = accessErrors(access, { ...check, drafts: true });
@@ -236,9 +230,6 @@ const InviteDialog = ({
                }
                disabled={sendInvite.isPending}
             />
-            {!noEmail && unverified && (
-               <UnverifiedCallout action="send invites" />
-            )}
          </Reserve>
       </FormDialog>
    );

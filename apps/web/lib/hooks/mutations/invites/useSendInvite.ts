@@ -2,7 +2,7 @@ import { api, isAborted, serverPath, type ApiError } from "@/lib/api";
 import useApiMutation from "@/lib/hooks/mutations/useApiMutation";
 import { queryKeys } from "@/lib/query-keys";
 import { toastError } from "@/lib/utils/toast";
-import { ErrorCode, SendInviteInput, SendInviteResult } from "@s3-viewer/types";
+import type { SendInviteInput, SendInviteResult } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 
 const toastSendFailed = toastError("Couldn't send invites");
@@ -34,10 +34,7 @@ const useSendInvite = () =>
       invalidates: ({ variables: { serverId }, scope }) =>
          queryKeys.sentInviteScopes(scope.userId, serverId),
       failure: ({ error }) => {
-         if (isAborted(error) || error.code === ErrorCode.EMAIL_UNVERIFIED) {
-            return;
-         }
-         toastSendFailed(error);
+         if (!isAborted(error)) toastSendFailed(error);
       },
    });
 

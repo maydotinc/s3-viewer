@@ -1,5 +1,8 @@
 import { prisma } from "@s3-viewer/db";
-import { sendAuthLinkEmail } from "@s3-viewer/email";
+import {
+   sendPasswordResetEmail,
+   sendVerificationCodeEmail,
+} from "@s3-viewer/email";
 import {
    AUTH_BASE_PATH,
    AUTH_LINK_TTL_HOURS,
@@ -15,6 +18,9 @@ import {
    SESSION_FRESH_HOURS,
    SESSION_TTL_DAYS,
    SITE_PATHS,
+   VERIFICATION_CODE_ATTEMPTS,
+   VERIFICATION_CODE_LENGTH,
+   VERIFICATION_CODE_TTL_MINUTES,
    normalizeEmail,
    profileNameSchema,
    describeError,
@@ -27,8 +33,9 @@ import {
    getSessionFromCtx,
    isAPIError,
 } from "better-auth/api";
+import { emailOTP } from "better-auth/plugins";
 import { authEnv, signUpPolicy } from "./env";
-import { AuthErrorCode, TOO_MANY_ATTEMPTS } from "./errors";
+import { AuthErrorCode, EXISTS, TOO_MANY_ATTEMPTS } from "./errors";
 import { validateNewProfile, validateProfileChange } from "./profile";
 import {
    assertPasswordSignUpAllowed,
@@ -51,9 +58,14 @@ import { onUserDeletion, userDeletionHooks } from "./user-deletion";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
 const HOUR_SECONDS = HOUR_MS / SECOND_MS;
+const MINUTE_SECONDS = MINUTE_MS / SECOND_MS;
 const AUTH_LINK_TTL_SECONDS = AUTH_LINK_TTL_HOURS * HOUR_SECONDS;
+const VERIFICATION_CODE_TTL_SECONDS =
+   VERIFICATION_CODE_TTL_MINUTES * MINUTE_SECONDS;
 
-type HookBody = { email?: unknown } | undefined;
+type HookBody =
+   | { email?: unknown; password?: unknown; type?: unknown }
+   | undefined;
 
 const withoutTokens = <T extends Record<string, unknown>>(account: T): T => ({
    ...account,
@@ -87,20 +99,26 @@ const MAIL_PER_ADDRESS: readonly Throttle[] = [
 ];
 const PASSWORD_SIGN_UP_PATH = "/sign-up/email";
 const SIGN_IN_PATH = "/sign-in/email";
+const SEND_CODE_PATH = "/email-otp/send-verification-otp";
+const VERIFY_CODE_PATH = "/email-otp/verify-email";
+
+const SIGN_IN_RULES: readonly ThrottleRule[] = [
+   {
+      throttle: makeThrottle("sign-in", 10, 10 * MINUTE_MS),
+      key: perAddressAndIp,
+   },
+   // successful sign-ins are refunded so a third party cannot lock the owner out.
+   {
+      throttle: makeThrottle("sign-in-address-failures", 100, HOUR_MS),
+      key: perAddress,
+      spend: "failure",
+   },
+];
 
 const THROTTLES: Readonly<Record<string, readonly ThrottleRule[]>> = {
-   [SIGN_IN_PATH]: [
-      {
-         throttle: makeThrottle("sign-in", 10, 10 * MINUTE_MS),
-         key: perAddressAndIp,
-      },
-      // successful sign-ins are refunded so a third party cannot lock the owner out.
-      {
-         throttle: makeThrottle("sign-in-address-failures", 100, HOUR_MS),
-         key: perAddress,
-         spend: "failure",
-      },
-   ],
+   [SIGN_IN_PATH]: SIGN_IN_RULES,
+   // a code is only accepted with the password, so it shares the sign-in budget.
+   [VERIFY_CODE_PATH]: SIGN_IN_RULES,
    [PASSWORD_SIGN_UP_PATH]: [
       {
          throttle: makeThrottle("sign-up", 10, 10 * MINUTE_MS),
@@ -113,7 +131,7 @@ const THROTTLES: Readonly<Record<string, readonly ThrottleRule[]>> = {
          spend: "success",
       },
    ],
-   "/send-verification-email": MAIL_RULES,
+   [SEND_CODE_PATH]: MAIL_RULES,
    "/request-password-reset": MAIL_RULES,
 };
 
@@ -129,8 +147,22 @@ const SESSION_THROTTLES: Readonly<Record<string, Throttle>> = {
    "/verify-password": passwordCheckThrottle,
 };
 
-// these endpoints let a stolen cookie probe or replace an unknown password.
-const DISABLED_PATHS: string[] = ["/verify-password", "/unlink-account"];
+const DISABLED_PATHS: string[] = [
+   // these let a stolen cookie probe or replace an unknown password.
+   "/verify-password",
+   "/unlink-account",
+   // verification is by code; the link endpoints would bypass the password check below.
+   "/send-verification-email",
+   "/verify-email",
+   // the OTP plugin also ships passwordless sign-in, resets and email changes; codes verify only.
+   "/sign-in/email-otp",
+   "/forget-password/email-otp",
+   "/email-otp/request-password-reset",
+   "/email-otp/reset-password",
+   "/email-otp/request-email-change",
+   "/email-otp/change-email",
+   "/email-otp/check-verification-otp",
+];
 
 const lookup = <T>(table: Readonly<Record<string, T>>, path: string) =>
    Object.hasOwn(table, path) ? table[path] : undefined;
@@ -195,42 +227,94 @@ const mailAllowed = async (to: string): Promise<boolean> => {
    return true;
 };
 
-const deliverLink = async (
-   intent: "verify" | "reset",
+const deliverMail = async (
+   kind: "code" | "reset",
    to: string,
-   url: string
+   send: () => Promise<void>
 ): Promise<void> => {
    try {
       if (!(await mailAllowed(to))) {
          console.warn(
-            `[auth] ${intent} email suppressed: address mailed recently`
+            `[auth] ${kind} email suppressed: address mailed recently`
          );
          return;
       }
-      await sendAuthLinkEmail({
-         to,
-         intent,
-         url,
-         expiresInHours: AUTH_LINK_TTL_HOURS,
-      });
+      await send();
    } catch (error) {
-      console.error(`[auth] ${intent} email failed: ${describeError(error)}`);
+      console.error(`[auth] ${kind} email failed: ${describeError(error)}`);
    }
 };
 
 // Better Auth answers unknown addresses at once; awaiting delivery would reveal accounts.
-const sendLink = async (
-   ...link: Parameters<typeof deliverLink>
+const sendResetLink = async (to: string, url: string): Promise<void> => {
+   void deliverMail("reset", to, () =>
+      sendPasswordResetEmail({ to, url, expiresInHours: AUTH_LINK_TTL_HOURS })
+   );
+};
+
+const sendVerificationCode = async (
+   to: string,
+   code: string
 ): Promise<void> => {
-   void deliverLink(...link);
+   void deliverMail("code", to, () =>
+      sendVerificationCodeEmail({
+         to,
+         code,
+         expiresInMinutes: VERIFICATION_CODE_TTL_MINUTES,
+      })
+   );
 };
 
 type HookContext = Parameters<typeof getSessionFromCtx>[0];
-type HookState = { resetUserId?: string; priorSessionUserId?: string };
+type HookState = { resetUserId?: string };
 
 const RESET_PASSWORD_PATH = "/reset-password";
 const CHANGE_PASSWORD_PATH = "/change-password";
-const VERIFY_EMAIL_PATH = "/verify-email";
+
+const wrongCredentials = (): APIError =>
+   new APIError("UNAUTHORIZED", {
+      message: "Invalid email or password",
+      code: AuthErrorCode.INVALID_EMAIL_OR_PASSWORD,
+   });
+
+// a code proves the inbox and the password proves the sign-up, so a stranger who
+// registered the address first cannot keep a session the real owner just created.
+const assertPasswordForCode = async (
+   ctx: HookContext,
+   email: string,
+   password: unknown
+): Promise<void> => {
+   if (typeof password !== "string" || !password || !email)
+      throw wrongCredentials();
+   const user = await ctx.context.internalAdapter.findUserByEmail(email);
+   const credential = user
+      ? await ctx.context.internalAdapter.findCredentialAccount(user.user.id)
+      : null;
+   if (!credential?.password) {
+      // same cost as a real check, so timing does not reveal which addresses have a password
+      await ctx.context.password.hash(password);
+      throw wrongCredentials();
+   }
+   const matches = await ctx.context.password.verify({
+      hash: credential.password,
+      password,
+   });
+   if (!matches) throw wrongCredentials();
+};
+
+type Outcome = {
+   path: string;
+   context: { newSession?: unknown; returned?: unknown };
+};
+
+// sign-up no longer opens a session, and a correct password on an unverified
+// account is a success that must not spend the owner's failure budget.
+const succeeded = ({ path, context }: Outcome): boolean =>
+   Boolean(context.newSession) ||
+   (path === PASSWORD_SIGN_UP_PATH
+      ? !isAPIError(context.returned)
+      : isAPIError(context.returned) &&
+        context.returned.body?.code === AuthErrorCode.EMAIL_NOT_VERIFIED);
 
 const hookThrottles = (ctx: HookContext, body: HookBody) => {
    const email = bodyEmail(body);
@@ -263,26 +347,6 @@ const dropOutstandingResetLinks = async (
       model: "verification",
       where: [{ field: "value", value: userId }],
    });
-};
-
-// whoever registered the address before its owner verified it must keep neither a session nor the password.
-// a verifier without a prior session of their own is signed in passwordless and sets one in settings.
-const secureVerifiedAccount = async (ctx: HookContext): Promise<void> => {
-   const verifier = ctx.context.newSession;
-   if (!verifier) return;
-   const userId = verifier.user.id;
-   const sessions = await ctx.context.internalAdapter.listSessions(userId);
-   const others = sessions
-      .map((session) => session.token)
-      .filter((token) => token !== verifier.session.token);
-   if (others.length > 0)
-      await ctx.context.internalAdapter.deleteSessions(others);
-   if ((ctx.context as HookState).priorSessionUserId === userId) return;
-   const credential =
-      await ctx.context.internalAdapter.findCredentialAccount(userId);
-   if (credential)
-      await ctx.context.internalAdapter.deleteAccount(credential.id);
-   await dropOutstandingResetLinks(ctx, userId);
 };
 
 const auth = betterAuth({
@@ -324,19 +388,36 @@ const auth = betterAuth({
    emailAndPassword: {
       enabled: true,
       disableSignUp: signUpPolicy.mode === "closed",
+      // no session exists until the address is verified; sign-in answers 403 EMAIL_NOT_VERIFIED instead.
+      requireEmailVerification: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       revokeSessionsOnPasswordReset: true,
       resetPasswordTokenExpiresIn: AUTH_LINK_TTL_SECONDS,
-      sendResetPassword: ({ user, url }) => sendLink("reset", user.email, url),
+      sendResetPassword: ({ user, url }) => sendResetLink(user.email, url),
    },
    emailVerification: {
       sendOnSignUp: true,
+      sendOnSignIn: true,
       autoSignInAfterVerification: true,
-      expiresIn: AUTH_LINK_TTL_SECONDS,
-      sendVerificationEmail: ({ user, url }) =>
-         sendLink("verify", user.email, url),
    },
+   plugins: [
+      emailOTP({
+         otpLength: VERIFICATION_CODE_LENGTH,
+         expiresIn: VERIFICATION_CODE_TTL_SECONDS,
+         allowedAttempts: VERIFICATION_CODE_ATTEMPTS,
+         storeOTP: "encrypted",
+         // a resend or a repeated sign-in mails the code that is still valid, so every copy in the inbox
+         // works; each send also restarts its expiry, bounded by the attempt count and the password gate.
+         resendStrategy: "reuse",
+         disableSignUp: true,
+         overrideDefaultEmailVerification: true,
+         sendVerificationOTP: ({ email, otp, type }) =>
+            type === "email-verification"
+               ? sendVerificationCode(email, otp)
+               : Promise.resolve(),
+      }),
+   ],
    hooks: {
       before: createAuthMiddleware(async (ctx) => {
          const body = ctx.body as HookBody;
@@ -351,6 +432,32 @@ const auth = betterAuth({
                   body?.email,
                   ctx.headers?.get(INVITE_TOKEN_HEADER) ?? undefined
                );
+               // with verification required, Better Auth answers a taken address with a fake
+               // success and no mail; the form would then wait for a code that never comes.
+               if (
+                  email &&
+                  email !== OVERLONG_EMAIL &&
+                  (await ctx.context.internalAdapter.findUserByEmail(email))
+               ) {
+                  throw new APIError("UNPROCESSABLE_ENTITY", {
+                     message: EXISTS,
+                     code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+                  });
+               }
+            } catch (error) {
+               await settleThrottles(rules, ip, email, false);
+               throw error;
+            }
+         }
+         if (
+            ctx.path === SEND_CODE_PATH &&
+            body?.type !== "email-verification"
+         ) {
+            throw new APIError("BAD_REQUEST", { message: "Invalid OTP type" });
+         }
+         if (ctx.path === VERIFY_CODE_PATH) {
+            try {
+               await assertPasswordForCode(ctx, email, body?.password);
             } catch (error) {
                await settleThrottles(rules, ip, email, false);
                throw error;
@@ -367,18 +474,9 @@ const auth = betterAuth({
             ctx.path === RESET_PASSWORD_PATH
                ? await resetTokenOwner(ctx)
                : undefined;
-         // read before the endpoint runs, since the link's user is only known after it verifies the token.
-         const priorSessionUserId =
-            ctx.path === VERIFY_EMAIL_PATH
-               ? (await getSessionFromCtx(ctx))?.user.id
-               : undefined;
          return {
             context: {
-               context: {
-                  absoluteSessionExpired,
-                  resetUserId,
-                  priorSessionUserId,
-               },
+               context: { absoluteSessionExpired, resetUserId },
                // Better Auth keeps other sessions unless the caller asks; never let a direct call opt out.
                ...(ctx.path === CHANGE_PASSWORD_PATH && {
                   body: { ...ctx.body, revokeOtherSessions: true },
@@ -389,21 +487,24 @@ const auth = betterAuth({
       // any non-undefined return replaces Better Auth's endpoint response.
       after: createAuthMiddleware(async (ctx) => {
          const { rules, ip, email } = hookThrottles(ctx, ctx.body as HookBody);
-         await settleThrottles(
-            rules,
-            ip,
-            email,
-            Boolean(ctx.context.newSession)
-         );
-         if (ctx.path === VERIFY_EMAIL_PATH) await secureVerifiedAccount(ctx);
-         const passwordOwner =
+         await settleThrottles(rules, ip, email, succeeded(ctx));
+         const resetUserId =
             ctx.path === RESET_PASSWORD_PATH
                ? (ctx.context as HookState).resetUserId
-               : ctx.path === CHANGE_PASSWORD_PATH
-                 ? ctx.context.session?.user.id
-                 : undefined;
+               : undefined;
+         const passwordOwner =
+            resetUserId ??
+            (ctx.path === CHANGE_PASSWORD_PATH
+               ? ctx.context.session?.user.id
+               : undefined);
          if (passwordOwner && !isAPIError(ctx.context.returned)) {
             await dropOutstandingResetLinks(ctx, passwordOwner);
+         }
+         // following a reset link proves the inbox as well as a code would.
+         if (resetUserId && !isAPIError(ctx.context.returned)) {
+            await ctx.context.internalAdapter.updateUser(resetUserId, {
+               emailVerified: true,
+            });
          }
          clearExpiredSessionCookie(ctx);
          return enforceAbsoluteTtlAfterRead(ctx);

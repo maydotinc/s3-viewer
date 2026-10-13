@@ -8,8 +8,6 @@ import { FittedGridSkeleton } from "@/components/DataGrid/skeleton";
 import { EmptyState, GridLoadError } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
 import { Page, PageHeader } from "@/components/Layout/page";
-import UnverifiedCallout from "@/components/Settings/unverified-callout";
-import { authClient } from "@/lib/auth";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import { useServerId } from "@/lib/stores/session-scope";
@@ -51,7 +49,6 @@ const BucketFilter = ({
 
 const BucketsPanel = ({ filter }: { filter: string }) => {
    const serverId = useServerId();
-   const { data: session } = authClient.useSession();
    const { isLoading: isServerLoading } = useCurrentServer();
    const { buckets, isBucketsLoading, bucketsError, isFetching, refetch } =
       useBuckets();
@@ -73,8 +70,6 @@ const BucketsPanel = ({ filter }: { filter: string }) => {
       <div className={GRID_CARD}>
          {isServerLoading || isBucketsLoading ? (
             <FittedGridSkeleton columns={bucketColumns} />
-         ) : !serverId && session?.user.emailVerified === false ? (
-            <UnverifiedCallout panel action="connect a server" />
          ) : !serverId ? (
             <EmptyState
                icon={ServerOff}
