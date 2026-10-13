@@ -105,6 +105,8 @@ contentRouter.get(
                inlineDisposition(contentType)
             );
             if (object.ETag) res.setHeader("ETag", object.ETag);
+            // a compressing proxy would rewrite the ETag the client compares and sends back as If-Match
+            res.setHeader("Cache-Control", "private, no-store, no-transform");
             res.setHeader("Content-Length", String(content.length));
             await pipeline(Readable.from([content]), res, { signal });
          } finally {

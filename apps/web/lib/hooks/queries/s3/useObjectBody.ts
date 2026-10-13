@@ -1,6 +1,7 @@
 import { PRESIGN_STALE_MS } from "@/lib/utils/s3/presign";
-import { MAX_JSON_PREVIEW_BYTES } from "@/lib/utils/file-utils";
+import { MAX_BODY_PREVIEW_BYTES } from "@/lib/utils/file-utils";
 import {
+   changedETag,
    PreviewTooLargeError,
    previewBodyVersion,
    readPreviewText,
@@ -72,11 +73,7 @@ const useObjectBody = (
                   objectKey,
                   signal
                );
-               if (
-                  preview.eTag &&
-                  content.eTag &&
-                  preview.eTag !== content.eTag
-               )
+               if (changedETag(preview.eTag, content.eTag))
                   throw new PreviewChangedError();
                return content.text.replace(/^\uFEFF/, "");
             }
@@ -89,7 +86,7 @@ const useObjectBody = (
             const eTag = response.headers.get("etag");
             const versionId = response.headers.get("x-amz-version-id");
             if (
-               (preview.eTag && eTag && preview.eTag !== eTag) ||
+               changedETag(preview.eTag, eTag) ||
                (preview.versionId &&
                   versionId &&
                   preview.versionId !== versionId)
@@ -97,7 +94,7 @@ const useObjectBody = (
                void response.body?.cancel().catch(() => undefined);
                throw new PreviewChangedError();
             }
-            return await readPreviewText(response, MAX_JSON_PREVIEW_BYTES);
+            return await readPreviewText(response, MAX_BODY_PREVIEW_BYTES);
          } catch (error) {
             throw new ObjectBodyError(preview.url, error);
          }

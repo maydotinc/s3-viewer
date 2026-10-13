@@ -39,6 +39,7 @@ const isEditableObject = (
    return (
       kind === "text" ||
       kind === "json" ||
+      kind === "markdown" ||
       EDITABLE_EXTENSIONS.has(extensionOf(objectKey))
    );
 };

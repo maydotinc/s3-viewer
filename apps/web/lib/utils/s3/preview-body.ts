@@ -19,6 +19,16 @@ const previewBodyVersion = (preview: S3ObjectPreview): string => {
    return JSON.stringify(["url", preview.url, preview.contentEncoding]);
 };
 
+// a proxy that compresses the response weakens its ETag (W/"...") without the object changing
+const eTagValue = (eTag: string): string =>
+   eTag.replace(/^W\//i, "").replace(/^"(.*)"$/, "$1");
+
+const changedETag = (
+   reviewed: string | null,
+   served: string | null
+): boolean =>
+   Boolean(reviewed && served && eTagValue(reviewed) !== eTagValue(served));
+
 const readPreviewText = async (
    response: Response,
    maxBytes: number
@@ -49,4 +59,9 @@ const readPreviewText = async (
    }
 };
 
-export { PreviewTooLargeError, previewBodyVersion, readPreviewText };
+export {
+   changedETag,
+   PreviewTooLargeError,
+   previewBodyVersion,
+   readPreviewText,
+};

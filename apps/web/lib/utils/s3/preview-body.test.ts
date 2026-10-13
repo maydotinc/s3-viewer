@@ -1,5 +1,36 @@
 import { describe, expect, it, vi } from "vitest";
-import { PreviewTooLargeError, readPreviewText } from "./preview-body";
+import {
+   changedETag,
+   PreviewTooLargeError,
+   readPreviewText,
+} from "./preview-body";
+
+describe("ETag comparison", () => {
+   it.each([
+      ['"one"', '"one"'],
+      ['"one"', 'W/"one"'],
+      ['W/"one"', '"one"'],
+      ['"one"', "one"],
+   ])("treats %s and %s as the same object", (reviewed, served) => {
+      expect(changedETag(reviewed, served)).toBe(false);
+   });
+
+   it.each([
+      ['"one"', '"two"'],
+      ['"one"', 'W/"two"'],
+      ['"one-2"', '"one"'],
+   ])("treats %s and %s as a change", (reviewed, served) => {
+      expect(changedETag(reviewed, served)).toBe(true);
+   });
+
+   it.each([
+      [null, '"one"'],
+      ['"one"', null],
+      ["", '"one"'],
+   ])("skips the check when a side is missing (%s, %s)", (reviewed, served) => {
+      expect(changedETag(reviewed, served)).toBe(false);
+   });
+});
 
 const streamed = (
    chunks: Uint8Array[],

@@ -156,6 +156,16 @@ describe("version-scoped JSON previews", () => {
       expect(result.error).toMatchObject({ changed: true });
    });
 
+   it("accepts a strong ETag a compressing proxy weakened", async () => {
+      vi.mocked(fetch).mockImplementation(
+         async () =>
+            new Response('{"same":true}', { headers: { etag: 'W/"one"' } })
+      );
+      runtime = await mountRuntime(createElement(Probe));
+      await settle();
+      expect(result.data).toBe('{"same":true}');
+   });
+
    it.each(["userId", "serverId", "objectKey"] as const)(
       "isolates bodies when %s changes",
       async (field) => {
@@ -198,6 +208,13 @@ describe("version-scoped JSON previews", () => {
          expect(result.data).toBe("{}");
          expect(apiCalls()).toHaveLength(1);
          expect(String(apiCalls()[0]![0])).toContain("objectKey=one.json");
+      });
+
+      it("accepts the API's ETag weakened by a compressing proxy", async () => {
+         blocked(() => new Response("{}", { headers: { ETag: 'W/"one"' } }));
+         runtime = await mountRuntime(createElement(Probe));
+         await settle();
+         expect(result.data).toBe("{}");
       });
 
       it("rejects a body the API read from a replaced object", async () => {

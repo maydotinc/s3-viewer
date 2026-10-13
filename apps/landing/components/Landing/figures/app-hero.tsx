@@ -29,6 +29,21 @@ const CREATED: Record<string, string> = {
    "media-archive": "2025-12-02",
    logs: "2026-08-19",
    snapshots: "2026-06-30",
+   "may-site": "2025-05-14",
+   "email-assets": "2025-09-03",
+   "user-uploads": "2026-04-22",
+   exports: "2026-07-15",
+   "pg-wal": "2025-11-27",
+   "audit-trail": "2026-02-18",
+   "cold-storage": "2026-05-09",
+   "ci-artifacts": "2026-09-01",
+};
+
+// the sidebar keeps the four buckets every figure shares; the wide table adds
+// these so the taller laptop frame fills with rows instead of blank space
+const WIDE_EXTRA: Record<string, string[]> = {
+   may: ["may-site", "email-assets", "user-uploads", "exports"],
+   backup: ["pg-wal", "audit-trail", "cold-storage", "ci-artifacts"],
 };
 
 const PROVIDER_NAME: Record<ProviderId, string> = {
@@ -71,7 +86,7 @@ export const AppHeroFigure = () => {
    return (
       <ScaledFrame
          width={1024}
-         height={500}
+         height={640}
          narrow={{ width: 400, height: 540 }}
          label="S3 Viewer dashboard: sidebar with the server switcher open and the buckets table for May Inc."
       >
@@ -200,14 +215,20 @@ export const AppHeroFigure = () => {
                      <Layers
                         activeId={current.id}
                         servers={SERVERS}
-                        className="h-44"
+                        className="h-44 @lg/frame:h-88"
                         render={(server) =>
-                           server.buckets.map((bucket) => (
+                           [
+                              ...server.buckets,
+                              ...(WIDE_EXTRA[server.id] ?? []),
+                           ].map((bucket, i) => (
                               <button
                                  key={bucket}
                                  type="button"
                                  tabIndex={-1}
-                                 className="flex h-11 w-full cursor-pointer items-center border-b border-viewerborder text-sm text-viewerblack transition-colors duration-150 hover:bg-viewergray/60 motion-reduce:transition-none"
+                                 className={cn(
+                                    "flex h-11 w-full cursor-pointer items-center border-b border-viewerborder text-sm text-viewerblack transition-colors duration-150 hover:bg-viewergray/60 motion-reduce:transition-none",
+                                    i >= server.buckets.length && WIDE_ONLY
+                                 )}
                               >
                                  <span className="w-2/3 truncate px-4 text-left @max-lg/frame:w-1/2">
                                     {bucket}

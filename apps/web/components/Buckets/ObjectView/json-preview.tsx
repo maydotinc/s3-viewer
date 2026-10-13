@@ -1,21 +1,11 @@
-import { useBucketContext } from "@/components/Buckets/Context";
 import ErrorBoundary from "@s3-viewer/ui/error-boundary";
-import useObjectBody, {
-   ObjectBodyError,
-} from "@/lib/hooks/queries/s3/useObjectBody";
-import {
-   JSON_STRING_PREVIEW_CHARS,
-   MAX_JSON_PREVIEW_BYTES,
-   RAW_TEXT_PREVIEW_CHARS,
-} from "@/lib/utils/file-utils";
-import { formatBytes, pluralize } from "@/lib/utils/format";
-import { copyToClipboard } from "@/lib/utils/clipboard";
-import type { S3ObjectPreview } from "@s3-viewer/types";
+import { JSON_STRING_PREVIEW_CHARS } from "@/lib/utils/file-utils";
+import { pluralize } from "@/lib/utils/format";
 import { Button } from "@s3-viewer/ui/components/button";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronRight, Copy, FileWarning } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
    countEntries,
@@ -27,9 +17,13 @@ import {
    type Json,
    type JsonRow,
 } from "./json-rows";
-import { previewBodyVersion } from "@/lib/utils/s3/preview-body";
-import { PreviewMessage } from "./preview-message";
-import { PREVIEW_PANEL, PreviewLoading, TextFrame } from "./preview-frame";
+import {
+   BodyPreview,
+   type BodyPreviewProps,
+   CopyButton,
+   Panel,
+   RawText,
+} from "./preview-panel";
 
 const INDENT = 14;
 
@@ -204,46 +198,6 @@ const RowBody = ({ row }: { row: JsonRow }) => {
    );
 };
 
-const Panel = ({
-   summary,
-   actions,
-   children,
-}: {
-   summary: string;
-   actions?: React.ReactNode;
-   children: React.ReactNode;
-}) => (
-   <div className={PREVIEW_PANEL}>
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-viewerborder bg-viewergray/60 px-4">
-         <span className="truncate text-[13px] text-viewertext tabular-nums">
-            {summary}
-         </span>
-         <div className="ml-auto flex shrink-0 items-center gap-1">
-            {actions}
-         </div>
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col font-mono text-[13px] leading-6">
-         {children}
-      </div>
-   </div>
-);
-
-const CopyButton = ({ text }: { text: string }) => (
-   <Button
-      variant="ghost"
-      size="sm"
-      onClick={() =>
-         void copyToClipboard(text, {
-            success: "Copied to clipboard.",
-            failure: "Couldn't copy the file",
-         })
-      }
-   >
-      <Copy aria-hidden="true" />
-      Copy
-   </Button>
-);
-
 const ExpandAllButton = ({
    collapsing,
    blocked,
@@ -389,102 +343,31 @@ const JsonTree = ({ value, nodes, text }: ParsedJson & { text: string }) => {
    );
 };
 
-const RawText = ({
-   text,
-   summary = "Not valid JSON — showing the raw file",
-}: {
-   text: string;
-   summary?: string;
-}) => {
-   const clipped = text.length > RAW_TEXT_PREVIEW_CHARS;
-   return (
-      <Panel summary={summary} actions={<CopyButton text={text} />}>
-         <div className="min-h-0 flex-1 overflow-auto">
-            <pre className="whitespace-pre-wrap break-words px-4 py-2 text-viewerblack">
-               {clipped ? text.slice(0, RAW_TEXT_PREVIEW_CHARS) : text}
-            </pre>
-            {clipped && (
-               <p className="border-t border-viewerborder px-4 py-2 text-viewerlighttext">
-                  Showing the first {RAW_TEXT_PREVIEW_CHARS.toLocaleString()}{" "}
-                  characters — download to view the rest.
-               </p>
-            )}
-         </div>
-      </Panel>
-   );
-};
-
-type JsonPreviewProps = {
-   preview: S3ObjectPreview;
-   objectKey: string;
-   fileName: string;
-   fallbackUrl?: string;
-   fallbackGeneration?: number;
-};
-
-const JsonPreview = ({
-   preview,
-   objectKey,
-   fileName,
-   fallbackUrl,
-   fallbackGeneration,
-}: JsonPreviewProps) => {
-   const { bucketName } = useBucketContext();
-   const readable = preview.contentLength <= MAX_JSON_PREVIEW_BYTES;
-   const { data, isPending, isError, error } = useObjectBody(
-      bucketName,
-      objectKey,
-      preview,
-      readable
-   );
-   const parsed = useMemo(() => (data ? parseJson(data) : null), [data]);
-
-   const fallback =
-      error instanceof ObjectBodyError && error.changed
-         ? { title: "This file has changed", text: error.message }
-         : !readable || (error instanceof ObjectBodyError && error.tooLarge)
-           ? {
-                title: "Too large to preview",
-                text: `JSON previews stop at ${formatBytes(MAX_JSON_PREVIEW_BYTES)}. Download it to view.`,
-             }
-           : null;
-   if (fallback)
+const JsonBody = ({ text, version }: { text: string; version: string }) => {
+   const parsed = useMemo(() => parseJson(text), [text]);
+   if (!parsed)
       return (
-         <PreviewMessage
-            icon={FileWarning}
-            title={fallback.title}
-            text={fallback.text}
-            objectKey={objectKey}
-         />
+         <RawText text={text} summary="Not valid JSON — showing the raw file" />
       );
-   if (isPending) return <PreviewLoading />;
-   if (isError || data === undefined)
-      return (
-         <TextFrame
-            key={fallbackGeneration}
-            url={fallbackUrl ?? preview.url}
-            fileName={fileName}
-         />
-      );
-   if (!parsed) return <RawText text={data} />;
-
    return (
       <ErrorBoundary
-         key={JSON.stringify([
-            bucketName,
-            objectKey,
-            previewBodyVersion(preview),
-         ])}
+         key={version}
          fallback={
             <RawText
-               text={data}
+               text={text}
                summary="Couldn't render this JSON — showing the raw file"
             />
          }
       >
-         <JsonTree value={parsed.value} nodes={parsed.nodes} text={data} />
+         <JsonTree value={parsed.value} nodes={parsed.nodes} text={text} />
       </ErrorBoundary>
    );
 };
+
+const JsonPreview = (props: BodyPreviewProps) => (
+   <BodyPreview {...props} label="JSON">
+      {(body) => <JsonBody {...body} />}
+   </BodyPreview>
+);
 
 export default JsonPreview;

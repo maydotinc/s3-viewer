@@ -104,7 +104,9 @@ describe("inline object content", () => {
       const response = await get("notes/todo.txt");
       expect(response.status).toBe(200);
       expect(response.headers.get("content-type")).toBe("text/plain");
-      expect(response.headers.get("cache-control")).toBe("private, no-store");
+      expect(response.headers.get("cache-control")).toBe(
+         "private, no-store, no-transform"
+      );
       expect(response.headers.get("etag")).toBe('"live"');
       expect(await response.text()).toBe("hello");
       expect(state.sends).toEqual(["GetObjectCommand"]);

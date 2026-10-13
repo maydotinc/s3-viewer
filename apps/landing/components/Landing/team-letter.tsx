@@ -1,5 +1,4 @@
 import { blurProps } from "@/components/blur-placeholder";
-import { MAY_NAME } from "@/lib/site-config";
 import { team } from "@/lib/team";
 import Image from "next/image";
 import BasicBlock, { Eyebrow, SectionTitle } from "../basic-block";
@@ -52,7 +51,7 @@ const TeamLetter = () => {
                </div>
                <div className="flex min-w-0 flex-col">
                   <span className="text-sm font-semibold text-viewerblack">
-                     The S3 Viewer team at {MAY_NAME}
+                     The builders behind S3 Viewer
                   </span>
                   <span className="text-xs text-viewerlighttext">
                      {team.map((member) => member.shortName).join(", ")}

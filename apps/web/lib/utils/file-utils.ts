@@ -4,6 +4,7 @@ type PreviewKind =
    | "audio"
    | "pdf"
    | "json"
+   | "markdown"
    | "text"
    | "archive"
    | "none";
@@ -18,6 +19,9 @@ const TEXT_TYPES = new Set([
 ]);
 
 const JSON_TYPES = new Set(["application/json", "text/json"]);
+
+const MARKDOWN_TYPES = new Set(["text/markdown", "text/x-markdown"]);
+const MARKDOWN_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
 // uploaders often leave these on files whose extension says what they really are
 const GENERIC_TYPES = new Set([
@@ -82,6 +86,11 @@ const previewKind = (
    if (JSON_TYPES.has(type) || type.endsWith("+json")) return "json";
    if (GENERIC_TYPES.has(type) && /\.jsonc?$/i.test(fileName ?? ""))
       return "json";
+   if (
+      MARKDOWN_TYPES.has(type) ||
+      (GENERIC_TYPES.has(type) && MARKDOWN_NAME.test(fileName ?? ""))
+   )
+      return "markdown";
    if (type.startsWith("text/") || TEXT_TYPES.has(type)) return "text";
    return "none";
 };
@@ -91,7 +100,8 @@ const MAX_PREVIEW_BYTES = 50 * 1024 * 1024;
 const isStreamedKind = (kind: PreviewKind): boolean =>
    kind === "video" || kind === "audio" || kind === "pdf";
 
-const MAX_JSON_PREVIEW_BYTES = 2 * 1024 * 1024;
+// json and markdown previews read the body into memory, so they stop well short of MAX_PREVIEW_BYTES
+const MAX_BODY_PREVIEW_BYTES = 2 * 1024 * 1024;
 const JSON_STRING_PREVIEW_CHARS = 1000;
 
 const RAW_TEXT_PREVIEW_CHARS = 100000;
@@ -99,7 +109,7 @@ const RAW_TEXT_PREVIEW_CHARS = 100000;
 export {
    archiveLabel,
    JSON_STRING_PREVIEW_CHARS,
-   MAX_JSON_PREVIEW_BYTES,
+   MAX_BODY_PREVIEW_BYTES,
    MAX_PREVIEW_BYTES,
    isStreamedKind,
    previewKind,

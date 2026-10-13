@@ -87,7 +87,7 @@ const ProfileDropdown = () => {
             <DropdownMenuItem asChild>
                <a href={GITHUB_URL} target="_blank" rel="noreferrer">
                   <GithubIcon aria-hidden="true" />
-                  View source code
+                  View source
                </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

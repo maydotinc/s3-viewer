@@ -15,12 +15,13 @@ import {
 import Image from "next/image";
 import { Button } from "@s3-viewer/ui/components/button";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { useState } from "react";
+import { createElement, useState } from "react";
 import { previewBodyVersion } from "@/lib/utils/s3/preview-body";
 import ArchivePreview from "./archive-preview";
 import { usePreviewSource, type RefreshPreview } from "./preview-source";
 import { PreviewMessage } from "./preview-message";
 import JsonPreview from "./json-preview";
+import MarkdownPreview from "./markdown-preview";
 import {
    MediaFrame,
    paintClass,
@@ -174,14 +175,14 @@ const ActivePreview = ({
          onError={onError}
          onLoad={loaded}
       />
-   ) : kind === "json" ? (
-      <JsonPreview
-         preview={preview}
-         fallbackUrl={source.url}
-         fallbackGeneration={generation}
-         objectKey={objectKey}
-         fileName={fileName}
-      />
+   ) : kind === "json" || kind === "markdown" ? (
+      createElement(kind === "json" ? JsonPreview : MarkdownPreview, {
+         preview,
+         fallbackUrl: source.url,
+         fallbackGeneration: generation,
+         objectKey,
+         fileName,
+      })
    ) : (
       <div className={PREVIEW_BOX}>
          {kind === "image" && (

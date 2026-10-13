@@ -26,3 +26,16 @@ describe("archives", () => {
       expect(previewKind("application/octet-stream", "blob")).toBe("none");
    });
 });
+
+describe("markdown", () => {
+   it.each([
+      ["text/markdown", "README", "markdown"],
+      ["text/x-markdown; charset=utf-8", "notes.txt", "markdown"],
+      ["application/octet-stream", "README.md", "markdown"],
+      ["text/plain", "guide.markdown", "markdown"],
+      ["text/plain", "notes.txt", "text"],
+      ["image/png", "shot.md", "image"],
+   ])("previews %s %s as %s", (contentType, fileName, kind) => {
+      expect(previewKind(contentType, fileName)).toBe(kind);
+   });
+});

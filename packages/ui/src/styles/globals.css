@@ -92,6 +92,175 @@ html:has([data-backdrop]) body {
    .text-meta {
       @apply text-[12px] leading-[18px] font-medium text-viewerlighttext;
    }
+
+   /* github's markdown rendering on the app's palette */
+   .markdown-body {
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--color-viewerblack);
+      overflow-wrap: break-word;
+
+      > :first-child {
+         margin-top: 0;
+      }
+      > :last-child {
+         margin-bottom: 0;
+      }
+      p,
+      blockquote,
+      ul,
+      ol,
+      table,
+      pre {
+         margin: 0 0 16px;
+      }
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+         margin: 24px 0 16px;
+         font-weight: 600;
+         line-height: 1.25;
+      }
+      h1 {
+         font-size: 2em;
+      }
+      h2 {
+         font-size: 1.5em;
+      }
+      h1,
+      h2 {
+         padding-bottom: 0.3em;
+         border-bottom: 1px solid var(--color-viewerborder);
+      }
+      h3 {
+         font-size: 1.25em;
+      }
+      h4 {
+         font-size: 1em;
+      }
+      h5 {
+         font-size: 0.875em;
+      }
+      h6 {
+         font-size: 0.85em;
+         color: var(--color-viewerlighttext);
+      }
+      a {
+         color: var(--color-viewerblue);
+      }
+      a:hover {
+         text-decoration: underline;
+      }
+      strong {
+         font-weight: 600;
+      }
+      del {
+         text-decoration: line-through;
+      }
+      hr {
+         height: 0.25em;
+         margin: 24px 0;
+         border: 0;
+         background-color: var(--color-viewerborder);
+      }
+      blockquote {
+         padding: 0 1em;
+         color: var(--color-viewerlighttext);
+         border-left: 0.25em solid var(--color-viewerborder);
+      }
+      ul,
+      ol {
+         padding-left: 2em;
+      }
+      ul {
+         list-style: disc;
+      }
+      ol {
+         list-style: decimal;
+      }
+      ul ul,
+      ol ul {
+         list-style: circle;
+      }
+      ul ul,
+      ul ol,
+      ol ol,
+      ol ul {
+         margin: 0;
+      }
+      li + li {
+         margin-top: 0.25em;
+      }
+      li > p {
+         margin-top: 16px;
+      }
+      .task-list-item {
+         list-style-type: none;
+      }
+      .task-list-item input {
+         margin: 0 0.2em 0.25em -1.4em;
+         vertical-align: middle;
+      }
+      code {
+         padding: 0.2em 0.4em;
+         font-family: var(--font-mono);
+         font-size: 85%;
+         white-space: break-spaces;
+         background-color: color-mix(
+            in srgb,
+            var(--color-viewerlighttext) 20%,
+            transparent
+         );
+         border-radius: 6px;
+      }
+      pre {
+         padding: 16px;
+         overflow: auto;
+         font-size: 85%;
+         line-height: 1.45;
+         background-color: var(--color-viewergray);
+         border-radius: 6px;
+      }
+      pre code {
+         padding: 0;
+         font-size: 100%;
+         white-space: pre;
+         background-color: transparent;
+         border-radius: 0;
+      }
+      table {
+         display: block;
+         width: max-content;
+         max-width: 100%;
+         overflow: auto;
+         border-spacing: 0;
+         border-collapse: collapse;
+      }
+      th {
+         font-weight: 600;
+      }
+      th:not([align]) {
+         text-align: left;
+      }
+      th,
+      td {
+         padding: 6px 13px;
+         border: 1px solid var(--color-viewerborder);
+      }
+      tr {
+         background-color: var(--color-viewerwhite);
+      }
+      tbody tr:nth-child(2n) {
+         background-color: var(--color-viewergray);
+      }
+      img {
+         max-width: 100%;
+         background-color: var(--color-viewerwhite);
+      }
+   }
 }
 
 @keyframes fade-in {

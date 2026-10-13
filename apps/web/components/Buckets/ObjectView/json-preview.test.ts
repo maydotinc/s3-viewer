@@ -5,7 +5,7 @@ import { buttonByText, mountedRuntime } from "@/components/test-helpers";
 import type { S3ObjectPreview } from "@s3-viewer/types";
 import {
    JSON_STRING_PREVIEW_CHARS,
-   MAX_JSON_PREVIEW_BYTES,
+   MAX_BODY_PREVIEW_BYTES,
    RAW_TEXT_PREVIEW_CHARS,
 } from "@/lib/utils/file-utils";
 import JsonPreview from "./json-preview";
@@ -80,7 +80,7 @@ describe("JSON preview containment", () => {
    it.each(["scalar", "key", "nested"])(
       "bounds a near-limit JSON %s while copying the entire original",
       async (shape) => {
-         const long = "x".repeat(MAX_JSON_PREVIEW_BYTES - 100);
+         const long = "x".repeat(MAX_BODY_PREVIEW_BYTES - 100);
          h.text = JSON.stringify(
             shape === "scalar"
                ? long
