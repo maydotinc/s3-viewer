@@ -2,28 +2,11 @@ import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import { PROVIDER_NAMES } from "@/lib/constants";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
-import { Role } from "@s3-viewer/types";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
-import { cn } from "@s3-viewer/ui/lib/utils";
-import {
-   Crown,
-   Eye,
-   PenLine,
-   ServerIcon,
-   ShieldCheck,
-   UserIcon,
-   type LucideIcon,
-} from "lucide-react";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { ServerIcon, UserIcon } from "lucide-react";
 
-const ROLE_ICONS: Record<Role, LucideIcon> = {
-   [Role.OWNER]: Crown,
-   [Role.ADMIN]: ShieldCheck,
-   [Role.EDITOR]: PenLine,
-   [Role.VIEWER]: Eye,
-};
-
-const CHIP =
-   "flex h-9 max-w-full min-w-0 items-center rounded-lg border border-viewerborder text-sm text-viewerblack";
+// fixed so the header never shifts between the skeleton and the loaded chip.
+const WIDTH = "w-[17rem] max-w-full";
 
 const SEGMENT = "flex h-full min-w-0 items-center gap-2 px-3";
 
@@ -34,9 +17,7 @@ const ServerInfo = () => {
 
    if (isLoading) {
       return (
-         <div className={cn(CHIP, "w-56 justify-center")} aria-busy="true">
-            <Spinner size="sm" label="Loading server details" />
-         </div>
+         <Skeleton className={`h-9 rounded-lg ${WIDTH}`} aria-busy="true" />
       );
    }
 
@@ -44,13 +25,12 @@ const ServerInfo = () => {
       ? PROVIDER_NAMES[currentServer.provider]
       : "—";
    const role = currentServer ? ROLE_LABELS[currentServer.userRole] : "—";
-   const RoleIcon = currentServer
-      ? ROLE_ICONS[currentServer.userRole]
-      : UserIcon;
 
    return (
-      <div className={CHIP}>
-         <div className={SEGMENT} title={provider}>
+      <div
+         className={`flex h-9 items-center rounded-lg border border-viewerborder text-sm text-viewerblack ${WIDTH}`}
+      >
+         <div className={`${SEGMENT} flex-1`} title={provider}>
             {currentServer ? (
                <ServerLogo provider={currentServer.provider} />
             ) : (
@@ -62,8 +42,8 @@ const ServerInfo = () => {
             className="w-px self-stretch bg-viewerborder"
             aria-hidden="true"
          />
-         <div className={SEGMENT} title={`Your role: ${role}`}>
-            <RoleIcon className={ICON} aria-hidden="true" />
+         <div className={`${SEGMENT} shrink-0`} title={`Your role: ${role}`}>
+            <UserIcon className={ICON} aria-hidden="true" />
             <span className="truncate">{role}</span>
          </div>
       </div>
