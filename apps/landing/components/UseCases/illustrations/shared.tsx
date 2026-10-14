@@ -1,4 +1,3 @@
-import MotionToggle from "@/components/motion-toggle";
 import { AwsArtwork, CloudflarePaths } from "@/components/provider-art";
 import { useInView } from "@/lib/hooks/use-in-view";
 import { usePageVisible } from "@/lib/hooks/use-page-visible";
@@ -6,14 +5,7 @@ import { useReducedMotion } from "@/lib/hooks/use-reduced-motion";
 import { C } from "@/lib/palette";
 import type { ProviderId } from "@/lib/provider-paths";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import {
-   createContext,
-   useContext,
-   useEffect,
-   useState,
-   type ReactNode,
-   type SVGAttributes,
-} from "react";
+import { useEffect, type ReactNode, type SVGAttributes } from "react";
 
 export { C };
 
@@ -21,31 +13,23 @@ export const SAMPLE_BUCKETS = ["assets", "backups", "media", "logs"];
 
 export const MONO = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-const PausedContext = createContext(false);
-
 export const IllustrationFrame = ({
    label,
    children,
 }: {
    label: string;
    children: ReactNode;
-}) => {
-   const [paused, setPaused] = useState(false);
-   return (
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-viewerborder bg-viewergray">
-         <div
-            role="img"
-            aria-label={label}
-            className="absolute inset-0 grid place-items-center p-5 sm:p-8"
-         >
-            <PausedContext.Provider value={paused}>
-               {children}
-            </PausedContext.Provider>
-         </div>
-         <MotionToggle paused={paused} onToggle={() => setPaused((p) => !p)} />
+}) => (
+   <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-viewerborder bg-viewergray">
+      <div
+         role="img"
+         aria-label={label}
+         className="absolute inset-0 grid place-items-center p-5 sm:p-8"
+      >
+         {children}
       </div>
-   );
-};
+   </div>
+);
 
 export const SVGRoot = ({
    children,
@@ -59,8 +43,7 @@ export const SVGRoot = ({
 } & SVGAttributes<SVGSVGElement>) => {
    const [ref, inView] = useInView<SVGSVGElement>("160px");
    const visible = usePageVisible();
-   const paused = useContext(PausedContext);
-   const running = inView && visible && !paused;
+   const running = inView && visible;
    useEffect(() => {
       const svg = ref.current;
       if (

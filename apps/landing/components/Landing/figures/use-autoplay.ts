@@ -7,16 +7,15 @@ import { useHoverPause } from "./use-hover-pause";
 type Options = { steps: number; interval: number };
 
 // cycles through `steps` while the figure is on screen, the tab is visible,
-// and the viewer has not paused it (hover with a mouse, or the pause button).
+// and the viewer is not hovering it with a mouse.
 export const useAutoplay = ({ steps, interval }: Options) => {
    const [ref, inView] = useInView<HTMLDivElement>();
    const { hovered, hoverProps } = useHoverPause();
    const visible = usePageVisible();
    const reduced = useReducedMotion();
-   const [paused, setPaused] = useState(false);
    const [step, setStep] = useState(0);
    const [restartKey, setRestartKey] = useState(0);
-   const active = inView && visible && !hovered && !paused && !reduced;
+   const active = inView && visible && !hovered && !reduced;
 
    useEffect(() => {
       if (!active) return;
@@ -35,8 +34,6 @@ export const useAutoplay = ({ steps, interval }: Options) => {
    return {
       step,
       jump,
-      paused,
-      togglePaused: () => setPaused((p) => !p),
       rootProps: { ref, ...hoverProps },
    };
 };

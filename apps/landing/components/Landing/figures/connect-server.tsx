@@ -10,7 +10,6 @@ import {
    Server,
 } from "lucide-react";
 import { ReactNode } from "react";
-import MotionToggle from "@/components/motion-toggle";
 import { FadePanel } from "./fade-panel";
 import { ScaledFrame } from "./frame";
 import { CloudflareMark, ProviderChip } from "./provider-marks";
@@ -96,8 +95,6 @@ export const ConnectServerFigure = () => {
    const {
       step,
       jump: setStep,
-      paused,
-      togglePaused,
       rootProps,
    } = useAutoplay({ steps: STEPS, interval: 2800 });
    const next = () => setStep(step + 1);
@@ -264,7 +261,6 @@ export const ConnectServerFigure = () => {
                </div>
             </div>
          </ScaledFrame>
-         <MotionToggle paused={paused} onToggle={togglePaused} />
       </div>
    );
 };

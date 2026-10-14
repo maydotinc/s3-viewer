@@ -1,7 +1,6 @@
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ChevronRight, ChevronsUpDown, Folder, Plus } from "lucide-react";
 import { ReactNode } from "react";
-import MotionToggle from "@/components/motion-toggle";
 import { FadePanel } from "./fade-panel";
 import { ScaledFrame } from "./frame";
 import type { ProviderId } from "@/lib/provider-paths";
@@ -177,7 +176,7 @@ export const ServerSwitcher = ({
 };
 
 export const ServerSwitcherFigure = () => {
-   const { step, jump, paused, togglePaused, rootProps } = useAutoplay({
+   const { step, jump, rootProps } = useAutoplay({
       steps: SERVERS.length,
       interval: 3200,
    });
@@ -203,7 +202,6 @@ export const ServerSwitcherFigure = () => {
                />
             </div>
          </ScaledFrame>
-         <MotionToggle paused={paused} onToggle={togglePaused} />
       </div>
    );
 };
