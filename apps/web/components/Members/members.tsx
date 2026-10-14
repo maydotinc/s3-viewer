@@ -38,8 +38,8 @@ import {
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Users, X } from "lucide-react";
 import { useState } from "react";
-import BucketAccessDialog from "./bucket-access-dialog";
-import RoleSelect from "./role-select";
+import BucketAccessDialog from "@/components/Invites/bucket-access-dialog";
+import RoleSelect from "@/components/Invites/role-select";
 
 type MemberRowProps = {
    serverId: string;

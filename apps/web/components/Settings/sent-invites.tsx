@@ -1,3 +1,4 @@
+import InvitePeopleLink from "@/components/Invites/invite-people-link";
 import {
    ActionsCell,
    ExpiresCell,
@@ -14,7 +15,6 @@ import useInstanceConfig, {
 } from "@/lib/hooks/queries/useInstanceConfig";
 import { useUserId } from "@/lib/stores/session-store";
 import { Send } from "lucide-react";
-import InvitePeople from "./invite-people";
 
 const COLUMNS: readonly Column[] = [
    { label: "Server" },
@@ -32,7 +32,7 @@ const SentInvites = () => {
       <InviteListCard
          title="Sent"
          description="Invites you've sent that haven't been accepted yet."
-         action={<InvitePeople />}
+         action={<InvitePeopleLink />}
          notice={
             email === "disabled" && (
                <div className="px-4 pt-4 sm:px-6">

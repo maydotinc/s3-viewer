@@ -15,7 +15,7 @@ import {
 import {
    bucketAccessEntrySchema,
    grantFolderSchema,
-   sendInviteSchema,
+   inviteTargetSchema,
    updateRoleSchema,
 } from "./schemas";
 
@@ -271,9 +271,8 @@ describe("member and invite schemas", () => {
    const limited = { bucketName: "company", role: "EDITOR", folders: ["a/"] };
    const whole = { bucketName: "company", role: "EDITOR", folders: null };
    const invite = (role: string, bucketAccess: unknown[]) =>
-      sendInviteSchema.safeParse({
+      inviteTargetSchema.safeParse({
          serverId: "server12345",
-         emails: ["someone@example.com"],
          role,
          bucketAccess,
       });

@@ -522,6 +522,7 @@ export {
    authorizeAudit,
    authorizeBucket,
    authorizeServer,
+   denied,
    getAuditContext,
    getAuth,
    guardedGrant,
@@ -529,4 +530,10 @@ export {
    refuse,
    requireUser,
 };
-export type { AuditContext, AuthContext, AuthorizeOptions, Denial };
+export type {
+   AuditContext,
+   AuthContext,
+   AuthorizeOptions,
+   Denial,
+   DenialScope,
+};

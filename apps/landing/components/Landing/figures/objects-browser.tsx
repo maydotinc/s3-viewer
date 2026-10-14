@@ -184,7 +184,7 @@ export const ObjectsBrowserFigure = () => {
                      className={WIDE_ONLY}
                   >
                      <UserPlus />
-                     Share
+                     Invite
                   </Button>
                   <Button type="button" tabIndex={-1}>
                      <Plus />

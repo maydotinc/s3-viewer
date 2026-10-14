@@ -7,15 +7,18 @@ import {
    buttonWrapper,
    footerText,
    h1,
+   list,
+   listItem,
    mutedText,
    text,
 } from "./styles";
 
+type InvitedServer = { serverName: string; roleLabel: string };
+
 type ServerInviteEmailProps = {
    inviterName: string;
    inviterEmail: string;
-   serverName: string;
-   roleLabel: string;
+   servers: InvitedServer[];
    invitesUrl: string;
    expiresAtLabel: string;
 };
@@ -26,17 +29,30 @@ const SUBJECT = `You've been invited to a server on ${PRODUCT_NAME}`;
 const inviteCopy = ({
    inviterName,
    inviterEmail,
-   serverName,
-   roleLabel,
+   servers,
    expiresAtLabel,
 }: ServerInviteEmailProps) => {
-   const server = plainLabel(serverName, "a server");
+   const inviter = plainLabel(inviterName, "a member");
+   const single = servers.length === 1 ? servers[0] : undefined;
+   const server = single
+      ? plainLabel(single.serverName, "a server")
+      : `${servers.length} servers`;
    return {
       title: `You're invited to ${server}`,
-      lead: `You've been invited to join ${server} on ${PRODUCT_NAME} with ${roleLabel} access.`,
-      invitedBy: `Invited by ${plainLabel(inviterName, "a member")} (${inviterEmail})`,
-      cta: "View invitation",
-      expiry: `This invitation expires ${expiresAtLabel}.`,
+      lead: single
+         ? `You've been invited to join ${server} on ${PRODUCT_NAME} with ${single.roleLabel} access.`
+         : `${inviter} invited you to ${server} on ${PRODUCT_NAME}.`,
+      lines: single
+         ? []
+         : servers.map(
+              ({ serverName, roleLabel }) =>
+                 `${plainLabel(serverName, "a server")} · ${roleLabel}`
+           ),
+      invitedBy: `Invited by ${inviter} (${inviterEmail})`,
+      cta: single ? "View invitation" : "View invitations",
+      expiry: single
+         ? `This invitation expires ${expiresAtLabel}.`
+         : `These invitations expire ${expiresAtLabel}.`,
       footer:
          "If you weren't expecting this invitation, you can safely ignore this email.",
    };
@@ -50,6 +66,15 @@ const ServerInviteEmail = (props: ServerInviteEmailProps) => {
       <EmailLayout preview={SUBJECT}>
          <Heading style={h1}>{copy.title}</Heading>
          <Text style={text}>{copy.lead}</Text>
+         {copy.lines.length > 0 && (
+            <ul style={list}>
+               {copy.lines.map((line, index) => (
+                  <li key={index} style={listItem}>
+                     {line}
+                  </li>
+               ))}
+            </ul>
+         )}
          <Text style={mutedText}>{copy.invitedBy}</Text>
          <Section style={buttonWrapper}>
             <Button href={props.invitesUrl} style={button}>
@@ -68,6 +93,7 @@ const serverInviteEmailText = (props: ServerInviteEmailProps): string => {
       copy.title,
       "",
       copy.lead,
+      ...(copy.lines.length > 0 ? [...copy.lines, ""] : []),
       copy.invitedBy,
       "",
       `${copy.cta}:`,
@@ -82,4 +108,4 @@ const serverInviteEmailText = (props: ServerInviteEmailProps): string => {
 };
 
 export { ServerInviteEmail, serverInviteEmailSubject, serverInviteEmailText };
-export type { ServerInviteEmailProps };
+export type { InvitedServer, ServerInviteEmailProps };

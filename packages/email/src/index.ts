@@ -17,6 +17,7 @@ import {
    ServerInviteEmail,
    serverInviteEmailSubject,
    serverInviteEmailText,
+   type InvitedServer,
    type ServerInviteEmailProps,
 } from "@s3-viewer/ui/emails/server-invite";
 import {
@@ -136,8 +137,7 @@ type SendServerInviteEmailInput = {
    to: string;
    inviterName: string;
    inviterEmail: string;
-   serverName: string;
-   role: Role;
+   servers: { serverName: string; role: Role }[];
    expiresAt: Date;
    invitesUrl: string;
 };
@@ -151,13 +151,19 @@ const expiryFormatter = new Intl.DateTimeFormat("en-US", {
 
 const sendServerInviteEmail = async ({
    to,
-   role,
+   servers,
    expiresAt,
    ...rest
 }: SendServerInviteEmailInput): Promise<void> => {
+   if (servers.length === 0) throw new Error("An invite email needs a server");
    const props: ServerInviteEmailProps = {
       ...rest,
-      roleLabel: ROLE_LABELS[role],
+      servers: servers.map(
+         ({ serverName, role }): InvitedServer => ({
+            serverName,
+            roleLabel: ROLE_LABELS[role],
+         })
+      ),
       expiresAtLabel: `on ${expiryFormatter.format(expiresAt)}`,
    };
    await send({

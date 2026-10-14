@@ -16,7 +16,8 @@ type Counter = {
    undo: (key: string) => Promise<void>;
 };
 
-type Reservation = { release: () => Promise<void> };
+// the servers whose budget was spent; a server whose own rules were used up is left out.
+type Reservation = { servers: string[]; release: () => Promise<void> };
 
 const MAX_MEMORY_KEYS = 10_000;
 
@@ -62,66 +63,92 @@ const mailboxKey = (email: string): string =>
       .digest("base64url")
       .slice(0, 32);
 
-const rulesFor = (serverId: string, email: string) => {
-   const mailbox = mailboxKey(email);
-   return [
-      {
-         reason: "cooldown",
-         key: `invite-mail:again:${serverId}:${mailbox}`,
-         windowMs: INVITE_EMAIL_COOLDOWN_MS,
-         limit: 1,
-      },
-      {
-         reason: "recipient",
-         key: `invite-mail:to:${mailbox}`,
-         windowMs: DAY_MS,
-         limit: INVITE_EMAILS_PER_RECIPIENT_PER_DAY,
-      },
-      {
-         reason: "server",
-         key: `invite-mail:server:${serverId}`,
-         windowMs: DAY_MS,
-         limit: INVITE_EMAILS_PER_SERVER_PER_DAY,
-      },
-   ];
-};
+type Rule = { reason: string; key: string; windowMs: number; limit: number };
 
-// spends one invite email from every budget, or none of them when any is used up.
+const recipientRule = (mailbox: string): Rule => ({
+   reason: "recipient",
+   key: `invite-mail:to:${mailbox}`,
+   windowMs: DAY_MS,
+   limit: INVITE_EMAILS_PER_RECIPIENT_PER_DAY,
+});
+
+const serverRules = (serverId: string, mailbox: string): Rule[] => [
+   {
+      reason: "cooldown",
+      key: `invite-mail:again:${serverId}:${mailbox}`,
+      windowMs: INVITE_EMAIL_COOLDOWN_MS,
+      limit: 1,
+   },
+   {
+      reason: "server",
+      key: `invite-mail:server:${serverId}`,
+      windowMs: DAY_MS,
+      limit: INVITE_EMAILS_PER_SERVER_PER_DAY,
+   },
+];
+
+// one email to one mailbox: the recipient's daily budget is spent once however many servers it
+// lists, each server's budgets once; nothing stays spent when no email will go out.
 const inviteEmailBudget =
    (counter: () => Counter) =>
-   async (serverId: string, email: string): Promise<Reservation | null> => {
+   async (serverIds: string[], email: string): Promise<Reservation | null> => {
       const store = counter();
+      const mailbox = mailboxKey(email);
       const taken: string[] = [];
+      const undo = (keys: string[]) =>
+         Promise.all(keys.map((key) => store.undo(key)));
       const release = async () => {
-         await Promise.all(taken.map((key) => store.undo(key)));
+         await undo(taken.splice(0));
       };
+      const spend = async (rule: Rule): Promise<boolean> => {
+         taken.push(rule.key);
+         return (await store.hit(rule.key, rule.windowMs)) <= rule.limit;
+      };
+      const skipped = (servers: string[], reason: string) =>
+         logger.info("Invite email skipped", { servers, reason });
       try {
-         for (const rule of rulesFor(serverId, email)) {
-            taken.push(rule.key);
-            if ((await store.hit(rule.key, rule.windowMs)) > rule.limit) {
-               await release();
-               logger.info("Invite email skipped", {
-                  serverId,
-                  reason: rule.reason,
-               });
-               return null;
-            }
+         if (!(await spend(recipientRule(mailbox)))) {
+            await release();
+            skipped(serverIds, "recipient");
+            return null;
          }
+         const servers: string[] = [];
+         for (const serverId of serverIds) {
+            const mark = taken.length;
+            let refused: Rule | undefined;
+            for (const rule of serverRules(serverId, mailbox)) {
+               if (!(await spend(rule))) {
+                  refused = rule;
+                  break;
+               }
+            }
+            if (!refused) {
+               servers.push(serverId);
+               continue;
+            }
+            await undo(taken.splice(mark));
+            skipped([serverId], refused.reason);
+         }
+         if (servers.length === 0) {
+            await release();
+            return null;
+         }
+         return { servers, release };
       } catch (error) {
          await release().catch(() => {});
          logger.warn("Invite email budget unavailable", {
-            serverId,
+            serverIds,
             error: describeError(error),
          });
          return null;
       }
-      return { release };
    };
 
 const memory = memoryCounter();
 
-const reserveInviteEmail = inviteEmailBudget(() =>
+const reserveInviteEmails = inviteEmailBudget(() =>
    env.RATE_LIMIT_STORE === "postgres" ? sharedCounter : memory
 );
 
-export { inviteEmailBudget, memoryCounter, reserveInviteEmail };
+export { inviteEmailBudget, memoryCounter, reserveInviteEmails };
+export type { Reservation as InviteEmailReservation };

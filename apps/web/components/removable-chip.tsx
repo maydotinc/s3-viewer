@@ -6,6 +6,7 @@ type RemovableChipProps = {
    invalid?: boolean;
    title?: string;
    disabled?: boolean;
+   className?: string;
    onRemove: () => void;
 };
 
@@ -14,6 +15,7 @@ const RemovableChip = ({
    invalid = false,
    title,
    disabled,
+   className,
    onRemove,
 }: RemovableChipProps) => (
    <li
@@ -21,7 +23,8 @@ const RemovableChip = ({
          "flex max-w-full items-center gap-1 rounded-md py-0.5 pr-1 pl-2 text-xs",
          invalid
             ? "bg-viewerbgred text-viewertextred"
-            : "bg-viewergray text-viewerblack"
+            : "bg-viewergray text-viewerblack",
+         className
       )}
    >
       <span className="min-w-0 truncate" title={title}>

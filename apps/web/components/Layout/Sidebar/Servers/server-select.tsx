@@ -3,7 +3,7 @@ import { loadNext } from "@/components/list-pagination";
 import { useSwitchServer } from "@/lib/hooks/useSwitchServer";
 import { useModalActions } from "@/lib/contexts/modal-context";
 import useServers from "@/lib/hooks/queries/server/useServers";
-import { auditPath, sharePath } from "@/lib/server-paths";
+import { auditPath, invitePeoplePath, membersPath } from "@/lib/server-paths";
 import { useUserId } from "@/lib/stores/session-store";
 import { Permission, ROLE_LABELS, hasPermission } from "@s3-viewer/permissions";
 import { Role, type ServerInfo } from "@s3-viewer/types";
@@ -31,8 +31,9 @@ import {
    LogOut,
    PenLine,
    ScrollText,
-   Share2,
    Trash2,
+   UserRoundPlus,
+   Users,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { useRef, useState } from "react";
@@ -240,14 +241,24 @@ const ServerSelect = () => {
                               server.userRole,
                               Permission.MANAGE_MEMBERS
                            ) && (
-                              <DropdownMenuItem
-                                 onSelect={() =>
-                                    router.push(sharePath(server.id))
-                                 }
-                              >
-                                 <Share2 aria-hidden="true" />
-                                 Share
-                              </DropdownMenuItem>
+                              <>
+                                 <DropdownMenuItem
+                                    onSelect={() =>
+                                       router.push(invitePeoplePath(server.id))
+                                    }
+                                 >
+                                    <UserRoundPlus aria-hidden="true" />
+                                    Invite people
+                                 </DropdownMenuItem>
+                                 <DropdownMenuItem
+                                    onSelect={() =>
+                                       router.push(membersPath(server.id))
+                                    }
+                                 >
+                                    <Users aria-hidden="true" />
+                                    Members
+                                 </DropdownMenuItem>
+                              </>
                            )}
                            {(server.audit.canView ||
                               server.audit.canManage) && (

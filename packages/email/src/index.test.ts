@@ -29,8 +29,7 @@ const sendOneOfEach = async (
       to: "invitee@corp.example",
       inviterName: "Mallory Inviter",
       inviterEmail: "mallory@corp.example",
-      serverName: "Payroll Archive",
-      role: Role.VIEWER,
+      servers: [{ serverName: "Payroll Archive", role: Role.VIEWER }],
       expiresAt: new Date("2030-01-01T00:00:00.000Z"),
       invitesUrl: "https://app.example/settings/invites?invite=secret-token",
    });

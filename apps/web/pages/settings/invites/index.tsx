@@ -10,12 +10,12 @@ const SettingsInvitesPage: NextPageWithLayout = () => (
    <>
       <Seo
          title="Invites"
-         description="Server invites you've received and sent."
+         description="Server invites you've sent and received."
          canonical={SITE_PATHS.settingsInvites}
       />
       <SettingsShell>
-         <ReceivedInvites />
          <SentInvites />
+         <ReceivedInvites />
       </SettingsShell>
    </>
 );

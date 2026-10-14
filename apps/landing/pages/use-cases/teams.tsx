@@ -24,7 +24,7 @@ const steps: UseCaseStep[] = [
       body: "Paste a single set of access keys — ideally a least-privilege IAM user scoped to the buckets you want exposed — plus the region and endpoint. Your whole team uses it through their own logins.",
    },
    {
-      title: "Click Share, invite by email, pick a role",
+      title: "Click Invite, add emails, pick a role",
       body: "Four roles, each one adding to the last: Viewer, Editor, Admin, Owner. Object rename and deletion work the same way on every connected provider. A bucket can override a member's server role, so a teammate can be an Editor on one bucket and a Viewer on another, and a Viewer or Editor can be limited to specific folders in a bucket. Off-boarding is one click and zero key rotation.",
    },
 ];
@@ -34,7 +34,7 @@ const faqs: Faq[] = [
       question:
          "How do I give my team access to an S3 bucket without creating IAM users for each of them?",
       answer:
-         "Add the server once with a single least-privilege IAM key, then invite teammates by email from the Share dialog. They authenticate against S3 Viewer, not AWS, so you never need per-person IAM users and you don't have to rotate access keys when someone leaves.",
+         "Add the server once with a single least-privilege IAM key, then invite teammates by email from Settings, Invites. They authenticate against S3 Viewer, not AWS, so you never need per-person IAM users and you don't have to rotate access keys when someone leaves.",
    },
    {
       question: "What roles are available?",
@@ -44,7 +44,7 @@ const faqs: Faq[] = [
    {
       question: "Can I limit a teammate to one bucket out of many?",
       answer:
-         "Yes. Owners see every bucket on a server; everyone else sees only the buckets you grant them in the Share dialog. Give a teammate one bucket and the others are never listed for them — not just hidden.",
+         "Yes. Owners see every bucket on a server; everyone else sees only the buckets you grant them when you invite them. Give a teammate one bucket and the others are never listed for them — not just hidden.",
    },
    {
       question: "Can I limit a teammate to one folder inside a bucket?",
@@ -101,7 +101,7 @@ export default createUseCasePage({
       {
          icon: Mail,
          title: "Invite by email",
-         body: "Click Share, type an address, pick a role, send. They sign in with an email and password, or with GitHub, accept, and the server appears in their sidebar.",
+         body: "Click Invite, type an address, pick a role, send. They sign in with an email and password, or with GitHub, accept, and the server appears in their sidebar.",
       },
       {
          icon: ShieldCheck,

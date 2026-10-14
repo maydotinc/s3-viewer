@@ -1,15 +1,19 @@
-import CenteredSpinner from "@/components/centered-spinner";
-import FormError from "@/components/Modals/form-error";
+import { CellBar, nameBarWidth } from "@/components/DataGrid/skeleton";
+import InlineAlert from "@/components/inline-alert";
+import StatusMessage, { RetryButton } from "@/components/status-message";
 import type { BucketAccessEntry, Role, S3Bucket } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import { Database } from "lucide-react";
 import {
    memo,
    useCallback,
    useId,
    useMemo,
    type Dispatch,
+   type ReactNode,
    type SetStateAction,
 } from "react";
 import {
@@ -24,20 +28,33 @@ import GrantScope from "./grant-scope";
 import RoleSelect from "./role-select";
 import { grantableBucketRoles, lowestRole } from "./roles";
 
+type HelpToggle = {
+   expanded: boolean;
+   controls: string;
+   onToggle: () => void;
+};
+
 type BucketAccessPickerProps = {
    serverId: string;
+   serverName?: string;
    myRole: Role;
    buckets: S3Bucket[];
    isLoading: boolean;
+   loadError?: Error | null;
+   onRetry?: () => void;
+   retrying?: boolean;
    value: GrantRow[];
    onChange: Dispatch<SetStateAction<GrantRow[]>>;
    original?: BucketAccessEntry[];
    serverRole?: Role;
    showErrors?: boolean;
    error?: string | null;
+   errorAction?: ReactNode;
    disabled?: boolean;
    label: string;
    heading?: string;
+   help?: HelpToggle;
+   children?: ReactNode;
 };
 
 type BucketRow = { bucket: S3Bucket; roles: Role[] };
@@ -55,6 +72,11 @@ type BucketAccessRowProps = BucketRow & {
    onToggle: (bucket: S3Bucket, roles: Role[]) => void;
    onUpdate: (next: GrantRow) => void;
 };
+
+const ROLE_SELECT = "w-28 shrink-0 sm:w-32";
+
+// three rows stay inside the list's min height, so loading and loaded lists share a height
+const SKELETON_ROWS = 3;
 
 const BucketAccessRow = memo(function BucketAccessRow({
    id,
@@ -74,7 +96,7 @@ const BucketAccessRow = memo(function BucketAccessRow({
    const role = entry?.role ?? lowestRole(roles);
    const empty = entry?.folders?.length === 0;
    return (
-      <li className="flex min-w-0 flex-col">
+      <li className="flex min-w-0 flex-col px-3">
          <div className="flex h-10 min-w-0 items-center gap-3">
             <Checkbox
                id={id}
@@ -95,7 +117,7 @@ const BucketAccessRow = memo(function BucketAccessRow({
             ) : (
                <RoleSelect
                   size="sm"
-                  className="w-32 shrink-0"
+                  className={ROLE_SELECT}
                   label={`Role on ${bucket.name}`}
                   value={role}
                   roles={roles}
@@ -121,22 +143,73 @@ const BucketAccessRow = memo(function BucketAccessRow({
    );
 });
 
+const BucketSkeletonRows = () => (
+   <ul aria-hidden="true" className="divide-y divide-viewerborder">
+      {Array.from({ length: SKELETON_ROWS }, (_, index) => (
+         <li key={index} className="flex h-10 items-center gap-3 px-3">
+            <Skeleton className="size-4 shrink-0 rounded" />
+            <CellBar className={nameBarWidth(index)} />
+            <Skeleton
+               className={cn("ml-auto h-8 shrink-0 rounded-lg", ROLE_SELECT)}
+            />
+         </li>
+      ))}
+   </ul>
+);
+
+const LinkButton = ({
+   hidden,
+   disabled,
+   onClick,
+   children,
+   ...props
+}: {
+   hidden: boolean;
+   disabled?: boolean;
+   onClick: () => void;
+   children: ReactNode;
+   "aria-expanded"?: boolean;
+   "aria-controls"?: string;
+}) => (
+   <Button
+      type="button"
+      variant="link"
+      size="sm"
+      className={cn("h-auto shrink-0 px-0", hidden && "invisible")}
+      onClick={onClick}
+      disabled={disabled || hidden}
+      aria-hidden={hidden || undefined}
+      tabIndex={hidden ? -1 : undefined}
+      {...props}
+   >
+      {children}
+   </Button>
+);
+
 const BucketAccessPicker = ({
    serverId,
+   serverName,
    myRole,
    buckets,
    isLoading,
+   loadError = null,
+   onRetry,
+   retrying = false,
    value,
    onChange,
    original,
    serverRole,
    showErrors = false,
    error,
+   errorAction,
    disabled,
    label,
    heading,
+   help,
+   children,
 }: BucketAccessPickerProps) => {
    const labelId = useId();
+   const errorId = `${labelId}-error`;
 
    const rows = useMemo<BucketRow[]>(
       () =>
@@ -223,14 +296,32 @@ const BucketAccessPicker = ({
       );
    };
 
-   const canToggleAll = !isLoading && grantable.length > 0;
+   const linksHidden = isLoading || loadError !== null;
+   const canToggleAll = !linksHidden && grantable.length > 0;
 
    const list = isLoading ? (
-      <CenteredSpinner label="Loading buckets" className="h-full" />
+      <BucketSkeletonRows />
+   ) : loadError ? (
+      <div className="flex min-h-40 items-center p-3">
+         <InlineAlert
+            className="flex-1"
+            action={
+               onRetry && (
+                  <RetryButton
+                     size="sm"
+                     onRetry={onRetry}
+                     retrying={retrying}
+                  />
+               )
+            }
+         >
+            Couldn&apos;t load buckets{serverName ? ` on ${serverName}` : ""}.
+         </InlineAlert>
+      </div>
    ) : buckets.length === 0 ? (
-      <p className="flex h-full items-center justify-center text-center text-sm text-viewerlighttext">
+      <StatusMessage icon={Database} className="min-h-40 py-4">
          No buckets on this server
-      </p>
+      </StatusMessage>
    ) : (
       <ul className="divide-y divide-viewerborder">
          {rows.map(({ bucket, roles }) => (
@@ -256,40 +347,68 @@ const BucketAccessPicker = ({
 
    return (
       <div className="flex min-w-0 flex-col gap-2">
-         <div className="flex h-5 min-w-0 items-center justify-between gap-2">
+         <div className="flex min-h-5 min-w-0 flex-wrap items-center justify-between gap-x-2">
             {heading ? (
-               <h3 className="min-w-0 truncate text-sm font-medium text-viewerblack">
+               <h3 className="shrink-0 text-sm font-medium text-viewerblack">
                   {heading}
                </h3>
             ) : (
                <span aria-hidden="true" />
             )}
-            <Button
-               type="button"
-               variant="link"
-               size="sm"
-               className={cn(
-                  "h-auto shrink-0 px-0",
-                  !canToggleAll && "invisible"
+            <div className="flex shrink-0 items-center gap-2">
+               {help && (
+                  <>
+                     <LinkButton
+                        hidden={linksHidden}
+                        onClick={help.onToggle}
+                        aria-expanded={help.expanded}
+                        aria-controls={help.controls}
+                     >
+                        How folder access works
+                     </LinkButton>
+                     <span
+                        aria-hidden="true"
+                        className={cn(
+                           "text-xs text-viewerlighttext",
+                           linksHidden && "invisible"
+                        )}
+                     >
+                        ·
+                     </span>
+                  </>
                )}
-               onClick={toggleAll}
-               disabled={disabled || !canToggleAll}
-               aria-hidden={!canToggleAll}
-               tabIndex={canToggleAll ? undefined : -1}
-            >
-               {allSelected ? "Clear" : "Select all"}
-            </Button>
+               <LinkButton
+                  hidden={!canToggleAll}
+                  disabled={disabled}
+                  onClick={toggleAll}
+               >
+                  {allSelected ? "Clear" : "Select all"}
+               </LinkButton>
+            </div>
          </div>
+         {children}
          <div
             role="group"
             aria-label={label}
-            className="relative grid max-h-64 min-h-10 min-w-0 overflow-y-auto [scrollbar-gutter:stable]"
+            aria-busy={isLoading || undefined}
+            aria-describedby={errorId}
+            className="relative flex max-h-80 min-h-40 min-w-0 flex-col overflow-y-auto rounded-lg border border-viewerborder [scrollbar-gutter:stable]"
          >
             {list}
          </div>
-         <FormError>{error}</FormError>
+         <div className="flex min-h-5 min-w-0 items-start justify-between gap-3">
+            <p
+               id={errorId}
+               role={error ? "alert" : undefined}
+               className="min-w-0 break-words text-xs leading-5 text-viewertextred"
+            >
+               {error}
+            </p>
+            {errorAction}
+         </div>
       </div>
    );
 };
 
 export default BucketAccessPicker;
+export type { HelpToggle };

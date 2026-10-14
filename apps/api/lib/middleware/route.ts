@@ -35,25 +35,36 @@ const denialKey = (
 ): string =>
    `${actorId}:${serverId}:${entry.detail.permission}${unverifiedOrigin ? ":unverified" : ""}`;
 
-const READ_METHODS = new Set(["GET", "HEAD"]);
-
-const recordDenials: ErrorRequestHandler = (err, req, _res, next) => {
-   const unverifiedOrigin = READ_METHODS.has(req.method) && !isSameSite(req);
-   if (
-      !(err instanceof AccessDenied) ||
-      recentlySeen(denialKey(err.denial, unverifiedOrigin))
-   ) {
-      next(err);
-      return;
-   }
-   const { actorId, entry, ...scope } = err.denial;
-   void writeAudit({
+// a denial never fails its request, and a repeat within the window is not written again.
+const recordDenial = (
+   denial: Denial,
+   email: string,
+   unverifiedOrigin = false
+): Promise<void> => {
+   if (recentlySeen(denialKey(denial, unverifiedOrigin)))
+      return Promise.resolve();
+   const { actorId, entry, ...scope } = denial;
+   return writeAudit({
       ...scope,
       entry: unverifiedOrigin
          ? { ...entry, detail: { ...entry.detail, unverifiedOrigin } }
          : entry,
-      actor: { id: actorId, email: req.user?.email ?? "" },
-   })
+      actor: { id: actorId, email },
+   }).catch(() => undefined);
+};
+
+const READ_METHODS = new Set(["GET", "HEAD"]);
+
+const recordDenials: ErrorRequestHandler = (err, req, _res, next) => {
+   if (!(err instanceof AccessDenied)) {
+      next(err);
+      return;
+   }
+   void recordDenial(
+      err.denial,
+      req.user?.email ?? "",
+      READ_METHODS.has(req.method) && !isSameSite(req)
+   )
       .finally(() => next(err))
       .catch(() => undefined);
 };
@@ -132,6 +143,7 @@ export {
    byObjectKey,
    foldersCheckedInHandler,
    memberRoute,
+   recordDenial,
    recordDenials,
    serverRoute,
    validatedRoute,

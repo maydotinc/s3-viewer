@@ -27,7 +27,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Invite by email",
-      body: "Open the server's bucket list, click Share to open the members dialog, type the recipient's email and choose a role: Viewer (browse and download), Editor (also upload, rename, delete and create buckets where supported) or Admin (also manage members, rename the server and remove buckets). They get an emailed invite.",
+      body: "Click Invite above the bucket list, or open Settings, Invites. Type the recipient's email, pick the server and choose a role: Viewer (browse and download), Editor (also upload, rename, delete and create buckets where supported) or Admin (also manage members, rename the server and remove buckets). They get an emailed invite.",
    },
    {
       title: "They open it in any browser",

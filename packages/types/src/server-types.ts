@@ -82,10 +82,15 @@ type BucketCheck = { bucketName: string; accessible: boolean };
 /** emailed is false when the invite was saved but no email went out (cooldown, cap or send failure). */
 type SentInvite = ServerInvite & { emailed: boolean };
 
-type SendInviteResult = {
+/** one server's outcome in a multi-server invite; `error` is set when that server refused, the others still went through. */
+type InviteOutcome = {
+   serverId: string;
    invites: SentInvite[];
    alreadyMembers: string[];
+   error: string | null;
 };
+
+type SendInvitesResult = { outcomes: InviteOutcome[] };
 
 type OwnedServerSummary = {
    id: string;
@@ -123,11 +128,12 @@ export type {
    BucketCheck,
    EstablishResult,
    GrantableRole,
+   InviteOutcome,
    InvitesPage,
    InvitesResponse,
    MemberPage,
    PublicConfig,
-   SendInviteResult,
+   SendInvitesResult,
    SentInvite,
    ServerInfo,
    ServerPage,

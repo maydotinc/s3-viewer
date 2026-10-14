@@ -8,7 +8,7 @@ const TABLE_PANEL =
 
 // below md each row becomes a card so the row actions stay on screen instead of past a horizontal scroll
 const STACKED_TABLE =
-   "md:min-w-[720px] md:table-fixed max-md:block max-md:[&_thead]:hidden max-md:[&_tbody]:block max-md:[&_tbody_tr]:flex max-md:[&_tbody_tr]:h-auto max-md:[&_tbody_tr]:flex-col max-md:[&_tbody_tr]:gap-1 max-md:[&_tbody_tr]:px-4 max-md:[&_tbody_tr]:py-3 max-md:[&_td]:block max-md:[&_td]:h-auto max-md:[&_td]:p-0 max-md:[&_td]:text-left";
+   "md:min-w-[640px] md:table-fixed max-md:block max-md:[&_thead]:hidden max-md:[&_tbody]:block max-md:[&_tbody_tr]:flex max-md:[&_tbody_tr]:h-auto max-md:[&_tbody_tr]:flex-col max-md:[&_tbody_tr]:gap-1 max-md:[&_tbody_tr]:px-4 max-md:[&_tbody_tr]:py-3 max-md:[&_td]:block max-md:[&_td]:h-auto max-md:[&_td]:p-0 max-md:[&_td]:text-left";
 
 const STACKED_LABEL =
    "max-md:before:mr-2 max-md:before:text-viewerlighttext max-md:before:content-[attr(data-label)]";

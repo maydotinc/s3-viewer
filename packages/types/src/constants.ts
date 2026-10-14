@@ -46,6 +46,8 @@ export const SITE_PATHS = {
    resetPassword: "/reset-password",
    settingsProfile: "/settings/profile",
    settingsInvites: "/settings/invites",
+   settingsInviteNew: "/settings/invites/new",
+   settingsMembers: "/settings/members",
    buckets: "/buckets",
 } as const;
 
@@ -95,6 +97,8 @@ export const MULTIPART_CONCURRENCY = 3;
 
 export const MAX_SERVERS_PER_USER = 20;
 export const MAX_INVITE_EMAILS = 5;
+// one invite request can reach every server the sender has, so the cap matches the server cap.
+export const MAX_INVITE_SERVERS = MAX_SERVERS_PER_USER;
 export const MAX_PENDING_INVITES = 30;
 export const INVITE_TTL_DAYS = 7;
 export const INVITE_EMAIL_COOLDOWN_MS = 15 * MINUTE_MS;

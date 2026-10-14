@@ -36,8 +36,10 @@ vi.mock("@/components/Modals/confirm-dialog", () => ({
          createElement("button", { onClick: props.onClose }, "Cancel")
       ),
 }));
-vi.mock("./bucket-access-dialog", () => ({ default: () => null }));
-vi.mock("./role-select", () => ({ default: () => null }));
+vi.mock("@/components/Invites/bucket-access-dialog", () => ({
+   default: () => null,
+}));
+vi.mock("@/components/Invites/role-select", () => ({ default: () => null }));
 import Members from "./members";
 
 const member = (id: string, role: Role): ServerUser => ({

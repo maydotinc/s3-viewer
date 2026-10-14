@@ -2,11 +2,13 @@ import { decodeCursor, encodeCursor, pageOf } from "@/lib/cursor";
 import { ApiHttpError, noContent } from "@/lib/http";
 import { recordFor } from "@/lib/middleware/audit-record";
 import { requireUser } from "@/lib/middleware/authorize";
+import { inviteLimit } from "@/lib/middleware/rate-limit";
 import { validatedRoute } from "@/lib/middleware/route";
 import {
    senderCanStillGrant,
    stillGrantable,
 } from "@/lib/services/invite-authority";
+import { sendInvites } from "@/lib/services/invite-send";
 import {
    grantBucketRoles,
    grantServerRole,
@@ -34,9 +36,11 @@ import {
    inviteIdSchema,
    normalizeEmail,
    pageSchema,
+   sendInvitesSchema,
    type InviteIdInput,
    type InvitesPage,
    type PageInput,
+   type SendInvitesInput,
 } from "@s3-viewer/types";
 import { Router, type Request, type Response } from "express";
 
@@ -93,6 +97,10 @@ const listSent = async (
       invites: page.map(toServerInvite),
       nextCursor,
    } satisfies InvitesPage);
+};
+
+const send = async (req: Request, res: Response, input: SendInvitesInput) => {
+   res.json(await sendInvites(requireUser(req), input));
 };
 
 const acceptInvite = async (
@@ -195,6 +203,11 @@ const rejectInvite = async (
 
 invitesRouter.get("/", ...validatedRoute(pageSchema, listReceived));
 invitesRouter.get("/sent", ...validatedRoute(pageSchema, listSent));
+invitesRouter.post(
+   "/",
+   inviteLimit,
+   ...validatedRoute(sendInvitesSchema, send)
+);
 invitesRouter.post(
    "/:inviteId/accept",
    ...validatedRoute(inviteIdSchema, acceptInvite)

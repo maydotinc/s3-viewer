@@ -4,7 +4,7 @@ import { useModalActions } from "@/lib/contexts/modal-context";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import { useCanCreateBucket, usePermission } from "@/lib/hooks/usePermission";
-import { sharePath } from "@/lib/server-paths";
+import { invitePeoplePath } from "@/lib/server-paths";
 import { useShortcut } from "@/lib/shortcuts";
 import { focusToolbarFilter } from "@/lib/utils/dom";
 import { Permission } from "@s3-viewer/permissions";
@@ -61,17 +61,17 @@ const BucketActions = () => {
             </Button>
          </SimpleTooltip>
          <Reserve show={canShare} className="inline-flex">
-            <SimpleTooltip label="Manage who can see this server">
+            <SimpleTooltip label="Invite people to this server">
                {pending || !currentServer ? (
                   <Button variant="outline" className="max-sm:px-3" disabled>
                      <UserRoundPlus aria-hidden="true" />
-                     Share
+                     Invite
                   </Button>
                ) : (
                   <Button variant="outline" className="max-sm:px-3" asChild>
-                     <Link href={sharePath(currentServer.id)}>
+                     <Link href={invitePeoplePath(currentServer.id)}>
                         <UserRoundPlus aria-hidden="true" />
-                        Share
+                        Invite
                      </Link>
                   </Button>
                )}

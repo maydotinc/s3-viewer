@@ -23,7 +23,9 @@ vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
 vi.mock("@/lib/hooks/mutations/invites/useRevokeInvite", () => ({
    default: () => ({ isPending: false, mutate: h.revoke }),
 }));
-vi.mock("./invite-people", () => ({ default: () => null }));
+vi.mock("@/components/Invites/invite-people-link", () => ({
+   default: () => null,
+}));
 vi.mock("@s3-viewer/ui/components/tooltip", () => ({
    SimpleTooltip: ({ children }: { children: React.ReactNode }) => children,
 }));

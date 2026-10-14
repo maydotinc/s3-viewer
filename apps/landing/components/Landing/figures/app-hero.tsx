@@ -187,7 +187,7 @@ export const AppHeroFigure = () => {
                         </button>
                         <button type="button" tabIndex={-1} className={OUTLINE}>
                            <UserRoundPlus className="size-4" />
-                           Share
+                           Invite
                         </button>
                         <button type="button" tabIndex={-1} className={PRIMARY}>
                            <Plus className="size-4" />

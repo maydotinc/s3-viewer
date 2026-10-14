@@ -48,7 +48,7 @@ const faqs: Faq[] = [
       question:
          "Can I share a Cloudflare R2 bucket with someone who doesn't have a Cloudflare account?",
       answer:
-         "Yes. Click Share and invite them by email. Viewers can browse and download; Editors can also upload, rename, and create buckets where the storage token allows it; Admins can manage members and server settings. Recipients need no Cloudflare account or API token.",
+         "Yes. Click Invite and send them an email invite. Viewers can browse and download; Editors can also upload, rename, and create buckets where the storage token allows it; Admins can manage members and server settings. Recipients need no Cloudflare account or API token.",
    },
    {
       question: "Are large uploads to R2 reliable?",

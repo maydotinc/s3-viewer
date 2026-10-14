@@ -83,8 +83,9 @@ const steps: HowToStep[] = [
             <strong>Owner</strong> is not assignable — it stays with whoever
             created the server, and only an Owner can delete it. A bucket can
             override a member&apos;s server role, and a Viewer or Editor can be
-            limited to <strong>specific folders</strong> in a bucket: in the
-            Share dialog, switch the bucket from <em>Whole bucket</em> to{" "}
+            limited to <strong>specific folders</strong> in a bucket: while
+            inviting them, or later under <strong>Settings, Members</strong>,
+            switch the bucket from <em>Whole bucket</em> to{" "}
             <em>Specific folders</em> and add <code>reports/finance/</code>.
             They can&apos;t open, list or copy anything outside it. Admins
             always get whole buckets. S3 Viewer enforces this on its server —

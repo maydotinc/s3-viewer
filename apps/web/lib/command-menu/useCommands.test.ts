@@ -84,7 +84,8 @@ const GATED = [
    "action:create-folder",
    "action:bulk-rename",
    "action:transfer-folder",
-   "nav:share",
+   "nav:invite",
+   "nav:members",
    "action:rename-server",
    "action:update-credentials",
 ];
@@ -138,7 +139,8 @@ describe("commands follow the roles the API enforces", () => {
       expect(await offered()).toEqual([
          "action:create-bucket",
          "action:transfer-folder",
-         "nav:share",
+         "nav:invite",
+         "nav:members",
          "action:rename-server",
       ]);
    });
@@ -154,7 +156,8 @@ describe("commands follow the roles the API enforces", () => {
       h.buckets = [];
       expect(await offered()).toEqual([
          "action:create-bucket",
-         "nav:share",
+         "nav:invite",
+         "nav:members",
          "action:rename-server",
          "action:update-credentials",
       ]);
@@ -165,6 +168,25 @@ describe("commands follow the roles the API enforces", () => {
       h.buckets = [bucket(Role.EDITOR)];
       h.query = {};
       expect(await offered()).toEqual(["action:create-bucket"]);
+   });
+});
+
+describe("member commands", () => {
+   it("open the invite wizard and the members page for the current server", async () => {
+      h.serverRole = Role.OWNER;
+      h.buckets = [];
+      const all = await mount();
+      const byId = (id: string) => all.find((command) => command.id === id);
+      expect(byId("nav:invite")).toMatchObject({
+         label: "Invite people",
+         description: "Primary",
+         href: "/settings/invites/new?server=server-1",
+      });
+      expect(byId("nav:members")).toMatchObject({
+         label: "Manage members",
+         description: "Primary",
+         href: "/settings/members?server=server-1",
+      });
    });
 });
 

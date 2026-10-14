@@ -83,6 +83,19 @@ const recordWithin = (
    return appendAuditWithin(tx, { serverId, actor }, [entry]);
 };
 
+// for routes without an authorize gate, where the scope comes from the server row the handler loaded.
+const recordManyFor = (
+   { id, email }: WriteInput["actor"],
+   serverId: string,
+   audit: WriteInput["audit"],
+   entries: AuditEntry[]
+): Promise<void> =>
+   settled(
+      writeAudits({ serverId, actor: { id, email }, audit, entries }),
+      serverId,
+      entries
+   );
+
 const recordFor = (
    { id, email }: WriteInput["actor"],
    serverId: string,
@@ -101,5 +114,6 @@ export {
    recordAlways,
    recordFor,
    recordMany,
+   recordManyFor,
    recordWithin,
 };

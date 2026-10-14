@@ -36,9 +36,10 @@ const steps: HowToStep[] = [
       title: "Invite by email",
       body: (
          <>
-            Open the server&apos;s bucket list, click <strong>Share</strong> to
-            open the members dialog, type your teammate&apos;s email and pick a
-            role: <strong>Viewer</strong> (browse and download),{" "}
+            Click <strong>Invite</strong> above the bucket list, or open{" "}
+            <strong>Settings, Invites</strong>. Type your teammate&apos;s email,
+            pick the servers to share, then a role on each:{" "}
+            <strong>Viewer</strong> (browse and download),{" "}
             <strong>Editor</strong> (also upload, rename, delete, and create
             buckets where supported) or <strong>Admin</strong> (also manage
             members, rename the server and remove buckets).{" "}
@@ -68,10 +69,10 @@ const steps: HowToStep[] = [
       title: "Off-boarding: remove the member",
       body: (
          <>
-            Remove them in the members dialog. They lose access to that server
-            on their next request and you don&apos;t need to rotate any AWS keys
-            — they never had any. A download link they already opened keeps
-            working for up to 15 minutes.
+            Remove them under <strong>Settings, Members</strong>. They lose
+            access to that server on their next request and you don&apos;t need
+            to rotate any AWS keys — they never had any. A download link they
+            already opened keeps working for up to 15 minutes.
          </>
       ),
    },

@@ -10,7 +10,7 @@ import {
    useEffectiveRoleState,
 } from "@/lib/hooks/usePermission";
 import { useStorageCapabilities } from "@/lib/hooks/useStorageCapabilities";
-import { sharePath } from "@/lib/server-paths";
+import { invitePeoplePath, membersPath } from "@/lib/server-paths";
 import { useShortcutRegistry } from "@/lib/shortcuts";
 import { SUPPORT_URL } from "@/lib/site-config";
 import { useServerId } from "@/lib/stores/session-scope";
@@ -43,6 +43,7 @@ import {
    Trash2,
    UserRound,
    UserRoundPlus,
+   Users,
 } from "lucide-react";
 import { useRouter } from "next/router";
 import { useMemo } from "react";
@@ -259,15 +260,26 @@ const useCommands = (): CommandItem[] => {
       });
 
       if (currentServer && canManageMembers) {
-         commands.push({
-            id: "nav:share",
-            group: "Navigation",
-            label: "Share server",
-            description: currentServer.name,
-            keywords: "members people invite permissions roles access team",
-            icon: UserRoundPlus,
-            href: sharePath(currentServer.id),
-         });
+         commands.push(
+            {
+               id: "nav:invite",
+               group: "Navigation",
+               label: "Invite people",
+               description: currentServer.name,
+               keywords: "invite share people access team email",
+               icon: UserRoundPlus,
+               href: invitePeoplePath(currentServer.id),
+            },
+            {
+               id: "nav:members",
+               group: "Navigation",
+               label: "Manage members",
+               description: currentServer.name,
+               keywords: "members people roles permissions remove access",
+               icon: Users,
+               href: membersPath(currentServer.id),
+            }
+         );
       }
 
       if (currentServer && canRenameServer) {

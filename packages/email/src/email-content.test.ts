@@ -30,13 +30,20 @@ const SPOOFED_INVITER = "S3 Viewer Security <security@evil.example>";
 const LINKS = ["bit.ly", "/xx", "@evil"];
 const BIDI = /[\u202A-\u202E\u2066-\u2069\u200B-\u200F]/;
 
-const inviteMessage = async (overrides = {}) => {
+type InviteOverrides = Partial<
+   Omit<Parameters<typeof sendServerInviteEmail>[0], "servers">
+> & { serverName?: string; servers?: { serverName: string; role: Role }[] };
+
+const inviteMessage = async ({
+   serverName = SPOOFED_SERVER,
+   servers = [{ serverName, role: Role.VIEWER }],
+   ...overrides
+}: InviteOverrides = {}) => {
    await sendServerInviteEmail({
       to: "victim@corp.example",
       inviterName: SPOOFED_INVITER,
       inviterEmail: "attacker@mail.example",
-      serverName: SPOOFED_SERVER,
-      role: Role.VIEWER,
+      servers,
       expiresAt: new Date("2030-01-01T00:00:00.000Z"),
       invitesUrl: "https://app.example/settings/invites?invite=secret-token",
       ...overrides,
@@ -117,6 +124,44 @@ describe("invite email content", () => {
       });
       expect(message.text).toContain("You're invited to a server");
       expect(message.text).toContain(`Invited by ${"x".repeat(39)}…`);
+   });
+
+   it("lists every server with its role when one email covers several", async () => {
+      const { message } = await inviteMessage({
+         inviterName: "Pat Example",
+         servers: [
+            { serverName: "Payroll Archive", role: Role.VIEWER },
+            { serverName: SPOOFED_SERVER, role: Role.ADMIN },
+            { serverName: "Node.js assets", role: Role.EDITOR },
+         ],
+      });
+      const html = visibleHtml(message.html);
+      for (const part of [message.text, html]) {
+         expect(part).toContain("You're invited to 3 servers");
+         expect(part).toContain(
+            "Pat Example invited you to 3 servers on S3 Viewer."
+         );
+         expect(part).toContain("Payroll Archive · Viewer");
+         expect(part).toContain("Verify account at [link] gnp.exe · Admin");
+         expect(part).toContain("Node.js assets · Editor");
+         expect(part).toContain(
+            "Invited by Pat Example (attacker@mail.example)"
+         );
+         expect(part).toContain("These invitations expire on January 1, 2030.");
+         for (const link of LINKS) expect(part).not.toContain(link);
+         expect(part).not.toMatch(BIDI);
+      }
+      expect(message.text).not.toContain("with Viewer access");
+      expect(message.subject).toBe(
+         "You've been invited to a server on S3 Viewer"
+      );
+   });
+
+   it("refuses an email that names no server", async () => {
+      await expect(inviteMessage({ servers: [] })).rejects.toThrow(
+         /needs a server/
+      );
+      expect(sent.messages).toEqual([]);
    });
 
    it("sends invites on their own lane without retries", async () => {

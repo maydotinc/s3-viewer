@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_INVITE_EMAILS } from "../constants";
+import { MAX_INVITE_EMAILS, MAX_INVITE_SERVERS } from "../constants";
 import {
    MAX_BUCKET_NAMES,
    bucketAccessEntrySchema,
@@ -31,14 +31,10 @@ const ADMIN_FOLDERS = {
    path: ["bucketAccess"],
 };
 
-export const sendInviteSchema = z
+// one server's share of an invite: the server role plus the buckets (and folders) it opens.
+export const inviteTargetSchema = z
    .object({
       serverId: idSchema,
-      emails: z
-         .array(emailSchema)
-         .min(1)
-         .max(MAX_INVITE_EMAILS)
-         .transform((v) => [...new Set(v)]),
       role: grantableRoleSchema,
       bucketAccess: z
          .array(bucketAccessEntrySchema)
@@ -46,7 +42,26 @@ export const sendInviteSchema = z
          .max(MAX_BUCKET_NAMES),
    })
    .refine(adminsHoldWholeBuckets, ADMIN_FOLDERS);
-export type SendInviteInput = z.infer<typeof sendInviteSchema>;
+export type InviteTarget = z.infer<typeof inviteTargetSchema>;
+
+export const sendInvitesSchema = z.object({
+   emails: z
+      .array(emailSchema)
+      .min(1)
+      .max(MAX_INVITE_EMAILS)
+      .transform((v) => [...new Set(v)]),
+   targets: z
+      .array(inviteTargetSchema)
+      .min(1)
+      .max(MAX_INVITE_SERVERS)
+      .refine(
+         (targets) =>
+            new Set(targets.map(({ serverId }) => serverId)).size ===
+            targets.length,
+         { message: "Each server can only be listed once" }
+      ),
+});
+export type SendInvitesInput = z.infer<typeof sendInvitesSchema>;
 
 const bucketAccessListSchema = z
    .array(bucketAccessEntrySchema)

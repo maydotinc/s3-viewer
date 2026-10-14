@@ -5,7 +5,7 @@ const FORM_GRID = "grid min-w-0 gap-4 @xl:grid-cols-2";
 
 type SettingsCardProps = {
    title: string;
-   description?: string;
+   description?: ReactNode;
    action?: ReactNode;
    flush?: boolean;
    className?: string;
@@ -34,12 +34,16 @@ const SettingsCard = ({
             flush && "border-b border-viewerborder px-4 pt-5 pb-4 sm:px-6"
          )}
       >
-         <div className="flex min-w-0 flex-col gap-1">
-            <h2 className="text-base font-semibold text-viewerblack">
+         <div className="flex min-w-0 flex-col gap-1 self-stretch @xl:flex-1 @xl:self-auto">
+            {/* focusable so a flow can move focus here when the card's content changes */}
+            <h2
+               tabIndex={-1}
+               className="text-base font-semibold text-viewerblack outline-none"
+            >
                {title}
             </h2>
             {description && (
-               <p className="text-sm break-words text-viewertext">
+               <p className="min-w-0 text-sm break-words text-viewertext">
                   {description}
                </p>
             )}
