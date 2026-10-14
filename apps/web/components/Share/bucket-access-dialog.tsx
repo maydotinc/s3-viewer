@@ -107,7 +107,6 @@ const BucketAccessDialog = ({
             original={loaded}
             serverRole={member.role}
             showErrors={submitted}
-            reserveErrorSpace
             error={
                conflict ??
                (!submitted

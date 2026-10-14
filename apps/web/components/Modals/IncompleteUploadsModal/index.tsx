@@ -147,7 +147,6 @@ const IncompleteUploadsModal = ({
          onClose={onClose}
          isPending={busy}
          onAbort={() => task.cancel()}
-         height="md"
          contentClassName="max-w-2xl"
          title="Incomplete uploads"
          description={`Multipart uploads ${scope} that were started but never finished. Their parts keep taking up space until they are aborted.`}
@@ -196,15 +195,18 @@ const IncompleteUploadsModal = ({
          </div>
          <FormError>{notice}</FormError>
          {isLoading ? (
-            <CenteredSpinner label="Loading incomplete uploads" />
+            <CenteredSpinner
+               label="Loading incomplete uploads"
+               className="min-h-32"
+            />
          ) : uploads.length === 0 ? (
-            <p className="flex min-h-0 flex-1 items-center justify-center break-words text-center text-sm text-viewertext">
+            <p className="flex min-h-32 items-center justify-center break-words text-center text-sm text-viewertext">
                {hasNextPage
                   ? "Load more to check for more incomplete uploads."
                   : `No incomplete uploads ${scope}.`}
             </p>
          ) : (
-            <div className="min-h-0 flex-1 overflow-auto rounded-md border border-viewerborder [scrollbar-gutter:stable]">
+            <div className="max-h-96 min-h-0 overflow-auto rounded-md border border-viewerborder [scrollbar-gutter:stable]">
                <Table>
                   <TableHeader>
                      <TableRow>
@@ -254,20 +256,19 @@ const IncompleteUploadsModal = ({
                </Table>
             </div>
          )}
-         <div className="flex h-8 shrink-0 items-center">
-            {hasNextPage && (
-               <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={busy || isFetchingNextPage}
-                  loading={isFetchingNextPage}
-                  onClick={() => void fetchNextPage()}
-               >
-                  Load more
-               </Button>
-            )}
-         </div>
+         {hasNextPage && (
+            <Button
+               type="button"
+               variant="outline"
+               size="sm"
+               className="w-fit shrink-0"
+               disabled={busy || isFetchingNextPage}
+               loading={isFetchingNextPage}
+               onClick={() => void fetchNextPage()}
+            >
+               Load more
+            </Button>
+         )}
       </FormDialog>
    );
 };

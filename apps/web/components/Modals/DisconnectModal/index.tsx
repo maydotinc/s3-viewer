@@ -31,7 +31,6 @@ const DisconnectModal = ({ server, onClose }: DisconnectModalProps) => {
                ? `This deletes the connection to ${server.name}, all member access and pending invites; your buckets and files are not touched.`
                : `You'll lose access to ${server.name} until someone invites you again.`
          }
-         reserveErrorSpace
          error={stale ? null : (mutation.error?.message ?? null)}
          confirmVariant="destructive"
          confirmLabel={isOwner ? "Delete server" : "Leave server"}

@@ -179,12 +179,9 @@ const MoveObjectsModal = ({
          hint={progressNotice}
          onEdit={() => setError(null)}
          onSubmit={submit}
-         height="sm"
       >
-         <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-gutter:stable]">
-            <DeletionProtectionNotice serverId={serverId} action="move" />
-            <FailureList failures={failed} />
-         </div>
+         <DeletionProtectionNotice serverId={serverId} action="move" />
+         <FailureList failures={failed} />
       </KeyDialog>
    );
 };

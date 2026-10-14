@@ -222,7 +222,6 @@ const InviteDialog = ({
                value={access}
                onChange={setAccess}
                serverRole={role}
-               reserveErrorSpace
                showErrors={submitted}
                error={
                   submitted ? accessError : overLimit ? TOO_MANY_BUCKETS : null

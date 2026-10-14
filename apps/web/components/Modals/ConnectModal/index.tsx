@@ -234,13 +234,12 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
          onClose={close}
          title={title}
          description={description}
-         height="xl"
          className="sm:max-w-md"
          headerClassName="text-left"
       >
          {keyState !== "ready" ? (
             <>
-               <DialogBody className="flex min-h-0 flex-1 items-center justify-center pb-6">
+               <DialogBody className="flex min-h-80 items-center justify-center pb-6">
                   <EncryptionStatus state={keyState} />
                </DialogBody>
                <DialogFooter>

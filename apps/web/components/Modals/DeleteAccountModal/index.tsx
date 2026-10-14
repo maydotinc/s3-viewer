@@ -319,7 +319,7 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
                            clearError();
                         }}
                      />
-                     <FormError reserve={false}>{error}</FormError>
+                     <FormError>{error}</FormError>
                      {sessionExpired && (
                         <Button
                            type="button"

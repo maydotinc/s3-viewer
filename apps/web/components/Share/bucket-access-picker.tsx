@@ -35,7 +35,6 @@ type BucketAccessPickerProps = {
    serverRole?: Role;
    showErrors?: boolean;
    error?: string | null;
-   reserveErrorSpace?: boolean;
    disabled?: boolean;
    label: string;
    heading?: string;
@@ -133,7 +132,6 @@ const BucketAccessPicker = ({
    serverRole,
    showErrors = false,
    error,
-   reserveErrorSpace = false,
    disabled,
    label,
    heading,
@@ -289,9 +287,7 @@ const BucketAccessPicker = ({
          >
             {list}
          </div>
-         {(reserveErrorSpace || Boolean(error)) && (
-            <FormError>{error}</FormError>
-         )}
+         <FormError>{error}</FormError>
       </div>
    );
 };

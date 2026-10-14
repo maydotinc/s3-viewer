@@ -42,7 +42,7 @@ const EmailField = ({
             onEnter();
          }}
       />
-      <FormError id="email-message" size="sm" reserve={false} hint={hint}>
+      <FormError id="email-message" size="sm" hint={hint}>
          {error}
       </FormError>
    </Field>

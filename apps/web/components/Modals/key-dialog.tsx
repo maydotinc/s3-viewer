@@ -1,5 +1,4 @@
 import { FormDialog } from "./form-dialog";
-import type { DialogHeight } from "./modal-shell";
 import FormError from "./form-error";
 import PathInput from "@/components/path-input";
 import type { BucketTarget } from "@/lib/types";
@@ -70,7 +69,6 @@ type KeyDialogProps = BucketTarget & {
    hint?: string;
    onEdit?: () => void;
    onSubmit: (value: string) => void;
-   height?: DialogHeight;
    children?: ReactNode;
 };
 
@@ -92,7 +90,6 @@ const KeyDialog = ({
    hint,
    onEdit,
    onSubmit,
-   height,
    children,
 }: KeyDialogProps) => {
    const inputId = useId();
@@ -123,7 +120,6 @@ const KeyDialog = ({
          onSubmit={submit}
          submitLabel={submitLabel}
          submitDisabled={submitDisabled || validation !== null}
-         height={height}
       >
          <PathField
             id={inputId}

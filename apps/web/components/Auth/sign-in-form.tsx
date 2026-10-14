@@ -202,7 +202,6 @@ const SignInForm = ({
                   <FormError
                      id="password-message"
                      size="sm"
-                     reserve={false}
                      hint={
                         mode === "signup"
                            ? `At least ${PASSWORD_MIN_LENGTH} characters.`

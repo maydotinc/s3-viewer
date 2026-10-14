@@ -258,7 +258,6 @@ const TransferObjectsModal = ({
          submitLabel={started ? "Continue copying" : "Copy"}
          onAbort={() => task.cancel()}
          submitDisabled={blocked}
-         height="md"
          bodyClassName="flex flex-col gap-4"
       >
          <Field label="Destination server" htmlFor={`${inputId}-server`}>
@@ -284,7 +283,7 @@ const TransferObjectsModal = ({
                   ))}
                </SelectContent>
             </Select>
-            <div className="h-9 min-w-0 overflow-y-auto">
+            <div className="min-w-0 empty:hidden">
                <ServerListPagination />
             </div>
          </Field>

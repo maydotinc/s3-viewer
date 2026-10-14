@@ -83,7 +83,6 @@ type View = React.ReactElement<{
    validate: (value: string) => string | null;
    submitLabel: string;
    requestError: string | null;
-   height?: string;
    children: unknown;
 }>;
 
@@ -258,15 +257,7 @@ describe("a folder that is already gone", () => {
 });
 
 describe("room for what a move reports", () => {
-   it("keeps the dialog one height, with the failures in a box that fills it", async () => {
-      expect(render().props.height).toBe("sm");
-      const empty = one(
-         render().props.children,
-         (element) => typeof element.props.className === "string",
-         "reserved box"
-      );
-      expect(empty.props.className).toContain("flex-1");
-      expect(empty.props.className).toContain("overflow-y-auto");
+   it("lists the failures under the field", async () => {
       h.post.mockResolvedValueOnce({
          moved: [],
          failed: picked.objects.map(({ key }) => ({
@@ -276,23 +267,17 @@ describe("room for what a move reports", () => {
          })),
       } satisfies S3MoveResult);
       await move("archive/");
-      const box = one(
-         render().props.children,
-         (element) => typeof element.props.className === "string",
-         "reserved box"
-      );
-      expect(render().props.height).toBe("sm");
-      expect(box.props.className).toBe(empty.props.className);
+      const children = render().props.children;
       expect(
          one(
-            box,
+            children,
             (element) => element.type === DeletionProtectionNotice,
             "notice"
          ).props
       ).toMatchObject({ serverId: "server", action: "move" });
       expect(
-         one(box, (element) => element.type === FailureList, "failures").props
-            .failures
+         one(children, (element) => element.type === FailureList, "failures")
+            .props.failures
       ).toHaveLength(2);
    });
 });

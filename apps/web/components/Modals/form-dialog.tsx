@@ -2,14 +2,13 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { DialogBody, DialogFooter } from "@s3-viewer/ui/components/dialog";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import type { FormEvent, ReactNode } from "react";
-import { ModalShell, type DialogHeight } from "./modal-shell";
+import { ModalShell } from "./modal-shell";
 
 type FormDialogProps = {
    isPending?: boolean;
    onClose: () => void;
    title: ReactNode;
    description: ReactNode;
-   height?: DialogHeight;
    contentClassName?: string;
    headerClassName?: string;
    bodyClassName?: string;
@@ -26,7 +25,6 @@ const FormDialog = ({
    onClose,
    title,
    description,
-   height,
    contentClassName,
    headerClassName,
    bodyClassName = "flex flex-col gap-1.5",
@@ -43,7 +41,6 @@ const FormDialog = ({
       onClose={onClose}
       title={title}
       description={description}
-      height={height}
       className={contentClassName}
       headerClassName={headerClassName}
    >

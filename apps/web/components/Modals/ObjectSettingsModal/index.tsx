@@ -163,11 +163,10 @@ const ObjectSettingsModal = ({
          onSubmit={submit}
          submitLabel="Save settings"
          submitDisabled={!loaded || validation !== null}
-         height="lg"
          bodyClassName="flex flex-col gap-4"
       >
          {settings.isPending ? (
-            <CenteredSpinner label="Loading settings" />
+            <CenteredSpinner label="Loading settings" className="min-h-60" />
          ) : settings.error || !loaded ? (
             <FormError>
                {settings.error

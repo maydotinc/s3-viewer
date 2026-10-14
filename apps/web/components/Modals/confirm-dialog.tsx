@@ -12,7 +12,6 @@ type ConfirmDialogProps = {
    description: ReactNode;
    error?: string | null;
    hint?: string;
-   reserveErrorSpace?: boolean;
    confirmLabel: string;
    confirmDisabled?: boolean;
    isPending?: boolean;
@@ -30,7 +29,6 @@ const ConfirmDialog = ({
    description,
    error,
    hint,
-   reserveErrorSpace = false,
    confirmLabel,
    confirmDisabled = false,
    isPending = false,
@@ -39,7 +37,7 @@ const ConfirmDialog = ({
    onAbort,
    children,
 }: ConfirmDialogProps) => {
-   const showError = reserveErrorSpace || Boolean(error) || Boolean(hint);
+   const showError = Boolean(error) || Boolean(hint);
    const hasBody = showError || children !== undefined;
    const destructive = confirmVariant === "destructive";
 
@@ -54,11 +52,7 @@ const ConfirmDialog = ({
       >
          {hasBody && (
             <DialogBody className="flex flex-col gap-1.5">
-               {showError && (
-                  <FormError hint={hint} reserve={reserveErrorSpace}>
-                     {error}
-                  </FormError>
-               )}
+               {showError && <FormError hint={hint}>{error}</FormError>}
                {children}
             </DialogBody>
          )}

@@ -95,7 +95,6 @@ const ResetPasswordScreen = () => {
                <FormError
                   id="password-message"
                   size="sm"
-                  reserve={false}
                   hint={`At least ${PASSWORD_MIN_LENGTH} characters.`}
                >
                   {error}

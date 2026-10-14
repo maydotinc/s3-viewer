@@ -61,7 +61,6 @@ const RemoveBucketDialog = ({
             </>
          }
          error={error?.message}
-         reserveErrorSpace
          confirmDisabled={blocked}
          confirmVariant="destructive"
          confirmLabel="Remove bucket"

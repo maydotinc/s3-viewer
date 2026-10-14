@@ -112,9 +112,7 @@ const BulkRenameModal = ({
          onClose={onClose}
          isPending={disabled}
          onAbort={run.cancel}
-         height="lg"
          contentClassName="max-w-2xl"
-         headerClassName="[&_[data-slot=dialog-description]]:h-16 [&_[data-slot=dialog-description]]:overflow-y-auto sm:[&_[data-slot=dialog-description]]:h-10"
          title="Bulk rename"
          description={
             run.sources === null
@@ -240,12 +238,12 @@ const BulkRenameModal = ({
             )}
          </div>
          <FormError>{notice}</FormError>
-         <div className="h-72 shrink-0 overflow-auto">
+         <div className="flex shrink-0 flex-col gap-1.5">
             {run.step === "listing" || run.sources === null ? (
                <CenteredSpinner
                   size="sm"
                   label="Listing objects"
-                  className="h-full gap-2 text-sm text-viewertext"
+                  className="h-40 gap-2 text-sm text-viewertext"
                >
                   {progress}
                </CenteredSpinner>

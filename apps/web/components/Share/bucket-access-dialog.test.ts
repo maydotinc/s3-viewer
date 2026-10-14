@@ -21,7 +21,6 @@ type PickerProps = {
    original?: BucketAccessEntry[];
    serverRole?: Role;
    error?: string | null;
-   reserveErrorSpace?: boolean;
    disabled?: boolean;
 };
 const h = vi.hoisted(() => ({
@@ -185,7 +184,6 @@ describe("someone else changed the access meanwhile", () => {
       await submit();
       await fail(new ApiError(409, MESSAGE));
       expect(picker().error).toBe(MESSAGE);
-      expect(picker().reserveErrorSpace).toBe(true);
       expect(submitDisabled()).toBe(true);
       expect(picker().disabled).toBe(true);
       expect(h.close).not.toHaveBeenCalled();
