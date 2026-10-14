@@ -10,7 +10,12 @@ import useBucketScope from "@/lib/hooks/queries/s3/useBucketScope";
 import useMultipartUploads from "@/lib/hooks/queries/s3/useMultipartUploads";
 import { useAbortableTask } from "@/lib/hooks/useAbortableTask";
 import { canListPrefix, uploadsScope } from "@/lib/utils/folder-access";
-import { formatCount, formatDate, formatRelativeDay } from "@/lib/utils/format";
+import {
+   formatCount,
+   formatDate,
+   formatRelativeDay,
+   visibleText,
+} from "@/lib/utils/format";
 import type { S3MultipartUpload, S3UploadFailure } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
@@ -224,12 +229,12 @@ const IncompleteUploadsModal = ({
                                  <Checkbox
                                     checked={chosen.has(id)}
                                     disabled={busy}
-                                    aria-label={`Select ${upload.key}`}
+                                    aria-label={`Select ${visibleText(upload.key)}`}
                                     onCheckedChange={() => toggle(upload)}
                                  />
                               </TableCell>
                               <TableCell className="break-all whitespace-normal">
-                                 {upload.key}
+                                 {visibleText(upload.key)}
                                  {message && (
                                     <span className="block text-xs text-viewertextred">
                                        {message}

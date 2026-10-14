@@ -88,7 +88,7 @@ const metadataMessages: Record<MetadataValidationIssue["code"], string> = {
    total_too_large: `Metadata is limited to ${MAX_METADATA_BYTES} bytes in total`,
 };
 
-const metadataSchema = z
+const metadataEntriesSchema = z
    .record(z.string(), z.string())
    .superRefine((metadata, ctx) => {
       const entries = Object.entries(metadata).map(([key, value]) => ({
@@ -110,6 +110,24 @@ const metadataSchema = z
          ])
       )
    );
+
+// zod parses every record entry before the count check above runs, so a 1 MB map of tiny
+// entries costs real CPU; the count is checked first and a dirty pipe never walks the entries.
+const metadataSchema = z
+   .unknown()
+   .superRefine((value, ctx) => {
+      if (
+         typeof value === "object" &&
+         value !== null &&
+         !Array.isArray(value) &&
+         Object.keys(value).length > MAX_METADATA_KEYS
+      )
+         ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: metadataMessages.too_many,
+         });
+   })
+   .pipe(metadataEntriesSchema);
 
 const expiresSchema = z
    .string()

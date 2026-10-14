@@ -2,6 +2,7 @@ import dns from "node:dns";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
    assertPublicEndpoint,
+   isMetadataAddress,
    isPrivateAddress,
    PRIVATE_ADDRESS_CODE,
    publicHostname,
@@ -141,6 +142,43 @@ describe("isPrivateAddress", () => {
       expect(isPrivateAddress("::ffff:808:808")).toBe(false);
       expect(isPrivateAddress("1.1.1.1")).toBe(false);
       expect(isPrivateAddress("not-an-ip")).toBe(true);
+   });
+});
+
+describe("isMetadataAddress", () => {
+   it.each([
+      ["AWS, GCP and Azure IMDS", "169.254.169.254"],
+      ["the rest of IPv4 link-local", "169.254.0.1"],
+      ["Azure WireServer", "168.63.129.16"],
+      ["Alibaba Cloud metadata", "100.100.100.200"],
+      ["AWS IPv6 metadata", "fd00:ec2::254"],
+      ["AWS IPv6 metadata, fully written", "fd00:0ec2:0:0:0:0:0:0254"],
+      ["IPv6 link-local", "fe80::1"],
+      ["IPv6 link-local with a zone", "fe80::1%eth0"],
+      ["the top of fe80::/10", "febf::1"],
+      ["IMDS mapped into IPv6", "::ffff:169.254.169.254"],
+      ["IMDS mapped into IPv6, hex", "::ffff:a9fe:a9fe"],
+      ["IMDS as IPv4-compatible", "::a9fe:a9fe"],
+      ["IMDS through SIIT", "::ffff:0:a9fe:a9fe"],
+      ["IMDS through NAT64", "64:ff9b::a9fe:a9fe"],
+      ["IMDS through 6to4", "2002:a9fe:a9fe::"],
+      ["a bracketed literal", "[fd00:ec2::254]"],
+   ])("flags %s (%s)", (_name, ip) => {
+      expect(isMetadataAddress(ip)).toBe(true);
+   });
+
+   it.each([
+      ["loopback", "127.0.0.1"],
+      ["a LAN address", "192.168.1.10"],
+      ["a docker bridge address", "172.17.0.2"],
+      ["CGNAT outside Alibaba's address", "100.100.100.201"],
+      ["IPv6 loopback", "::1"],
+      ["a unique-local address", "fd00::1"],
+      ["a neighbour of AWS IPv6 metadata", "fd00:ec2::253"],
+      ["a mapped LAN address", "::ffff:10.0.0.1"],
+      ["a public address", "8.8.8.8"],
+   ])("leaves %s to ALLOW_PRIVATE_ENDPOINTS (%s)", (_name, ip) => {
+      expect(isMetadataAddress(ip)).toBe(false);
    });
 });
 
@@ -311,17 +349,21 @@ describe("connect-time lookups of a name", () => {
             resolve({ err, address, family })
          )
       );
-   const answering = (addresses: dns.LookupAddress[]) =>
-      vi
-         .spyOn(dns, "lookup")
-         .mockImplementation(((
-            _host: string,
-            _options: unknown,
-            callback: (
-               err: Error | null,
-               addresses: dns.LookupAddress[]
-            ) => void
-         ) => callback(null, addresses)) as never);
+   const noData = () =>
+      Object.assign(new Error("queryA ENODATA"), { code: "ENODATA" });
+   const settle = (answer: string[]) =>
+      answer.length > 0 ? Promise.resolve(answer) : Promise.reject(noData());
+   const answering = (addresses: dns.LookupAddress[]) => {
+      const of = (family: number) =>
+         addresses.filter((a) => a.family === family).map((a) => a.address);
+      const resolve4 = vi
+         .spyOn(dns.promises.Resolver.prototype, "resolve4")
+         .mockImplementation((() => settle(of(4))) as never);
+      vi.spyOn(dns.promises.Resolver.prototype, "resolve6").mockImplementation(
+         (() => settle(of(6))) as never
+      );
+      return resolve4;
+   };
 
    afterEach(() => {
       vi.useRealTimers();
@@ -345,20 +387,19 @@ describe("connect-time lookups of a name", () => {
    });
 
    it("shares one lookup between sockets opening together", async () => {
-      let answer: ((addresses: dns.LookupAddress[]) => void) | undefined;
-      const lookup = vi.spyOn(dns, "lookup").mockImplementation(((
-         _host: string,
-         _options: unknown,
-         callback: (err: null, addresses: dns.LookupAddress[]) => void
-      ) => {
-         answer = (addresses) => callback(null, addresses);
-      }) as never);
+      const answer = Promise.withResolvers<string[]>();
+      const lookup = vi
+         .spyOn(dns.promises.Resolver.prototype, "resolve4")
+         .mockImplementation((() => answer.promise) as never);
+      vi.spyOn(dns.promises.Resolver.prototype, "resolve6").mockImplementation(
+         (() => Promise.reject(noData())) as never
+      );
       const all = Promise.all([
          resolveWith("together.example.com"),
          resolveWith("together.example.com"),
          resolveWith("together.example.com"),
       ]);
-      answer?.([{ address: "93.184.216.34", family: 4 }]);
+      answer.resolve(["93.184.216.34"]);
       const results = await all;
       expect(results.every(({ err }) => err === null)).toBe(true);
       expect(lookup).toHaveBeenCalledTimes(1);
@@ -379,8 +420,11 @@ describe("connect-time lookups of a name", () => {
    it("stops waiting for a name server that never answers", async () => {
       vi.useFakeTimers();
       const lookup = vi
-         .spyOn(dns, "lookup")
-         .mockImplementation((() => undefined) as never);
+         .spyOn(dns.promises.Resolver.prototype, "resolve4")
+         .mockImplementation((() => new Promise(() => undefined)) as never);
+      vi.spyOn(dns.promises.Resolver.prototype, "resolve6").mockImplementation(
+         (() => new Promise(() => undefined)) as never
+      );
       const pending = resolveWith("tarpit.example.com");
       const again = resolveWith("tarpit.example.com");
       await vi.advanceTimersByTimeAsync(5000);
@@ -408,6 +452,33 @@ describe("connect-time lookups of a name", () => {
       const none = await resolveWith("v4only.example.com", { family: 6 });
       expect(none.err?.code).toBe("ENOTFOUND");
    });
+
+   it("resolves with c-ares, never the threadpool-backed getaddrinfo", async () => {
+      answering([{ address: "93.184.216.34", family: 4 }]);
+      const getaddrinfo = vi.spyOn(dns, "lookup");
+      const { err } = await resolveWith("c-ares.example.com");
+      expect(err).toBeNull();
+      expect(getaddrinfo).not.toHaveBeenCalled();
+   });
+
+   it("reports name server failures with the codes getaddrinfo would use", async () => {
+      answering([]);
+      expect((await resolveWith("missing.example.com")).err?.code).toBe(
+         "ENOTFOUND"
+      );
+      const failure = Object.assign(new Error("queryA ESERVFAIL"), {
+         code: "ESERVFAIL",
+      });
+      vi.spyOn(dns.promises.Resolver.prototype, "resolve4").mockImplementation(
+         (() => Promise.reject(failure)) as never
+      );
+      vi.spyOn(dns.promises.Resolver.prototype, "resolve6").mockImplementation(
+         (() => Promise.reject(failure)) as never
+      );
+      expect((await resolveWith("servfail.example.com")).err?.code).toBe(
+         "EAI_AGAIN"
+      );
+   });
 });
 
 describe("ALLOW_PRIVATE_ENDPOINTS", () => {
@@ -417,6 +488,8 @@ describe("ALLOW_PRIVATE_ENDPOINTS", () => {
       vi.resetModules();
       return import("./endpoint");
    };
+
+   afterEach(() => vi.restoreAllMocks());
 
    it("accepts localhost, LAN addresses and cleartext when true", async () => {
       const endpoint = await load("true", "production");
@@ -467,6 +540,112 @@ describe("ALLOW_PRIVATE_ENDPOINTS", () => {
       ).rejects.toThrow(/public https URL/);
    });
 
+   it("still rejects cloud metadata literals when true", async () => {
+      const endpoint = await load("true");
+      for (const url of [
+         "http://169.254.169.254/latest/meta-data",
+         "http://169.254.170.2",
+         "http://168.63.129.16",
+         "http://100.100.100.200",
+         "http://[fd00:ec2::254]",
+         "http://[fe80::1]",
+         "http://[::ffff:169.254.169.254]",
+         "http://[::ffff:a9fe:a9fe]",
+         "http://0xa9fea9fe",
+         "http://2852039166",
+      ]) {
+         expect(endpoint.publicHostname(url), url).toBeNull();
+         await expect(endpoint.assertPublicEndpoint(url), url).rejects.toThrow(
+            /public https URL/
+         );
+      }
+      expect(endpoint.publicHostname("http://100.64.0.1:9000")).toBe(
+         "100.64.0.1"
+      );
+      expect(endpoint.publicHostname("http://rustfs:9000")).toBe("rustfs");
+   });
+
+   it("resolves names with getaddrinfo when true, so hosts-file names keep working", async () => {
+      const endpoint = await load("true");
+      const getaddrinfo = vi
+         .spyOn(dns, "lookup")
+         .mockImplementation(((
+            _host: string,
+            _options: unknown,
+            callback: (err: null, addresses: dns.LookupAddress[]) => void
+         ) => callback(null, [{ address: "127.0.0.1", family: 4 }])) as never);
+      const resolve4 = vi.spyOn(dns.promises.Resolver.prototype, "resolve4");
+      const err = await new Promise<NodeJS.ErrnoException | null>((resolve) =>
+         endpoint.publicOnlyLookup("localhost", {}, (e) => resolve(e))
+      );
+      expect(err).toBeNull();
+      expect(getaddrinfo).toHaveBeenCalledTimes(1);
+      expect(resolve4).not.toHaveBeenCalled();
+   });
+
+   it("refuses a name that resolves to cloud metadata when true", async () => {
+      const endpoint = await load("true");
+      vi.spyOn(dns, "lookup").mockImplementation(((
+         _host: string,
+         _options: unknown,
+         callback: (err: null, addresses: dns.LookupAddress[]) => void
+      ) =>
+         callback(null, [{ address: "169.254.169.254", family: 4 }])) as never);
+      await expect(
+         endpoint.assertPublicEndpoint("http://metadata.google.internal")
+      ).rejects.toThrow(/public https URL/);
+      const err = await new Promise<NodeJS.ErrnoException | null>((resolve) =>
+         endpoint.publicOnlyLookup("metadata.google.internal", {}, (e) =>
+            resolve(e)
+         )
+      );
+      expect(err?.code).toBe(endpoint.PRIVATE_ADDRESS_CODE);
+   });
+
+   it("drops link-local answers an mDNS name comes with when true", async () => {
+      const endpoint = await load("true");
+      vi.spyOn(dns, "lookup").mockImplementation(((
+         _host: string,
+         _options: unknown,
+         callback: (err: null, addresses: dns.LookupAddress[]) => void
+      ) =>
+         callback(null, [
+            { address: "fe80::1", family: 6 },
+            { address: "192.168.1.20", family: 4 },
+            { address: "169.254.169.254", family: 4 },
+         ])) as never);
+      await expect(
+         endpoint.assertPublicEndpoint("http://nas.local:9000")
+      ).resolves.toBeUndefined();
+      const { err, address } = await new Promise<{
+         err: NodeJS.ErrnoException | null;
+         address: string | dns.LookupAddress[];
+      }>((resolve) =>
+         endpoint.publicOnlyLookup("nas.local", { all: true }, (e, a) =>
+            resolve({ err: e, address: a })
+         )
+      );
+      expect(err).toBeNull();
+      expect(address).toEqual([{ address: "192.168.1.20", family: 4 }]);
+   });
+
+   it("leaves an unresolvable name to fail at connect time when true", async () => {
+      const endpoint = await load("true");
+      vi.spyOn(dns, "lookup").mockImplementation(((
+         host: string,
+         _options: unknown,
+         callback: (err: Error) => void
+      ) =>
+         callback(
+            Object.assign(new Error(`getaddrinfo ENOTFOUND ${host}`), {
+               code: "ENOTFOUND",
+            })
+         )) as never);
+      await expect(
+         endpoint.assertPublicEndpoint("http://minio.lan:9000")
+      ).resolves.toBeUndefined();
+   });
+
    it("lets the connect-time lookup resolve a private address only when true", async () => {
       const lookup = (module: typeof import("./endpoint"), hostname: string) =>
          new Promise<NodeJS.ErrnoException | null>((resolve) => {
@@ -475,6 +654,9 @@ describe("ALLOW_PRIVATE_ENDPOINTS", () => {
 
       const allowed = await load("true");
       expect(await lookup(allowed, "127.0.0.1")).toBeNull();
+      expect((await lookup(allowed, "169.254.169.254"))?.code).toBe(
+         allowed.PRIVATE_ADDRESS_CODE
+      );
 
       const blocked = await load("");
       expect((await lookup(blocked, "127.0.0.1"))?.code).toBe(

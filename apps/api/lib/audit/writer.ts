@@ -11,7 +11,6 @@ import {
    MINUTE_MS,
    type AuditAction,
    type AuditEntry,
-   type AuditLoss,
    describeError,
 } from "@s3-viewer/types";
 
@@ -38,6 +37,8 @@ const LOSS_LOG_INTERVAL_MS = MINUTE_MS;
 const APPEND_CONCURRENCY = 4;
 const SEEN_SWEEP_EVERY = 1000;
 const MAX_SEEN_KEYS = 20_000;
+// each distinct prefix dodges the dedupe, so a scripted crawl would otherwise write a row per folder.
+const MAX_LISTINGS_PER_WINDOW = 30;
 
 const SKIPPED_AT_CHANGES: ReadonlySet<AuditAction> = new Set<AuditAction>([
    "object.list",
@@ -184,6 +185,8 @@ const reportLoss = (serverId: string, count: number, reason: string): void => {
       buffered,
    });
 };
+
+type AuditLoss = { dropped: number; failed: number; flushing: number };
 
 const auditLoss = (): AuditLoss => ({
    dropped: droppedEntries,
@@ -413,15 +416,34 @@ const readKey = (
 const repeatedRead = (scope: WriteInput, entry: AuditEntry): boolean =>
    DEDUPED_ACTIONS.has(entry.action) && recentlyRead(readKey(scope, entry));
 
+// past the cap one marker row stands in for the rest of the window, so the gap is visible.
+const throttledListing = (
+   { serverId, actor }: WriteInput,
+   entry: AuditEntry
+): AuditEntry[] => {
+   if (entry.action !== "object.list") return [entry];
+   const count = recentListings(JSON.stringify([actor.id, serverId]));
+   if (count <= MAX_LISTINGS_PER_WINDOW) return [entry];
+   if (count > MAX_LISTINGS_PER_WINDOW + 1) return [];
+   return [
+      {
+         action: "object.list",
+         bucket: entry.bucket,
+         detail: { limited: true, perMinute: MAX_LISTINGS_PER_WINDOW },
+      },
+   ];
+};
+
 // rejects only when a durable entry was not stored; queued reads fail open.
 const writeAudits = async ({
    entries,
    ...scope
 }: WriteInput & { entries: AuditEntry[] }): Promise<void> => {
    if (!scope.audit.enabled) return;
-   const kept = entries.filter(
-      (entry) =>
-         recordedAt(scope.audit.level, entry) && !repeatedRead(scope, entry)
+   const kept = entries.flatMap((entry) =>
+      recordedAt(scope.audit.level, entry) && !repeatedRead(scope, entry)
+         ? throttledListing(scope, entry)
+         : []
    );
    if (kept.length === 0) return;
    const items = kept.map((entry) => ({ actor: scope.actor, entry }));
@@ -440,32 +462,39 @@ const writeAudit = ({
 }: WriteInput & { entry: AuditEntry }): Promise<void> =>
    writeAudits({ ...scope, entries: [entry] });
 
-const seenWithin = (windowMs: number): ((key: string) => boolean) => {
-   const seen = new Map<string, number>();
+// counts a key's hits in a fixed window that opens at its first hit.
+const hitsWithin = (windowMs: number): ((key: string) => number) => {
+   const seen = new Map<string, { at: number; hits: number }>();
    let calls = 0;
    const sweep = (now: number): void => {
-      for (const [key, at] of seen) {
+      for (const [key, { at }] of seen) {
          if (now - at > windowMs) seen.delete(key);
       }
    };
    return (key) => {
       const now = Date.now();
       if (++calls % SEEN_SWEEP_EVERY === 0) sweep(now);
-      const at = seen.get(key);
-      if (at !== undefined && now - at <= windowMs) return true;
+      const window = seen.get(key);
+      if (window && now - window.at <= windowMs) return ++window.hits;
       seen.delete(key);
-      seen.set(key, now);
+      seen.set(key, { at: now, hits: 1 });
       for (const oldest of seen.keys()) {
          if (seen.size <= MAX_SEEN_KEYS) break;
          seen.delete(oldest);
       }
-      return false;
+      return 1;
    };
+};
+
+const seenWithin = (windowMs: number): ((key: string) => boolean) => {
+   const hits = hitsWithin(windowMs);
+   return (key) => hits(key) > 1;
 };
 
 const recentlySeen = seenWithin(SEEN_WINDOW_MS);
 // kept apart so a flood of distinct reads cannot evict denial keys.
 const recentlyRead = seenWithin(READ_WINDOW_MS);
+const recentListings = hitsWithin(READ_WINDOW_MS);
 
 export {
    AuditWriteError,

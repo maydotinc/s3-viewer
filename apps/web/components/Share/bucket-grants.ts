@@ -1,3 +1,5 @@
+import { visibleText } from "@/lib/utils/format";
+import { folderList } from "@/lib/utils/folder-access";
 import { ROLE_LABELS, canGrantBucketAccess } from "@s3-viewer/permissions";
 import {
    MAX_BUCKET_NAMES,
@@ -5,7 +7,6 @@ import {
    Role,
    canLimitToFolders,
    folderScopeCovers,
-   joinList,
    normalizeFolders,
    sameFolderScope,
    type BucketAccessEntry,
@@ -153,7 +154,7 @@ const grantError = (
       return null;
    const held = heldFolders(myRole, bucket);
    if (held !== null && !folderScopeCovers(held, entry.folders))
-      return `You can only give access inside ${joinList(held)}.`;
+      return `You can only give access inside ${folderList(held)}.`;
    return `You can't give ${ROLE_LABELS[entry.role]} access to this bucket.`;
 };
 
@@ -176,7 +177,7 @@ const commitDraft = (row: GrantRow, held: FolderScope): DraftCommit => {
    if (result.replaced.length > 0)
       return {
          row,
-         problem: `Press Add to confirm ${result.folder}. It replaces ${joinList(result.replaced)}.`,
+         problem: `Press Add to confirm ${visibleText(result.folder)}. It replaces ${folderList(result.replaced)}.`,
       };
    return {
       row: { ...row, folders: result.folders, draft: "" },

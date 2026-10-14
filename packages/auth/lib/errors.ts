@@ -18,6 +18,7 @@ const AuthErrorCode = {
    SHARED_SERVERS_NOT_ACKNOWLEDGED: "SHARED_SERVERS_NOT_ACKNOWLEDGED",
    SIGNUP_DISABLED: "SIGNUP_DISABLED",
    SIGNUP_INVITE_REQUIRED: "SIGNUP_INVITE_REQUIRED",
+   VERIFICATION_LOCKED: "VERIFICATION_LOCKED",
 } as const;
 type AuthErrorCode = (typeof AuthErrorCode)[keyof typeof AuthErrorCode];
 
@@ -28,6 +29,9 @@ type AuthClientError = {
 };
 
 const TOO_MANY_ATTEMPTS = "Too many attempts. Try again in a few minutes.";
+// a reset link proves the inbox too, so it verifies the address without a code.
+const TOO_MANY_CODE_GUESSES =
+   "Too many wrong codes. Try again later, or reset your password to verify this email.";
 const EXISTS = "An account with this email already exists. Sign in instead.";
 const SIGN_UPS_CLOSED =
    "Sign-ups are disabled on this instance. Ask an administrator for access.";
@@ -53,6 +57,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
    OTP_EXPIRED: "That code has expired. Resend to get a new one.",
    TOO_MANY_ATTEMPTS: "Too many tries. Resend to get a new code.",
    [AuthErrorCode.RATE_LIMITED]: TOO_MANY_ATTEMPTS,
+   [AuthErrorCode.VERIFICATION_LOCKED]: TOO_MANY_CODE_GUESSES,
    [ErrorCode.ACCOUNT_CHANGED]: ACCOUNT_CHANGED_MESSAGE,
    [AuthErrorCode.ACCOUNT_CONFIRMATION_REQUIRED]:
       "Confirm your account email before deleting your account.",
@@ -90,5 +95,6 @@ export {
    SIGN_UPS_BY_INVITE,
    SIGN_UPS_CLOSED,
    TOO_MANY_ATTEMPTS,
+   TOO_MANY_CODE_GUESSES,
 };
 export type { AuthClientError };

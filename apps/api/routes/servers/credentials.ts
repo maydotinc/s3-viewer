@@ -1,6 +1,7 @@
 import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError, rethrowDbError } from "@/lib/http";
 import { getAuth, requireUser } from "@/lib/middleware/authorize";
+import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { connectLimit } from "@/lib/middleware/rate-limit";
 import { serverRoute } from "@/lib/middleware/route";
 import {
@@ -72,6 +73,7 @@ const updateCredentials = async (
    if (stored?.ownerId !== userId) {
       throw new ApiHttpError(403, "Only the owner can replace credentials");
    }
+   requireFreshSession(req, "replacing credentials");
    const { credentials, provider } = await openCredentials(
       encryptedCredentials,
       userId

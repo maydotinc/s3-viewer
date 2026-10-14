@@ -231,7 +231,11 @@ const Header = () => {
                         className="flex animate-icon-in motion-reduce:animate-none"
                      >
                         {menuOpen ? (
-                           <X className="size-5.5" strokeWidth={2.25} aria-hidden />
+                           <X
+                              className="size-5.5"
+                              strokeWidth={2.25}
+                              aria-hidden
+                           />
                         ) : (
                            <Menu
                               className="size-5.5"

@@ -27,6 +27,8 @@ type DbLevel = "ALL" | "CHANGES";
 
 const state = vi.hoisted(() => ({
    role: "OWNER" as DbRole | null,
+   actorId: "actor12345",
+   sessionCreatedAt: 0,
    server: {
       auditEnabled: true,
       auditViewRole: "ADMIN" as DbRole,
@@ -132,7 +134,13 @@ routeServer(
          next();
       });
       app.use(express.json());
-      app.use(signedIn());
+      app.use(signedIn(() => ({ id: state.actorId })));
+      app.use((req, _res, next) => {
+         Object.assign(req, {
+            session: { createdAt: new Date(state.sessionCreatedAt) },
+         });
+         next();
+      });
       app.use(privateNoStore);
       app.use("/servers", auditRouter);
       app.use(recordDenials);
@@ -213,6 +221,8 @@ beforeEach(async () => {
    clock += 10 * MINUTE_MS;
    vi.setSystemTime(clock);
    state.role = "OWNER";
+   state.actorId = "actor12345";
+   state.sessionCreatedAt = clock;
    state.server = {
       auditEnabled: true,
       auditViewRole: "ADMIN",
@@ -245,14 +255,7 @@ describe("audit settings", () => {
    it("returns the server's settings to a member who may manage them", async () => {
       const res = await fetch(`${base}/settings`);
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({
-         settings: defaults,
-         audit: {
-            dropped: expect.any(Number),
-            failed: expect.any(Number),
-            flushing: expect.any(Number),
-         },
-      });
+      expect(await res.json()).toEqual({ settings: defaults });
       state.role = "EDITOR";
       expect((await fetch(`${base}/settings`)).status).toBe(403);
       state.role = null;
@@ -421,6 +424,32 @@ describe("audit settings", () => {
       expect(await recordedRows()).toEqual([]);
    });
 
+   it("needs a recent sign-in for an owner-only change, but not to turn the log back on", async () => {
+      state.sessionCreatedAt = clock - 25 * 60 * MINUTE_MS;
+      for (const change of [
+         { enabled: false },
+         { viewRole: "VIEWER" },
+         { manageRole: "OWNER" },
+         { retentionDays: 90 },
+         { level: "CHANGES" },
+      ]) {
+         const res = await patchSettings({ ...defaults, ...change });
+         expect(res.status).toBe(403);
+         expect(await res.json()).toMatchObject({ code: "SESSION_STALE" });
+      }
+      expect(state.update).not.toHaveBeenCalled();
+      expect(await recordedRows()).toEqual([]);
+
+      expect((await patchSettings(defaults)).status).toBe(200);
+      state.server.auditEnabled = false;
+      expect((await patchSettings({ enabled: true })).status).toBe(200);
+      state.role = "ADMIN";
+      state.server.auditEnabled = true;
+      expect(await (await patchSettings({ enabled: false })).json()).toEqual({
+         message: "Only the owner can change that",
+      });
+   });
+
    it("validates the body", async () => {
       expect(
          (await patchSettings({ ...defaults, retentionDays: 4000 })).status
@@ -525,6 +554,7 @@ describe("GET /servers/:serverId/audit", () => {
          "photos",
          51,
          "server12345",
+         ["credentials.update"],
          51,
          51,
       ]);
@@ -692,6 +722,92 @@ describe("GET /servers/:serverId/audit/export", () => {
       state.role = "ADMIN";
       expect((await fetch(`${base}/export`)).status).toBe(200);
       expect(queryText(0)).toContain(adminReach);
+   });
+
+   it("cuts a long export off with a closing row that says so", async () => {
+      state.selectRows.mockImplementationOnce(async () => {
+         clock += 16 * MINUTE_MS;
+         vi.setSystemTime(clock);
+         return [row("late", "2026-09-06T12:00:00.000Z")];
+      });
+      const res = await fetch(`${base}/export`);
+      expect(res.status).toBe(200);
+      const lines = (await res.text()).split("\r\n");
+      expect(lines).toHaveLength(3);
+      expect(lines[1]).toMatch(/^"","","","","export\.truncated",.*15 minutes/);
+      expect(state.selectRows).toHaveBeenCalledOnce();
+   });
+
+   it("runs one export per user and two per server at a time", async () => {
+      state.role = "VIEWER";
+      state.server.auditViewRole = "VIEWER";
+      const held = Promise.withResolvers<unknown[]>();
+      state.selectRows.mockImplementationOnce(() => held.promise);
+      const first = await fetch(`${base}/export`);
+      expect(first.status).toBe(200);
+
+      const again = await fetch(`${base}/export`);
+      expect(again.status).toBe(429);
+      expect(await again.json()).toMatchObject({
+         code: "RATE_LIMITED",
+         message: expect.stringContaining("You already have"),
+      });
+
+      state.actorId = "second12345";
+      state.selectRows.mockImplementationOnce(() => held.promise);
+      const second = await fetch(`${base}/export`);
+      expect(second.status).toBe(200);
+      state.actorId = "third123456";
+      const third = await fetch(`${base}/export`);
+      expect(third.status).toBe(429);
+      expect(await third.json()).toMatchObject({
+         message: expect.stringContaining("Other exports"),
+      });
+
+      held.resolve([]);
+      await Promise.all([first.text(), second.text()]);
+      const after = await fetch(`${base}/export`);
+      expect(after.status).toBe(200);
+      await after.text();
+   });
+
+   it("never locks the log's managers out behind viewers' exports", async () => {
+      state.role = "VIEWER";
+      state.server.auditViewRole = "VIEWER";
+      const held = Promise.withResolvers<unknown[]>();
+      const streams = [];
+      for (const actorId of ["viewer1234a", "viewer1234b"]) {
+         state.actorId = actorId;
+         state.selectRows.mockImplementationOnce(() => held.promise);
+         streams.push(await fetch(`${base}/export`));
+      }
+      expect(streams.map((res) => res.status)).toEqual([200, 200]);
+
+      for (const role of ["OWNER", "ADMIN"] as const) {
+         state.role = role;
+         state.actorId = `${role.toLowerCase()}12345`;
+         const res = await fetch(`${base}/export`);
+         expect(res.status).toBe(200);
+         await res.text();
+      }
+
+      held.resolve([]);
+      await Promise.all(streams.map((res) => res.text()));
+   });
+
+   it("frees the slot when the client walks away mid-export", async () => {
+      const held = Promise.withResolvers<unknown[]>();
+      state.selectRows.mockImplementationOnce(() => held.promise);
+      const aborted = new AbortController();
+      const first = await fetch(`${base}/export`, { signal: aborted.signal });
+      expect(first.status).toBe(200);
+      aborted.abort();
+      await vi.waitFor(async () => {
+         const res = await fetch(`${base}/export`);
+         await res.text();
+         expect(res.status).toBe(200);
+      });
+      held.resolve([]);
    });
 
    it("is gated like the log itself", async () => {

@@ -163,7 +163,7 @@ describe("continueWithPassword", () => {
       });
    });
 
-   it("keeps the sign-in error when the address already has an account", async () => {
+   it("keeps the sign-in error and flags the existing account for recovery", async () => {
       const client = answers(WRONG, [
          422,
          { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL", message: "exists" },
@@ -174,6 +174,7 @@ describe("continueWithPassword", () => {
          error: "Wrong email or password.",
          code: "INVALID_EMAIL_OR_PASSWORD",
          created: false,
+         exists: true,
       });
    });
 

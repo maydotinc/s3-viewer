@@ -7,7 +7,9 @@ declare global {
 
 const isProduction = process.env.NODE_ENV === "production";
 
-// query logs include bound session tokens and credentials; require explicit opt-in.
+// query logs include bound session tokens and credentials; require explicit opt-in. prisma's own
+// error log prints raw messages with bound argument values, and the app already logs the faults
+// it surfaces through describeError, so that level sits behind the same opt-in.
 const logQueries = process.env.PRISMA_LOG_QUERIES === "true";
 
 const POOL_DEFAULTS: Record<string, string> = {
@@ -37,7 +39,7 @@ const withPoolDefaults = (raw: string): string => {
 const getPrismaClient = () => {
    const url = process.env.DATABASE_URL;
    return new PrismaClient({
-      log: logQueries ? ["query", "warn", "error"] : ["warn", "error"],
+      log: logQueries ? ["query", "warn", "error"] : ["warn"],
       ...(url ? { datasourceUrl: withPoolDefaults(url) } : {}),
    });
 };

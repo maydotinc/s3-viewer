@@ -14,6 +14,7 @@ const SERVER = "server12345";
 const state = vi.hoisted(() => ({
    role: "OWNER" as DbRole | null,
    ownerId: "actor12345",
+   sessionCreatedAt: Date.now(),
    record: vi.fn(),
    decrypt: vi.fn(),
    assertPublicEndpoint: vi.fn(),
@@ -71,6 +72,12 @@ routeServer(
    (app) => {
       app.use(express.json());
       app.use(signedIn());
+      app.use((req, _res, next) => {
+         Object.assign(req, {
+            session: { createdAt: new Date(state.sessionCreatedAt) },
+         });
+         next();
+      });
       app.use("/servers", credentialsRouter);
       app.use(errorHandler);
    },
@@ -95,6 +102,7 @@ const opening = (next: typeof OLD) =>
 beforeEach(() => {
    state.role = "OWNER";
    state.ownerId = "actor12345";
+   state.sessionCreatedAt = Date.now();
    state.record.mockReset().mockResolvedValue(undefined);
    state.invalidate.mockReset();
    state.assertPublicEndpoint.mockReset().mockResolvedValue(undefined);
@@ -196,6 +204,22 @@ describe("PATCH /servers/:serverId/credentials", () => {
       expect(state.decrypt).not.toHaveBeenCalled();
       expect(state.update).not.toHaveBeenCalled();
       expect(state.record).not.toHaveBeenCalled();
+   });
+
+   it("needs a sign-in from the last day, and touches nothing without one", async () => {
+      state.sessionCreatedAt = Date.now() - 25 * 60 * 60 * 1000;
+      const res = await patchCredentials();
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "SESSION_STALE" });
+      expect(state.decrypt).not.toHaveBeenCalled();
+      expect(state.assertCredentialsWork).not.toHaveBeenCalled();
+      expect(state.update).not.toHaveBeenCalled();
+      expect(state.record).not.toHaveBeenCalled();
+
+      state.ownerId = "someone-else";
+      expect(await (await patchCredentials()).json()).toEqual({
+         message: "Only the owner can replace credentials",
+      });
    });
 
    it("records nothing when the server is gone", async () => {

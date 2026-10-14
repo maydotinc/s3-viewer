@@ -60,10 +60,11 @@ const openUpload = ({
    uploadId: string;
 }) => openUploadId(uploadId, { serverId, bucket: bucketName, key: objectKey });
 
+// pending uploads expose other members' unpublished keys, so only members who can upload see them.
 multipartRouter.get(
    MULTIPART_UPLOADS_PATH,
    ...bucketRoute(
-      Permission.LIST_OBJECTS,
+      Permission.UPLOAD_OBJECT,
       multipartUploadsQuerySchema,
       foldersCheckedInHandler,
       async (_req, res, input) => {
@@ -75,7 +76,7 @@ multipartRouter.get(
          assertListablePrefix(
             auth,
             bucketName,
-            Permission.LIST_OBJECTS,
+            Permission.UPLOAD_OBJECT,
             prefix
          );
          const query = { prefix, keyMarker, uploadIdMarker };

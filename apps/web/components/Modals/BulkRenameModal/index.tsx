@@ -16,7 +16,7 @@ import {
    type BulkRenameKind,
    type BulkRenameOptions,
 } from "@/lib/utils/s3/bulk-rename";
-import { formatCount } from "@/lib/utils/format";
+import { formatCount, visibleText } from "@/lib/utils/format";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import { Input } from "@s3-viewer/ui/components/input";
 import {
@@ -268,10 +268,10 @@ const BulkRenameModal = ({
                               {preview.map((row) => (
                                  <TableRow key={row.key}>
                                     <TableCell className="break-all whitespace-normal text-viewertext">
-                                       {row.key}
+                                       {visibleText(row.key)}
                                     </TableCell>
                                     <TableCell className="break-all whitespace-normal font-medium text-viewerblack">
-                                       {row.newKey}
+                                       {visibleText(row.newKey)}
                                     </TableCell>
                                  </TableRow>
                               ))}

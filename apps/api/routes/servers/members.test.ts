@@ -32,6 +32,10 @@ const state = vi.hoisted(() => ({
       allowedFolders: string[];
    }[],
    memberFound: true,
+   // the buckets the acting member holds; null is an owner's view of every bucket.
+   visible: null as Set<string> | null,
+   grantChanges: vi.fn(),
+   replace: vi.fn(),
    recordMany: vi.fn(),
    revokeInvites: vi.fn(),
    update: vi.fn(),
@@ -78,8 +82,9 @@ vi.mock("@/lib/services/members", async (original) => ({
       serverRole: "OWNER",
       bucketGrants: new Map(),
    }),
-   assertBucketGrantChanges: () => undefined,
-   replaceBucketAccess: async () => undefined,
+   assertBucketGrantChanges: state.grantChanges,
+   replaceBucketAccess: state.replace,
+   visibleBuckets: async () => state.visible,
    clampBucketAccess: state.clamp,
    removeMembership: state.removeMembership,
    findMember: async () =>
@@ -174,6 +179,9 @@ beforeEach(() => {
    state.actorGrants = [];
    state.currentGrants = [];
    state.memberFound = true;
+   state.visible = null;
+   state.grantChanges.mockReset();
+   state.replace.mockReset().mockResolvedValue(undefined);
    state.beforeScopeLock.mockReset();
    state.recordMany.mockReset().mockResolvedValue(undefined);
    state.revokeInvites.mockReset().mockResolvedValue([]);
@@ -230,7 +238,8 @@ describe("GET /servers/:serverId/members", () => {
       expect(state.listMembers).toHaveBeenCalledWith(
          "server12345",
          undefined,
-         50
+         50,
+         { id: ACTOR, role: "OWNER" }
       );
    });
 
@@ -240,7 +249,8 @@ describe("GET /servers/:serverId/members", () => {
       expect(state.listMembers).toHaveBeenCalledWith(
          "server12345",
          "abc123",
-         10
+         10,
+         { id: ACTOR, role: "OWNER" }
       );
    });
 
@@ -340,6 +350,121 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
          role: "EDITOR",
          bucketAccess: [{ ...shown, folders: ["landing/", "blog/"] }],
          previousBucketAccess: [shown],
+      });
+      expect(res.status).toBe(200);
+   });
+
+   describe("for an admin holding only some buckets", () => {
+      const grantRow = (bucketName: string, role: string) => ({
+         bucketName,
+         role,
+         restrictedFolders: false,
+         allowedFolders: [],
+      });
+      const photos = { bucketName: "photos", role: "EDITOR", folders: null };
+
+      beforeEach(() => {
+         state.actorRole = "ADMIN";
+         state.visible = new Set(["photos"]);
+         state.currentGrants = [
+            grantRow("photos", "EDITOR"),
+            grantRow("secret", "VIEWER"),
+         ];
+         state.memberGrants = [
+            { ...photos, role: "VIEWER" },
+            { bucketName: "secret", role: "VIEWER", folders: null },
+         ];
+      });
+
+      it("saves an edit of the grants it showed and keeps the hidden ones", async () => {
+         const res = await patchRole({
+            role: "EDITOR",
+            bucketAccess: [{ ...photos, role: "VIEWER" }],
+            previousBucketAccess: [photos],
+         });
+         expect(res.status).toBe(200);
+         expect(state.grantChanges).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.anything(),
+            [grantRow("photos", "EDITOR")],
+            [{ ...photos, role: "VIEWER" }]
+         );
+         expect(state.replace).toHaveBeenCalledWith(
+            expect.anything(),
+            TARGET,
+            "server12345",
+            [{ ...photos, role: "VIEWER" }],
+            state.visible
+         );
+      });
+
+      it("answers with only the grants the admin can see", async () => {
+         const res = await patchRole({ role: "VIEWER" });
+         expect(res.status).toBe(200);
+         expect((await res.json()).member.bucketAccess).toEqual([
+            { ...photos, role: "VIEWER" },
+         ]);
+      });
+
+      it("treats a view that still listed a hidden grant as stale", async () => {
+         const res = await patchRole({
+            role: "EDITOR",
+            bucketAccess: [{ ...photos, role: "VIEWER" }],
+            previousBucketAccess: [
+               photos,
+               { bucketName: "secret", role: "VIEWER", folders: null },
+            ],
+         });
+         expect(res.status).toBe(409);
+         expect(state.replace).not.toHaveBeenCalled();
+      });
+
+      it("counts the hidden grants it keeps against the bucket cap", async () => {
+         const grants = (count: number) =>
+            Array.from({ length: count }, (_, i) => ({
+               bucketName: `bkt-${String(i).padStart(3, "0")}`,
+               role: "VIEWER",
+               folders: null,
+            }));
+         const save = (count: number) =>
+            patchRole({
+               role: "EDITOR",
+               bucketAccess: grants(count),
+               previousBucketAccess: [photos],
+            });
+
+         const full = await save(100);
+         expect(full.status).toBe(400);
+         expect((await full.json()).message).toBe(
+            "A member can have access to at most 100 buckets"
+         );
+         expect(state.replace).not.toHaveBeenCalled();
+
+         expect((await save(99)).status).toBe(200);
+         expect(state.replace).toHaveBeenCalledOnce();
+      });
+   });
+
+   it("lets an owner, who sees every grant, save the full bucket cap", async () => {
+      state.currentGrants = [
+         {
+            bucketName: "secret",
+            role: "VIEWER",
+            restrictedFolders: false,
+            allowedFolders: [],
+         },
+      ];
+      const bucketAccess = Array.from({ length: 100 }, (_, i) => ({
+         bucketName: `bkt-${String(i).padStart(3, "0")}`,
+         role: "VIEWER",
+         folders: null,
+      }));
+      const res = await patchRole({
+         role: "EDITOR",
+         bucketAccess,
+         previousBucketAccess: [
+            { bucketName: "secret", role: "VIEWER", folders: null },
+         ],
       });
       expect(res.status).toBe(200);
    });
@@ -514,8 +639,9 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
       state.removeMembership.mockImplementation(removeMembership);
       const res = await fetch(base, { method: "DELETE" });
       expect(res.status).toBe(403);
-      expect(await res.json()).toMatchObject({
-         message: expect.stringContaining("photos"),
+      expect(await res.json()).toEqual({
+         message:
+            "You can't remove a member with access to buckets you don't hold",
       });
       expect(state.deleteAccess).not.toHaveBeenCalled();
       expect(state.deleteGrants).not.toHaveBeenCalled();

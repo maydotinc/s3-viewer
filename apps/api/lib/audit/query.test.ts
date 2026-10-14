@@ -81,6 +81,9 @@ const OBJECT_ACTIONS = AUDIT_ACTIONS.filter((action) =>
    action.startsWith("object")
 );
 
+const SERVER_ROWS = (param: number): string =>
+   `("bucket" IS NULL AND "action" <> ALL($${param}::text[]))`;
+
 useAuditClock(setAuditChainKey);
 
 beforeEach(async () => {
@@ -515,24 +518,52 @@ describe("verifyAuditChain", () => {
       ).toMatchObject({ ok: false, brokenAt: 3, rows: 1 });
    });
 
-   it("refuses a third verification while two are running", async () => {
+   it("runs one verification per server and four across servers", async () => {
       const held = Promise.withResolvers<void>();
       h.findMany.mockImplementation(async () => {
          await held.promise;
          return [];
       });
       const first = verifyAuditChain("server12345");
-      const second = verifyAuditChain("server67890");
-      await expect(verifyAuditChain("server99999")).rejects.toMatchObject({
+      await expect(verifyAuditChain("server12345")).rejects.toMatchObject({
          status: 429,
          code: "RATE_LIMITED",
+         message: expect.stringMatching(/on this server/),
+      });
+      const others = ["server2", "server3", "server4"].map((id) =>
+         verifyAuditChain(id)
+      );
+      await expect(verifyAuditChain("server5")).rejects.toMatchObject({
+         status: 429,
+         message: expect.stringMatching(/Too many integrity checks/),
       });
       held.resolve();
-      await Promise.all([first, second]);
+      await Promise.all([first, ...others]);
       h.findMany.mockResolvedValue([]);
       await expect(verifyAuditChain("server12345")).resolves.toMatchObject({
          ok: true,
       });
+   });
+
+   it("runs one verification per person, whichever server it is on", async () => {
+      const held = Promise.withResolvers<void>();
+      h.findMany.mockImplementation(async () => {
+         await held.promise;
+         return [];
+      });
+      const first = verifyAuditChain("server1", undefined, {}, "owner12345");
+      await expect(
+         verifyAuditChain("server2", undefined, {}, "owner12345")
+      ).rejects.toMatchObject({
+         status: 429,
+         message: expect.stringMatching(/earlier integrity check/),
+      });
+      const other = verifyAuditChain("server2", undefined, {}, "owner67890");
+      held.resolve();
+      await Promise.all([first, other]);
+      await expect(
+         verifyAuditChain("server2", undefined, {}, "owner12345")
+      ).resolves.toMatchObject({ ok: true });
    });
 });
 
@@ -680,8 +711,8 @@ describe("listAuditPage", () => {
             " UNION ALL " +
             seek(5, '"bucket" = $6', 7, 8) +
             " UNION ALL " +
-            seek(9, '"bucket" IS NULL', 10, 11) +
-            `) AS "reach" ORDER BY "createdAt" DESC, "id" DESC LIMIT $12`
+            seek(9, `${SERVER_ROWS(10)}`, 11, 12) +
+            `) AS "reach" ORDER BY "createdAt" DESC, "id" DESC LIMIT $13`
       );
       expect(query().values).toEqual([
          "server12345",
@@ -693,6 +724,7 @@ describe("listAuditPage", () => {
          OBJECT_ACTIONS,
          2,
          "server12345",
+         ["credentials.update"],
          OBJECT_ACTIONS,
          2,
          2,
@@ -779,9 +811,26 @@ describe("listAuditPage", () => {
       for (const call of [0, 1]) {
          expect(queryText(call)).not.toContain("UNION ALL");
          expect(queryText(call)).toContain(
-            'AND ("bucket" IN ($2,$3) OR "bucket" IS NULL) AND "bucket" = $4'
+            `AND ("bucket" IN ($2,$3) OR ${SERVER_ROWS(4)}) AND "bucket" = $5`
          );
       }
+   });
+
+   it("keeps owner-only server rows from an admin in both the page and the export", async () => {
+      const reach = {
+         buckets: [],
+         ownBuckets: [],
+         actorId: "admin12345",
+         serverWide: true,
+      };
+      await listAuditPage({ serverId: "server12345", reach, limit: 1 });
+      await iterateAudit({ serverId: "server12345", reach }).next();
+      for (const call of [0, 1]) {
+         expect(queryText(call)).toContain(`AND (${SERVER_ROWS(2)})`);
+         expect(query(call).values[1]).toEqual(["credentials.update"]);
+      }
+      await listAuditPage({ serverId: "server12345", reach: null, limit: 1 });
+      expect(queryText(2)).not.toContain('"action" <> ALL');
    });
 
    it("rejects a garbage cursor with 400", async () => {
@@ -863,6 +912,119 @@ describe("text search cost", () => {
       await expect(rows.next()).rejects.toMatchObject({ status: 422 });
    });
 
+   const holdReads = () => {
+      const held = Promise.withResolvers<void>();
+      h.selectRows.mockImplementation(async () => {
+         await held.promise;
+         return [];
+      });
+      return held;
+   };
+
+   it("turns a fifth concurrent search away at once, and frees its slots afterwards", async () => {
+      const held = holdReads();
+      const running = Array.from({ length: 4 }, () => listAuditPage(search));
+      await expect(listAuditPage(search)).rejects.toMatchObject({
+         status: 429,
+         code: "RATE_LIMITED",
+      });
+      expect(h.transaction).toHaveBeenCalledTimes(4);
+      held.resolve();
+      await Promise.all(running);
+      h.selectRows.mockResolvedValue([]);
+      await expect(listAuditPage(search)).resolves.toMatchObject({
+         entries: [],
+      });
+   });
+
+   it("frees a slot when the search fails", async () => {
+      h.selectRows.mockRejectedValue(canceled());
+      for (let i = 0; i < 5; i++)
+         await expect(listAuditPage(search)).rejects.toMatchObject({
+            status: 422,
+         });
+   });
+
+   it("queues an export batch for a slot instead of failing it mid-stream", async () => {
+      const held = holdReads();
+      const running = Array.from({ length: 4 }, () => listAuditPage(search));
+      const exported = iterateAudit({ serverId: "s", reach: null }).next();
+      await Promise.resolve();
+      expect(h.transaction).toHaveBeenCalledTimes(4);
+      await expect(listAuditPage(search)).rejects.toMatchObject({
+         status: 429,
+      });
+      held.resolve();
+      await Promise.all(running);
+      await expect(exported).resolves.toMatchObject({ done: true });
+      expect(h.transaction).toHaveBeenCalledTimes(5);
+   });
+
+   it("gives up on a queued export batch once the wait outlasts a search", async () => {
+      const held = holdReads();
+      const running = Array.from({ length: 4 }, () => listAuditPage(search));
+      const exported = iterateAudit({ serverId: "s", reach: null }).next();
+      const refused = expect(exported).rejects.toMatchObject({ status: 429 });
+      await vi.advanceTimersByTimeAsync(10_000);
+      await refused;
+      held.resolve();
+      await Promise.all(running);
+      h.selectRows.mockResolvedValue([]);
+      await expect(listAuditPage(search)).resolves.toBeDefined();
+   });
+
+   it("keeps the last slot for searches however many exports are waiting", async () => {
+      const held = holdReads();
+      const exports = Array.from({ length: 4 }, () =>
+         iterateAudit({ serverId: "s", reach: null }).next()
+      );
+      await Promise.resolve();
+      expect(h.transaction).toHaveBeenCalledTimes(3);
+      const searched = listAuditPage(search);
+      await Promise.resolve();
+      expect(h.transaction).toHaveBeenCalledTimes(4);
+      await expect(listAuditPage(search)).rejects.toMatchObject({
+         status: 429,
+      });
+      held.resolve();
+      await searched;
+      await expect(Promise.all(exports)).resolves.toHaveLength(4);
+      expect(h.transaction).toHaveBeenCalledTimes(5);
+   });
+
+   it("holds one person to two searches at a time, leaving the rest for others", async () => {
+      const held = holdReads();
+      const mine = { ...search, viewerId: "viewer1234" };
+      const running = [listAuditPage(mine), listAuditPage(mine)];
+      await expect(listAuditPage(mine)).rejects.toMatchObject({
+         status: 429,
+         code: "RATE_LIMITED",
+         message: expect.stringMatching(/earlier audit searches/),
+      });
+      running.push(listAuditPage({ ...search, viewerId: "viewer5678" }));
+      await Promise.resolve();
+      expect(h.transaction).toHaveBeenCalledTimes(3);
+      held.resolve();
+      await Promise.all(running);
+      h.selectRows.mockResolvedValue([]);
+      await expect(listAuditPage(mine)).resolves.toBeDefined();
+   });
+
+   it("does not count a person's export against their searches", async () => {
+      const held = holdReads();
+      const mine = { ...search, viewerId: "viewer1234" };
+      const exported = iterateAudit({
+         serverId: "s",
+         reach: null,
+         viewerId: "viewer1234",
+      }).next();
+      const running = [listAuditPage(mine), listAuditPage(mine)];
+      await Promise.resolve();
+      expect(h.transaction).toHaveBeenCalledTimes(3);
+      held.resolve();
+      await Promise.all([exported, ...running]);
+   });
+
    it("passes any other database failure on untouched", async () => {
       const failure = new Prisma.PrismaClientKnownRequestError("Raw failed", {
          code: "P2010",
@@ -902,15 +1064,56 @@ describe("the other end of a transfer", () => {
       });
       expect(h.accessFind).toHaveBeenCalledWith({
          where: { userId: "owner12345", serverId: { in: ["elsewhere12"] } },
-         select: { serverId: true },
+         select: { serverId: true, role: true },
       });
+      expect(h.grantFind).not.toHaveBeenCalled();
    });
 
-   it("shows it to an owner who is a member there", async () => {
-      h.accessFind.mockResolvedValue([{ serverId: "elsewhere12" }]);
+   it("shows it to an owner who also owns the other server", async () => {
+      h.accessFind.mockResolvedValue([
+         { serverId: "elsewhere12", role: "OWNER" },
+      ]);
       expect(await detailOf({ ...owner, viewerId: "owner12345" })).toEqual(
          foreign
       );
+      expect(h.grantFind).not.toHaveBeenCalled();
+   });
+
+   it("needs a whole-bucket grant there when the owner is only a member", async () => {
+      h.accessFind.mockResolvedValue([
+         { serverId: "elsewhere12", role: "ADMIN" },
+      ]);
+      expect(await detailOf({ ...owner, viewerId: "owner12345" })).toEqual({
+         other: "kept",
+      });
+      expect(h.grantFind).toHaveBeenCalledWith({
+         where: {
+            userId: "owner12345",
+            serverId: { in: ["elsewhere12"] },
+            bucketName: { in: ["private"] },
+            restrictedFolders: false,
+         },
+         select: { serverId: true, bucketName: true },
+      });
+
+      h.grantFind.mockResolvedValue([
+         { serverId: "elsewhere12", bucketName: "private" },
+      ]);
+      expect(await detailOf({ ...owner, viewerId: "owner12345" })).toEqual(
+         foreign
+      );
+   });
+
+   it("does not let a grant on one bucket reveal another bucket there", async () => {
+      h.accessFind.mockResolvedValue([
+         { serverId: "elsewhere12", role: "VIEWER" },
+      ]);
+      h.grantFind.mockResolvedValue([
+         { serverId: "elsewhere12", bucketName: "public" },
+      ]);
+      expect(await detailOf({ ...owner, viewerId: "owner12345" })).toEqual({
+         other: "kept",
+      });
    });
 
    it("hides it when the viewer is unknown, without asking who joined", async () => {
@@ -948,6 +1151,80 @@ describe("the other end of a transfer", () => {
          })
       ).toEqual({ other: "kept" });
       expect(h.accessFind).not.toHaveBeenCalled();
+   });
+});
+
+describe("the grants a member or invite row lists", () => {
+   const grantRow = (action: string, buckets: string) => ({
+      ...row("g1", "2026-09-06T12:00:00.000Z"),
+      action,
+      bucket: null,
+      detail: { role: "EDITOR", buckets },
+   });
+   const admin = {
+      serverId: "server12345",
+      reach: {
+         buckets: ["photos"],
+         ownBuckets: ["drafts"],
+         actorId: "actor12345",
+         serverWide: true,
+      },
+      limit: 10,
+   };
+   const detailOf = async (
+      filters: Parameters<typeof listAuditPage>[0],
+      action: string,
+      buckets: string
+   ) => {
+      h.selectRows.mockResolvedValue([grantRow(action, buckets)]);
+      return (await listAuditPage(filters)).entries[0]?.detail;
+   };
+
+   it.each(["member.role_change", "invite.send", "invite.accept"])(
+      "hides %s grants from a reader who holds none of a listed bucket, even on their own row",
+      async (action) => {
+         expect(
+            await detailOf(admin, action, "photos:VIEWER,secret:EDITOR")
+         ).toEqual({ role: "EDITOR" });
+      }
+   );
+
+   it("keeps them when the reader holds every listed bucket, whole or by folder", async () => {
+      const buckets = 'drafts:VIEWER["a/","b,c/"],photos:EDITOR';
+      expect(await detailOf(admin, "member.role_change", buckets)).toEqual({
+         role: "EDITOR",
+         buckets,
+      });
+   });
+
+   it("finds a hidden bucket listed after folders and in a digest", async () => {
+      expect(
+         await detailOf(
+            admin,
+            "member.role_change",
+            'photos:VIEWER["a/","b/"],secret:VIEWER[3 folders sha256:abc]'
+         )
+      ).toEqual({ role: "EDITOR" });
+   });
+
+   it("shows an owner every grant", async () => {
+      const buckets = "photos:VIEWER,secret:EDITOR";
+      expect(
+         await detailOf(
+            { ...admin, reach: null, viewerId: "owner12345" },
+            "member.role_change",
+            buckets
+         )
+      ).toEqual({ role: "EDITOR", buckets });
+   });
+
+   it("redacts the export the same way", async () => {
+      h.selectRows.mockResolvedValueOnce([
+         grantRow("invite.send", "secret:VIEWER"),
+      ]);
+      const entries = [];
+      for await (const entry of iterateAudit(admin)) entries.push(entry);
+      expect(entries[0]?.detail).toEqual({ role: "EDITOR" });
    });
 });
 

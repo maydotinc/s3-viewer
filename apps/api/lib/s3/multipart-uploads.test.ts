@@ -30,8 +30,9 @@ import {
    UploadIdleError,
    stallMsFor,
 } from "./progress-floor";
-import { readBudget } from "./read-budget";
+import { readBudget, withReadUser } from "./read-budget";
 import { installReadBudget } from "./read-budget.fixture";
+import { resetRequestBudgets, withRequestBudget } from "./request-budget";
 
 const SERVER = "server12345";
 const KEY = "videos/a.mp4";
@@ -1831,6 +1832,39 @@ describe("explicit multipart cancellation", () => {
             abortMultipartUpload(f.scope, "a", "upload")
          ).rejects.toHaveProperty("status");
       } finally {
+         f.client.destroy();
+      }
+   });
+
+   it("refuses a user's ninth concurrent cancel before storage while cleanup still runs", async () => {
+      const gate = Promise.withResolvers<void>();
+      const f = fixture(async () => {
+         await gate.promise;
+         return empty(204);
+      });
+      const client = withRequestBudget(f.client, "cancel-pool");
+      const scope = { ...f.scope, client };
+      try {
+         const pending = Array.from({ length: 8 }, (_, index) =>
+            withReadUser("alice", () =>
+               abortMultipartUpload(scope, `a${index}`, "upload")
+            )
+         );
+         await vi.waitFor(() => expect(f.requests).toHaveLength(8));
+         await expect(
+            withReadUser("alice", () =>
+               abortMultipartUpload(scope, "a8", "upload")
+            )
+         ).rejects.toMatchObject({ status: 429 });
+         const cleanup = withReadUser("alice", () =>
+            abortForCleanup(scope, "b", "upload")
+         );
+         await vi.waitFor(() => expect(f.requests).toHaveLength(9));
+         gate.resolve();
+         expect(await Promise.all(pending)).toEqual(Array(8).fill(true));
+         await cleanup;
+      } finally {
+         resetRequestBudgets();
          f.client.destroy();
       }
    });

@@ -76,6 +76,25 @@ const canRemoveGrant = (
       toScopedGrant(row)
    );
 
+// null reads as every bucket: only owners get that, since admins have no implicit bucket access.
+type VisibleBuckets = ReadonlySet<string> | null;
+
+const visibleGrants = <Grant extends { bucketName: string }>(
+   visible: VisibleBuckets,
+   grants: readonly Grant[]
+): Grant[] =>
+   visible === null
+      ? [...grants]
+      : grants.filter(({ bucketName }) => visible.has(bucketName));
+
+const withVisibleGrants = <T extends { bucketAccess: BucketAccessEntry[] }>(
+   visible: VisibleBuckets,
+   holder: T
+): T => ({
+   ...holder,
+   bucketAccess: visibleGrants(visible, holder.bucketAccess),
+});
+
 const findUnremovableGrant = <Row extends BucketRow>(
    serverRole: Role | null,
    held: ReadonlyMap<string, ScopedGrant>,
@@ -93,5 +112,7 @@ export {
    grantFoldersOf,
    toBucketEntry,
    toScopedGrant,
+   visibleGrants,
+   withVisibleGrants,
 };
-export type { BucketRow };
+export type { BucketRow, VisibleBuckets };

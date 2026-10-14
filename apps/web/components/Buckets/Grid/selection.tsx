@@ -1,5 +1,6 @@
 import { useSelectionContext } from "@/components/DataGrid/context";
 import { rowBlockReason, type KnownReach } from "@/lib/utils/folder-access";
+import { visibleText } from "@/lib/utils/format";
 import type { S3Object } from "@s3-viewer/types";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import type {
@@ -46,7 +47,7 @@ const SelectionCell = (params: ICellRendererParams<S3Object>) => {
    return (
       <label className={HIT_AREA}>
          <Checkbox
-            aria-label={`Select ${data.key}`}
+            aria-label={`Select ${visibleText(data.key)}`}
             checked={checked}
             disabled={blocked && !checked}
             onCheckedChange={(next) => params.node.setSelected(next === true)}

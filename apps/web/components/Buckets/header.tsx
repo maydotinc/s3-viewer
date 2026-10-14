@@ -1,4 +1,5 @@
 import { authClient } from "@/lib/auth";
+import { visibleText } from "@/lib/utils/format";
 import { folderHref } from "@/lib/utils/s3/paths";
 import { SITE_PATHS } from "@s3-viewer/types";
 import {
@@ -42,16 +43,19 @@ const HiddenFolders = ({
          </DropdownMenuTrigger>
       </SimpleTooltip>
       <DropdownMenuContent align="start" className="max-w-72">
-         {path.map((segment, index) => (
-            <DropdownMenuItem key={index} asChild>
-               <Link href={folderHref(bucketName, path.slice(0, index + 1))}>
-                  <Folder aria-hidden="true" />
-                  <span className="min-w-0 truncate" title={segment}>
-                     {segment}
-                  </span>
-               </Link>
-            </DropdownMenuItem>
-         ))}
+         {path.map((raw, index) => {
+            const segment = visibleText(raw);
+            return (
+               <DropdownMenuItem key={index} asChild>
+                  <Link href={folderHref(bucketName, path.slice(0, index + 1))}>
+                     <Folder aria-hidden="true" />
+                     <span className="min-w-0 truncate" title={segment}>
+                        {segment}
+                     </span>
+                  </Link>
+               </DropdownMenuItem>
+            );
+         })}
       </DropdownMenuContent>
    </DropdownMenu>
 );
@@ -117,7 +121,8 @@ const BucketHeader = () => {
                   </BreadcrumbItem>
                </>
             )}
-            {visible.map((segment, index) => {
+            {visible.map((raw, index) => {
+               const segment = visibleText(raw);
                const depth = offset + index + 1;
                const isLast = depth === path.length;
                return (

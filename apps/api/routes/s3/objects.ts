@@ -73,6 +73,13 @@ import { awaitStorage, copyScope, mutationScope, readScope } from "./scope";
 
 const objectsRouter = Router({ mergeParams: true });
 
+// the prefix is whatever the caller sent, and its head already says which tree was browsed.
+const MAX_LIST_TARGET = 256;
+const listTarget = (prefix: string): string =>
+   prefix.length > MAX_LIST_TARGET
+      ? `${prefix.slice(0, MAX_LIST_TARGET)}…`
+      : prefix || "/";
+
 type PresignedGet<Body extends object> = {
    action: AuditEntry["action"];
    view: (
@@ -153,7 +160,7 @@ objectsRouter.get(
             await record(res, {
                action: "object.list",
                bucket: bucketName,
-               target: prefix || "/",
+               target: listTarget(prefix),
             });
          }
          res.json(page);
@@ -325,7 +332,7 @@ objectsRouter.get(
             await record(res, {
                action: "object.list",
                bucket: bucketName,
-               target: prefix || "/",
+               target: listTarget(prefix),
                detail: { recursive: true },
             });
          }

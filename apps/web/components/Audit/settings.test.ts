@@ -1,6 +1,29 @@
-import { AuditLevel, Role, type AuditSettings } from "@s3-viewer/types";
-import { describe, expect, it } from "vitest";
-import { canToggleLog, settingsPayload } from "./settings";
+// @vitest-environment happy-dom
+import { act, createElement } from "react";
+import {
+   AuditLevel,
+   ErrorCode,
+   Role,
+   type AuditSettings,
+} from "@s3-viewer/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { buttonByText, mountedRuntime } from "@/components/test-helpers";
+import { ApiError } from "@/lib/api";
+import Settings, { canToggleLog, settingsPayload } from "./settings";
+
+const h = vi.hoisted(() => ({
+   saved: null as unknown,
+   error: null as unknown,
+   signOut: vi.fn(),
+}));
+
+vi.mock("@/lib/hooks/queries/server/useAuditSettings", () => ({
+   default: () => ({ data: h.saved, error: null, isFetching: false }),
+}));
+vi.mock("@/lib/hooks/mutations/server/useUpdateAuditSettings", () => ({
+   default: () => ({ isPending: false, mutate: vi.fn(), error: h.error }),
+}));
+vi.mock("@/lib/auth", () => ({ signOut: h.signOut }));
 
 const draft: AuditSettings = {
    enabled: true,
@@ -34,5 +57,31 @@ describe("who can switch the log off", () => {
 
    it("lets a delegated admin turn a stopped log back on", () => {
       expect(canToggleLog({ ...draft, enabled: false }, false)).toBe(true);
+   });
+});
+
+describe("a stale sign-in", () => {
+   const view = mountedRuntime();
+
+   beforeEach(() => {
+      h.saved = draft;
+      h.error = null;
+      h.signOut.mockReset();
+   });
+
+   it("offers a fresh sign-in where the save failed", async () => {
+      await view.mount(
+         createElement(Settings, { serverId: "server-1", myRole: Role.OWNER })
+      );
+      expect(view.text()).not.toContain("Sign in again");
+      h.error = new ApiError(403, "Stale", ErrorCode.SESSION_STALE);
+      await view.mount(
+         createElement(Settings, { serverId: "server-1", myRole: Role.OWNER })
+      );
+      expect(view.text()).toContain("Sign in again to change these settings");
+      await act(async () =>
+         buttonByText(view.current.container, "Sign in again")!.click()
+      );
+      expect(h.signOut).toHaveBeenCalledOnce();
    });
 });

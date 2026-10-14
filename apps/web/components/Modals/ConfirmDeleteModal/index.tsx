@@ -9,7 +9,7 @@ import useDeleteObjects, {
    type DeleteSummary,
 } from "@/lib/hooks/mutations/object/useDeleteObjects";
 import useDeletePrefix from "@/lib/hooks/mutations/object/useDeletePrefix";
-import { formatCount } from "@/lib/utils/format";
+import { formatCount, visibleText } from "@/lib/utils/format";
 import { batchProgressSentence } from "@/lib/utils/s3/batch";
 import { Provider, isFolderKey, type S3DeleteTarget } from "@s3-viewer/types";
 
@@ -40,7 +40,7 @@ const Targets = ({
          <ul className="max-h-40 overflow-y-auto rounded-lg border border-viewerborder bg-viewergray px-3 py-2 text-sm font-medium text-viewerblack [overflow-wrap:anywhere]">
             {shown.map((key) => (
                <li key={key} className="py-0.5">
-                  {key}
+                  {visibleText(key)}
                </li>
             ))}
             {hidden > 0 && (
@@ -91,7 +91,7 @@ const ConfirmDeleteModal = ({
       isPending,
       pastTenseVerb: "deleted",
       progressNotice: (count) =>
-         `Removing current objects under ${folder}… ${count} deleted so far.`,
+         `Removing current objects under ${folder && visibleText(folder)}… ${count} deleted so far.`,
    });
 
    const title = folder

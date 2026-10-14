@@ -1,7 +1,12 @@
 import { api, field, serverPath, type ApiError } from "@/lib/api";
 import useApiMutation from "@/lib/hooks/mutations/useApiMutation";
 import { queryKeys } from "@/lib/query-keys";
-import type { AuditSettings, AuditSettingsInput } from "@s3-viewer/types";
+import { toastError } from "@/lib/utils/toast";
+import {
+   ErrorCode,
+   type AuditSettings,
+   type AuditSettingsInput,
+} from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 
 const useUpdateAuditSettings = () =>
@@ -23,7 +28,11 @@ const useUpdateAuditSettings = () =>
          queryKeys.servers(scope.userId),
          queryKeys.auditLog(scope.userId, serverId),
       ],
-      failure: "Couldn't save audit log settings",
+      // the form asks for a fresh sign-in itself.
+      failure: ({ error }) => {
+         if (error.code !== ErrorCode.SESSION_STALE)
+            toastError("Couldn't save audit log settings")(error);
+      },
    });
 
 export default useUpdateAuditSettings;

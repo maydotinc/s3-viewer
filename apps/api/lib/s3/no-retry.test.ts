@@ -26,7 +26,7 @@ vi.mock("@/lib/env", async (original) => {
 const { resetRequestBudgets, withRequestBudget } = await import(
    "./request-budget"
 );
-const { forCleanup, withoutBudget, withoutRetries } = await import(
+const { forCancel, forCleanup, withoutBudget, withoutRetries } = await import(
    "./no-retry"
 );
 const { renameObject } = await import("./rename");
@@ -58,6 +58,7 @@ describe("client clones and the per-server budget", () => {
          withoutRetries(client),
          withoutBudget(client),
          forCleanup(client),
+         forCancel(client),
       ]) {
          expect(clone.config.requestHandler).toBe(client.config.requestHandler);
          expect(clone.config.followRegionRedirects).toBe(false);
@@ -117,6 +118,21 @@ describe("client clones and the per-server budget", () => {
       await expect(forCleanup(client).send(head)).rejects.toThrow(
          "network unavailable"
       );
+   });
+
+   it("a cancel clone retries like cleanup and is admitted when the budget is spent", async () => {
+      const client = budgetedClient();
+      await expect(client.send(head)).rejects.toThrow("network unavailable");
+      const cancel = forCancel(withoutRetries(client));
+      expect(await cancel.config.maxAttempts()).toBe(3);
+      expect(forCancel(client)).toBe(cancel);
+      expect(cancel).not.toBe(forCleanup(client));
+      expect(
+         cancel.middlewareStack
+            .identify()
+            .some((entry) => entry.startsWith("cancelBudget"))
+      ).toBe(true);
+      await expect(cancel.send(head)).rejects.toThrow("network unavailable");
    });
 
    it("an unbudgeted clone is admitted once when the budget is spent", async () => {

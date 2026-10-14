@@ -6,6 +6,7 @@ import {
    accessNotice,
    folderAccessAt,
 } from "@/lib/utils/folder-access";
+import { visibleText } from "@/lib/utils/format";
 import { folderHref, segmentsFromKey } from "@/lib/utils/s3/paths";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -27,11 +28,11 @@ const FolderLinks = ({
          <li key={folder} className="min-w-0 max-w-full">
             <Link
                href={folderHref(bucketName, segmentsFromKey(folder))}
-               title={folder}
+               title={visibleText(folder)}
                className="flex max-w-full items-center gap-1.5 rounded-md border border-viewerborder bg-viewerwhite px-2 py-1 text-xs text-viewerblack outline-none transition-colors hover:text-viewerblue focus-visible:border-viewerblue"
             >
                <Folder aria-hidden="true" className="size-3.5 shrink-0" />
-               <span className="min-w-0 truncate">{folder}</span>
+               <span className="min-w-0 truncate">{visibleText(folder)}</span>
             </Link>
          </li>
       ))}

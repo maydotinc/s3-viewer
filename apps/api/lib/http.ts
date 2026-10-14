@@ -5,6 +5,7 @@ import {
    OBJECT_MUTATION_PATH,
    ErrorCode,
    describeError,
+   isPrismaClientError,
 } from "@s3-viewer/types";
 import type { APIError } from "better-auth/api";
 import type {
@@ -197,13 +198,23 @@ const failureContext = (req: Request, res: Response, err: unknown) => ({
    error: redactArchiveToken(req, describeError(err)),
 });
 
+// a prisma stack opens with its message, so only the frames after it are kept.
+const stackOf = (err: Error): string | undefined => {
+   if (!err.stack || !isPrismaClientError(err)) return err.stack;
+   const end = err.stack.indexOf(err.message);
+   return end === -1
+      ? undefined
+      : `${describeError(err)}${err.stack.slice(end + err.message.length)}`;
+};
+
 const faultTrace = (
    req: Request,
    err: unknown
 ): { stack?: string; cause?: string } => {
    if (!(err instanceof Error)) return {};
+   const stack = stackOf(err);
    return {
-      ...(err.stack ? { stack: redactArchiveToken(req, err.stack) } : {}),
+      ...(stack ? { stack: redactArchiveToken(req, stack) } : {}),
       ...(err.cause === undefined
          ? {}
          : { cause: redactArchiveToken(req, describeError(err.cause)) }),

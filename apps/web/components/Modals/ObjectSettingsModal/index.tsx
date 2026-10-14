@@ -6,6 +6,7 @@ import FormError from "@/components/Modals/form-error";
 import { ApiError, errorMessage } from "@/lib/api";
 import useUpdateObjectSettings from "@/lib/hooks/mutations/object/useUpdateObjectSettings";
 import useObjectSettings from "@/lib/hooks/queries/s3/useObjectSettings";
+import { visibleText } from "@/lib/utils/format";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
@@ -158,7 +159,7 @@ const ObjectSettingsModal = ({
          onClose={onClose}
          isPending={update.isPending}
          title="Edit settings"
-         description={`The response headers and custom metadata stored with ${objectKey}. S3 rewrites the object in place, so its version changes.`}
+         description={`The response headers and custom metadata stored with ${visibleText(objectKey)}. S3 rewrites the object in place, so its version changes.`}
          onSubmit={submit}
          submitLabel="Save settings"
          submitDisabled={!loaded || validation !== null}

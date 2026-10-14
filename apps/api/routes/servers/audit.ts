@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { ApiHttpError } from "@/lib/http";
+import { ApiHttpError, rateLimited } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { getAuditContext, getAuth, refuse } from "@/lib/middleware/authorize";
 import {
@@ -15,8 +15,9 @@ import {
    verifyAuditChain,
    type AuditExportRow,
 } from "@/lib/audit/query";
-import { auditLoss, recentlySeen } from "@/lib/audit/writer";
+import { recentlySeen } from "@/lib/audit/writer";
 import { record, recordWithin } from "@/lib/middleware/audit-record";
+import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { memberRole } from "@/lib/services/members";
 import {
    auditSettingsOf,
@@ -26,6 +27,7 @@ import {
 import { prisma } from "@s3-viewer/db";
 import { auditAccess } from "@s3-viewer/permissions";
 import {
+   MINUTE_MS,
    Role,
    auditQuerySchema,
    auditSettingsSchema,
@@ -72,6 +74,26 @@ const CSV_HEADER = csvLine([
    "hash",
 ]);
 
+const EXPORT_DEADLINE_MS = 15 * MINUTE_MS;
+const MAX_USER_EXPORTS = 1;
+const MAX_SERVER_EXPORTS = 2;
+
+// a cut-off export must not pass for the whole log, so its last row says so.
+const TRUNCATED_ROW = csvLine([
+   null,
+   null,
+   null,
+   null,
+   "export.truncated",
+   null,
+   null,
+   JSON.stringify({
+      reason: `stopped after ${EXPORT_DEADLINE_MS / MINUTE_MS} minutes; narrow the date range`,
+   }),
+   null,
+   null,
+]);
+
 const csvRow = (entry: AuditExportRow): string =>
    csvLine([
       String(entry.seq),
@@ -86,9 +108,8 @@ const csvRow = (entry: AuditExportRow): string =>
       entry.hash,
    ]);
 
-// the counters are per process, and only a manager (the sole caller of this route) sees them.
 const getSettings = async (_req: Request, res: Response) => {
-   res.json({ settings: getAuditContext(res).settings, audit: auditLoss() });
+   res.json({ settings: getAuditContext(res).settings });
 };
 
 // a stored value below the floor is pruned at the floor anyway, so leaving it alone must save.
@@ -110,7 +131,7 @@ const assertRetentionFloor = (
 };
 
 const updateSettings = async (
-   _req: Request,
+   req: Request,
    res: Response,
    patch: AuditSettingsInput
 ) => {
@@ -138,6 +159,8 @@ const updateSettings = async (
             "Only the owner can change that"
          );
       }
+      if (ownerOnlyChange)
+         requireFreshSession(req, "changing audit log settings");
       assertRetentionFloor(retentionDays, current.retentionDays);
       const server = await tx.server.update({
          where: { id: serverId },
@@ -203,8 +226,45 @@ const verifyAuditLog = async (
    const { reach } = getAuditContext(res);
    if (reach && !reach.serverWide) throw refuse(res, "audit.verify", "audit");
    res.json(
-      await verifyAuditChain(input.serverId, res, { fromSeq: input.fromSeq })
+      await verifyAuditChain(
+         input.serverId,
+         res,
+         { fromSeq: input.fromSeq },
+         getAuth(res).userId
+      )
    );
+};
+
+// per process, like the streams it protects; released when the response closes, however it ends.
+const exportsRunning = new Map<string, number>();
+const running = (key: string): number => exportsRunning.get(key) ?? 0;
+
+const claimExportSlot = (res: Response, serverId: string): void => {
+   const { userId, serverRole } = getAuth(res);
+   const userKey = `user:${userId}`;
+   const serverKey = `server:${serverId}`;
+   if (running(userKey) >= MAX_USER_EXPORTS)
+      throw rateLimited(
+         "You already have an export running. Try again once it finishes."
+      );
+   // viewers holding the shared slots must not lock the people who manage the log out of it.
+   const canManage = auditAccess(
+      serverRole,
+      getAuditContext(res).settings
+   ).canManage;
+   const keys = canManage ? [userKey] : [userKey, serverKey];
+   if (!canManage && running(serverKey) >= MAX_SERVER_EXPORTS)
+      throw rateLimited(
+         "Other exports are running on this server. Try again once they finish."
+      );
+   for (const key of keys) exportsRunning.set(key, running(key) + 1);
+   res.once("close", () => {
+      for (const key of keys) {
+         const left = running(key) - 1;
+         if (left > 0) exportsRunning.set(key, left);
+         else exportsRunning.delete(key);
+      }
+   });
 };
 
 const exportAuditLog = async (
@@ -214,6 +274,7 @@ const exportAuditLog = async (
 ) => {
    const { action = null, actor = null, bucket = null, q = null } = filters;
    const { reach } = getAuditContext(res);
+   claimExportSlot(res, filters.serverId);
    await record(res, {
       action: "audit.export",
       detail: {
@@ -234,6 +295,7 @@ const exportAuditLog = async (
    res.write(CSV_HEADER);
    const closed = new AbortController();
    res.once("close", () => closed.abort());
+   const deadline = Date.now() + EXPORT_DEADLINE_MS;
    try {
       for await (const entry of iterateAudit({
          ...filters,
@@ -241,6 +303,13 @@ const exportAuditLog = async (
          viewerId: getAuth(res).userId,
       })) {
          if (closed.signal.aborted) return;
+         if (Date.now() > deadline) {
+            logger.warn("Audit export hit its deadline", {
+               serverId: filters.serverId,
+            });
+            res.end(TRUNCATED_ROW);
+            return;
+         }
          if (!res.write(csvRow(entry))) {
             try {
                await once(res, "drain", {

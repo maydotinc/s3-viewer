@@ -160,6 +160,31 @@ describe("reading object settings", () => {
       });
    });
 
+   it("records the read like a preview of the same object", async () => {
+      const response = await fetch(
+         `${base}?objectKey=${encodeURIComponent("reports/q3.csv")}`
+      );
+      expect(response.status).toBe(200);
+      expect(state.audit).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+         action: "object.view",
+         bucket: "backups",
+         target: "reports/q3.csv",
+         detail: { size: 42, contentType: "text/csv" },
+      });
+   });
+
+   it("records nothing when the object is missing", async () => {
+      state.send.mockRejectedValue(
+         Object.assign(new Error("Not Found"), {
+            name: "NotFound",
+            $metadata: { httpStatusCode: 404 },
+         })
+      );
+      const response = await fetch(`${base}?objectKey=gone.csv`);
+      expect(response.status).toBe(404);
+      expect(state.audit).not.toHaveBeenCalled();
+   });
+
    it("refuses a folder key", async () => {
       const response = await fetch(`${base}?objectKey=reports%2F`);
       expect(response.status).toBe(400);

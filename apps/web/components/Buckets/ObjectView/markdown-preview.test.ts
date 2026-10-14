@@ -77,9 +77,7 @@ describe("markdown preview", () => {
          )
       ).toEqual([true, false]);
       expect(article().querySelector("ol")?.getAttribute("start")).toBe("3");
-      expect(article().querySelector("td[align=right]")?.textContent).toBe(
-         "2"
-      );
+      expect(article().querySelector("td[align=right]")?.textContent).toBe("2");
       expect(article().querySelector("pre code")?.className).toBe(
          "language-ts"
       );
@@ -117,6 +115,68 @@ describe("markdown preview", () => {
       for (const label of ["bad", "rel", "alt"])
          expect(article().textContent).toContain(label);
       expect((window as { pwned?: boolean }).pwned).toBeUndefined();
+   });
+
+   it("holds remote images back until their host is allowed", async () => {
+      h.text = [
+         "![chart](https://img.example.com/a.png) ![other](https://cdn.test/b.png)",
+         "",
+         "[![badge](https://img.example.com/badge.svg)](https://example.com)",
+         "",
+      ].join("\n");
+      await mount();
+      expect(article().querySelector("img")).toBeNull();
+      const placeholder = buttonByText(container(), "chart", "prefix")!;
+      expect(placeholder.textContent).toContain("img.example.com");
+      expect(article().querySelector("a button")).toBeNull();
+      expect(article().querySelector("a")?.textContent).toContain("badge");
+      await act(async () => placeholder.click());
+      expect(
+         [...article().querySelectorAll("img")].map((img) =>
+            img.getAttribute("src")
+         )
+      ).toEqual([
+         "https://img.example.com/a.png",
+         "https://img.example.com/badge.svg",
+      ]);
+      expect(
+         article().querySelector("img")?.getAttribute("referrerpolicy")
+      ).toBe("no-referrer");
+      expect(buttonByText(container(), "other", "prefix")).not.toBeUndefined();
+   });
+
+   it("offers to load images that only appear inside links", async () => {
+      h.text = [
+         "[![ci](https://img.shields.io/ci.svg)](https://ci.test) [![npm](https://img.shields.io/npm.svg)](https://npm.test)",
+         "",
+         "| logo |",
+         "| - |",
+         "| [![logo](https://cdn.test/logo.png)](https://example.com) |",
+         "",
+      ].join("\n");
+      await mount();
+      expect(article().querySelector("img")).toBeNull();
+      expect(article().textContent).toContain("3 remote images not loaded");
+      await act(async () =>
+         buttonByText(container(), "Load from img.shields.io")!.click()
+      );
+      expect(
+         [...article().querySelectorAll("img")].map((img) =>
+            img.getAttribute("src")
+         )
+      ).toEqual([
+         "https://img.shields.io/ci.svg",
+         "https://img.shields.io/npm.svg",
+      ]);
+      expect(article().textContent).toContain("1 remote image not loaded");
+      expect(
+         buttonByText(container(), "Load from img.shields.io")
+      ).toBeUndefined();
+      await act(async () =>
+         buttonByText(container(), "Load from cdn.test")!.click()
+      );
+      expect(article().querySelectorAll("img")).toHaveLength(3);
+      expect(article().textContent).not.toContain("not loaded");
    });
 
    it("copies the original text", async () => {

@@ -12,13 +12,22 @@ type Window = {
    users: Map<string, number>;
 };
 
+type InFlightPool = {
+   byServer: Map<string, number>;
+   byUser: Map<string, number>;
+   serverCap: () => number;
+   userCap: () => number;
+   serverBusy: () => Error;
+   userBusy: () => Error;
+};
+
 const SWEEP_ABOVE = 1000;
 const USER_SHARE = 7 / 8;
 const SHARE_HOLD_MS = 2 * MINUTE_MS;
+const CANCELS_PER_SERVER = 16;
+const CANCELS_PER_USER = 8;
 
 const windows = new Map<string, Window>();
-const inFlightByServer = new Map<string, number>();
-const inFlightByUser = new Map<string, number>();
 const serverOfClient = new WeakMap<S3Client, string>();
 
 const budgetExhausted = () =>
@@ -40,6 +49,30 @@ const userBusy = () =>
    rateLimited(
       "You have too many storage requests in progress. Try again shortly."
    );
+
+const requests: InFlightPool = {
+   byServer: new Map(),
+   byUser: new Map(),
+   serverCap: () => env.S3_MAX_INFLIGHT_PER_SERVER,
+   userCap: () => env.S3_MAX_INFLIGHT_PER_USER,
+   serverBusy,
+   userBusy,
+};
+
+const cancels: InFlightPool = {
+   byServer: new Map(),
+   byUser: new Map(),
+   serverCap: () => CANCELS_PER_SERVER,
+   userCap: () => CANCELS_PER_USER,
+   serverBusy: () =>
+      rateLimited(
+         "This server has too many cancellations in progress. Try again shortly."
+      ),
+   userBusy: () =>
+      rateLimited(
+         "You have too many cancellations in progress. Try again shortly."
+      ),
+};
 
 const userShare = (): number =>
    Math.max(1, Math.floor(env.S3_REQUESTS_PER_MINUTE * USER_SHARE));
@@ -83,27 +116,26 @@ const bump = (counts: Map<string, number>, key: string, by: 1 | -1): void => {
 };
 
 // counts calls still waiting on storage's response head, the phase a tarpit endpoint can stretch.
-// one account holds at most 64 of the default 1000 pooled sockets and one server 32, so even 20
-// servers stay under the user cap; open bodies are bounded by the read budget and progress floors.
+// one account holds at most 64 request sockets plus 8 cancel sockets of the default 1000 pooled,
+// and one server 32 plus 16, so even 20 servers stay under the user caps; open bodies are bounded
+// by the read budget and progress floors.
 const acquireInFlight = (
+   pool: InFlightPool,
    serverId: string,
    userId = readUserId()
 ): (() => void) => {
-   if ((inFlightByServer.get(serverId) ?? 0) >= env.S3_MAX_INFLIGHT_PER_SERVER)
-      throw serverBusy();
-   if (
-      userId !== undefined &&
-      (inFlightByUser.get(userId) ?? 0) >= env.S3_MAX_INFLIGHT_PER_USER
-   )
-      throw userBusy();
-   bump(inFlightByServer, serverId, 1);
-   if (userId !== undefined) bump(inFlightByUser, userId, 1);
+   if ((pool.byServer.get(serverId) ?? 0) >= pool.serverCap())
+      throw pool.serverBusy();
+   if (userId !== undefined && (pool.byUser.get(userId) ?? 0) >= pool.userCap())
+      throw pool.userBusy();
+   bump(pool.byServer, serverId, 1);
+   if (userId !== undefined) bump(pool.byUser, userId, 1);
    let released = false;
    return () => {
       if (released) return;
       released = true;
-      bump(inFlightByServer, serverId, -1);
-      if (userId !== undefined) bump(inFlightByUser, userId, -1);
+      bump(pool.byServer, serverId, -1);
+      if (userId !== undefined) bump(pool.byUser, userId, -1);
    };
 };
 
@@ -113,7 +145,7 @@ const withRequestBudget = (client: S3Client, serverId: string): S3Client => {
    serverOfClient.set(client, serverId);
    client.middlewareStack.add(
       (next) => async (args) => {
-         const release = acquireInFlight(serverId);
+         const release = acquireInFlight(requests, serverId);
          try {
             spendRequest(serverId);
             return await next(args);
@@ -126,13 +158,40 @@ const withRequestBudget = (client: S3Client, serverId: string): S3Client => {
    return client;
 };
 
+// a user's cancel skips the minute window so a spent budget can't strand billable parts, but it
+// still holds a pooled socket for up to the cleanup deadline, so it draws on a small pool of its own.
+// 8 per user covers two tabs cancelling every active upload (FILE_CONCURRENCY is 3 per tab).
+const withCancelBudget = (client: S3Client, serverId: string): S3Client => {
+   withBufferedResponses(client, serverId);
+   client.middlewareStack.add(
+      (next) => async (args) => {
+         const release = acquireInFlight(cancels, serverId);
+         try {
+            return await next(args);
+         } finally {
+            release();
+         }
+      },
+      { step: "initialize", name: "cancelBudget" }
+   );
+   return client;
+};
+
 const budgetServerOf = (client: S3Client): string | undefined =>
    serverOfClient.get(client);
 
 const resetRequestBudgets = (): void => {
    windows.clear();
-   inFlightByServer.clear();
-   inFlightByUser.clear();
+   for (const pool of [requests, cancels]) {
+      pool.byServer.clear();
+      pool.byUser.clear();
+   }
 };
 
-export { budgetServerOf, resetRequestBudgets, spendRequest, withRequestBudget };
+export {
+   budgetServerOf,
+   resetRequestBudgets,
+   spendRequest,
+   withCancelBudget,
+   withRequestBudget,
+};

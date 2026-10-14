@@ -1,4 +1,4 @@
-import { formatCount } from "@/lib/utils/format";
+import { formatCount, visibleText } from "@/lib/utils/format";
 
 type Failure = { key: string; message: string };
 
@@ -13,7 +13,7 @@ const FailureList = ({ failures }: { failures: Failure[] }) => {
          {shown.map((failure) => (
             <li key={failure.key}>
                <span className="font-medium text-viewerblack">
-                  {failure.key}
+                  {visibleText(failure.key)}
                </span>{" "}
                — {failure.message}
             </li>

@@ -4,7 +4,7 @@ import {
 } from "@/components/DataGrid/context";
 import type { FitContext } from "@/components/DataGrid/fit-columns";
 import { CellBar, nameBarWidth } from "@/components/DataGrid/skeleton";
-import { formatBytes, formatDate } from "@/lib/utils/format";
+import { formatBytes, formatDate, visibleText } from "@/lib/utils/format";
 import { folderHref, objectHref, segmentsFromKey } from "@/lib/utils/s3/paths";
 import type { S3Object } from "@s3-viewer/types";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
@@ -49,9 +49,9 @@ const NameCell = (params: ICellRendererParams<S3Object, string>) => {
          </PendingCell>
       );
 
-   const label = data.key.startsWith(prefix)
-      ? data.key.slice(prefix.length)
-      : data.key;
+   const label = visibleText(
+      data.key.startsWith(prefix) ? data.key.slice(prefix.length) : data.key
+   );
    const href = data.isFolder
       ? folderHref(bucketName, segmentsFromKey(data.key))
       : objectHref(bucketName, data.key);

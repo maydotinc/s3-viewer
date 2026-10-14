@@ -20,6 +20,7 @@ import {
    VERIFICATION_CODE_ATTEMPTS,
    VERIFICATION_CODE_LENGTH,
    VERIFICATION_CODE_TTL_MINUTES,
+   canonicalMailbox,
    normalizeEmail,
    profileNameSchema,
    describeError,
@@ -34,7 +35,12 @@ import {
 } from "better-auth/api";
 import { emailOTP } from "better-auth/plugins";
 import { authEnv, signUpPolicy } from "./env";
-import { AuthErrorCode, EXISTS, TOO_MANY_ATTEMPTS } from "./errors";
+import {
+   AuthErrorCode,
+   EXISTS,
+   TOO_MANY_ATTEMPTS,
+   TOO_MANY_CODE_GUESSES,
+} from "./errors";
 import { validateNewProfile, validateProfileChange } from "./profile";
 import {
    assertPasswordSignUpAllowed,
@@ -114,6 +120,14 @@ const SIGN_IN_RULES: readonly ThrottleRule[] = [
       spend: "failure",
    },
 ];
+
+// each code locks after its own attempts, but a fresh code is minted whether or not its mail
+// is sent; charged only once the password matches, so a stranger cannot spend it.
+const codeGuessThrottle = makeThrottle(
+   "code-guesses",
+   4 * VERIFICATION_CODE_ATTEMPTS,
+   DAY_MS
+);
 
 const THROTTLES: Readonly<Record<string, readonly ThrottleRule[]>> = {
    [SIGN_IN_PATH]: SIGN_IN_RULES,
@@ -220,7 +234,7 @@ const bodyEmail = (body: HookBody): string => {
 };
 
 const mailAllowed = async (to: string): Promise<boolean> => {
-   const address = normalizeEmail(to);
+   const address = canonicalMailbox(to);
    for (const throttle of MAIL_PER_ADDRESS) {
       if (!(await throttle.allow(address))) return false;
    }
@@ -270,6 +284,12 @@ type HookState = { resetUserId?: string };
 
 const RESET_PASSWORD_PATH = "/reset-password";
 const CHANGE_PASSWORD_PATH = "/change-password";
+
+const codeGuessesSpent = (): APIError =>
+   new APIError("TOO_MANY_REQUESTS", {
+      message: TOO_MANY_CODE_GUESSES,
+      code: AuthErrorCode.VERIFICATION_LOCKED,
+   });
 
 const wrongCredentials = (): APIError =>
    new APIError("UNAUTHORIZED", {
@@ -330,7 +350,7 @@ const resetTokenOwner = async (
    ctx: HookContext
 ): Promise<string | undefined> => {
    const token =
-      (ctx.body as { token?: unknown } | undefined)?.token ?? ctx.query?.token;
+      (ctx.body as { token?: unknown } | undefined)?.token || ctx.query?.token;
    if (typeof token !== "string" || !token) return undefined;
    const row = await ctx.context.internalAdapter.findVerificationValue(
       `reset-password:${token}`
@@ -460,6 +480,8 @@ const auth = betterAuth({
          if (ctx.path === VERIFY_CODE_PATH) {
             try {
                await assertPasswordForCode(ctx, email, body?.password);
+               if (!(await codeGuessThrottle.allow(email)))
+                  throw codeGuessesSpent();
             } catch (error) {
                await settleThrottles(rules, ip, email, false);
                throw error;
@@ -546,8 +568,16 @@ const auth = betterAuth({
       session: {
          create: {
             // Better Auth merges this over the row; omitted properties would retain these fields.
-            before: async () => ({
-               data: { userAgent: undefined, ipAddress: undefined },
+            before: async (_session, ctx) => ({
+               data: {
+                  userAgent: undefined,
+                  ipAddress: undefined,
+                  // change-password swaps in a new session; it must keep the old absolute lifetime.
+                  ...(ctx?.path === CHANGE_PASSWORD_PATH &&
+                     ctx.context.session && {
+                        createdAt: ctx.context.session.session.createdAt,
+                     }),
+               },
             }),
          },
       },

@@ -9,7 +9,7 @@ import {
    type FolderScope,
    type S3Bucket,
 } from "@s3-viewer/types";
-import { formatCount, pluralize } from "./format";
+import { formatCount, pluralize, visibleText } from "./format";
 
 type Reach = { folders: FolderScope; owner: boolean };
 
@@ -63,12 +63,15 @@ const canActOnFolder = (
 const foldersUnder = (scope: readonly string[], prefix: string): string[] =>
    scope.filter((folder) => folder.startsWith(prefix));
 
+const folderList = (folders: readonly string[]): string =>
+   joinList(folders.map(visibleText));
+
 // unknown reach passes: the API still refuses, and blocking while buckets load is worse.
 const writeScopeError = (reach: KnownReach, key: string): string | null => {
    const access = folderAccessAt(reach, key);
    if (access === "dotted") return DOT_SEGMENTS;
    if (access === "leading" || access === "outside")
-      return `You can only write inside ${joinList(limitedFolders(reach) ?? [])} in this bucket.`;
+      return `You can only write inside ${folderList(limitedFolders(reach) ?? [])} in this bucket.`;
    return null;
 };
 
@@ -78,7 +81,7 @@ const writeBlockReason = (reach: KnownReach, prefix: string): string | null => {
    if (access !== "leading" && access !== "outside") return null;
    const scope = limitedFolders(reach) ?? [];
    const reachable = foldersUnder(scope, prefix);
-   return `You can only add files and folders inside ${joinList(reachable.length > 0 ? reachable : scope)}.`;
+   return `You can only add files and folders inside ${folderList(reachable.length > 0 ? reachable : scope)}.`;
 };
 
 const rowBlockReason = (reach: KnownReach, key: string): string | null => {
@@ -87,7 +90,7 @@ const rowBlockReason = (reach: KnownReach, key: string): string | null => {
    if (access !== "leading" && access !== "outside") return null;
    const under = foldersUnder(limitedFolders(reach) ?? [], key);
    if (under.length === 0) return "This isn't shared with you.";
-   return `No actions here. Only ${joinList(under)} ${under.length === 1 ? "is" : "are"} shared with you.`;
+   return `No actions here. Only ${folderList(under)} ${under.length === 1 ? "is" : "are"} shared with you.`;
 };
 
 const renameBlockReason = (reach: KnownReach, key: string): string | null =>
@@ -103,7 +106,7 @@ const accessNotice = (
    const count = pluralize(folders.length, "folder");
    return {
       title: prefix
-         ? `You have access to ${count} under ${prefix}`
+         ? `You have access to ${count} under ${visibleText(prefix)}`
          : `You have access to ${count} in this bucket`,
       detail: `Only the folders that lead to ${folders.length === 1 ? "it" : "them"} are shown here.`,
       folders,
@@ -113,13 +116,15 @@ const accessNotice = (
 const uploadsScope = (reach: KnownReach, prefix: string): string => {
    const access = folderAccessAt(reach, prefix);
    if (access === "leading" || access === "outside")
-      return prefix ? `in your folders under ${prefix}` : "in your folders";
-   return prefix ? `under ${prefix}` : "in this bucket";
+      return prefix
+         ? `in your folders under ${visibleText(prefix)}`
+         : "in your folders";
+   return prefix ? `under ${visibleText(prefix)}` : "in this bucket";
 };
 
 const folderLimitLabel = (folders: readonly string[]): string =>
    folders.length === 1
-      ? `${folders[0]} only`
+      ? `${visibleText(folders[0]!)} only`
       : `${formatCount(folders.length)} folders`;
 
 const grantLabel = ({ role, folders }: BucketAccessEntry): string =>
@@ -150,6 +155,7 @@ export {
    canListPrefix,
    canWriteAt,
    folderAccessAt,
+   folderList,
    grantLabel,
    limitedGrants,
    limitedGrantsNote,

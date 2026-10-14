@@ -40,6 +40,7 @@ vi.mock("@s3-viewer/db", () => ({
 }));
 vi.mock("@/lib/s3/client-cache", () => ({ getS3Client: state.getClient }));
 vi.mock("@/lib/s3/no-retry", () => ({
+   forCancel: (client: unknown) => client,
    forCleanup: (client: unknown) => client,
    withoutRetries: (client: unknown) => client,
 }));
@@ -278,11 +279,14 @@ describe("listing incomplete uploads", () => {
       });
    });
 
-   it("lets a viewer list but not a removed member", async () => {
-      state.role = "VIEWER";
+   it("lets an editor list but keeps a viewer and a removed member out", async () => {
+      state.role = "EDITOR";
       expect((await fetch(base)).status).toBe(200);
+      state.role = "VIEWER";
+      expect((await fetch(base)).status).toBe(403);
       state.role = null;
       expect((await fetch(base)).status).toBe(404);
+      expect(state.list).toHaveBeenCalledTimes(1);
    });
 });
 

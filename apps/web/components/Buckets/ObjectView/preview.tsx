@@ -3,7 +3,7 @@ import {
    isStreamedKind,
    previewKind,
 } from "@/lib/utils/file-utils";
-import { formatBytes } from "@/lib/utils/format";
+import { formatBytes, visibleText } from "@/lib/utils/format";
 import { canPresignObjectKey, type S3ObjectPreview } from "@s3-viewer/types";
 import {
    CircleAlert,
@@ -155,6 +155,7 @@ const ActivePreview = ({
       loaded,
    } = usePreviewSource(preview, refreshPreview);
    const kind = previewKind(preview.contentType, fileName);
+   const name = visibleText(fileName);
    const [painted, setPainted] = useState(false);
    const onError = () => void recover();
    const onPainted = () => {
@@ -190,7 +191,7 @@ const ActivePreview = ({
                <Image
                   key={generation}
                   src={source.url}
-                  alt={fileName}
+                  alt={name}
                   fill
                   unoptimized
                   sizes="(min-width: 1024px) 60vw, 100vw"
@@ -223,7 +224,7 @@ const ActivePreview = ({
          {kind === "audio" && (
             <div className="flex w-full max-w-md flex-col items-center gap-4">
                <p className="max-w-full truncate text-sm text-viewertext">
-                  {fileName}
+                  {name}
                </p>
                <audio
                   key={generation}
@@ -242,11 +243,11 @@ const ActivePreview = ({
          )}
          {kind === "pdf" && (
             <MediaFrame painted={painted} className="size-full">
-               {/* Chrome won't render a PDF in any sandboxed frame; preview URLs are served as application/pdf, never markup. */}
+               {/* Chrome won't render a PDF in any sandboxed frame, and a typed blob url would need bucket CORS and inherit this page's frame-ancestors, which Safari enforces on it; preview URLs are served as application/pdf, never markup. */}
                <iframe
                   key={generation}
                   src={source.url}
-                  title={`Preview of ${fileName}`}
+                  title={`Preview of ${name}`}
                   referrerPolicy="no-referrer"
                   onError={onError}
                   onLoad={onPainted}

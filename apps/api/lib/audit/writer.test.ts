@@ -637,6 +637,43 @@ describe("repeated reads", () => {
       ]);
    });
 
+   it("caps distinct listings per actor and server, marking where it stopped", async () => {
+      const list = (actorId: string, serverId: string, target: string) =>
+         written(
+            writeAudit({
+               serverId,
+               actor: { id: actorId, email: `${actorId}@example.com` },
+               audit: { enabled: true, level: AuditLevel.ALL },
+               entry: { ...listing(target), bucket: `crawl-${target.length}` },
+            })
+         );
+      for (let i = 0; i < 40; i++)
+         await list("crawler1234", "server12345", `crawl/${i}/`);
+      const crawled = stored();
+      expect(crawled).toHaveLength(31);
+      expect(crawled.at(-1)).toMatchObject({
+         action: "object.list",
+         target: null,
+         detail: { limited: true, perMinute: 30 },
+      });
+      await list("crawler1234", "server67890", "crawl/0/");
+      await list("bystander12", "server12345", "crawl/0/");
+      expect(stored()).toHaveLength(33);
+      await written(
+         writeAudit({
+            serverId: "server12345",
+            actor: { id: "crawler1234", email: "crawler1234@example.com" },
+            audit: { enabled: true, level: AuditLevel.ALL },
+            entry: { action: "object.download", target: "crawl/0/a.png" },
+         })
+      );
+      expect(stored()).toHaveLength(34);
+      vi.setSystemTime(NOW.getTime() + 60_001);
+      await list("crawler1234", "server12345", "crawl/fresh/");
+      expect(stored().at(-1)).toMatchObject({ target: "crawl/fresh/" });
+      vi.setSystemTime(NOW);
+   });
+
    it("does not spend the window while the log is off", async () => {
       await written(record(fakeRes(false), listing("dedupe/off/")));
       await written(record(fakeRes(true), listing("dedupe/off/")));

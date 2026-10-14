@@ -19,6 +19,7 @@ import useAuditLog, {
 import { useAllMembers } from "@/lib/hooks/queries/server/useMembers";
 import { useDebouncedValue } from "@/lib/hooks/useDebouncedValue";
 import { saveBlob } from "@/lib/utils/download";
+import { visibleText } from "@/lib/utils/format";
 import { toastFailure } from "@/lib/utils/toast";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
 import type { AuditAccess, AuditLogEntry, Role } from "@s3-viewer/types";
@@ -87,9 +88,12 @@ const searchTerm = (text: string): string => {
    return trimmed.length >= MIN_SEARCH ? trimmed : "";
 };
 
+const shown = (text: string | null): string | null =>
+   text ? visibleText(text) : null;
+
 const ActivityRow = ({ entry }: { entry: AuditLogEntry }) => {
-   const target = targetOf(entry);
-   const meta = metaOf(entry);
+   const target = shown(targetOf(entry));
+   const meta = shown(metaOf(entry));
    const details = [target, meta].filter(Boolean).join(" ");
    return (
       <TableRow>

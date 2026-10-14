@@ -11,7 +11,7 @@ import useMoveObjects, {
    type MoveTarget,
 } from "@/lib/hooks/mutations/object/useMoveObjects";
 import useMovePrefix from "@/lib/hooks/mutations/object/useMovePrefix";
-import { formatCount } from "@/lib/utils/format";
+import { formatCount, visibleText } from "@/lib/utils/format";
 import { batchProgressSentence, emptyBatchSummary } from "@/lib/utils/s3/batch";
 import { destinationKey, validateDestination } from "@/lib/utils/s3/keys";
 import { useRef, useState } from "react";
@@ -55,7 +55,7 @@ const MoveObjectsModal = ({
       isPending,
       pastTenseVerb: "moved",
       progressNotice: (count) =>
-         `Moving everything under ${folder}… ${count} objects so far.`,
+         `Moving everything under ${folder && visibleText(folder)}… ${count} objects so far.`,
    });
    const unsent = useRef<MoveTarget[]>([]);
 
@@ -137,7 +137,7 @@ const MoveObjectsModal = ({
 
    const total = files?.objects.length ?? 0;
    const description = folder
-      ? `Every object under ${folder} is copied to the new prefix and then removed from the old one. Large folders resume where they stopped.`
+      ? `Every object under ${visibleText(folder)} is copied to the new prefix and then removed from the old one. Large folders resume where they stopped.`
       : `${total === 1 ? "This object is" : `These ${formatCount(total)} objects are`} copied into the destination folder and then removed from here.`;
 
    const summary = attempted

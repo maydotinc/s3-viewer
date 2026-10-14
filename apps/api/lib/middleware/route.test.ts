@@ -226,7 +226,7 @@ describe("refused attempts", () => {
       expect(hidden.status).toBe(404);
       expect(await hidden.json()).toEqual({ message: "Bucket not found" });
       expect(state.writeAudit).toHaveBeenLastCalledWith(
-         denied("DELETE_BUCKET", "bucket", "secret")
+         denied("DELETE_BUCKET", "bucket")
       );
 
       later();
@@ -344,7 +344,7 @@ describe("refused attempts", () => {
       );
       expect(state.writeAudit).toHaveBeenCalledTimes(2);
       expect(state.writeAudit).toHaveBeenLastCalledWith(
-         denied("DELETE_BUCKET", "bucket", "secret")
+         denied("DELETE_BUCKET", "bucket")
       );
 
       later();

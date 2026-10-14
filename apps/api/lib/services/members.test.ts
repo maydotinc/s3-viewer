@@ -9,11 +9,13 @@ import {
    clampBucketAccess,
    listMembers,
    removeMembership,
+   replaceBucketAccess,
    type GrantingActor,
 } from "./members";
 
 const h = vi.hoisted(() => ({
    findMany: vi.fn(),
+   viewerGrants: vi.fn(),
    keyset: vi.fn(),
    updateMany: vi.fn(),
    findAccess: vi.fn(),
@@ -27,6 +29,7 @@ const h = vi.hoisted(() => ({
 vi.mock("@s3-viewer/db", () => ({
    prisma: {
       serverAccess: { findMany: h.findMany },
+      bucketAccess: { findMany: h.viewerGrants },
       $queryRaw: h.keyset,
       $transaction: (work: (tx: unknown) => Promise<unknown>) =>
          work({
@@ -410,9 +413,12 @@ const queryText = (call = 0): string =>
    query(call).text.replace(/\s+/g, " ").trim();
 
 describe("listMembers", () => {
+   const OWNER_VIEWER = { id: "owner12345", role: Role.OWNER };
+
    beforeEach(() => {
       h.keyset.mockReset();
       h.findMany.mockReset();
+      h.viewerGrants.mockReset().mockResolvedValue([]);
    });
 
    it("returns ordered members and a cursor only when a further page exists", async () => {
@@ -420,7 +426,7 @@ describe("listMembers", () => {
          memberRow("m1", "2026-09-01T00:00:00.000Z"),
          memberRow("m2", "2026-09-02T00:00:00.000Z"),
       ]);
-      const page = await listMembers("server12345", undefined, 1);
+      const page = await listMembers("server12345", undefined, 1, OWNER_VIEWER);
       expect(page.members).toEqual([serverUser("m1")]);
       expect(page.nextCursor).toBe(
          Buffer.from("2026-09-01T00:00:00.000Z|m1").toString("base64url")
@@ -438,7 +444,7 @@ describe("listMembers", () => {
       h.keyset.mockResolvedValueOnce([
          memberRow("m1", "2026-09-01T00:00:00.000Z"),
       ]);
-      const page = await listMembers("server12345", undefined, 5);
+      const page = await listMembers("server12345", undefined, 5, OWNER_VIEWER);
       expect(page.members).toEqual([serverUser("m1")]);
       expect(page.nextCursor).toBeNull();
    });
@@ -448,7 +454,7 @@ describe("listMembers", () => {
       const cursor = Buffer.from("2026-09-01T00:00:00.000Z|m1").toString(
          "base64url"
       );
-      const page = await listMembers("server12345", cursor, 5);
+      const page = await listMembers("server12345", cursor, 5, OWNER_VIEWER);
       expect(page).toEqual({ members: [], nextCursor: null });
       expect(queryText()).toContain(
          'WHERE "serverId" = $1 AND ("createdAt", "id") > ($2::timestamp, $3)'
@@ -480,7 +486,9 @@ describe("listMembers", () => {
             },
          },
       ]);
-      expect((await listMembers("server12345", undefined, 5)).members).toEqual([
+      expect(
+         (await listMembers("server12345", undefined, 5, OWNER_VIEWER)).members
+      ).toEqual([
          {
             ...serverUser("m1"),
             bucketAccess: [
@@ -504,7 +512,7 @@ describe("listMembers", () => {
             "'allowedFolders', b.\"allowedFolders\" )"
       );
       h.keyset.mockResolvedValueOnce([]);
-      await listMembers("server12345", undefined, 5);
+      await listMembers("server12345", undefined, 5, OWNER_VIEWER);
       expect(queryText()).toContain(
          `SELECT jsonb_agg( ${fragment.text.replace(/\s+/g, " ")} ORDER BY b."bucketName" ) AS buckets FROM "bucket_access" b`
       );
@@ -523,14 +531,55 @@ describe("listMembers", () => {
       );
    });
 
-   it("rejects a garbage cursor with 400", async () => {
-      await expect(listMembers("server12345", "nope", 5)).rejects.toMatchObject(
+   it("shows an admin only the grants on buckets the admin holds", async () => {
+      const row = memberRow("m1", "2026-09-01T00:00:00.000Z");
+      const grant = (bucketName: string, role: Role) => ({
+         bucketName,
+         role,
+         restrictedFolders: false,
+         allowedFolders: [],
+      });
+      h.keyset.mockResolvedValueOnce([
          {
-            status: 400,
-            message: "Invalid cursor",
-            code: "VALIDATION",
-         }
+            ...row,
+            user: {
+               ...row.user,
+               bucketAccess: [
+                  grant("logs", Role.VIEWER),
+                  grant("photos", Role.EDITOR),
+               ],
+            },
+         },
+      ]);
+      h.viewerGrants.mockResolvedValueOnce([grant("photos", Role.ADMIN)]);
+      const { members } = await listMembers("server12345", undefined, 5, {
+         id: "admin12345",
+         role: Role.ADMIN,
+      });
+      expect(members[0]?.bucketAccess).toEqual([
+         { bucketName: "photos", role: Role.EDITOR, folders: null },
+      ]);
+      expect(h.viewerGrants).toHaveBeenCalledWith(
+         expect.objectContaining({
+            where: { userId: "admin12345", serverId: "server12345" },
+         })
       );
+   });
+
+   it("shows an owner every grant without reading the owner's own", async () => {
+      h.keyset.mockResolvedValueOnce([]);
+      await listMembers("server12345", undefined, 5, OWNER_VIEWER);
+      expect(h.viewerGrants).not.toHaveBeenCalled();
+   });
+
+   it("rejects a garbage cursor with 400", async () => {
+      await expect(
+         listMembers("server12345", "nope", 5, OWNER_VIEWER)
+      ).rejects.toMatchObject({
+         status: 400,
+         message: "Invalid cursor",
+         code: "VALIDATION",
+      });
       expect(h.keyset).not.toHaveBeenCalled();
    });
 });
@@ -773,10 +822,30 @@ describe("removeMembership", () => {
          })
       ).rejects.toMatchObject({
          status: 403,
-         message: "You can't remove a member with Editor access to photos",
+         message:
+            "You can't remove a member with access to buckets you don't hold",
       });
       expect(h.deleteAccess).not.toHaveBeenCalled();
       expect(h.deleteGrants).not.toHaveBeenCalled();
+   });
+
+   it("names a bucket the admin holds when its grant there is out of reach", async () => {
+      roles(Role.ADMIN, Role.EDITOR);
+      h.findGrants.mockImplementation(
+         async ({ where }: { where: { bucketName?: unknown } }) =>
+            where.bucketName
+               ? [grantRow("photos", Role.VIEWER)]
+               : [grantRow("photos", Role.EDITOR)]
+      );
+      await expect(
+         removeMembership("target1234", "server12345", {
+            id: "actor12345",
+            assertAuthority: vi.fn(),
+         })
+      ).rejects.toMatchObject({
+         status: 403,
+         message: "You can't remove a member with Editor access to photos",
+      });
    });
 
    it("lets an admin remove a member whose grants all sit on buckets the admin holds", async () => {
@@ -849,5 +918,53 @@ describe("removeMembership", () => {
       expect(h.deleteAccess.mock.invocationCallOrder[0]).toBeLessThan(
          h.revokeInvites.mock.invocationCallOrder[0]!
       );
+   });
+});
+
+describe("replaceBucketAccess", () => {
+   const createMany = vi.fn();
+   const tx = {
+      bucketAccess: { deleteMany: h.deleteGrants, createMany },
+   } as unknown as Prisma.TransactionClient;
+   const photos = {
+      bucketName: "photos",
+      role: Role.VIEWER as const,
+      folders: null,
+   };
+
+   beforeEach(() => {
+      h.deleteGrants.mockReset().mockResolvedValue({ count: 0 });
+      createMany.mockReset().mockResolvedValue({ count: 1 });
+   });
+
+   it("replaces every grant for an editor who sees them all", async () => {
+      await replaceBucketAccess(
+         tx,
+         "user123456",
+         "server12345",
+         [photos],
+         null
+      );
+      expect(h.deleteGrants).toHaveBeenCalledWith({
+         where: { userId: "user123456", serverId: "server12345" },
+      });
+      expect(createMany).toHaveBeenCalledOnce();
+   });
+
+   it("keeps grants on buckets the editor could not see", async () => {
+      await replaceBucketAccess(
+         tx,
+         "user123456",
+         "server12345",
+         [photos],
+         new Set(["photos", "logs"])
+      );
+      expect(h.deleteGrants).toHaveBeenCalledWith({
+         where: {
+            userId: "user123456",
+            serverId: "server12345",
+            bucketName: { in: ["photos", "logs"] },
+         },
+      });
    });
 });

@@ -1,18 +1,30 @@
 // @vitest-environment happy-dom
 import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mountedRuntime, serverInfo } from "@/components/test-helpers";
+import {
+   buttonByText,
+   mountedRuntime,
+   serverInfo,
+} from "@/components/test-helpers";
 import { deferred, flushRuntime } from "@/lib/test/runtime";
+import { ApiError } from "@/lib/api";
+import { ErrorCode } from "@s3-viewer/types";
 import Modal from "./index";
 
-const h = vi.hoisted(() => ({ encrypt: vi.fn(), mutate: vi.fn() }));
+const h = vi.hoisted(() => ({
+   encrypt: vi.fn(),
+   mutate: vi.fn(),
+   signOut: vi.fn(),
+   error: null as unknown,
+}));
 
 vi.mock("@s3-viewer/ui/components/dialog", async () =>
    (await import("@/components/test-helpers")).passthroughDialog()
 );
 vi.mock("@/lib/hooks/mutations/server/useUpdateCredentials", () => ({
-   default: () => ({ isPending: false, mutate: h.mutate }),
+   default: () => ({ isPending: false, mutate: h.mutate, error: h.error }),
 }));
+vi.mock("@/lib/auth", () => ({ signOut: h.signOut }));
 vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
    default: () => ({ data: { encryptionPublicKey: "key" } }),
    ENCRYPTION_ERROR: "Couldn't encrypt",
@@ -46,7 +58,10 @@ const save = () =>
       "button[type=submit]"
    )!;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+   vi.clearAllMocks();
+   h.error = null;
+});
 
 describe("updating credentials", () => {
    it("treats encryption as pending so a second submit can't send the keys twice", async () => {
@@ -74,5 +89,32 @@ describe("updating credentials", () => {
          encryptedCredentials: "sealed",
       });
       expect(save().disabled).toBe(false);
+   });
+
+   it("asks for a fresh sign-in instead of showing the stale-session error", async () => {
+      h.encrypt.mockResolvedValue("sealed");
+      h.mutate.mockImplementation((_input, { onError }) => {
+         h.error = new ApiError(403, "Stale", ErrorCode.SESSION_STALE);
+         onError(h.error);
+      });
+      await view.mount(
+         createElement(Modal, {
+            server: serverInfo({ id: "server1" }),
+            onClose: vi.fn(),
+         })
+      );
+      await type("endpoint", "https://s3.example.com");
+      await type("access-key", "access");
+      await type("secret-key", "secret");
+      await submit();
+      await flushRuntime();
+      const text = view.current.container.textContent ?? "";
+      expect(text).toContain("Sign in again to replace these credentials");
+      expect(text).not.toContain("Stale");
+      await act(async () =>
+         buttonByText(view.current.container, "Sign in again")!.click()
+      );
+      expect(h.signOut).toHaveBeenCalledOnce();
+      expect(h.mutate).toHaveBeenCalledOnce();
    });
 });

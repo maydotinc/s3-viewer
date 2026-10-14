@@ -70,6 +70,27 @@ describe("archive entry collection", () => {
       }
    });
 
+   it("skips listed keys outside the folder when a gateway ignores the prefix", async () => {
+      const f = s3Fixture(async () =>
+         listing([
+            { key: "logs/2026/a.txt", size: 5 },
+            { key: "private/secret.txt", size: 9 },
+            { key: "logs/2027/b.txt", size: 7 },
+         ])
+      );
+      try {
+         const { entries, bytes } = await collectArchiveEntries(
+            f.scope,
+            ["logs/2026/"],
+            limits
+         );
+         expect(entries.map(({ key }) => key)).toEqual(["logs/2026/a.txt"]);
+         expect(bytes).toBe(5);
+      } finally {
+         f.client.destroy();
+      }
+   });
+
    it("follows continuation tokens and heads plain file keys for their size", async () => {
       const f = s3Fixture(async (request) => {
          if (request.method === "HEAD")
@@ -182,7 +203,6 @@ describe("archive entry collection", () => {
       const f = s3Fixture(async () =>
          listing([
             { key: "dir/../../../../.ssh/authorized_keys", size: 3 },
-            { key: "/etc/passwd", size: 4 },
             { key: "dir/..", size: 1 },
             { key: "dir/ok.txt", size: 2 },
          ])
@@ -190,14 +210,15 @@ describe("archive entry collection", () => {
       try {
          const { entries } = await collectArchiveEntries(
             f.scope,
-            ["dir/"],
-            limits
+            ["dir/", "/etc/passwd"],
+            limits,
+            new Map([["/etc/passwd", 4]])
          );
          expect(entries.map(({ name }) => name)).toEqual([
             "authorized_keys",
-            "etc/passwd",
             "file",
             "dir/ok.txt",
+            "etc/passwd",
          ]);
       } finally {
          f.client.destroy();

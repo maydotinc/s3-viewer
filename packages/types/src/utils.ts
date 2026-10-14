@@ -121,5 +121,46 @@ export async function mapLimit<T, R>(
    return results;
 }
 
-export const describeError = (error: unknown): string =>
-   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+type PrismaClientError = Error & {
+   code?: unknown;
+   errorCode?: unknown;
+   meta?: { target?: unknown };
+};
+
+// duck-typed so this package needs no prisma dependency; every prisma client error class shares the prefix.
+export const isPrismaClientError = (
+   error: unknown
+): error is PrismaClientError =>
+   error instanceof Error && error.name.startsWith("PrismaClient");
+
+const prismaTarget = (target: unknown): string | null => {
+   if (typeof target === "string") return target;
+   return Array.isArray(target) && target.every((t) => typeof t === "string")
+      ? target.join(", ")
+      : null;
+};
+
+// prisma messages quote the failing call's arguments and the database's own detail, both of which
+// can carry bound values; only the class, code and constraint target are safe to log.
+const describePrismaError = (error: PrismaClientError): string => {
+   if (error.name === "PrismaClientValidationError") {
+      const line = error.message.split("\n").find((l) => l.trim() !== "");
+      return line ? `${error.name}: ${line.trim()}` : error.name;
+   }
+   const code = [error.code, error.errorCode].find(
+      (c): c is string => typeof c === "string"
+   );
+   const target = prismaTarget(error.meta?.target);
+   return [
+      error.name,
+      ...(code ? [code] : []),
+      ...(target ? [`(target: ${target})`] : []),
+   ].join(" ");
+};
+
+export const describeError = (error: unknown): string => {
+   if (isPrismaClientError(error)) return describePrismaError(error);
+   return error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : String(error);
+};

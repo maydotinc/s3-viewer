@@ -2,6 +2,7 @@ import PathInput from "@/components/path-input";
 import RemovableChip from "@/components/removable-chip";
 import { usePathSuggestion } from "@/lib/hooks/usePathSuggestion";
 import { useUserId } from "@/lib/stores/session-store";
+import { visibleText } from "@/lib/utils/format";
 import {
    canLimitToFolders,
    type BucketAccessEntry,
@@ -123,8 +124,8 @@ const FolderListEditor = ({
                {folders.map((folder) => (
                   <RemovableChip
                      key={folder}
-                     label={folder}
-                     title={folder}
+                     label={visibleText(folder)}
+                     title={visibleText(folder)}
                      disabled={disabled}
                      onRemove={() => remove(folder)}
                   />

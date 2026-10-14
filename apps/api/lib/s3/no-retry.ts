@@ -3,7 +3,7 @@ import { cloneS3Client, type CloneOptions } from "./clone-client";
 
 const CLEANUP_MAX_ATTEMPTS = 3;
 
-type Variant = "once" | "cleanup" | "unbudgeted";
+type Variant = "once" | "cleanup" | "cancel" | "unbudgeted";
 type Clone = { base: S3Client; variant: Variant };
 
 const variants = new WeakMap<S3Client, Partial<Record<Variant, S3Client>>>();
@@ -34,10 +34,16 @@ const withoutRetries = (client: S3Client): S3Client =>
 const forCleanup = (client: S3Client): S3Client =>
    cachedClone(client, "cleanup", {
       maxAttempts: CLEANUP_MAX_ATTEMPTS,
-      budgeted: false,
+      budget: "none",
+   });
+
+const forCancel = (client: S3Client): S3Client =>
+   cachedClone(client, "cancel", {
+      maxAttempts: CLEANUP_MAX_ATTEMPTS,
+      budget: "cancels",
    });
 
 const withoutBudget = (client: S3Client): S3Client =>
-   cachedClone(client, "unbudgeted", { maxAttempts: 1, budgeted: false });
+   cachedClone(client, "unbudgeted", { maxAttempts: 1, budget: "none" });
 
-export { forCleanup, withoutBudget, withoutRetries };
+export { forCancel, forCleanup, withoutBudget, withoutRetries };

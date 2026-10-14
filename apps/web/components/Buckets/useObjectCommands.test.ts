@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_BATCH_KEYS, Provider, Role } from "@s3-viewer/types";
 import { useCreateObjectCommands } from "./useObjectCommands";
+import { downloadFromStorage } from "@/lib/utils/download";
 import { getDownloadUrl } from "@/lib/utils/s3/presign";
 
 const h = vi.hoisted(() => ({
@@ -83,7 +84,7 @@ vi.mock("./Context", () => ({
       reloadListing: h.refresh,
    }),
 }));
-vi.mock("@/lib/utils/download", () => ({ downloadUrl: vi.fn() }));
+vi.mock("@/lib/utils/download", () => ({ downloadFromStorage: vi.fn() }));
 vi.mock("@/lib/utils/s3/presign", () => ({ getDownloadUrl: vi.fn() }));
 vi.mock("@/lib/utils/toast", () => ({ toastError: vi.fn() }));
 vi.mock("@s3-viewer/ui/components/toast", async () =>
@@ -263,6 +264,18 @@ describe("zipping a selection", () => {
       expect(commands.isPreparingZip).toBe(true);
       commands.downloadZip(["photos/one.jpg"]);
       expect(h.archive).not.toHaveBeenCalled();
+   });
+});
+
+describe("downloading an object", () => {
+   it("hands the presigned url to a storage download, not an anchor", async () => {
+      vi.mocked(getDownloadUrl).mockResolvedValue({
+         url: "https://storage.test/report.pdf?X-Amz-Signature=sig",
+      } as Awaited<ReturnType<typeof getDownloadUrl>>);
+      await useCreateObjectCommands("bucket").download("docs/report.pdf");
+      expect(downloadFromStorage).toHaveBeenCalledExactlyOnceWith(
+         "https://storage.test/report.pdf?X-Amz-Signature=sig"
+      );
    });
 });
 

@@ -5,12 +5,14 @@ import { sendVerificationCode, verifyEmailCode } from "@/lib/auth";
 import { AuthErrorCode } from "@s3-viewer/auth/client";
 import {
    GENERIC_ERROR_MESSAGE,
+   SITE_PATHS,
    VERIFICATION_CODE_LENGTH,
    VERIFICATION_CODE_RESEND_SECONDS,
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
 type VerifyCodeStepProps = {
@@ -64,6 +66,8 @@ const VerifyCodeStep = ({
    const [status, setStatus] = useState<string | null>(null);
    const [pending, setPending] = useState(false);
    const [resending, setResending] = useState(false);
+   // the per-address guess budget is spent, so a fresh code would be refused too
+   const [locked, setLocked] = useState(false);
    // the code was mailed by the sign-up or sign-in that led here
    const [deadline, setDeadline] = useState(resendDeadline);
    const secondsLeft = useCountdown(deadline);
@@ -94,6 +98,7 @@ const VerifyCodeStep = ({
          onBack(PASSWORD_CHANGED);
          return;
       }
+      if (result.code === AuthErrorCode.VERIFICATION_LOCKED) setLocked(true);
       setError(result.error);
       inputRef.current?.select();
    };
@@ -169,19 +174,27 @@ const VerifyCodeStep = ({
             </Button>
          </form>
          <div className="flex flex-col gap-2 text-center text-sm text-viewertext">
-            <p>
-               Didn&apos;t get it?{" "}
-               <button
-                  type="button"
-                  disabled={pending || resending || secondsLeft !== null}
-                  onClick={() => void resend()}
-                  className={TEXT_LINK}
-               >
-                  {secondsLeft === null
-                     ? "Resend code"
-                     : `Resend code in ${secondsLeft}s`}
-               </button>
-            </p>
+            {locked ? (
+               <p>
+                  <Link href={SITE_PATHS.forgotPassword} className={TEXT_LINK}>
+                     Reset password
+                  </Link>
+               </p>
+            ) : (
+               <p>
+                  Didn&apos;t get it?{" "}
+                  <button
+                     type="button"
+                     disabled={pending || resending || secondsLeft !== null}
+                     onClick={() => void resend()}
+                     className={TEXT_LINK}
+                  >
+                     {secondsLeft === null
+                        ? "Resend code"
+                        : `Resend code in ${secondsLeft}s`}
+                  </button>
+               </p>
+            )}
             <p>
                <button
                   type="button"

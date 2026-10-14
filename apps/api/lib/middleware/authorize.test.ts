@@ -180,7 +180,7 @@ describe("authorizeBucket", () => {
          audit: { enabled: true, level: AuditLevel.ALL },
          entry: {
             action: "access.denied",
-            bucket: "unlisted-bucket",
+            bucket: null,
             detail: { permission: Permission.LIST_OBJECTS, reason: "bucket" },
          },
       });
@@ -211,11 +211,14 @@ describe("authorizeBucket", () => {
                Permission.LIST_OBJECTS
             )
          );
+         const { entry } = error.denial as {
+            entry: { bucket: string | null; detail: { reason: string } };
+         };
          return {
             status: error.status,
             message: error.message,
-            reason: (error.denial as { entry: { detail: { reason: string } } })
-               .entry.detail.reason,
+            reason: entry.detail.reason,
+            bucket: entry.bucket,
          };
       };
       const listed = await attempt("allowed-bucket");
@@ -223,8 +226,24 @@ describe("authorizeBucket", () => {
          status: 404,
          message: "Bucket not found",
          reason: "bucket",
+         bucket: "allowed-bucket",
       });
-      expect(await attempt("unlisted-bucket")).toEqual(listed);
+      expect(await attempt("unlisted-bucket")).toEqual({
+         ...listed,
+         bucket: null,
+      });
+   });
+
+   it("never records a caller-typed name on an unrestricted server", async () => {
+      db.servers = [
+         { ...SERVER, restrictedBuckets: false, allowedBuckets: ["typed"] },
+      ];
+      db.access = [member("VIEWER")];
+      const error = await thrown(
+         authorizeBucket("user1", "server1", "typed", Permission.LIST_OBJECTS)
+      );
+      expect(error.status).toBe(404);
+      expect(error.denial).toMatchObject({ entry: { bucket: null } });
    });
 
    it("403s a member whose role on a listed bucket lacks the permission", async () => {
@@ -262,6 +281,9 @@ describe("authorizeBucket", () => {
          )
       );
       expect(error.status).toBe(404);
+      expect(error.denial).toMatchObject({
+         entry: { bucket: "unlisted-bucket", detail: { reason: "bucket" } },
+      });
    });
 
    it("admits a non-owner at exactly the role their grant carries", async () => {

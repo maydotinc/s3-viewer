@@ -1,5 +1,5 @@
 import { archiveLabel } from "@/lib/utils/file-utils";
-import { formatBytes } from "@/lib/utils/format";
+import { formatBytes, visibleText } from "@/lib/utils/format";
 import type { S3ObjectPreview } from "@s3-viewer/types";
 import { FileArchive } from "lucide-react";
 import { PREVIEW_BOX } from "./preview-frame";
@@ -23,9 +23,9 @@ const ArchivePreview = ({
          <div className="flex w-full min-w-0 flex-col items-center gap-2">
             <p
                className="max-w-full truncate text-base font-semibold text-viewerblack"
-               title={fileName}
+               title={visibleText(fileName)}
             >
-               {fileName}
+               {visibleText(fileName)}
             </p>
             <p className="flex items-center gap-2 text-xs">
                <span className="select-none rounded-md border border-viewerborder bg-viewergray px-2 py-0.5 font-medium text-viewertext">

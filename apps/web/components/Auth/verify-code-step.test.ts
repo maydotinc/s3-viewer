@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, createElement } from "react";
+import { act, createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mountedRuntime } from "@/components/test-helpers";
 import { flushRuntime } from "@/lib/test/runtime";
@@ -11,6 +11,10 @@ const h = vi.hoisted(() => ({
    onVerified: vi.fn(async () => {}),
 }));
 
+vi.mock("next/link", () => ({
+   default: ({ children, href }: { children: ReactNode; href: string }) =>
+      createElement("a", { href }, children),
+}));
 vi.mock("@/lib/auth", () => ({
    verifyEmailCode: h.verifyEmailCode,
    sendVerificationCode: h.sendVerificationCode,
@@ -105,6 +109,21 @@ describe("entering the code", () => {
       expect(h.onBack).toHaveBeenCalledExactlyOnceWith(
          "Your password changed. Log in again to continue."
       );
+   });
+
+   it("swaps resend for a reset link once the address's code guesses are spent", async () => {
+      h.verifyEmailCode.mockResolvedValue({
+         error: "Too many wrong codes. Try again later, or reset your password to verify this email.",
+         code: "VERIFICATION_LOCKED",
+      });
+      const container = await mount();
+      await type(field(container), "000000");
+      const reset = container.querySelector("a");
+      expect(reset?.textContent).toBe("Reset password");
+      expect(reset?.getAttribute("href")).toBe("/forgot-password");
+      expect(container.textContent).not.toContain("Resend code");
+      await type(field(container), "1");
+      expect(container.querySelector("a")?.textContent).toBe("Reset password");
    });
 });
 

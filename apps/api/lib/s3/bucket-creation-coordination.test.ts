@@ -72,6 +72,34 @@ describe("shared bucket creation coordination", () => {
       expect(state.store.rows.size).toBe(0);
    });
 
+   it("tells only the requester that a creation is in flight", async () => {
+      const finish = Promise.withResolvers<void>();
+      const claim = (userId: string, create = vi.fn()) =>
+         withBucketCreation(
+            {
+               endpoint: "https://storage.example.com",
+               bucketName: "pending-bucket",
+               userId,
+            },
+            create
+         );
+      const running = claim(
+         "owner",
+         vi.fn(() => finish.promise)
+      );
+      await vi.waitFor(() => expect(state.store.rows.size).toBe(1));
+      await expect(claim("owner")).rejects.toMatchObject({
+         status: 409,
+         message: expect.stringMatching(/active or unresolved creation/),
+      });
+      await expect(claim("stranger")).rejects.toMatchObject({
+         status: 409,
+         message: "pending-bucket already exists",
+      });
+      finish.resolve();
+      await running;
+   });
+
    it.each([false, true])(
       "releases failed requests only when provider work is known settled: submitted=%s",
       async (submitted) => {

@@ -32,9 +32,12 @@ vi.mock("@/lib/env", async (original) => {
 const { asyncHandler, errorHandler } = await import("@/lib/http");
 const { throwHttpError } = await import("./errors");
 const { withReadUser } = await import("./read-budget");
-const { resetRequestBudgets, spendRequest, withRequestBudget } = await import(
-   "./request-budget"
-);
+const {
+   resetRequestBudgets,
+   spendRequest,
+   withCancelBudget,
+   withRequestBudget,
+} = await import("./request-budget");
 
 const budgetedClient = (serverId: string): S3Client =>
    withRequestBudget(
@@ -180,9 +183,9 @@ describe("per-server request budget", () => {
 });
 
 describe("in-flight storage request caps", () => {
-   const held = (serverId: string) => {
+   const held = (serverId: string, budget = withRequestBudget) => {
       const gate = Promise.withResolvers<void>();
-      const client = withRequestBudget(
+      const client = budget(
          s3Fixture(
             async () => {
                await gate.promise;
@@ -263,5 +266,39 @@ describe("in-flight storage request caps", () => {
       await expect(head()).rejects.toThrow("network unavailable");
       await expect(head()).rejects.toThrow(/too many storage requests\./);
       await expect(head()).rejects.toThrow(/too many storage requests\./);
+   });
+
+   it("holds cancellations to a small pool of their own outside the minute budget", async () => {
+      limit.perMinute = 1;
+      limit.perServer = 1;
+      const first = held("tarpit1234", withCancelBudget);
+      const second = held("tarpit5678", withCancelBudget);
+      const requests = held("tarpit1234");
+      const pending = [quiet(requests.head())];
+      for (let index = 0; index < 8; index++)
+         pending.push(withReadUser("alice", () => quiet(first.head())));
+      await expect(
+         withReadUser("alice", () => second.head())
+      ).rejects.toMatchObject({
+         status: 429,
+         message:
+            "You have too many cancellations in progress. Try again shortly.",
+      });
+      for (let index = 0; index < 8; index++)
+         pending.push(withReadUser("bob", () => quiet(first.head())));
+      await expect(
+         withReadUser("carol", () => first.head())
+      ).rejects.toMatchObject({
+         status: 429,
+         message:
+            "This server has too many cancellations in progress. Try again shortly.",
+      });
+      first.open();
+      second.open();
+      requests.open();
+      await Promise.all(pending);
+      await expect(withReadUser("alice", () => second.head())).rejects.toThrow(
+         "network unavailable"
+      );
    });
 });

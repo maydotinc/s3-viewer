@@ -1498,6 +1498,32 @@ describe("throttles nobody else can spend for you", () => {
       expect(capped.status).toBe(429);
    });
 
+   it("counts +tag and gmail-dot aliases against one inbox's mail budget", async () => {
+      const { post, signUp } = createTestAuth();
+      await signUp("alias.owner@gmail.com");
+      await signUp("aliasowner+other@gmail.com");
+      vi.mocked(sendPasswordResetEmail).mockClear();
+      const sent = () => vi.mocked(sendPasswordResetEmail).mock.calls.length;
+      const ask = (email: string) =>
+         post("/request-password-reset", "", {
+            email,
+            redirectTo: "http://localhost:3000/reset-password",
+         });
+      // the sign-up codes took the inbox's slot for this minute
+      const now = Date.now() + 61_000;
+      vi.spyOn(Date, "now").mockReturnValue(now);
+      expect((await ask("alias.owner@gmail.com")).status).toBe(200);
+      await vi.waitFor(() => expect(sent()).toBe(1));
+      expect((await ask("aliasowner+other@gmail.com")).status).toBe(200);
+      vi.mocked(Date.now).mockReturnValue(now + 61_000);
+      expect((await ask("aliasowner+other@gmail.com")).status).toBe(200);
+      await vi.waitFor(() => expect(sent()).toBe(2));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(
+         vi.mocked(sendPasswordResetEmail).mock.calls.map(([mail]) => mail.to)
+      ).toEqual(["alias.owner@gmail.com", "aliasowner+other@gmail.com"]);
+   });
+
    it("answers every reset request but mails one address at most once a minute", async () => {
       const { post, signUp } = createTestAuth();
       await signUp("mail-victim@example.com");
@@ -1657,6 +1683,45 @@ describe("email verification", () => {
       expect(signedIn.status).toBe(429);
    });
 
+   it("caps code guesses per address across fresh codes, counting only tries with the password", async () => {
+      const { db, rawSignUp, post } = createTestAuth(false, true);
+      await rawSignUp(EMAIL);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
+      // a fresh ip per try keeps the per-source sign-in limit out of the way
+      const attempt = (n: number, body: Record<string, unknown>) =>
+         post(
+            "/email-otp/verify-email",
+            "",
+            { email: EMAIL, password: PASSWORD, ...body },
+            { [CLIENT_IP_HEADER]: `203.0.113.${n}` }
+         );
+      for (let n = 0; n < 25; n++) {
+         const stranger = await attempt(n, {
+            otp: "000000",
+            password: "wrong-password",
+         });
+         expect(stranger.status).toBe(401);
+      }
+      const guess = lastCode() === "000000" ? "111111" : "000000";
+      for (let n = 0; n < 20; n++) {
+         expect((await attempt(100 + n, { otp: guess })).status).not.toBe(429);
+      }
+      vi.spyOn(Date, "now").mockReturnValue(Date.now() + 61_000);
+      const resent = await post("/email-otp/send-verification-otp", "", {
+         email: EMAIL,
+         type: "email-verification",
+      });
+      expect(resent.status).toBe(200);
+      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(2));
+      expect(lastCode()).not.toBe(codesTo(EMAIL)[0]);
+      const locked = await attempt(200, { otp: lastCode() });
+      expect(locked.status).toBe(429);
+      expect(await locked.json()).toMatchObject({
+         code: "VERIFICATION_LOCKED",
+      });
+      expect(db.user![0]!.emailVerified).toBe(false);
+   });
+
    it("names a taken address on sign-up instead of pretending to create it", async () => {
       const { rawSignUp } = createTestAuth();
       expect((await rawSignUp(EMAIL)).status).toBe(200);
@@ -1752,6 +1817,53 @@ describe("password changes", () => {
       await requestLink("kept-link@example.com");
       expect((await reset("not-a-real-token")).status).toBe(400);
       expect((await reset(links[0]!)).status).toBe(200);
+   });
+
+   it("cleans up after a reset whose token comes in the query beside an empty body token", async () => {
+      const { auth, db, links, requestLink, reset } = resetAuth();
+      await auth.api.signUpEmail({
+         body: {
+            email: "query-token@example.com",
+            password: PASSWORD,
+            name: "Q",
+         },
+      });
+      await requestLink("query-token@example.com");
+      await requestLink("query-token@example.com");
+      const viaQuery = await auth.handler(
+         new Request(
+            `http://localhost:5001/auth/reset-password?token=${links[0]}`,
+            {
+               method: "POST",
+               headers: {
+                  origin: "http://localhost:3000",
+                  "content-type": "application/json",
+               },
+               body: JSON.stringify({
+                  token: "",
+                  newPassword: "a-brand-new-password-2026",
+               }),
+            }
+         )
+      );
+      expect(viaQuery.status).toBe(200);
+      expect(db.user![0]!.emailVerified).toBe(true);
+      expect((await reset(links[1]!)).status).toBe(400);
+   });
+
+   it("keeps the session's absolute lifetime across a password change", async () => {
+      const { db, post, signUp } = createTestAuth();
+      const { cookie } = await signUp("lifetime@example.com");
+      const createdAt = new Date(Date.now() - 80 * DAY_MS);
+      db.session![0]!.createdAt = createdAt;
+      const changed = await post("/change-password", cookie, {
+         currentPassword: PASSWORD,
+         newPassword: "another-unique-password-2026",
+      });
+      expect(changed.status).toBe(200);
+      expect(db.session).toHaveLength(1);
+      expect(new Date(db.session![0]!.createdAt)).toEqual(createdAt);
+      expect(cookieOf(changed)).not.toBe(cookie);
    });
 
    it("drops outstanding reset links and other sessions on change-password, even if the caller opts out", async () => {

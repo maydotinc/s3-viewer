@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
-import { z } from "zod";
+import { z, type ZodTypeAny } from "zod";
+import { updateObjectSettingsBodySchema } from "@s3-viewer/types";
 import { input, validate } from "./validate";
 
 const schema = z.object({
@@ -20,7 +21,7 @@ type Parts = {
    query?: object;
 };
 
-const run = (parts: Parts) => {
+const run = (parts: Parts, against: ZodTypeAny = schema) => {
    const req = {
       method: parts.method ?? "GET",
       baseUrl: parts.baseUrl ?? "",
@@ -33,7 +34,7 @@ const run = (parts: Parts) => {
    const res = { locals: {}, status: vi.fn(), json: vi.fn() };
    res.status.mockReturnValue(res);
    const next = vi.fn();
-   validate(schema)(
+   validate(against)(
       req as unknown as Request,
       res as unknown as Response,
       next
@@ -137,6 +138,99 @@ describe("validate", () => {
       expect(res.json).toHaveBeenCalledWith({
          message: expect.stringMatching(/^name: /),
          code: "VALIDATION",
+      });
+   });
+
+   describe("array caps", () => {
+      const element = vi.fn((value: string) => value.length > 0);
+      const capped = z.object({
+         serverId: z.string(),
+         keys: z.array(z.string().refine(element)).min(1).max(3),
+         entries: z
+            .array(
+               z.object({
+                  folders: z
+                     .array(z.string())
+                     .max(2, "Pick at most 2 folders")
+                     .transform((folders) => folders)
+                     .nullable(),
+               })
+            )
+            .max(2)
+            .refine(() => true)
+            .optional(),
+      });
+      const post = (body: object) =>
+         run({ method: "POST", params: { serverId: "a" }, body }, capped);
+
+      it("refuses an over-cap array before parsing any element", () => {
+         element.mockClear();
+         const { res, next } = post({ keys: Array(250_000).fill("k") });
+         expect(next).not.toHaveBeenCalled();
+         expect(element).not.toHaveBeenCalled();
+         expect(res.json).toHaveBeenCalledWith({
+            message: "keys: Array must contain at most 3 element(s)",
+            code: "VALIDATION",
+         });
+      });
+
+      it("reaches capped arrays nested inside wrapped object elements, keeping custom messages", () => {
+         const { res, next } = post({
+            keys: ["k"],
+            entries: [{ folders: null }, { folders: ["a/", "b/", "c/"] }],
+         });
+         expect(next).not.toHaveBeenCalled();
+         expect(res.json).toHaveBeenCalledWith({
+            message: "entries.1.folders: Pick at most 2 folders",
+            code: "VALIDATION",
+         });
+      });
+
+      it("lets arrays at the cap through to the full parse", () => {
+         const { res, next } = post({
+            keys: ["a", "b", "c"],
+            entries: [{ folders: ["a/", "b/"] }],
+         });
+         expect(next).toHaveBeenCalledOnce();
+         expect(input<z.infer<typeof capped>>(res).keys).toEqual([
+            "a",
+            "b",
+            "c",
+         ]);
+      });
+
+      it("refuses an over-count metadata map without walking its entries", () => {
+         // numeric values would surface as the first entry's type error if the map were walked
+         const metadata = Object.fromEntries(
+            Array.from({ length: 100_000 }, (_, i) => [`k${i}`, i])
+         );
+         const { res, next } = run(
+            {
+               method: "PATCH",
+               params: { serverId: "server123", bucketName: "photos" },
+               body: {
+                  expectedUserId: "user12345",
+                  objectKey: "file.txt",
+                  expectedETag: '"old"',
+                  contentType: "text/plain",
+                  metadata,
+               },
+            },
+            updateObjectSettingsBodySchema
+         );
+         expect(next).not.toHaveBeenCalled();
+         expect(res.json).toHaveBeenCalledWith({
+            message: "metadata: Use at most 50 metadata entries",
+            code: "VALIDATION",
+         });
+      });
+
+      it("leaves non-array values to zod's own type errors", () => {
+         const { res } = post({ keys: "not-an-array" });
+         expect(res.json).toHaveBeenCalledWith({
+            message: expect.stringMatching(/^keys: Expected array/),
+            code: "VALIDATION",
+         });
       });
    });
 

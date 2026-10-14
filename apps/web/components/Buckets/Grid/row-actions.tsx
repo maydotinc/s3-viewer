@@ -4,6 +4,7 @@ import {
    rowBlockReason,
    type KnownReach,
 } from "@/lib/utils/folder-access";
+import { visibleText } from "@/lib/utils/format";
 import { folderHref, segmentsFromKey } from "@/lib/utils/s3/paths";
 import { baseName, canPresignObjectKey, type S3Object } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -45,7 +46,7 @@ const RowActionsMenu = ({
    commands: ObjectCommands;
 }) => {
    const router = useRouter();
-   const name = baseName(data.key);
+   const name = visibleText(baseName(data.key));
    const { can } = commands;
    const removeRow = () =>
       commands.remove([{ key: data.key, expectedETag: data.eTag }]);

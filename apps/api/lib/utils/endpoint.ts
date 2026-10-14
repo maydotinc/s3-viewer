@@ -51,6 +51,19 @@ const isPrivateV4 = (ip: string): boolean => {
    return NON_PUBLIC_V4_BLOCKS.some((block) => inV4Block(n, block));
 };
 
+// instance metadata and host agent addresses hand out cloud credentials, so they stay blocked even with ALLOW_PRIVATE_ENDPOINTS.
+const METADATA_V4_BLOCKS: readonly [number, number][] = [
+   "169.254.0.0/16",
+   "168.63.129.16/32",
+   // Alibaba Cloud's instance metadata service.
+   "100.100.100.200/32",
+].map(parseCidr);
+
+const isMetadataV4 = (ip: string): boolean => {
+   const n = v4ToInt(ip);
+   return METADATA_V4_BLOCKS.some((block) => inV4Block(n, block));
+};
+
 const DOTTED_TAIL = /\d+\.\d+\.\d+\.\d+$/;
 
 const hexTail = (ip: string): string => {
@@ -123,6 +136,28 @@ const sixToFourV4 = (groups: number[]): string => v4Of(groups[1], groups[2]);
 const isTeredoV6 = (groups: number[]): boolean =>
    groups[0] === 0x2001 && groups[1] === 0x0000;
 
+// the IPv4 address an IPv6 form reaches through mapping, compatibility, SIIT, NAT64 or 6to4.
+const v4Behind = (groups: number[]): string | null => {
+   if (holdsV4(groups) || isTranslatedV4(groups) || isNat64V6(groups))
+      return embeddedV4(groups);
+   if (is6to4V6(groups[0] ?? 0)) return sixToFourV4(groups);
+   return null;
+};
+
+// AWS's IPv6 instance metadata endpoint.
+const isAwsMetadataV6 = (groups: number[]): boolean =>
+   groups[0] === 0xfd00 &&
+   groups[1] === 0x0ec2 &&
+   groups.slice(2, 7).every((x) => x === 0) &&
+   groups[7] === 0x0254;
+
+const isMetadataV6 = (ip: string): boolean => {
+   const groups = v6Groups(ip);
+   const v4 = v4Behind(groups);
+   if (v4) return isMetadataV4(v4);
+   return isLinkLocalV6(groups[0] ?? 0) || isAwsMetadataV6(groups);
+};
+
 const isPrivateV6 = (ip: string): boolean => {
    const groups = v6Groups(ip);
    if (holdsV4(groups)) return isPrivateV4(embeddedV4(groups));
@@ -145,20 +180,30 @@ const isPrivateV6 = (ip: string): boolean => {
 
 const bareHost = (host: string): string => host.replace(/^\[|\]$/g, "");
 
-const isPrivateAddress = (ip: string): boolean => {
-   const bare = bareHost(ip).split("%")[0] ?? "";
-   const version = isIP(bare);
-   if (version === 4) return isPrivateV4(bare);
-   if (version === 6) return isPrivateV6(bare);
-   // anything that is not an IP literal is unsafe.
-   return true;
-};
+const byFamily =
+   (v4: (ip: string) => boolean, v6: (ip: string) => boolean) =>
+   (ip: string): boolean => {
+      const bare = bareHost(ip).split("%")[0] ?? "";
+      const version = isIP(bare);
+      if (version === 4) return v4(bare);
+      if (version === 6) return v6(bare);
+      // anything that is not an IP literal is unsafe.
+      return true;
+   };
+
+const isPrivateAddress = byFamily(isPrivateV4, isPrivateV6);
+
+const isMetadataAddress = byFamily(isMetadataV4, isMetadataV6);
+
+const isRefusedAddress = (ip: string): boolean =>
+   env.ALLOW_PRIVATE_ENDPOINTS ? isMetadataAddress(ip) : isPrivateAddress(ip);
 
 const CLEARTEXT_ENVIRONMENTS: ReadonlySet<string> = new Set([
    "development",
    "test",
 ]);
 
+// reads process.env because env.NODE_ENV defaults to development, which would allow cleartext on an install that never set it.
 const allowsInsecureEndpoints = (): boolean =>
    env.ALLOW_PRIVATE_ENDPOINTS ||
    CLEARTEXT_ENVIRONMENTS.has(process.env.NODE_ENV ?? "");
@@ -176,9 +221,9 @@ const publicHostname = (endpoint: string): string | null => {
    if (!allowedProtocols().includes(url.protocol)) return null;
    const host = url.hostname.toLowerCase();
    if (!host) return null;
+   if (isIP(bareHost(host))) return isRefusedAddress(host) ? null : host;
    if (env.ALLOW_PRIVATE_ENDPOINTS) return host;
    if (host === "localhost" || host.endsWith(".localhost")) return null;
-   if (isIP(bareHost(host)) && isPrivateAddress(host)) return null;
    return host;
 };
 
@@ -199,21 +244,6 @@ const resolveAddresses = async (host: string): Promise<string[]> => {
    if (found.length > 0) return found;
    const failed = answers.find((answer) => answer.status === "rejected");
    throw failed?.reason ?? new Error("No addresses");
-};
-
-const assertPublicEndpoint = async (endpoint: string): Promise<void> => {
-   const host = publicHostname(endpoint);
-   if (!host) throw new ApiHttpError(400, REJECTION);
-   if (env.ALLOW_PRIVATE_ENDPOINTS || isIP(bareHost(host))) return;
-   let addresses: string[];
-   try {
-      addresses = await resolveAddresses(host);
-   } catch {
-      throw new ApiHttpError(400, REJECTION);
-   }
-   if (addresses.some(isPrivateAddress)) {
-      throw new ApiHttpError(400, REJECTION);
-   }
 };
 
 const PRIVATE_ADDRESS_CODE = "EPRIVATEADDRESS";
@@ -253,19 +283,53 @@ const remember = (hostname: string, result: Lookup["result"]): void => {
    });
 };
 
+const NO_SUCH_NAME_CODES: ReadonlySet<string> = new Set([
+   "ENODATA",
+   "ENOTFOUND",
+]);
+
+// report c-ares failures with getaddrinfo's codes, which classify.ts already knows.
+const dnsLookup = (hostname: string): Promise<dns.LookupAddress[]> =>
+   resolveAddresses(hostname).then(
+      (addresses) =>
+         addresses.map((address) => ({ address, family: isIP(address) })),
+      (error: NodeJS.ErrnoException) => {
+         throw lookupError(
+            NO_SUCH_NAME_CODES.has(error.code ?? "ENOTFOUND")
+               ? "ENOTFOUND"
+               : "EAI_AGAIN",
+            hostname
+         );
+      }
+   );
+
+// getaddrinfo also reads /etc/hosts and mDNS, which LAN storage may depend on, but holds a threadpool thread per query.
 const systemLookup = (hostname: string): Promise<dns.LookupAddress[]> =>
    new Promise((resolve, reject) => {
-      // getaddrinfo cannot be cancelled and keeps its threadpool thread until it returns; give up waiting instead.
+      dns.lookup(hostname, { all: true }, (err, addresses) => {
+         if (err) reject(err);
+         else resolve(addresses);
+      });
+   });
+
+const boundedLookup = (hostname: string): Promise<dns.LookupAddress[]> =>
+   new Promise((resolve, reject) => {
+      // neither lookup can be cancelled, so stop waiting instead.
       const timer = setTimeout(
          () => reject(lookupError("ETIMEOUT", hostname)),
          LOOKUP_TIMEOUT_MS
       );
       timer.unref();
-      dns.lookup(hostname, { all: true }, (err, addresses) => {
-         clearTimeout(timer);
-         if (err) reject(err);
-         else resolve(addresses);
-      });
+      (env.ALLOW_PRIVATE_ENDPOINTS ? systemLookup : dnsLookup)(hostname).then(
+         (addresses) => {
+            clearTimeout(timer);
+            resolve(addresses);
+         },
+         (error: unknown) => {
+            clearTimeout(timer);
+            reject(error);
+         }
+      );
    });
 
 // every new socket resolves its host, so remember answers briefly and share one lookup between concurrent sockets.
@@ -277,15 +341,17 @@ const lookupAll = (hostname: string): Promise<dns.LookupAddress[]> => {
          : Promise.resolve(known.result);
    const shared = lookupsInFlight.get(hostname);
    if (shared) return shared;
-   const fresh = systemLookup(hostname)
+   const fresh = boundedLookup(hostname)
       .then((addresses) => {
-         if (
-            !env.ALLOW_PRIVATE_ENDPOINTS &&
-            addresses.some((a) => isPrivateAddress(a.address))
-         )
-            throw privateAddressError();
-         remember(hostname, addresses);
-         return addresses;
+         // getaddrinfo lists link-local next to usable answers for mDNS names, so with the flag on drop refused answers rather than the name; sockets only ever dial what this returns.
+         const usable = env.ALLOW_PRIVATE_ENDPOINTS
+            ? addresses.filter((a) => !isRefusedAddress(a.address))
+            : addresses.some((a) => isRefusedAddress(a.address))
+              ? []
+              : addresses;
+         if (usable.length === 0) throw privateAddressError();
+         remember(hostname, usable);
+         return usable;
       })
       .catch((error: unknown) => {
          const failure =
@@ -296,6 +362,29 @@ const lookupAll = (hostname: string): Promise<dns.LookupAddress[]> => {
       .finally(() => lookupsInFlight.delete(hostname));
    lookupsInFlight.set(hostname, fresh);
    return fresh;
+};
+
+const assertPublicEndpoint = async (endpoint: string): Promise<void> => {
+   const host = publicHostname(endpoint);
+   if (!host) throw new ApiHttpError(400, REJECTION);
+   if (isIP(bareHost(host))) return;
+   if (env.ALLOW_PRIVATE_ENDPOINTS) {
+      // only a metadata answer is refused here; any other failure surfaces when the client connects.
+      await lookupAll(host).catch((error: NodeJS.ErrnoException) => {
+         if (error.code === PRIVATE_ADDRESS_CODE)
+            throw new ApiHttpError(400, REJECTION);
+      });
+      return;
+   }
+   let addresses: string[];
+   try {
+      addresses = await resolveAddresses(host);
+   } catch {
+      throw new ApiHttpError(400, REJECTION);
+   }
+   if (addresses.some(isPrivateAddress)) {
+      throw new ApiHttpError(400, REJECTION);
+   }
 };
 
 const wantedFamily = (family: dns.LookupOptions["family"]): 0 | 4 | 6 =>
@@ -312,11 +401,7 @@ const publicOnlyLookup: LookupFunction = (hostname, options, callback) => {
       : lookupAll(hostname);
    answered.then(
       (addresses) => {
-         if (
-            literal &&
-            !env.ALLOW_PRIVATE_ENDPOINTS &&
-            isPrivateAddress(hostname)
-         ) {
+         if (literal && isRefusedAddress(hostname)) {
             callback(privateAddressError(), "", 0);
             return;
          }
@@ -341,6 +426,7 @@ export {
    PRIVATE_ADDRESS_CODE,
    allowsInsecureEndpoints,
    assertPublicEndpoint,
+   isMetadataAddress,
    isPrivateAddress,
    publicHostname,
    publicOnlyLookup,

@@ -1,4 +1,4 @@
-import { DAY_MS } from "@s3-viewer/types";
+import { DAY_MS, replaceUnsafeDisplayChars } from "@s3-viewer/types";
 
 const BINARY_SIZE_UNITS = ["B", "KiB", "MiB", "GiB", "TiB"] as const;
 
@@ -74,6 +74,14 @@ const joinSentences = (
       .map((part) => (/[.!?:…]$/.test(part) ? part : `${part}.`))
       .join(" ");
 
+const codePoint = (char: string): string =>
+   `[U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, "0")}]`;
+
+// storage keys can hold bidi overrides and zero-width marks that reorder or hide part of a name, so
+// rendered keys spell them out; display only, the raw key is what goes back to the API
+const visibleText = (text: string): string =>
+   replaceUnsafeDisplayChars(text, codePoint);
+
 export {
    formatBytes,
    formatCount,
@@ -82,4 +90,5 @@ export {
    formatRelativeDay,
    joinSentences,
    pluralize,
+   visibleText,
 };

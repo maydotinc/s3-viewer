@@ -154,6 +154,22 @@ describe("S3 client credential authority", () => {
       }
    });
 
+   it("keeps a client that stays in use while capacity evicts idle ones", async () => {
+      const busy = await getS3Client({ serverId });
+      const ids = Array.from(
+         { length: 500 },
+         (_, index) => `cache-recency-${index}`
+      );
+      try {
+         for (const id of ids) {
+            await getS3Client({ serverId: id });
+            expect(await getS3Client({ serverId })).toBe(busy);
+         }
+      } finally {
+         ids.forEach(invalidateS3Client);
+      }
+   });
+
    it("retries authority after local invalidation during region discovery", async () => {
       state.decrypt.mockImplementation((blob: string) => ({
          endpoint: "https://s3.us-east-1.amazonaws.com",

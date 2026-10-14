@@ -3,6 +3,7 @@ import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import { KeyDialog } from "@/components/Modals/key-dialog";
 import { errorMessage } from "@/lib/api";
 import useCopyObject from "@/lib/hooks/mutations/object/useCopyObject";
+import { visibleText } from "@/lib/utils/format";
 import { occupiedBy } from "@/lib/utils/s3/key-exists";
 import { validateObjectKey } from "@/lib/utils/s3/keys";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -86,7 +87,7 @@ const CopyObjectModal = ({
             onClose={() => setConflict(null)}
             closable={!copy.isPending}
             title="Replace the existing object?"
-            description={`${conflict.key} already exists. Copying over it replaces that object, and the version there now can't be recovered.`}
+            description={`${visibleText(conflict.key)} already exists. Copying over it replaces that object, and the version there now can't be recovered.`}
             confirmLabel="Replace"
             confirmVariant="destructive"
             isPending={copy.isPending}

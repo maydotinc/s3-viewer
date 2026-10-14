@@ -196,6 +196,26 @@ describe("the notice above someone's folders", () => {
    });
 });
 
+describe("folder names in messages", () => {
+   it("spells out characters that would reorder or hide part of a folder name", () => {
+      const tricky: Reach = { folders: ["docs\u202Efdp/"], owner: false };
+      expect(writeScopeError(tricky, "private/x.txt")).toBe(
+         "You can only write inside docs[U+202E]fdp/ in this bucket."
+      );
+      expect(accessNotice(["a\u200B/b/"], "a\u200B/").title).toBe(
+         "You have access to 1 folder under a[U+200B]/"
+      );
+      expect(uploadsScope(whole, "a\u2066/")).toBe("under a[U+2066]/");
+      expect(
+         grantLabel({
+            bucketName: "site",
+            role: Role.EDITOR,
+            folders: ["x\u202E/"],
+         })
+      ).toBe("Editor · x[U+202E]/ only");
+   });
+});
+
 describe("where incomplete uploads were looked for", () => {
    it("says only someone's own folders were checked", () => {
       expect(uploadsScope(limited, "")).toBe("in your folders");

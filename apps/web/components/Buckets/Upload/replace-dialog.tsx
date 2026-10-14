@@ -1,4 +1,4 @@
-import { pluralize } from "@/lib/utils/format";
+import { pluralize, visibleText } from "@/lib/utils/format";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    Dialog,
@@ -30,7 +30,7 @@ const ReplaceDialog = ({
    onSkipExisting,
    onCancel,
 }: ReplaceDialogProps) => {
-   const names = existing.slice(0, PREVIEW).join(", ");
+   const names = existing.slice(0, PREVIEW).map(visibleText).join(", ");
    const more =
       existing.length > PREVIEW ? ` and ${existing.length - PREVIEW} more` : "";
    const uploadingFileCount = Math.max(dropFileCount - pendingFileCount, 0);

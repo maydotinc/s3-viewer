@@ -105,6 +105,19 @@ describe("the folder being typed", () => {
    });
 });
 
+describe("the folder chips", () => {
+   it("spell out bidi characters but remove the raw folder", async () => {
+      await open({ folders: ["a\u202Eb/", "c/"] });
+      const chip = runtime.container.querySelector("li")!;
+      expect(chip.textContent).toBe("a[U+202E]b/");
+      expect(chip.querySelector("span")!.title).toBe("a[U+202E]b/");
+      const remove = chip.querySelector("button")!;
+      expect(remove.getAttribute("aria-label")).toBe("Remove a[U+202E]b/");
+      await act(async () => remove.click());
+      expect(state.folders).toEqual(["c/"]);
+   });
+});
+
 describe("notes from the last add", () => {
    it("shows a note next to the row's error rather than over it", async () => {
       await open({ folders: ["a/b/", "a/c/"] });

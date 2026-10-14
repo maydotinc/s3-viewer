@@ -1,5 +1,6 @@
 import { api, objectsPath } from "@/lib/api";
 import type { BucketTarget } from "@/lib/types";
+import { visibleText } from "@/lib/utils/format";
 import {
    answerFrom,
    reportBatchResult,
@@ -33,7 +34,7 @@ const moveObjects = async (
    for (const { key, newKey } of objects) {
       if (!objectKeySchema.safeParse(newKey).success)
          throw new Error(
-            `Can't move ${key}: its new key must be valid and at most 1,024 UTF-8 bytes.`
+            `Can't move ${visibleText(key)}: its new key must be valid and at most 1,024 UTF-8 bytes.`
          );
    }
    return runBatched<MoveTarget, S3MoveResult>({

@@ -10,7 +10,9 @@ import {
    grantFoldersOf,
    toBucketEntry,
    toScopedGrant,
+   withVisibleGrants,
    type BucketRow,
+   type VisibleBuckets,
 } from "./bucket-grants";
 import { revokeInvalidInvites } from "./invite-authority";
 import {
@@ -30,6 +32,7 @@ import {
 } from "@s3-viewer/permissions";
 import {
    ErrorCode,
+   MAX_BUCKET_NAMES,
    Role,
    canLimitToFolders,
    sameFolderScope,
@@ -141,15 +144,24 @@ const memberPage = (
       )}
       ORDER BY page."createdAt" ASC, page."id" ASC`;
 
+type Actor = { id: string; role: Role };
+
 const listMembers = async (
    serverId: string,
    cursor: string | undefined,
-   limit: number
+   limit: number,
+   viewer: Actor
 ): Promise<MemberPage> => {
    const position = cursor ? decodeCursor(cursor) : undefined;
-   const rows = await memberPage(serverId, position, limit + 1);
+   const [rows, visible] = await Promise.all([
+      memberPage(serverId, position, limit + 1),
+      visibleBuckets(viewer.id, serverId, viewer.role),
+   ]);
    const { page, nextCursor } = pageOf(rows, limit);
-   return { members: page.map(toServerUser), nextCursor };
+   return {
+      members: page.map((row) => withVisibleGrants(visible, toServerUser(row))),
+      nextCursor,
+   };
 };
 
 const findMember = async (
@@ -211,6 +223,18 @@ const loadBucketGrants = (
       where: { userId, serverId },
       select: bucketGrantSelect,
    });
+
+// a bucket-limited admin would otherwise learn the names and folders of buckets it can't open.
+const visibleBuckets = async (
+   viewerId: string,
+   serverId: string,
+   serverRole: Role,
+   db: Prisma.TransactionClient = prisma
+): Promise<VisibleBuckets> => {
+   if (serverRole === Role.OWNER) return null;
+   const held = await loadBucketGrants(viewerId, serverId, db);
+   return new Set(held.map((row) => row.bucketName));
+};
 
 const grantsByBucket = (
    rows: readonly BucketRow[]
@@ -361,6 +385,21 @@ const assertAccessAsShown = (
    }
 };
 
+// grants the editor never saw survive the save, so capping the submitted list alone would let the
+// total outgrow what an owner's editor can send back as the access it was shown.
+const assertBucketCount = (
+   kept: number,
+   grants: readonly BucketGrant[]
+): void => {
+   if (kept + grants.length > MAX_BUCKET_NAMES) {
+      throw new ApiHttpError(
+         400,
+         `A member can have access to at most ${MAX_BUCKET_NAMES} buckets`,
+         ErrorCode.VALIDATION
+      );
+   }
+};
+
 const assertNotLimited = (
    grants: readonly BucketRow[],
    message: (bucketName: string) => string
@@ -375,7 +414,7 @@ const clampBucketAccess = async (
    userId: string,
    serverId: string,
    role: Role,
-   actor: { id: string; role: Role }
+   actor: Actor
 ): Promise<void> => {
    const above = rolesAbove(role).filter((r) => canManageRole(actor.role, r));
    if (above.length === 0) return;
@@ -405,13 +444,21 @@ const clampBucketAccess = async (
    });
 };
 
+// grants the editor never saw are kept, since the submitted list only ever covers visible buckets.
 const replaceBucketAccess = async (
    tx: Prisma.TransactionClient,
    userId: string,
    serverId: string,
-   grants: readonly BucketGrant[]
+   grants: readonly BucketGrant[],
+   visible: VisibleBuckets
 ): Promise<void> => {
-   await tx.bucketAccess.deleteMany({ where: { userId, serverId } });
+   await tx.bucketAccess.deleteMany({
+      where: {
+         userId,
+         serverId,
+         ...(visible !== null && { bucketName: { in: [...visible] } }),
+      },
+   });
    if (grants.length === 0) return;
    await tx.bucketAccess.createMany({
       data: grants.map(({ bucketName, role, folders }) => ({
@@ -446,12 +493,18 @@ const assertGrantsRemovable = async (
       tx
    );
    const unremovable = findUnremovableGrant(serverRole, bucketGrants, grants);
-   if (unremovable) {
+   if (!unremovable) return;
+   // naming a bucket the actor holds nothing on would reveal it.
+   if (serverRole !== Role.OWNER && !bucketGrants.has(unremovable.bucketName)) {
       throw new ApiHttpError(
          403,
-         `You can't remove a member with ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`
+         "You can't remove a member with access to buckets you don't hold"
       );
    }
+   throw new ApiHttpError(
+      403,
+      `You can't remove a member with ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`
+   );
 };
 
 const removeMembership = (
@@ -496,6 +549,7 @@ const removeMembership = (
 
 export {
    assertAccessAsShown,
+   assertBucketCount,
    assertBucketGrantChanges,
    assertBucketGrants,
    assertNotLimited,
@@ -509,5 +563,6 @@ export {
    memberRole,
    removeMembership,
    replaceBucketAccess,
+   visibleBuckets,
 };
 export type { GrantingActor };

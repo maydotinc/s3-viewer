@@ -318,6 +318,12 @@ describe("folders typed but not added", () => {
       );
    });
 
+   it("spells out bidi characters in the folders it names", () => {
+      expect(commitDraft(typed(["a\u202E/"], "a\u202E/b"), null).problem).toBe(
+         "Press Add to confirm a[U+202E]/b/. It replaces a[U+202E]/."
+      );
+   });
+
    it("ignores text left in a row that isn't limited to folders", () => {
       const whole = typed(null, "landing/");
       expect(commitDraft(whole, null)).toEqual({ row: whole, problem: null });

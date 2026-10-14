@@ -1,6 +1,6 @@
 import { Role } from "@s3-viewer/types";
 import { describe, expect, it } from "vitest";
-import { findUnremovableGrant } from "./bucket-grants";
+import { findUnremovableGrant, withVisibleGrants } from "./bucket-grants";
 
 const row = (
    bucketName: string,
@@ -78,5 +78,29 @@ describe("findUnremovableGrant", () => {
             row("photos", Role.VIEWER),
          ])
       ).toBeDefined();
+   });
+});
+
+describe("withVisibleGrants", () => {
+   const member = {
+      id: "user123456",
+      bucketAccess: [
+         { bucketName: "logs", role: Role.VIEWER, folders: null },
+         { bucketName: "photos", role: Role.EDITOR, folders: ["a/"] },
+      ],
+   };
+
+   it("keeps every grant for an owner's view", () => {
+      expect(withVisibleGrants(null, member)).toEqual(member);
+   });
+
+   it("drops grants on buckets outside the view without touching the rest", () => {
+      expect(withVisibleGrants(new Set(["photos"]), member)).toEqual({
+         id: "user123456",
+         bucketAccess: [
+            { bucketName: "photos", role: Role.EDITOR, folders: ["a/"] },
+         ],
+      });
+      expect(member.bucketAccess).toHaveLength(2);
    });
 });

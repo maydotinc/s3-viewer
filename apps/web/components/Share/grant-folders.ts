@@ -1,3 +1,5 @@
+import { visibleText } from "@/lib/utils/format";
+import { folderList } from "@/lib/utils/folder-access";
 import { isLossyKeySegment } from "@/lib/utils/s3/key-segments";
 import {
    MAX_GRANT_FOLDERS,
@@ -5,7 +7,6 @@ import {
    hasDotSegment,
    isInFolderScope,
    isSafeKeyText,
-   joinList,
    normalizeFolders,
    utf8ByteLength,
    type FolderScope,
@@ -57,11 +58,14 @@ const addGrantFolder = (
    const invalid = folderInputError(folder);
    if (invalid) return { ok: false, error: invalid };
    if (current.includes(folder))
-      return { ok: false, error: `${folder} is already in the list.` };
+      return {
+         ok: false,
+         error: `${visibleText(folder)} is already in the list.`,
+      };
    if (held !== null && !isInFolderScope(held, folder))
       return {
          ok: false,
-         error: `You can only share folders inside ${joinList(held)}.`,
+         error: `You can only share folders inside ${folderList(held)}.`,
       };
    const broader = current.find((existing) => folder.startsWith(existing));
    const folders = normalizeFolders([
@@ -75,10 +79,11 @@ const addGrantFolder = (
          error: `You can add up to ${MAX_GRANT_FOLDERS} folders.`,
       };
    const replaced = current.filter((existing) => !folders.includes(existing));
+   const shown = visibleText(folder);
    const notice = broader
-      ? `Replaced ${broader} with ${folder}, so only ${folder} is shared.`
+      ? `Replaced ${visibleText(broader)} with ${shown}, so only ${shown} is shared.`
       : replaced.length > 0
-        ? `Removed ${joinList(replaced)}, since ${folder} includes ${replaced.length === 1 ? "it" : "them"}.`
+        ? `Removed ${folderList(replaced)}, since ${shown} includes ${replaced.length === 1 ? "it" : "them"}.`
         : null;
    return { ok: true, folder, folders, replaced, notice };
 };
@@ -109,7 +114,7 @@ const hintFor = ({
       return hasSuggestion
          ? "→ to autocomplete. Press Enter or Add to add it."
          : "Press Enter or Add to add it.";
-   const where = held === null ? "" : `Inside ${joinList(held)} only. `;
+   const where = held === null ? "" : `Inside ${folderList(held)} only. `;
    if (folders.length >= MAX_GRANT_FOLDERS)
       return `${where}That's the limit of ${MAX_GRANT_FOLDERS} folders. A parent folder can still replace the ones inside it.`;
    return `${where}A folder doesn't have to exist yet.`;

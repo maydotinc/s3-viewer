@@ -1,5 +1,6 @@
 import {
    AuditLevel,
+   ErrorCode,
    Role,
    type AuditSettings,
    type AuditSettingsInput,
@@ -14,6 +15,7 @@ const scoped = (variables: AuditSettingsInput): Input => ({
 });
 type MutationOptions = {
    mutationFn: (input: Input) => Promise<AuditSettings>;
+   onError: (error: unknown, input: Input) => void;
 };
 
 const h = vi.hoisted(() => ({
@@ -47,6 +49,8 @@ vi.mock("@/lib/api", async (original) => ({
    ...(await original<typeof import("@/lib/api")>()),
    api: { patch: h.patch },
 }));
+import { ApiError } from "@/lib/api";
+import { toast } from "@s3-viewer/ui/components/toast";
 import useUpdateAuditSettings from "./useUpdateAuditSettings";
 
 const saved = {
@@ -77,6 +81,21 @@ describe("saving audit settings", () => {
       expect(h.patch).toHaveBeenLastCalledWith(
          "/servers/server-1/audit/settings",
          saved
+      );
+   });
+
+   it("leaves a stale sign-in to the form instead of toasting it", () => {
+      useUpdateAuditSettings();
+      const input = scoped({ serverId: "server-1", enabled: false });
+      options().onError(
+         new ApiError(403, "Sign in again", ErrorCode.SESSION_STALE),
+         input
+      );
+      expect(toast.error).not.toHaveBeenCalled();
+      options().onError(new ApiError(500, "Boom"), input);
+      expect(toast.error).toHaveBeenCalledWith(
+         "Couldn't save audit log settings",
+         { description: "Boom" }
       );
    });
 });

@@ -23,10 +23,7 @@ const previewBodyVersion = (preview: S3ObjectPreview): string => {
 const eTagValue = (eTag: string): string =>
    eTag.replace(/^W\//i, "").replace(/^"(.*)"$/, "$1");
 
-const changedETag = (
-   reviewed: string | null,
-   served: string | null
-): boolean =>
+const changedETag = (reviewed: string | null, served: string | null): boolean =>
    Boolean(reviewed && served && eTagValue(reviewed) !== eTagValue(served));
 
 const readPreviewText = async (

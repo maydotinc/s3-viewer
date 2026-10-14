@@ -12,14 +12,13 @@ import useArchiveDownload, {
 import { useServerId } from "@/lib/stores/session-scope";
 import { useUserId } from "@/lib/stores/session-store";
 import { copyToClipboard } from "@/lib/utils/clipboard";
-import { downloadUrl } from "@/lib/utils/download";
+import { downloadFromStorage } from "@/lib/utils/download";
 import { getDownloadUrl } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
 import { Permission, hasPermission } from "@s3-viewer/permissions";
 import {
    MAX_BATCH_KEYS,
    PRESIGN_EXPIRY_SECONDS,
-   baseName,
    canPresignObjectKey,
    observedETagSchema,
    type S3DeleteTarget,
@@ -136,7 +135,7 @@ const useCreateObjectCommands = (bucketName: string): ObjectCommands => {
             }
             try {
                const { url } = await presign(objectKey);
-               downloadUrl(url, baseName(objectKey));
+               downloadFromStorage(url);
             } catch (error) {
                toastError("Couldn't download the object")(error);
             }

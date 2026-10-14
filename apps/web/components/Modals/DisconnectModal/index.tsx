@@ -1,11 +1,13 @@
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
-import StaleSignIn, { signInAgain } from "@/components/stale-sign-in";
-import { ApiError } from "@/lib/api";
+import StaleSignIn, {
+   isSessionStale,
+   signInAgain,
+} from "@/components/stale-sign-in";
 import useDeleteServer from "@/lib/hooks/mutations/server/useDeleteServer";
 import useLeaveServer from "@/lib/hooks/mutations/server/useLeaveServer";
 import { Button } from "@s3-viewer/ui/components/button";
-import { ErrorCode, Role } from "@s3-viewer/types";
+import { Role } from "@s3-viewer/types";
 
 type DisconnectModalProps = ModalProps<"disconnect">;
 
@@ -17,9 +19,7 @@ const DisconnectModal = ({ server, onClose }: DisconnectModalProps) => {
 
    const confirm = () =>
       mutation.mutate({ serverId: server.id }, { onSuccess: onClose });
-   const stale =
-      mutation.error instanceof ApiError &&
-      mutation.error.code === ErrorCode.SESSION_STALE;
+   const stale = isSessionStale(mutation.error);
 
    return (
       <ConfirmDialog

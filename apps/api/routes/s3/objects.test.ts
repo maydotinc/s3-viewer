@@ -932,6 +932,18 @@ describe("audit trail of reads and uploads", () => {
       }
    );
 
+   it("clips a long listed prefix in the audit target", async () => {
+      const prefix = `${"a".repeat(300)}/`;
+      const res = await fetch(
+         `${base}/keys?prefix=${encodeURIComponent(prefix)}`
+      );
+      expect(res.status).toBe(200);
+      expect(state.audit.mock.calls[0]?.[1]).toMatchObject({
+         action: "object.list",
+         target: `${"a".repeat(256)}…`,
+      });
+   });
+
    it("records a preview with the object's size and type", async () => {
       const response = await fetch(`${base}/preview-url?objectKey=report.png`);
       expect(response.status).toBe(200);

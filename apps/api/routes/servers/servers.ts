@@ -7,6 +7,7 @@ import {
    lockedPermission,
    requireUser,
 } from "@/lib/middleware/authorize";
+import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { serverCreateLimit } from "@/lib/middleware/rate-limit";
 import { serverRoute, validatedRoute } from "@/lib/middleware/route";
 import { invalidateS3Client } from "@/lib/s3/client-cache";
@@ -30,11 +31,8 @@ import { storageCapabilities } from "@/lib/services/storage-capabilities";
 import { prisma } from "@s3-viewer/db";
 import { Permission } from "@s3-viewer/permissions";
 import {
-   ErrorCode,
    MAX_SERVERS_PER_USER,
    Role,
-   SESSION_FRESH_HOURS,
-   isSessionFresh,
    createServerSchema,
    renameServerSchema,
    serverScope,
@@ -169,13 +167,7 @@ const deleteServer = async (
    input: ServerScope
 ) => {
    const { serverId } = input;
-   if (!isSessionFresh(req.session?.createdAt ?? 0)) {
-      throw new ApiHttpError(
-         403,
-         `For your security, deleting a server needs a sign-in from the last ${SESSION_FRESH_HOURS} hours.`,
-         ErrorCode.SESSION_STALE
-      );
-   }
+   requireFreshSession(req, "deleting a server");
    // the row lock comes first so this serializes with audit settings changes. the audit rows outlive the server and maintenance purges them after the retention floor.
    await prisma.$transaction(async (tx) => {
       const { name } = await lockServerRow(tx, serverId, ["name"]);

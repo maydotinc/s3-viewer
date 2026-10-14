@@ -52,7 +52,7 @@ import {
    utf8Before,
 } from "./keys";
 import type { S3Scope } from "./listing";
-import { forCleanup, withoutRetries } from "./no-retry";
+import { forCancel, forCleanup, withoutRetries } from "./no-retry";
 import { clientProvider, clientSupportsMultipartPrefix } from "./provider";
 import {
    floorGuard,
@@ -340,14 +340,14 @@ const abortMultipartUploads = async (
 
 const asConflict = conflictAs(uploadConflictError, uploadConflict);
 
-const abortMultipartUpload = async (
+const abortUpload = async (
    { client, bucket, signal }: S3Scope,
    key: string,
    uploadId: string
 ): Promise<boolean> => {
    try {
       await withDeadline(signal, CLEANUP_TIMEOUT_MS, (deadline) =>
-         forCleanup(client).send(
+         client.send(
             new AbortMultipartUploadCommand({
                Bucket: bucket,
                Key: key,
@@ -363,13 +363,20 @@ const abortMultipartUpload = async (
    }
 };
 
+const abortMultipartUpload = (
+   scope: S3Scope,
+   key: string,
+   uploadId: string
+): Promise<boolean> =>
+   abortUpload({ ...scope, client: forCancel(scope.client) }, key, uploadId);
+
 const abortForCleanup = async (
    { client, bucket }: S3Scope,
    key: string,
    uploadId: string
 ): Promise<void> => {
    try {
-      await abortMultipartUpload({ client, bucket }, key, uploadId);
+      await abortUpload({ client: forCleanup(client), bucket }, key, uploadId);
    } catch {
       logger.warn("Multipart upload could not be aborted", {
          bucket,

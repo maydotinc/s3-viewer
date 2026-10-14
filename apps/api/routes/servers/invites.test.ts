@@ -37,6 +37,8 @@ const state = vi.hoisted(() => ({
    pending: [] as { email: string; role: string; token?: string }[],
    written: [] as { email: string; role: string }[],
    tokens: new Map<string, string>(),
+   // the buckets the acting member holds; null is an owner's view of every bucket.
+   visible: null as Set<string> | null,
    grantRows: [] as {
       invitationId: string;
       bucketName: string;
@@ -95,6 +97,7 @@ vi.mock("@/lib/services/members", async (original) => ({
    ...(await original<typeof import("@/lib/services/members")>()),
    loadGrantingActor: state.loadGrantingActor,
    assertBucketGrants: () => undefined,
+   visibleBuckets: async () => state.visible,
 }));
 
 const inviteId = (email: string) => `inv${email.replace(/\W/g, "")}`;
@@ -103,6 +106,11 @@ const roleOf = (email: string) =>
    state.written.find((row) => row.email === email)?.role ??
    state.pending.find((row) => row.email === email)?.role ??
    "VIEWER";
+
+const emailOf = (id: string) =>
+   [...state.pending, ...state.written].find(
+      ({ email }) => inviteId(email) === id
+   )?.email;
 
 const tokenOf = (email: string) =>
    state.tokens.get(email) ??
@@ -180,9 +188,15 @@ vi.mock("@s3-viewer/db", () => {
          where,
          data,
       }: {
-         where: { email: { in: string[] } };
-         data: { role: string };
+         where: { email: { in: string[] }; id?: string; token?: string };
+         data: { role: string; token?: string };
       }) => {
+         if (where.id !== undefined) {
+            const email = emailOf(where.id);
+            if (!email || tokenOf(email) !== where.token) return { count: 0 };
+            state.tokens.set(email, data.token!);
+            return { count: 1 };
+         }
          state.written.push(
             ...where.email.in.map((email) => ({ email, role: data.role }))
          );
@@ -265,6 +279,7 @@ beforeEach(() => {
    state.pending = [];
    state.written = [];
    state.tokens.clear();
+   state.visible = null;
    state.grantRows = [];
    state.held.clear();
    state.loadGrantingActor
@@ -515,20 +530,60 @@ describe("POST /servers/:serverId/invites", () => {
       expect(JSON.parse(body).invites[0]).not.toHaveProperty("token");
    });
 
-   it("re-sends an existing invite with the token it already has", async () => {
-      state.pending = [
-         { email: "one@example.com", role: "VIEWER", token: "kept-token-1" },
-      ];
-      const res = await send({
+   const resend = () =>
+      send({
          emails: ["one@example.com"],
          role: "EDITOR",
          bucketAccess: [{ bucketName: "alpha", role: "VIEWER", folders: null }],
       });
-      expect(res.status).toBe(200);
-      expect(state.tokens.size).toBe(0);
+
+   it("mails a re-sent invite a fresh token in place of the one it had", async () => {
+      state.pending = [
+         { email: "one@example.com", role: "VIEWER", token: "kept-token-1" },
+      ];
+      expect((await resend()).status).toBe(200);
+      const rotated = state.tokens.get("one@example.com") ?? "";
+      expect(rotated).toMatch(/^[A-Za-z0-9_-]{43}$/);
       expect(linkFor("one@example.com").searchParams.get("invite")).toBe(
-         "kept-token-1"
+         rotated
       );
+   });
+
+   it("keeps a re-sent invite's token when no email goes out", async () => {
+      state.pending = [
+         { email: "one@example.com", role: "VIEWER", token: "kept-token-1" },
+      ];
+      state.reserve = async () => null;
+      const res = await resend();
+      expect(res.status).toBe(200);
+      expect((await res.json()).invites[0].emailed).toBe(false);
+      expect(state.tokens.size).toBe(0);
+      expect(state.sendEmail).not.toHaveBeenCalled();
+   });
+
+   it("restores a re-sent invite's token when its email fails", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      state.pending = [
+         { email: "one@example.com", role: "VIEWER", token: "kept-token-1" },
+      ];
+      state.sendEmail.mockRejectedValue(new Error("Email delivery is busy"));
+      expect((await resend()).status).toBe(200);
+      expect(tokenOf("one@example.com")).toBe("kept-token-1");
+      vi.restoreAllMocks();
+   });
+
+   it("mails nothing for an invite whose token changed after the save", async () => {
+      state.pending = [
+         { email: "one@example.com", role: "VIEWER", token: "kept-token-1" },
+      ];
+      state.reserve = async () => {
+         state.tokens.set("one@example.com", "someone-else-1");
+         return { release: async () => {} };
+      };
+      const res = await resend();
+      expect((await res.json()).invites[0].emailed).toBe(false);
+      expect(state.sendEmail).not.toHaveBeenCalled();
+      expect(tokenOf("one@example.com")).toBe("someone-else-1");
    });
 });
 
@@ -673,6 +728,29 @@ describe("GET /servers/:serverId/invites", () => {
       const body = await res.text();
       expect(JSON.parse(body).invites).toHaveLength(1);
       expect(body).not.toContain("token");
+   });
+
+   it("shows an admin only the invite grants on buckets the admin holds", async () => {
+      state.role = "ADMIN";
+      state.visible = new Set(["photos"]);
+      state.pending = [{ email: "one@example.com", role: "VIEWER" }];
+      state.grantRows = [
+         {
+            invitationId: inviteId("one@example.com"),
+            ...grant("photos", "VIEWER"),
+         },
+         {
+            invitationId: inviteId("one@example.com"),
+            ...grant("secret", "EDITOR"),
+         },
+      ];
+      const res = await fetch(base);
+      expect(res.status).toBe(200);
+      const body = await res.text();
+      expect(JSON.parse(body).invites[0].bucketAccess).toEqual([
+         { bucketName: "photos", role: "VIEWER", folders: null },
+      ]);
+      expect(body).not.toContain("secret");
    });
 });
 

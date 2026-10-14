@@ -96,6 +96,26 @@ describe("password sign-in", () => {
       );
    });
 
+   it("offers a password reset when the sign-up address already has an account", async () => {
+      h.continueWithPassword.mockResolvedValue({
+         error: "Wrong email or password.",
+         code: "INVALID_EMAIL_OR_PASSWORD",
+         created: false,
+         exists: true,
+      });
+      const container = await submitAs("signup");
+      expect(container.textContent).toContain("Wrong email or password.");
+      expect(container.textContent).toContain("Forgot password?");
+      await act(async () => h.onEmail("someone-else@example.com"));
+      expect(container.textContent).not.toContain("Forgot password?");
+   });
+
+   it("offers no reset on a sign-up refused for another reason", async () => {
+      const container = await submitAs("signup");
+      expect(container.textContent).toContain("Wrong email or password.");
+      expect(container.textContent).not.toContain("Forgot password?");
+   });
+
    it("still lets an invitation link create the invited account from the login page", async () => {
       await submitAs("login", "invite-token-123");
       expect(h.continueWithPassword).toHaveBeenCalledWith(

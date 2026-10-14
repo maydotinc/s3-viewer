@@ -190,6 +190,26 @@ describe("metadata identity", () => {
          false
       );
    });
+   it("refuses an over-count map without parsing its entries", () => {
+      const result = parse(
+         Object.fromEntries(
+            Array.from({ length: 51 }, (_, i) => [`key-${i}`, i])
+         ) as unknown as Record<string, string>
+      );
+      expect(result.error?.issues).toEqual([
+         expect.objectContaining({
+            path: ["metadata"],
+            message: "Use at most 50 metadata entries",
+         }),
+      ]);
+   });
+   it("still reports entry errors on a map within the count", () => {
+      const result = parse({ owner: 1 } as unknown as Record<string, string>);
+      expect(result.error?.issues[0]).toMatchObject({
+         path: ["metadata", "owner"],
+         code: "invalid_type",
+      });
+   });
 });
 
 describe("shared display names", () => {

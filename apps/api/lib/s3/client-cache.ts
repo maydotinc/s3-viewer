@@ -198,6 +198,9 @@ const fillCachedClient = async (
             hit.expiresAt > Date.now() &&
             sameCredentials(hit.snapshot, snapshot)
          ) {
+            // re-inserting moves the hit to the back of makeRoom's eviction order.
+            cache.delete(serverId);
+            cache.set(serverId, hit);
             return hit.client;
          }
          removeCachedClient(serverId);

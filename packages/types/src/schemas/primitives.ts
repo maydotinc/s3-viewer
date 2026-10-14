@@ -62,6 +62,17 @@ const UNSAFE_DISPLAY_CHARS =
 const isSafeDisplayText = (value: string): boolean =>
    !UNSAFE_DISPLAY_CHARS.test(value) && !LONE_SURROGATE.test(value);
 
+const UNSAFE_DISPLAY_EACH = new RegExp(
+   `${UNSAFE_DISPLAY_CHARS.source}|${LONE_SURROGATE.source}`,
+   "gu"
+);
+
+/** swaps each character isSafeDisplayText rejects, for text that can't be refused at write time, such as keys already in storage. */
+export const replaceUnsafeDisplayChars = (
+   value: string,
+   replace: (char: string) => string
+): string => value.replace(UNSAFE_DISPLAY_EACH, replace);
+
 const PLAIN_LABEL_MAX = 40;
 const INVISIBLE_CHARS = /\p{Cf}/gu;
 const BREAK_CHARS = /[\p{Cc}\p{Zl}\p{Zp}]/gu;

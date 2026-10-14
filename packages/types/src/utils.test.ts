@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
    backblazeRegion,
    chunkKeys,
+   describeError,
    formatEmailDomains,
    joinList,
    mapLimit,
@@ -154,5 +155,59 @@ describe("mapLimit", () => {
          })
       ).rejects.toThrow("boom");
       expect(started).toEqual([1, 2]);
+   });
+});
+
+describe("describeError", () => {
+   const prismaError = (name: string, message: string, extra: object = {}) =>
+      Object.assign(new Error(message), { name, ...extra });
+
+   it("names a plain error by class and message", () => {
+      expect(describeError(new TypeError("boom"))).toBe("TypeError: boom");
+      expect(describeError("plain")).toBe("plain");
+   });
+
+   it("keeps a prisma request error to its class, code and target", () => {
+      const error = prismaError(
+         "PrismaClientKnownRequestError",
+         'data: { email: "ada@example.com" }',
+         { code: "P2002", meta: { target: ["serverId", "email"] } }
+      );
+      expect(describeError(error)).toBe(
+         "PrismaClientKnownRequestError P2002 (target: serverId, email)"
+      );
+      expect(
+         describeError(
+            prismaError("PrismaClientKnownRequestError", "x", {
+               code: "P2010",
+               meta: { code: "23505", message: "Key (email)=(ada@x.co)" },
+            })
+         )
+      ).toBe("PrismaClientKnownRequestError P2010");
+   });
+
+   it("keeps an initialization error to its error code and an unknown one to its class", () => {
+      expect(
+         describeError(
+            prismaError("PrismaClientInitializationError", "at db.host", {
+               errorCode: "P1001",
+            })
+         )
+      ).toBe("PrismaClientInitializationError P1001");
+      expect(
+         describeError(
+            prismaError("PrismaClientUnknownRequestError", "Key (id)=(1)")
+         )
+      ).toBe("PrismaClientUnknownRequestError");
+   });
+
+   it("keeps only the first line of a validation error", () => {
+      const error = prismaError(
+         "PrismaClientValidationError",
+         '\nInvalid `prisma.user.create()` invocation:\n\n  email: "ada@example.com"'
+      );
+      expect(describeError(error)).toBe(
+         "PrismaClientValidationError: Invalid `prisma.user.create()` invocation:"
+      );
    });
 });

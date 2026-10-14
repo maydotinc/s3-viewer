@@ -3,9 +3,11 @@ import { ApiHttpError, noContent, rethrowDbError } from "@/lib/http";
 import { assertMemberAuthority, getAuth } from "@/lib/middleware/authorize";
 import { memberRoute } from "@/lib/middleware/route";
 import { recordMany } from "@/lib/middleware/audit-record";
+import { visibleGrants, withVisibleGrants } from "@/lib/services/bucket-grants";
 import { revokeInvalidInvites } from "@/lib/services/invite-authority";
 import {
    assertAccessAsShown,
+   assertBucketCount,
    assertBucketGrantChanges,
    assertNotLimited,
    clampBucketAccess,
@@ -17,6 +19,7 @@ import {
    memberRole,
    removeMembership,
    replaceBucketAccess,
+   visibleBuckets,
 } from "@/lib/services/members";
 import { lockBucketScope } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
@@ -45,7 +48,13 @@ const getMembers = async (
    input: MemberListInput
 ) => {
    const { serverId, cursor, limit } = input;
-   res.json(await listMembers(serverId, cursor, limit));
+   const { userId, serverRole } = getAuth(res);
+   res.json(
+      await listMembers(serverId, cursor, limit, {
+         id: userId,
+         role: serverRole,
+      })
+   );
 };
 
 const updateRole = async (
@@ -56,7 +65,7 @@ const updateRole = async (
    const { serverId, userId, role, bucketAccess, previousBucketAccess } = input;
    const { userId: actorId } = getAuth(res);
    const newRole = Role[role];
-   const { member, revokedInvites } = await prisma.$transaction(async (tx) => {
+   const updated = await prisma.$transaction(async (tx) => {
       const scope = await lockBucketScope(tx, serverId);
       const [actorRole, currentRole] = await Promise.all([
          memberRole(tx, actorId, serverId),
@@ -68,8 +77,11 @@ const updateRole = async (
          newRole,
       });
       const demoted = rankOf(newRole) < rankOf(targetRole);
+      const visible = await visibleBuckets(actorId, serverId, serverRole, tx);
       if (bucketAccess) {
-         const current = await loadBucketGrants(userId, serverId, tx);
+         const held = await loadBucketGrants(userId, serverId, tx);
+         // the editor only ever saw grants on buckets the actor holds, so the edit is checked against those alone.
+         const current = visibleGrants(visible, held);
          // the actor's holdings are also needed on buckets the edit drops, since removing a grant takes the same authority as giving it.
          const actor = await loadGrantingActor(
             actorId,
@@ -80,6 +92,7 @@ const updateRole = async (
          );
          assertAccessAsShown(current, previousBucketAccess ?? [], bucketAccess);
          assertBucketGrantChanges(actor, scope, current, bucketAccess);
+         assertBucketCount(held.length - current.length, bucketAccess);
       } else if (newRole === Role.ADMIN) {
          assertNotLimited(
             await loadBucketGrants(userId, serverId, tx),
@@ -98,7 +111,7 @@ const updateRole = async (
             })
          );
       if (bucketAccess)
-         await replaceBucketAccess(tx, userId, serverId, bucketAccess);
+         await replaceBucketAccess(tx, userId, serverId, bucketAccess, visible);
       // bucket grants may exceed the server role; clamp them only on demotion.
       if (demoted)
          await clampBucketAccess(tx, userId, serverId, newRole, {
@@ -110,16 +123,18 @@ const updateRole = async (
       if (!member) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
       return {
          member,
+         visible,
          revokedInvites: await revokeInvalidInvites(tx, serverId),
       };
    });
+   const { member, visible, revokedInvites } = updated;
    const changed: AuditEntry = {
       action: "member.role_change",
       target: member.email,
       detail: { role, userId, ...bucketDetail(member.bucketAccess) },
    };
    await recordMany(res, [changed, ...revokedInvites]);
-   res.json({ member });
+   res.json({ member: withVisibleGrants(visible, member) });
 };
 
 const removeMember = async (

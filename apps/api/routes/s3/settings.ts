@@ -45,12 +45,21 @@ settingsRouter.get(
       async (_req, res, input) => {
          const { bucketName, objectKey } = input;
          const scope = await readScope(bucketName, res);
-         res.json(
-            toSettings(
-               await headObject(scope, objectKey),
-               getAuth(res).bucketRole
-            )
+         const settings = toSettings(
+            await headObject(scope, objectKey),
+            getAuth(res).bucketRole
          );
+         // the same entry a preview writes, so opening settings right after one adds no row.
+         await record(res, {
+            action: "object.view",
+            bucket: bucketName,
+            target: objectKey,
+            detail: {
+               size: settings.contentLength,
+               contentType: settings.contentType,
+            },
+         });
+         res.json(settings);
       }
    )
 );

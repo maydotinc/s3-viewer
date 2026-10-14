@@ -85,12 +85,6 @@ type AuditVerification = {
    nextFromSeq: number | null;
 };
 
-type AuditLoss = {
-   dropped: number;
-   failed: number;
-   flushing: number;
-};
-
 type AuditAccess = {
    enabled: boolean;
    canView: boolean;
@@ -105,7 +99,6 @@ export type {
    AuditEntry,
    AuditLogEntry,
    AuditLogPage,
-   AuditLoss,
    AuditManageRole,
    AuditSettings,
    AuditVerification,

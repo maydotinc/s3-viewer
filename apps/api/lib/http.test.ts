@@ -180,6 +180,36 @@ describe("errorHandler", () => {
       expect(json).toHaveBeenCalledWith({ message: "Something went wrong" });
    });
 
+   it("logs a prisma fault by class, code and target, never its bound values", () => {
+      const secret = "ada@example.com";
+      const fault = new Prisma.PrismaClientKnownRequestError(
+         `Invalid \`prisma.user.create()\` invocation:\n  data: { email: "${secret}" }\nUnique constraint failed`,
+         { code: "P2002", clientVersion: "6", meta: { target: ["email"] } }
+      );
+      const wrapper = new Error("create failed", {
+         cause: new Prisma.PrismaClientUnknownRequestError(
+            `Key (email)=(${secret}) already exists`,
+            { clientVersion: "6" }
+         ),
+      });
+      handle(fault);
+      handle(wrapper);
+      const [first, second] = vi
+         .mocked(logger.error)
+         .mock.calls.map(([, context]) => context);
+      expect(first).toMatchObject({
+         error: "PrismaClientKnownRequestError P2002 (target: email)",
+      });
+      expect(first?.stack).toMatch(
+         /^PrismaClientKnownRequestError P2002 \(target: email\)\n\s+at /
+      );
+      expect(first?.stack).toContain("http.test.ts");
+      expect(second).toMatchObject({
+         cause: "PrismaClientUnknownRequestError",
+      });
+      expect(JSON.stringify([first, second])).not.toContain(secret);
+   });
+
    it("logs a thrown non-error without inventing a stack", () => {
       handle("plain string");
       expect(logger.error).toHaveBeenCalledWith("Unhandled request error", {

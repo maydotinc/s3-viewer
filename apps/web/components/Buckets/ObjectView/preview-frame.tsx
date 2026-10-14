@@ -1,4 +1,5 @@
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { visibleText } from "@/lib/utils/format";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { useState, type ReactNode } from "react";
 
@@ -57,7 +58,7 @@ const TextFrame = ({
                   setPainted(true);
                   onLoad?.();
                }}
-               title={`Preview of ${fileName}`}
+               title={`Preview of ${visibleText(fileName)}`}
                sandbox=""
                className={cn(
                   "size-full rounded-lg border border-viewerborder bg-viewerwhite",

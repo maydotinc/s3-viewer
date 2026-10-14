@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBytes, joinSentences } from "./format";
+import { formatBytes, joinSentences, visibleText } from "./format";
 
 describe("formatting sizes", () => {
    it.each([
@@ -40,5 +40,33 @@ describe("joining messages", () => {
          "These failed: a.txt."
       );
       expect(joinSentences()).toBe("");
+   });
+});
+
+describe("visible key text", () => {
+   it.each([
+      [
+         "right-to-left override",
+         "invoice\u202Efdp.exe",
+         "invoice[U+202E]fdp.exe",
+      ],
+      ["isolate", "a\u2066b\u2069", "a[U+2066]b[U+2069]"],
+      ["zero-width space", "bit\u200B.ly", "bit[U+200B].ly"],
+      ["left-to-right mark", "a\u200Eb", "a[U+200E]b"],
+      ["Arabic letter mark", "a\u061Cb", "a[U+061C]b"],
+      ["byte order mark", "\uFEFFreport.csv", "[U+FEFF]report.csv"],
+      ["newline", "a\nb", "a[U+000A]b"],
+      ["lone surrogate", "a\uD800b", "a[U+D800]b"],
+   ])("spells out a %s", (_label, key, shown) => {
+      expect(visibleText(key)).toBe(shown);
+   });
+
+   it.each([
+      "photos/2024/beach.jpg",
+      "日本語/ファイル.txt",
+      "Ops 👨‍👩‍👧 team",
+      "🏳️‍🌈.png",
+   ])("leaves %s alone", (key) => {
+      expect(visibleText(key)).toBe(key);
    });
 });

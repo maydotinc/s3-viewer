@@ -93,7 +93,8 @@ const listFolderKeys = async (
          signal?.throwIfAborted();
          examinePage((page.Contents ?? []).length);
          for (const object of page.Contents ?? []) {
-            if (object.Key) add(object.Key, object.Size);
+            // a gateway that ignores Prefix must not zip keys outside the selected folder.
+            if (object.Key?.startsWith(prefix)) add(object.Key, object.Size);
          }
          const next = nextListToken(page, token);
          token = next === undefined ? undefined : copyRetainedString(next);

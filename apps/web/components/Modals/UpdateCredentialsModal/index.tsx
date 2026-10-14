@@ -9,11 +9,16 @@ import { EncryptionStatus } from "@/components/Modals/ConnectModal/encryption-st
 import { sealCredentialFields } from "@/components/Modals/ConnectModal/seal-credentials";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
+import StaleSignIn, {
+   isSessionStale,
+   signInAgain,
+} from "@/components/stale-sign-in";
 import useUpdateCredentials from "@/lib/hooks/mutations/server/useUpdateCredentials";
 import useInstanceConfig, {
    encryptionState,
 } from "@/lib/hooks/queries/useInstanceConfig";
 import { useUserId } from "@/lib/stores/session-store";
+import { Button } from "@s3-viewer/ui/components/button";
 import { useState, type FormEvent } from "react";
 
 type UpdateCredentialsModalProps = ModalProps<"updateCredentials">;
@@ -30,6 +35,7 @@ const UpdateCredentialsModal = ({
    const config = useInstanceConfig();
    const userId = useUserId();
    const keyState = encryptionState(config);
+   const stale = isSessionStale(update.error);
 
    const set = (key: keyof CredentialFields, value: string) => {
       setFields((prev) => ({ ...prev, [key]: value }));
@@ -58,7 +64,8 @@ const UpdateCredentialsModal = ({
                onUpdated?.();
                close();
             },
-            onError: (err) => setError(err.message),
+            onError: (err) =>
+               setError(isSessionStale(err) ? null : err.message),
          }
       );
    };
@@ -89,7 +96,19 @@ const UpdateCredentialsModal = ({
                   idPrefix="update-credentials"
                   autoFocus
                />
-               <FormError>{error}</FormError>
+               {stale ? (
+                  <StaleSignIn
+                     title="Sign in again to replace these credentials"
+                     action="replacing credentials"
+                     actions={
+                        <Button size="sm" type="button" onClick={signInAgain}>
+                           Sign in again
+                        </Button>
+                     }
+                  />
+               ) : (
+                  <FormError>{error}</FormError>
+               )}
             </>
          ) : (
             <div className="flex min-h-0 flex-1 items-center justify-center">

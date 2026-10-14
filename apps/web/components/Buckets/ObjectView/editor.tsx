@@ -5,6 +5,7 @@ import useObjectContent from "@/lib/hooks/queries/s3/useObjectContent";
 import { useUnsavedChangesGuard } from "@/lib/hooks/useUnsavedChangesGuard";
 import { useServerId } from "@/lib/stores/session-scope";
 import useSessionStore, { useUserId } from "@/lib/stores/session-store";
+import { visibleText } from "@/lib/utils/format";
 import { observedETagSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -47,6 +48,7 @@ const ObjectEditor = ({
    contentType,
    onClose,
 }: ObjectEditorProps) => {
+   const name = visibleText(fileName);
    const userId = useUserId();
    const serverId = useServerId();
    const scope = useRef({ userId, serverId, bucketName, objectKey });
@@ -174,7 +176,7 @@ const ObjectEditor = ({
       <section
          ref={panelRef}
          className={PREVIEW_PANEL}
-         aria-label={`Editing ${fileName}`}
+         aria-label={`Editing ${name}`}
       >
          <div className="flex h-14 min-w-0 shrink-0 items-center gap-2 border-b border-viewerborder px-3">
             {error ? (
@@ -187,7 +189,7 @@ const ObjectEditor = ({
                </p>
             ) : (
                <p className="min-w-0 flex-1 truncate text-sm font-medium text-viewerblack">
-                  {fileName}
+                  {name}
                </p>
             )}
             <span
@@ -241,7 +243,7 @@ const ObjectEditor = ({
                   wrap="off"
                   spellCheck={false}
                   autoComplete="off"
-                  aria-label={`Contents of ${fileName}`}
+                  aria-label={`Contents of ${name}`}
                   readOnly={saving}
                   className="min-h-0 min-w-0 flex-1 resize-none bg-viewerwhite px-3 py-3 font-mono text-base leading-5 text-viewerblack outline-none sm:text-xs"
                   onScroll={syncScroll}

@@ -12,6 +12,7 @@ import { Prisma, type AuditLog } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import {
    AUDIT_ACTIONS,
+   Role,
    type AuditAction,
    type AuditDetail,
    type AuditLogEntry,
@@ -22,7 +23,13 @@ import {
 const EXPORT_BATCH = 1000;
 const VERIFY_BATCH = 1000;
 const VERIFY_MAX_ROWS = 100_000;
-const VERIFY_CONCURRENCY = 2;
+const VERIFY_CONCURRENCY = 4;
+// each read holds a pooled connection for up to the statement timeout, so audit keeps most of the pool free.
+const READ_CONCURRENCY = 4;
+// exports never fill the last slot, so a burst of slow downloads cannot shut every search out.
+const EXPORT_READ_CONCURRENCY = READ_CONCURRENCY - 1;
+// aborting a request does not cancel its query, so quick filter changes from one person pile up.
+const USER_READ_CONCURRENCY = 2;
 // outlives the statement timeout so Postgres cancels the query before Prisma gives up.
 const SEARCH_TRANSACTION_MS = 10_000;
 const VERIFY_TRANSACTION_MS = 30_000;
@@ -64,6 +71,11 @@ const escapeLikePattern = (value: string): string =>
 const actionsNamed = (prefix: string): string[] =>
    AUDIT_ACTIONS.filter((action) => action.startsWith(prefix));
 
+// credentials.update names the endpoint and key suffix, which only the owner (who set them) may read.
+const OWNER_ONLY_ACTIONS: readonly AuditAction[] = ["credentials.update"];
+
+const serverRows = Prisma.sql`("bucket" IS NULL AND "action" <> ALL(${OWNER_ONLY_ACTIONS}::text[]))`;
+
 const ownActivity = ({ ownBuckets, actorId }: AuditReach): Prisma.Sql =>
    Prisma.sql`("bucket" IN (${Prisma.join(ownBuckets)}) AND "actorId" = ${actorId})`;
 
@@ -74,7 +86,7 @@ const within = (reach: AuditReach): Prisma.Sql => {
          ? [Prisma.sql`"bucket" IN (${Prisma.join(buckets)})`]
          : []),
       ...(ownBuckets.length > 0 ? [ownActivity(reach)] : []),
-      ...(serverWide ? [Prisma.sql`"bucket" IS NULL`] : []),
+      ...(serverWide ? [serverRows] : []),
    ];
    return reachable.length > 0
       ? Prisma.sql`(${Prisma.join(reachable, " OR ")})`
@@ -82,9 +94,7 @@ const within = (reach: AuditReach): Prisma.Sql => {
 };
 
 const bucketIs = (bucket: string | null): Prisma.Sql =>
-   bucket === null
-      ? Prisma.sql`"bucket" IS NULL`
-      : Prisma.sql`"bucket" = ${bucket}`;
+   bucket === null ? serverRows : Prisma.sql`"bucket" = ${bucket}`;
 
 const OWN_ACTIVITY: unique symbol = Symbol("own activity");
 type Branch = string | null | typeof OWN_ACTIVITY;
@@ -171,12 +181,84 @@ const isStatementTimeout = (error: unknown): boolean =>
    error.code === "P2010" &&
    String(error.meta?.code) === QUERY_CANCELED;
 
+type ReadSlot = { exporting: boolean; reader: string | undefined };
+
+let reads = 0;
+let exportReads = 0;
+const searchesBy = new Map<string, number>();
+const waitingExports: (() => void)[] = [];
+
+const readsBusy = (): ApiHttpError =>
+   rateLimited("Too many audit searches are running. Try again shortly.");
+
+const exportFits = (): boolean =>
+   reads < READ_CONCURRENCY && exportReads < EXPORT_READ_CONCURRENCY;
+
+const takeRead = ({ exporting, reader }: ReadSlot): void => {
+   reads++;
+   if (exporting) exportReads++;
+   if (reader) searchesBy.set(reader, (searchesBy.get(reader) ?? 0) + 1);
+};
+
+// a freed slot passes straight to a waiting export, so a search arriving in between cannot take it.
+const leaveRead = ({ exporting, reader }: ReadSlot): void => {
+   reads--;
+   if (exporting) exportReads--;
+   if (reader) {
+      const left = (searchesBy.get(reader) ?? 1) - 1;
+      if (left > 0) searchesBy.set(reader, left);
+      else searchesBy.delete(reader);
+   }
+   if (waitingExports.length > 0 && exportFits()) waitingExports.shift()!();
+};
+
+const waitForRead = (slot: ReadSlot): Promise<void> =>
+   new Promise((resolve, reject) => {
+      const turn = () => {
+         clearTimeout(timer);
+         takeRead(slot);
+         resolve();
+      };
+      const timer = setTimeout(() => {
+         waitingExports.splice(waitingExports.indexOf(turn), 1);
+         reject(readsBusy());
+      }, SEARCH_TRANSACTION_MS);
+      waitingExports.push(turn);
+   });
+
+// an export has already sent its headers, so its batches queue where a search fails fast.
+const enterRead = async (slot: ReadSlot): Promise<void> => {
+   if (slot.exporting) {
+      if (exportFits()) takeRead(slot);
+      else await waitForRead(slot);
+      return;
+   }
+   if (
+      slot.reader &&
+      (searchesBy.get(slot.reader) ?? 0) >= USER_READ_CONCURRENCY
+   ) {
+      throw rateLimited(
+         "Your earlier audit searches are still running. Try again shortly."
+      );
+   }
+   if (reads >= READ_CONCURRENCY) throw readsBusy();
+   takeRead(slot);
+};
+
 // any filter can walk a server's whole log, holding a pooled connection throughout.
 const timedRows = async (
    filters: AuditFilters,
    position: Position | undefined,
-   take: number
+   take: number,
+   exporting = false
 ): Promise<AuditRow[]> => {
+   const slot: ReadSlot = {
+      exporting,
+      reader: exporting
+         ? undefined
+         : (filters.viewerId ?? filters.reach?.actorId),
+   };
+   await enterRead(slot);
    try {
       return await prisma.$transaction(
          async (tx) => {
@@ -191,6 +273,8 @@ const timedRows = async (
          422,
          "This search took too long. Narrow the search with more text, a date range or another filter."
       );
+   } finally {
+      leaveRead(slot);
    }
 };
 
@@ -246,37 +330,76 @@ const OTHER_END: Readonly<
    },
 };
 
-const foreignServers = (
+type ForeignEnds = { owned: ReadonlySet<string>; buckets: ReadonlySet<string> };
+
+const NO_FOREIGN_ENDS: ForeignEnds = { owned: new Set(), buckets: new Set() };
+
+// a bucket name cannot hold a slash, so two ends never share a key.
+const endKey = (serverId: string, bucket: string): string =>
+   `${serverId}/${bucket}`;
+
+const foreignEnds = (
    entries: readonly AuditLogEntry[],
    serverId: string
-): string[] => {
-   const ids = new Set<string>();
+): { servers: string[]; buckets: string[] } => {
+   const servers = new Set<string>();
+   const buckets = new Set<string>();
    for (const { action, detail } of entries) {
       const other = OTHER_END[action];
-      const end = other && detail?.[other.server];
-      if (typeof end === "string" && end !== serverId) ids.add(end);
+      if (!other || !detail) continue;
+      const end = detail[other.server];
+      if (typeof end !== "string" || end === serverId) continue;
+      servers.add(end);
+      const bucket = detail[other.bucket];
+      if (typeof bucket === "string") buckets.add(bucket);
    }
-   return [...ids];
+   return { servers: [...servers], buckets: [...buckets] };
 };
 
-// only an owner (no reach) can be a member of the other server; a bucket-limited viewer sees no foreign end.
-const joinedServers = async (
+// only an owner (no reach) is shown a foreign end, and only one they could open there: by owning
+// that server or holding a whole-bucket grant, the same test a non-owner gets on this server.
+const reachableForeignEnds = async (
    entries: readonly AuditLogEntry[],
    { serverId, reach, viewerId }: AuditFilters
-): Promise<ReadonlySet<string>> => {
-   const ids = reach ? [] : foreignServers(entries, serverId);
-   if (!viewerId || ids.length === 0) return new Set();
-   const rows = await prisma.serverAccess.findMany({
-      where: { userId: viewerId, serverId: { in: ids } },
-      select: { serverId: true },
+): Promise<ForeignEnds> => {
+   const { servers, buckets } = reach
+      ? { servers: [], buckets: [] }
+      : foreignEnds(entries, serverId);
+   if (!viewerId || servers.length === 0) return NO_FOREIGN_ENDS;
+   const memberships = await prisma.serverAccess.findMany({
+      where: { userId: viewerId, serverId: { in: servers } },
+      select: { serverId: true, role: true },
    });
-   return new Set(rows.map((row) => row.serverId));
+   const owned = memberships
+      .filter(({ role }) => role === Role.OWNER)
+      .map((row) => row.serverId);
+   const joined = memberships
+      .filter(({ role }) => role !== Role.OWNER)
+      .map((row) => row.serverId);
+   const grants =
+      joined.length === 0 || buckets.length === 0
+         ? []
+         : await prisma.bucketAccess.findMany({
+              where: {
+                 userId: viewerId,
+                 serverId: { in: joined },
+                 bucketName: { in: buckets },
+                 restrictedFolders: false,
+              },
+              select: { serverId: true, bucketName: true },
+           });
+   return {
+      owned: new Set(owned),
+      buckets: new Set(
+         grants.map((grant) => endKey(grant.serverId, grant.bucketName))
+      ),
+   };
 };
 
 const withReachableEnds = (
    entry: AuditLogEntry,
    { serverId, reach, viewerId }: AuditFilters,
-   joined: ReadonlySet<string>
+   foreign: ForeignEnds
 ): AuditLogEntry => {
    const { detail } = entry;
    const other = OTHER_END[entry.action];
@@ -289,7 +412,11 @@ const withReachableEnds = (
       ? typeof bucket === "string" &&
         end === serverId &&
         reach.buckets.includes(bucket)
-      : typeof end === "string" && (end === serverId || joined.has(end));
+      : typeof end === "string" &&
+        (end === serverId ||
+           foreign.owned.has(end) ||
+           (typeof bucket === "string" &&
+              foreign.buckets.has(endKey(end, bucket))));
    if (reachable) return entry;
    return {
       ...entry,
@@ -299,6 +426,35 @@ const withReachableEnds = (
          )
       ),
    };
+};
+
+// member and invite rows list every grant the member holds, so a reader limited to some buckets
+// would learn the roles and folders on the rest.
+const GRANT_ACTIONS: ReadonlySet<AuditAction> = new Set([
+   "member.role_change",
+   "invite.send",
+   "invite.accept",
+]);
+
+// a bucket name holds no comma or colon, so this finds every listed bucket; folder text that
+// happens to match only hides more.
+const LISTED_BUCKET = /(?:^|,)([A-Za-z0-9._-]+):/g;
+
+const withReachableGrants = (
+   entry: AuditLogEntry,
+   { reach }: AuditFilters
+): AuditLogEntry => {
+   const { detail } = entry;
+   const listed = detail?.buckets;
+   if (!reach || !detail || !GRANT_ACTIONS.has(entry.action)) return entry;
+   if (typeof listed !== "string") return entry;
+   const held = new Set([...reach.buckets, ...reach.ownBuckets]);
+   const hidden = [...listed.matchAll(LISTED_BUCKET)].some(
+      ([, bucket]) => !held.has(bucket!)
+   );
+   if (!hidden) return entry;
+   const { buckets: _, ...rest } = detail;
+   return { ...entry, detail: rest };
 };
 
 const listAuditPage = async ({
@@ -316,10 +472,13 @@ const listAuditPage = async ({
    );
    const { page, nextCursor } = pageOf(rows, limit);
    const entries = page.map(toEntry);
-   const joined = await joinedServers(entries, filters);
+   const foreign = await reachableForeignEnds(entries, filters);
    return {
       entries: entries.map((entry) =>
-         withReachableEnds(entry, filters, joined)
+         withReachableGrants(
+            withReachableEnds(entry, filters, foreign),
+            filters
+         )
       ),
       nextCursor,
    };
@@ -330,13 +489,16 @@ async function* iterateAudit(
 ): AsyncGenerator<AuditExportRow> {
    let position: Position | undefined;
    for (;;) {
-      const rows = await timedRows(filters, position, EXPORT_BATCH);
+      const rows = await timedRows(filters, position, EXPORT_BATCH, true);
       const entries = rows.map(toEntry);
-      const joined = await joinedServers(entries, filters);
+      const foreign = await reachableForeignEnds(entries, filters);
       for (const [index, row] of rows.entries()) {
          const { seq, prevHash, hash } = row;
          yield {
-            ...withReachableEnds(entries[index]!, filters, joined),
+            ...withReachableGrants(
+               withReachableEnds(entries[index]!, filters, foreign),
+               filters
+            ),
             seq,
             prevHash,
             hash,
@@ -372,20 +534,38 @@ const verdict = (fields: Verdict): AuditVerification => ({
    ...fields,
 });
 
-let verifications = 0;
+// one check per server and per person, so neither a long check nor someone with many servers
+// can hold every slot.
+const verifying = new Set<string>();
+const verifyingBy = new Set<string>();
 
-const enterVerification = (): (() => void) => {
-   if (verifications >= VERIFY_CONCURRENCY) {
+const enterVerification = (
+   serverId: string,
+   viewerId: string | undefined
+): (() => void) => {
+   if (verifying.has(serverId)) {
       throw rateLimited(
-         "Another integrity check is already running. Try again shortly."
+         "An integrity check is already running on this server. Try again shortly."
       );
    }
-   verifications++;
+   if (viewerId && verifyingBy.has(viewerId)) {
+      throw rateLimited(
+         "Your earlier integrity check is still running. Try again once it finishes."
+      );
+   }
+   if (verifying.size >= VERIFY_CONCURRENCY) {
+      throw rateLimited(
+         "Too many integrity checks are running. Try again shortly."
+      );
+   }
+   verifying.add(serverId);
+   if (viewerId) verifyingBy.add(viewerId);
    let released = false;
    return () => {
       if (released) return;
       released = true;
-      verifications--;
+      verifying.delete(serverId);
+      if (viewerId) verifyingBy.delete(viewerId);
    };
 };
 
@@ -480,9 +660,10 @@ const verifySnapshot = async (
 const verifyAuditChain = async (
    serverId: string,
    caller: { closed: boolean } = { closed: false },
-   window: VerifyWindow = {}
+   window: VerifyWindow = {},
+   viewerId?: string
 ): Promise<AuditVerification> => {
-   const release = enterVerification();
+   const release = enterVerification(serverId, viewerId);
    try {
       return await prisma.$transaction(
          (tx) => verifySnapshot(tx, serverId, caller, window),

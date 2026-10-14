@@ -24,7 +24,12 @@ import { useUserId } from "@/lib/stores/session-store";
 import { reachOf, writeScopeError } from "@/lib/utils/folder-access";
 import { batchProgressSentence, isBatchComplete } from "@/lib/utils/s3/batch";
 import { destinationKey, validateDestination } from "@/lib/utils/s3/keys";
-import { formatBytes, formatCount, joinSentences } from "@/lib/utils/format";
+import {
+   formatBytes,
+   formatCount,
+   joinSentences,
+   visibleText,
+} from "@/lib/utils/format";
 import {
    Permission,
    effectiveBucketRole,
@@ -207,7 +212,7 @@ const TransferObjectsModal = ({
 
    const total = files?.objects.length ?? 0;
    const description = folder
-      ? `Every object under ${folder} is copied to the destination. The originals stay where they are.`
+      ? `Every object under ${visibleText(folder)} is copied to the destination. The originals stay where they are.`
       : `${total === 1 ? "This object is" : `These ${formatCount(total)} objects are`} copied to the destination. The originals stay where they are.`;
 
    const status = transfer.isPending

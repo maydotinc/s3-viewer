@@ -5,6 +5,7 @@ import { errorMessage } from "@/lib/api";
 import useCreateFolder from "@/lib/hooks/mutations/object/useCreateFolder";
 import useBucketScope from "@/lib/hooks/queries/s3/useBucketScope";
 import { writeScopeError } from "@/lib/utils/folder-access";
+import { visibleText } from "@/lib/utils/format";
 import { validateFolderName, validateFolderKey } from "@/lib/utils/s3/keys";
 import { toast } from "@s3-viewer/ui/components/toast";
 import type { FormEvent } from "react";
@@ -51,7 +52,7 @@ const CreateFolderModal = ({
          onClose={onClose}
          isPending={createFolder.isPending}
          title="New folder"
-         description={`This writes an empty marker object at ${prefix || bucketName + "/"} so the folder shows up before anything is uploaded to it.`}
+         description={`This writes an empty marker object at ${visibleText(prefix) || bucketName + "/"} so the folder shows up before anything is uploaded to it.`}
          onSubmit={submit}
          submitLabel="Create folder"
          submitDisabled={!field.valid}

@@ -195,7 +195,10 @@ describe.skipIf(!integrationUrl)("folder access in PostgreSQL", () => {
    });
 
    it("lists members with their folders", async () => {
-      const { members } = await listMembers(serverId, undefined, 10);
+      const { members } = await listMembers(serverId, undefined, 10, {
+         id: owner,
+         role: Role.OWNER,
+      });
       const access = Object.fromEntries(
          members.map((member) => [member.id, member.bucketAccess])
       );
@@ -222,9 +225,13 @@ describe.skipIf(!integrationUrl)("folder access in PostgreSQL", () => {
          });
          const replace = (folders: string[] | null) =>
             prisma.$transaction((tx) =>
-               replaceBucketAccess(tx, target, serverId, [
-                  { bucketName: BUCKET, role: Role.VIEWER, folders },
-               ])
+               replaceBucketAccess(
+                  tx,
+                  target,
+                  serverId,
+                  [{ bucketName: BUCKET, role: Role.VIEWER, folders }],
+                  null
+               )
             );
          await replace(["a/", "b/"]);
          expect(await grantOf(target)).toMatchObject({

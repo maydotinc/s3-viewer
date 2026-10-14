@@ -79,4 +79,10 @@ describe("moveObjects", () => {
          expect(h.post).not.toHaveBeenCalled();
       }
    );
+
+   it("spells out bidi characters in the source key it names", async () => {
+      await expect(
+         moveObjects("/objects", [target("a\u202Eb", "dest//b")], "user1")
+      ).rejects.toThrow("Can't move a[U+202E]b: its new key must be valid");
+   });
 });

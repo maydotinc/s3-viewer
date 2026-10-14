@@ -23,7 +23,8 @@ type AuthClientOptions = {
 };
 
 type AuthResult = { error: string | null; code?: string };
-type ContinueResult = AuthResult & { created: boolean };
+// `exists` only repeats what the sign-up endpoint already answers for the address.
+type ContinueResult = AuthResult & { created: boolean; exists?: true };
 type ContinueOptions = { allowSignUp?: boolean; inviteId?: string };
 
 const PASSWORD_PROVIDER = "credential";
@@ -108,7 +109,7 @@ const makeAuthClient = ({
       }
       const created = await signUpWithPassword(email, password, inviteId);
       if (created.code && ALREADY_EXISTS.has(created.code)) {
-         return { ...signedIn, created: false };
+         return { ...signedIn, created: false, exists: true };
       }
       if (created.code === AuthErrorCode.SIGNUP_INVITE_REQUIRED) {
          if (inviteId === undefined) return { ...signedIn, created: false };

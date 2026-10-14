@@ -94,7 +94,8 @@ describe.skipIf(!integrationUrl)("database pagination", () => {
    });
 
    it("pages equal-timestamp members with only their own server grants", async () => {
-      const first = await listMembers(serverIds[0]!, undefined, 2);
+      const owner = { id: userIds[0]!, role: Role.OWNER };
+      const first = await listMembers(serverIds[0]!, undefined, 2, owner);
       expect(first.members.map((member) => member.id)).toEqual(
          userIds.slice(0, 2)
       );
@@ -105,12 +106,17 @@ describe.skipIf(!integrationUrl)("database pagination", () => {
       expect(first.members[1]!.bucketAccess).toEqual([]);
       expect(first.nextCursor).not.toBeNull();
       await prisma.serverAccess.delete({ where: { id: `${run}m1` } });
-      const second = await listMembers(serverIds[0]!, first.nextCursor!, 2);
+      const second = await listMembers(
+         serverIds[0]!,
+         first.nextCursor!,
+         2,
+         owner
+      );
       expect(second.members.map((member) => member.id)).toEqual([userIds[2]]);
       expect(second.nextCursor).toBeNull();
-      expect((await listMembers(serverIds[1]!, undefined, 2)).members).toEqual(
-         []
-      );
+      expect(
+         (await listMembers(serverIds[1]!, undefined, 2, owner)).members
+      ).toEqual([]);
    });
 
    it("seeks recipient invitations past ties and expired rows without mixing grants", async () => {

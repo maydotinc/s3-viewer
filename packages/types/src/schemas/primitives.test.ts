@@ -10,6 +10,7 @@ import {
    objectKeySchema,
    plainLabel,
    profileNameSchema,
+   replaceUnsafeDisplayChars,
    serverNameSchema,
 } from "./primitives";
 
@@ -237,6 +238,23 @@ describe("display names", () => {
          expect(serverNameSchema.parse(name)).toBe(name);
       }
    );
+});
+
+describe("replacing unsafe display characters", () => {
+   const mark = (value: string) => replaceUnsafeDisplayChars(value, () => "?");
+
+   it("swaps every character a display name may not hold", () => {
+      expect(mark("a\u202Eb\u200Bc\u200Dd\u0085e\uD800")).toBe("a?b?c?d?e?");
+   });
+
+   it("keeps joiners that build an emoji", () => {
+      expect(mark("Ops 👨‍👩‍👧 🏳️‍🌈")).toBe("Ops 👨‍👩‍👧 🏳️‍🌈");
+   });
+
+   it("gives the same answer on every call", () => {
+      expect(mark("a\u202Eb")).toBe("a?b");
+      expect(mark("a\u202Eb")).toBe("a?b");
+   });
 });
 
 describe("plainLabel", () => {

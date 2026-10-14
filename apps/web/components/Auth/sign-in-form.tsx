@@ -77,6 +77,9 @@ const SignInForm = ({
    const [emailError, setEmailError] = useState<string | null>(null);
    const [passwordError, setPasswordError] = useState<string | null>(null);
    const [pending, setPending] = useState(false);
+   // a sign-up that hits an existing account offers the reset that reclaims it,
+   // including one a stranger registered and never verified
+   const [offerReset, setOfferReset] = useState(false);
    const passwordRef = useRef<HTMLInputElement>(null);
    const { data: config } = useInstanceConfig();
    const { mode: signUp, domains } = signUpPolicyState(config);
@@ -105,6 +108,7 @@ const SignInForm = ({
       const allowSignUp =
          signUp !== "closed" && (mode === "signup" || inviteId !== undefined);
       setPending(true);
+      setOfferReset(false);
       const result = await continueWithPassword(address.data, parsed.data, {
          allowSignUp,
          inviteId,
@@ -122,6 +126,7 @@ const SignInForm = ({
          if (result.code && POLICY_CODES.has(result.code)) {
             setEmailError(result.error);
          } else setPasswordError(result.error);
+         setOfferReset(result.exists === true);
          setPending(false);
          return;
       }
@@ -158,6 +163,7 @@ const SignInForm = ({
                   onChange={(next) => {
                      setEmail(next);
                      if (emailError) setEmailError(null);
+                     setOfferReset(false);
                   }}
                   onEnter={() => passwordRef.current?.focus()}
                />
@@ -165,7 +171,7 @@ const SignInForm = ({
                   label="Password"
                   htmlFor="password"
                   trailing={
-                     mode === "login" && (
+                     (mode === "login" || offerReset) && (
                         <Link
                            href={SITE_PATHS.forgotPassword}
                            className={`${TEXT_LINK} text-sm`}

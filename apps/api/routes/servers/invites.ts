@@ -19,7 +19,7 @@ import {
    invitesUrl,
    toServerInvite,
 } from "@/lib/services/invites";
-import { folderColumns } from "@/lib/services/bucket-grants";
+import { folderColumns, withVisibleGrants } from "@/lib/services/bucket-grants";
 import {
    canRevokeInvite,
    revocableInviteSelect,
@@ -29,6 +29,7 @@ import {
    bucketDetail,
    loadGrantingActor,
    memberRole,
+   visibleBuckets,
 } from "@/lib/services/members";
 import { lockBucketScope } from "@/lib/services/servers";
 import type { Prisma } from "@prisma/client";
@@ -59,12 +60,19 @@ const INVITE_NOT_FOUND = "Invite not found";
 
 const getInvites = async (_req: Request, res: Response, input: ServerScope) => {
    const { serverId } = input;
-   const rows = await prisma.pendingInvitation.findMany({
-      where: { serverId, ...liveInvite() },
-      select: inviteSelect,
-      orderBy: { createdAt: "desc" },
-   });
-   res.json({ invites: rows.map(toServerInvite) } satisfies InvitesResponse);
+   const { userId, serverRole } = getAuth(res);
+   const [rows, visible] = await Promise.all([
+      prisma.pendingInvitation.findMany({
+         where: { serverId, ...liveInvite() },
+         select: inviteSelect,
+         orderBy: { createdAt: "desc" },
+      }),
+      visibleBuckets(userId, serverId, serverRole),
+   ]);
+   const invites = rows.map((row) =>
+      withVisibleGrants(visible, toServerInvite(row))
+   );
+   res.json({ invites } satisfies InvitesResponse);
 };
 
 const memberEmails = async (
@@ -115,7 +123,7 @@ type InviteWrite = Pick<SendInviteInput, "role" | "bucketAccess"> & {
    expiresAt: Date;
 };
 
-type SavedInvite = { invite: ServerInvite; token: string };
+type SavedInvite = { invite: ServerInvite; token: string; renewed: boolean };
 
 const writeInvites = async (
    client: Prisma.TransactionClient,
@@ -183,20 +191,43 @@ const writeInvites = async (
    return emails.map((email) => {
       const row = byEmail.get(email);
       if (!row) throw new ApiHttpError(500, "Invite could not be saved");
-      return { invite: toServerInvite(row), token: row.token };
+      return {
+         invite: toServerInvite(row),
+         token: row.token,
+         renewed: existingEmails.includes(email),
+      };
    });
 };
 
 type Inviter = { name: string; email: string };
 
+// matching on the old token leaves alone an invite revoked, accepted or re-sent since the commit.
+const swapToken = async (
+   inviteId: string,
+   from: string,
+   to: string
+): Promise<boolean> =>
+   (
+      await prisma.pendingInvitation.updateMany({
+         where: { id: inviteId, token: from },
+         data: { token: to },
+      })
+   ).count === 1;
+
+// a renewed invite gets a new link only once an email will carry it, so a skipped send never kills the link already in the inbox.
 const emailInvite = async (
-   { invite, token }: SavedInvite,
+   { invite, token, renewed }: SavedInvite,
    inviter: Inviter,
    serverId: string
 ): Promise<boolean> => {
    const reservation = await reserveInviteEmail(serverId, invite.email);
    if (!reservation) return false;
+   const link = renewed ? inviteToken() : token;
    try {
+      if (renewed && !(await swapToken(invite.id, token, link))) {
+         await reservation.release().catch(() => {});
+         return false;
+      }
       await sendServerInviteEmail({
          to: invite.email,
          inviterName: inviter.name,
@@ -204,11 +235,12 @@ const emailInvite = async (
          serverName: invite.server.name,
          role: invite.role,
          expiresAt: new Date(invite.expiresAt),
-         invitesUrl: invitesUrl(token),
+         invitesUrl: invitesUrl(link),
       });
       return true;
    } catch (error) {
       await reservation.release().catch(() => {});
+      if (renewed) await swapToken(invite.id, link, token).catch(() => {});
       logger.warn("Invite email failed", {
          serverId,
          inviteId: invite.id,

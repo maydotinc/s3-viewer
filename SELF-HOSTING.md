@@ -55,7 +55,7 @@ on a fresh install, replace `POSTGRES_PASSWORD` with a long, random, URL-safe pa
 docker compose -f docker-compose.yml -f docker-compose.proxy.yml --profile proxy up -d
 ```
 
-Caddy handles HTTPS. keep the second Compose file in later commands — it sets `TRUST_PROXY=1` so rate limits see each visitor's IP. for your own proxy, route to `web:3000` and `api:5001`, set `TRUST_PROXY` for the actual trusted hops, and have the proxy replace client-supplied forwarding headers.
+Caddy handles HTTPS. keep the second Compose file in later commands — it sets `TRUST_PROXY=1` so rate limits see each visitor's IP. for your own proxy, route to `web:3000` and `api:5001`, set `TRUST_PROXY` for the actual trusted hops, and have the proxy replace client-supplied forwarding headers. the API logs a warning once if it sees `X-Forwarded-For` from a peer `TRUST_PROXY` doesn't cover.
 
 copies, renames, moves and header edits run inside storage, so the API sends nothing until they finish — up to about two minutes per GiB of an object, and a bulk or folder move stays quiet for its whole batch. a copy between two servers streams through the API and stays quiet for as long as the object takes at your network speed. a proxy that closes quiet connections sooner (nginx's `proxy_read_timeout` defaults to 60 seconds) will fail the long ones, so raise its read or idle timeout on the API route. Cloudflare's proxy cuts a quiet connection at 100 seconds and only Enterprise plans can raise that, so point the API hostname at your server in DNS-only mode. the bundled Caddy config has no such limit.
 
@@ -100,7 +100,7 @@ for local development, use `http://localhost:5001/auth/callback/github`. the app
 
 ## private storage endpoints
 
-to connect to storage on your LAN, set `ALLOW_PRIVATE_ENDPOINTS=true` on the API. this allows private addresses and HTTP endpoints, so only turn it on for an instance you trust. otherwise, private and loopback addresses are blocked and production endpoints need HTTPS.
+to connect to storage on your LAN, set `ALLOW_PRIVATE_ENDPOINTS=true` on the API. this allows private addresses and HTTP endpoints, so only turn it on for an instance you trust; link-local and cloud metadata addresses (such as `169.254.169.254`) stay blocked either way. otherwise, private and loopback addresses are blocked and endpoints need HTTPS unless `NODE_ENV` is `development` or `test`.
 
 the API container needs to reach the endpoint. `localhost` inside Docker points to that container, not your host machine.
 

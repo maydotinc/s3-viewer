@@ -9,6 +9,7 @@ import { PageHeader, PageTitle } from "@/components/Layout/page";
 import Reserve from "@/components/reserve";
 import useAsyncAction from "@/components/use-async-action";
 import { copyToClipboard } from "@/lib/utils/clipboard";
+import { visibleText } from "@/lib/utils/format";
 import { folderHref, objectHref } from "@/lib/utils/s3/paths";
 import { canPresignObjectKey } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -87,6 +88,7 @@ const ObjectHeader = ({
    };
 
    const { can } = commands;
+   const shownKey = visibleText(objectKey);
    const browserLink = canPresignObjectKey(objectKey);
 
    const actionList: (SecondaryAction | false)[] = [
@@ -240,7 +242,7 @@ const ObjectHeader = ({
                   </Link>
                </Button>
             </SimpleTooltip>
-            <PageTitle title={objectKey}>{objectKey}</PageTitle>
+            <PageTitle title={shownKey}>{shownKey}</PageTitle>
             <SimpleTooltip label={copied ? "Copied" : "Copy object key"}>
                <Button
                   variant="ghost"

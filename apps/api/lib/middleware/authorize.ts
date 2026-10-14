@@ -384,13 +384,17 @@ const authorizeBucket = async (
    });
    // a caller with no role answers 404 whether or not the bucket is on the allow-list, so members can't enumerate it.
    if (!auth.bucketRole || !isBucketAllowed(row, bucketName)) {
+      // only a name the server already holds reaches the audit trail; any other is whatever the caller typed.
+      const known =
+         row.bucketRole !== null ||
+         (row.restrictedBuckets && row.allowedBuckets.includes(bucketName));
       throw denied(
          404,
          "Bucket not found",
          denialScope(auth),
          permission,
          "bucket",
-         bucketName
+         known ? bucketName : null
       );
    }
    if (!hasPermission(auth.bucketRole, permission)) {

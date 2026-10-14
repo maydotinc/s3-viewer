@@ -119,6 +119,37 @@ describe("adding a folder to a grant", () => {
       });
    });
 
+   it("spells out bidi and zero-width characters in what it says", () => {
+      expect(addGrantFolder(["a\u202Eb/"], "a\u202Eb", null)).toEqual({
+         ok: false,
+         error: "a[U+202E]b/ is already in the list.",
+      });
+      expect(addGrantFolder(["x/"], "y", ["x\u200B/"])).toEqual({
+         ok: false,
+         error: "You can only share folders inside x[U+200B]/.",
+      });
+      expect(
+         addGrantFolder(["a\u202E/"], "a\u202E/b\u2066", null)
+      ).toMatchObject({
+         ok: true,
+         folder: "a\u202E/b\u2066/",
+         replaced: ["a\u202E/"],
+         notice:
+            "Replaced a[U+202E]/ with a[U+202E]/b[U+2066]/, so only a[U+202E]/b[U+2066]/ is shared.",
+      });
+      expect(addGrantFolder(["a/\u200Fb/", "a/c/"], "a", null)).toMatchObject({
+         notice: "Removed a/[U+200F]b/ and a/c/, since a/ includes them.",
+      });
+      expect(
+         hintFor({
+            folders: [],
+            draft: "",
+            held: ["\u202Ex/"],
+            hasSuggestion: false,
+         })
+      ).toBe("Inside [U+202E]x/ only. A folder doesn't have to exist yet.");
+   });
+
    it("passes on invalid input", () => {
       expect(addGrantFolder([], "a/../b", null)).toEqual({
          ok: false,

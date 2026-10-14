@@ -22,6 +22,7 @@ type AuditMocks = Record<
    | "createMany"
    | "findFirst"
    | "findMany"
+   | "grantFind"
    | "headFind"
    | "headUpsert"
    | "selectRows"
@@ -46,6 +47,7 @@ const auditMocks = (): AuditMocks => ({
    createMany: vi.fn(),
    findFirst: vi.fn(),
    findMany: vi.fn(),
+   grantFind: vi.fn(),
    headFind: vi.fn(),
    headUpsert: vi.fn(),
    selectRows: vi.fn(),
@@ -68,6 +70,7 @@ const auditDatabase = (h: AuditMocks) => {
          auditLog,
          auditChainHead,
          serverAccess: { findMany: h.accessFind },
+         bucketAccess: { findMany: h.grantFind },
          $queryRaw: h.selectRows,
          $transaction: (
             work: (tx: unknown) => Promise<unknown>,
@@ -91,6 +94,7 @@ const resetAuditMocks = (h: AuditMocks): void => {
    h.createMany.mockResolvedValue({ count: 1 });
    h.findFirst.mockResolvedValue(null);
    h.findMany.mockResolvedValue([]);
+   h.grantFind.mockResolvedValue([]);
    h.headFind.mockResolvedValue(null);
    h.headUpsert.mockResolvedValue({});
    h.selectRows.mockResolvedValue([]);

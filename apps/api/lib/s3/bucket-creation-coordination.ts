@@ -48,10 +48,13 @@ const withBucketCreation = async <T>(
       const existing = await tx.bucketCreation.findUnique({
          where: { namespace_bucketName: { namespace, bucketName } },
       });
+      // another user's request reads as an existing bucket, so it does not reveal what they are creating.
       if (existing)
          throw new ApiHttpError(
             409,
-            `${bucketName} has an active or unresolved creation request. Wait for it to finish; if it was interrupted, try again in 15 minutes.`
+            existing.userId === userId
+               ? `${bucketName} has an active or unresolved creation request. Wait for it to finish; if it was interrupted, try again in 15 minutes.`
+               : `${bucketName} already exists`
          );
       if (
          (await tx.bucketCreation.count({ where: { userId } })) >=

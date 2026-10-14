@@ -9,6 +9,7 @@ import { canonicalPath } from "@/lib/middleware/canonical-path";
 import { originCheck } from "@/lib/middleware/origin";
 import { requestBodyGuard } from "@/lib/middleware/request-body";
 import { recordDenials } from "@/lib/middleware/route";
+import { untrustedProxyWarning } from "@/lib/middleware/untrusted-proxy";
 import { isObjectUpload } from "@/lib/middleware/upload-body";
 import {
    BUCKET_MOUNT,
@@ -55,6 +56,7 @@ const createApp = (): Express => {
    );
    app.set("trust proxy", env.TRUST_PROXY);
    app.set("etag", false);
+   app.use(untrustedProxyWarning());
 
    app.use(requestBodyGuard());
 
