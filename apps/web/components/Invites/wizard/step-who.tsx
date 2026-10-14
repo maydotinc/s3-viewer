@@ -63,7 +63,7 @@ const StepWho = ({
          label={<span id={labelId}>Email addresses</span>}
          htmlFor={inputId}
          trailing={
-            <span className="w-14 text-right text-xs tabular-nums text-viewerlighttext">
+            <span className="w-14 text-right text-xs tabular-nums text-viewertext">
                {value.chips.length} of {MAX_INVITE_EMAILS}
             </span>
          }
@@ -118,7 +118,7 @@ const StepWho = ({
             role={invalid ? "alert" : undefined}
             className={cn(
                "min-h-5 break-words text-xs leading-5",
-               invalid ? "text-viewertextred" : "text-viewerlighttext"
+               invalid ? "text-viewertextred" : "text-viewertext"
             )}
          >
             {message.text}

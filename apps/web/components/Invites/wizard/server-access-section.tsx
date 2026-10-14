@@ -1,7 +1,7 @@
 import Field from "@/components/form-field";
 import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import { ROLE_DESCRIPTIONS, assignableRoles } from "@s3-viewer/permissions";
-import { Role, type GrantableRole, type ServerInfo } from "@s3-viewer/types";
+import type { GrantableRole, ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -13,14 +13,12 @@ import {
    useId,
    useMemo,
    useRef,
-   useState,
    type SetStateAction,
 } from "react";
 import BucketAccessPicker from "../bucket-access-picker";
 import type { GrantRow } from "../bucket-grants";
 import RoleSelect from "../role-select";
 import { grantableBucketRoles } from "../roles";
-import FolderExplainer from "./folder-explainer";
 import type { ServerBuckets } from "./use-server-buckets";
 import {
    defaultAccess,
@@ -77,10 +75,8 @@ const ServerAccessSection = memo(function ServerAccessSection({
    onRemove,
 }: ServerAccessSectionProps) {
    const bodyId = useId();
-   const helpId = useId();
    const roleId = useId();
    const bodyRef = useRef<HTMLDivElement>(null);
-   const [helpOpen, setHelpOpen] = useState(false);
    const myRole = server.userRole;
    const roles = useMemo(() => assignableRoles(myRole), [myRole]);
    const fallback = useMemo(() => defaultAccess(myRole), [myRole]);
@@ -232,18 +228,7 @@ const ServerAccessSection = memo(function ServerAccessSection({
                      )
                   }
                   disabled={disabled}
-                  help={{
-                     expanded: helpOpen,
-                     controls: helpId,
-                     onToggle: () => setHelpOpen((open) => !open),
-                  }}
-               >
-                  <FolderExplainer
-                     id={helpId}
-                     open={helpOpen}
-                     adminInviter={myRole === Role.ADMIN}
-                  />
-               </BucketAccessPicker>
+               />
             </div>
          )}
       </div>

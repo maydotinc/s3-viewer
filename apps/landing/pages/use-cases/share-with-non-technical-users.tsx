@@ -124,6 +124,7 @@ export default createUseCasePage({
    faqs,
    relatedHowTos: [
       "share-s3-file-with-non-technical-user",
+      "share-one-folder-in-s3-bucket",
       "invite-teammate-to-s3-bucket",
       "set-granular-s3-permissions",
    ],

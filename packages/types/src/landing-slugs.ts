@@ -16,6 +16,7 @@ export const HOW_TO_SLUGS = [
    "search-across-s3-buckets",
    "secure-s3-upload-presigned-urls",
    "set-granular-s3-permissions",
+   "share-one-folder-in-s3-bucket",
    "share-s3-file-with-non-technical-user",
    "switch-between-s3-buckets",
    "upload-large-files-to-s3",

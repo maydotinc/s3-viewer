@@ -7,6 +7,7 @@ import {
    canLimitToFolders,
    type BucketAccessEntry,
    type FolderScope,
+   type HowToSlug,
    type Role,
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -17,7 +18,9 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@s3-viewer/ui/components/select";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import { ExternalLink } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
 import {
    canChooseWholeBucket,
@@ -200,6 +203,24 @@ type GrantScopeProps = {
 
 const ADMINS_WHOLE = "Admins always get whole buckets";
 
+const FOLDER_GUIDE: HowToSlug = "share-one-folder-in-s3-bucket";
+
+// opens in a new tab so a half-finished invite survives the read
+const FolderGuideLink = () => (
+   <a
+      href={`/how-to/${FOLDER_GUIDE}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={cn(
+         "inline-flex min-w-0 items-center gap-1 rounded-sm text-xs text-viewerblue underline-offset-4 outline-none hover:underline",
+         FOCUS_RING
+      )}
+   >
+      <span className="truncate">How folder access works</span>
+      <ExternalLink aria-hidden="true" className="size-3 shrink-0" />
+   </a>
+);
+
 const GrantScope = ({
    serverId,
    entry,
@@ -264,10 +285,12 @@ const GrantScope = ({
                   </SelectItem>
                </SelectContent>
             </Select>
-            {!limitable && (
+            {!limitable ? (
                <span className="min-w-0 truncate text-xs text-viewerlighttext">
                   {ADMINS_WHOLE}
                </span>
+            ) : (
+               mode === "folders" && <FolderGuideLink />
             )}
          </div>
          {entry.folders === null ? (

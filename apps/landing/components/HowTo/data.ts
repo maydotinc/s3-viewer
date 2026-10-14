@@ -49,6 +49,15 @@ export const HOW_TOS = coveringEverySlug<HowToEntry>()([
       category: "Sharing",
    },
    {
+      slug: "share-one-folder-in-s3-bucket",
+      title: "How to share one folder in an S3 bucket (not the whole bucket)",
+      shortTitle: "Share one folder",
+      tagline:
+         "Neither the S3 console nor the R2 dashboard can share a folder with a person. IAM prefix policies cover programs; for people, invite them by email and limit the bucket to specific folders.",
+      keyword: "share one folder in S3 bucket",
+      category: "Sharing",
+   },
+   {
       slug: "view-s3-and-r2-side-by-side",
       title: "How to view AWS S3 and Cloudflare R2 in one dashboard",
       shortTitle: "View S3 + R2 together",

@@ -29,6 +29,7 @@ type WizardState = {
    accessSubmitted: boolean;
    // bumps when a failed Continue should move focus into the expanded section
    focusRequest: number;
+   notify: boolean;
    result: SendInvitesResult | null;
 };
 
@@ -49,6 +50,7 @@ type WizardAction =
         committed: Readonly<Record<string, GrantRow[]>>;
         failing: string | null;
      }
+   | { type: "notify"; notify: boolean }
    | { type: "sent"; result: SendInvitesResult }
    | { type: "outcome"; outcome: InviteOutcome }
    | { type: "inviteMore" };
@@ -61,6 +63,7 @@ const INITIAL_WIZARD_STATE: WizardState = {
    expanded: null,
    accessSubmitted: false,
    focusRequest: 0,
+   notify: true,
    result: null,
 };
 
@@ -117,6 +120,8 @@ const wizardReducer = (
                : state.focusRequest,
          };
       }
+      case "notify":
+         return { ...state, notify: action.notify };
       case "sent":
          return { ...state, result: action.result };
       case "outcome":

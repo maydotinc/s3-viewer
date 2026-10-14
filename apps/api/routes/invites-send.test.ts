@@ -437,6 +437,18 @@ describe("POST /invites validation", () => {
       ).toBe(400);
    });
 
+   it("saves without emailing anyone when asked not to notify", async () => {
+      const result = await outcome({
+         emails: ["one@example.com"],
+         targets: [viewerOn(SERVER)],
+         notify: false,
+      });
+      expect(on(SERVER).written).toHaveLength(1);
+      expect(result.invites[0]?.emailed).toBe(false);
+      expect(state.sendEmail).not.toHaveBeenCalled();
+      expect(state.recordManyFor).toHaveBeenCalledOnce();
+   });
+
    it("invites a repeated address once", async () => {
       const result = await outcome({
          emails: ["One@example.com", "one@example.com "],

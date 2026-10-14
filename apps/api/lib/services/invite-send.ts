@@ -388,7 +388,7 @@ const sendEmails = async (
 
 const sendInvites = async (
    actor: Actor,
-   { emails, targets }: SendInvitesInput
+   { emails, targets, notify }: SendInvitesInput
 ): Promise<SendInvitesResult> => {
    const expiresAt = inviteExpiry();
    const results: TargetResult[] = [];
@@ -397,7 +397,9 @@ const sendInvites = async (
    const savedTargets = results.flatMap((result) =>
       result.ok ? [result.target] : []
    );
-   const emailed = await sendEmails(savedTargets, actor, expiresAt);
+   const emailed = notify
+      ? await sendEmails(savedTargets, actor, expiresAt)
+      : new Set<string>();
    await Promise.all(
       savedTargets.map(({ serverId, saved, audit }) =>
          recordManyFor(

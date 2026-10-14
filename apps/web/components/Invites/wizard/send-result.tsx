@@ -15,6 +15,8 @@ type SendResultProps = {
    servers: readonly ServerInfo[];
    // the server whose invites are being resent, if any
    retrying: string | null;
+   // false when the sender chose not to email, so a missing email is not a warning
+   notified: boolean;
    disabled?: boolean;
    onRetry: (serverId: string) => void;
 };
@@ -94,10 +96,11 @@ const SendResult = ({
    outcomes,
    servers,
    retrying,
+   notified,
    disabled,
    onRetry,
 }: SendResultProps) => {
-   const unemailed = unemailedAddresses(outcomes);
+   const unemailed = notified ? unemailedAddresses(outcomes) : [];
    return (
       <div
          role="status"

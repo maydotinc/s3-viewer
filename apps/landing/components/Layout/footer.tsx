@@ -44,6 +44,10 @@ const groups: LinkGroup[] = [
             label: "Invite a teammate",
             href: "/how-to/invite-teammate-to-s3-bucket",
          },
+         {
+            label: "Share one folder",
+            href: "/how-to/share-one-folder-in-s3-bucket",
+         },
          { label: "All guides", href: "/how-to" },
       ],
    },

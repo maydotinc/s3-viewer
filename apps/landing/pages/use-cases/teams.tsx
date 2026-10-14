@@ -123,6 +123,7 @@ export default createUseCasePage({
    faqs,
    relatedHowTos: [
       "invite-teammate-to-s3-bucket",
+      "share-one-folder-in-s3-bucket",
       "set-granular-s3-permissions",
       "share-s3-file-with-non-technical-user",
    ],

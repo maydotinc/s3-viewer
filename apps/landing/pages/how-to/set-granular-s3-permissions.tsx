@@ -170,6 +170,7 @@ export default createHowToPage({
    faqs,
    useCases: ["security-and-audit", "teams"],
    related: [
+      "share-one-folder-in-s3-bucket",
       "iam-user-read-only-one-s3-bucket",
       "fix-s3-access-denied",
       "invite-teammate-to-s3-bucket",

@@ -60,6 +60,8 @@ export const sendInvitesSchema = z.object({
             targets.length,
          { message: "Each server can only be listed once" }
       ),
+   // false saves the invites without emailing anyone; they still appear under Settings, Invites.
+   notify: z.boolean().default(true),
 });
 export type SendInvitesInput = z.infer<typeof sendInvitesSchema>;
 

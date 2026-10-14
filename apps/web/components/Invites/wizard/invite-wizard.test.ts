@@ -80,6 +80,7 @@ vi.mock("@s3-viewer/ui/components/checkbox", () => ({
    Checkbox: (props: {
       id: string;
       checked: boolean;
+      disabled?: boolean;
       onCheckedChange: (checked: boolean) => void;
    }) =>
       createElement("button", {
@@ -87,6 +88,7 @@ vi.mock("@s3-viewer/ui/components/checkbox", () => ({
          type: "button",
          role: "checkbox",
          "aria-checked": props.checked,
+         disabled: props.disabled,
          onClick: () => props.onCheckedChange(!props.checked),
       }),
 }));
@@ -250,6 +252,7 @@ describe("with several servers to choose from", () => {
                ],
             },
          ],
+         notify: true,
       });
 
       await act(async () =>
@@ -340,7 +343,60 @@ describe("with exactly one server", () => {
       await click(continueButton());
       expect(sendButton().textContent).toBe("Save 3 invites");
       expect(view.current.container.textContent).toContain(
-         "Invites are still saved."
+         "This instance has no email configured, so invites are saved without sending."
+      );
+      const toggle =
+         view.current.container.querySelector<HTMLButtonElement>(
+            "[role=checkbox]"
+         )!;
+      expect(toggle.disabled).toBe(true);
+      expect(toggle.getAttribute("aria-checked")).toBe("false");
+   });
+
+   it("saves without emailing when the sender turns the toggle off", async () => {
+      h.email = "enabled";
+      await mount();
+      await addEmail("c@x.com");
+      await click(continueButton());
+      await setAccess("a", Role.VIEWER, [
+         { bucketName: "site", role: Role.VIEWER, folders: null },
+      ]);
+      await click(continueButton());
+      expect(sendButton().textContent).toBe("Send invite");
+      await click(
+         view.current.container.querySelector<HTMLButtonElement>(
+            "[role=checkbox]"
+         )!
+      );
+      expect(sendButton().textContent).toBe("Save invite");
+      await click(sendButton());
+      expect(sentBody().notify).toBe(false);
+      await act(async () =>
+         sentOptions().onSuccess({
+            outcomes: [
+               {
+                  serverId: "a",
+                  invites: [
+                     {
+                        id: "i1",
+                        email: "c@x.com",
+                        role: Role.VIEWER,
+                        expiresAt: "2099-01-01T00:00:00Z",
+                        server: { id: "a", name: "Alpha" },
+                        invitedBy: { name: "Me", email: "me@x.com" },
+                        bucketAccess: [],
+                        emailed: false,
+                     },
+                  ],
+                  alreadyMembers: [],
+                  error: null,
+               },
+            ],
+         })
+      );
+      expect(view.current.container.textContent).toContain("Invites saved");
+      expect(view.current.container.textContent).not.toContain(
+         "no email went to"
       );
    });
 });

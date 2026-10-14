@@ -146,6 +146,7 @@ export default createHowToPage({
    faqs,
    useCases: ["teams"],
    related: [
+      "share-one-folder-in-s3-bucket",
       "set-granular-s3-permissions",
       "iam-user-read-only-one-s3-bucket",
       "share-s3-file-with-non-technical-user",

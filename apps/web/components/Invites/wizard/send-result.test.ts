@@ -31,10 +31,17 @@ const onRetry = vi.fn();
 
 const render = async (
    outcomes: InviteOutcome[],
-   retrying: string | null = null
+   retrying: string | null = null,
+   notified = true
 ) => {
    runtime = await mountRuntime(
-      createElement(SendResult, { outcomes, servers, retrying, onRetry })
+      createElement(SendResult, {
+         outcomes,
+         servers,
+         retrying,
+         notified,
+         onRetry,
+      })
    );
    return runtime.container;
 };

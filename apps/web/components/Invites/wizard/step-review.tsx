@@ -1,13 +1,13 @@
 import InlineAlert from "@/components/inline-alert";
 import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
-import NoEmailNotice from "@/components/no-email-notice";
-import Reserve from "@/components/reserve";
 import { folderList, grantLabel } from "@/lib/utils/folder-access";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { Role, type ServerInfo } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
-import { memo } from "react";
+import { Checkbox } from "@s3-viewer/ui/components/checkbox";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import { memo, useId } from "react";
 import type { GrantRow } from "../bucket-grants";
 import type { ServerAccess } from "./wizard-state";
 
@@ -19,16 +19,64 @@ type StepReviewProps = {
    emails: readonly string[];
    servers: readonly ReviewServer[];
    email: EmailState;
+   notify: boolean;
    requestError: string | null;
    retrying: boolean;
    disabled?: boolean;
+   onNotifyChange: (notify: boolean) => void;
    onEditPeople: () => void;
    onEditServer: (serverId: string) => void;
    onRetry: () => void;
 };
 
-const NO_EMAIL_DETAIL =
-   "Invites are still saved. People see them under Settings, Invites after signing in with the same address.";
+const FIND_IT =
+   "People find the invite under Settings, Invites after signing in with that address.";
+
+const NOTIFY_DETAIL: Readonly<Record<EmailState, string>> = {
+   enabled: `Without an email, nobody is told. ${FIND_IT}`,
+   loading: `Without an email, nobody is told. ${FIND_IT}`,
+   disabled: `This instance has no email configured, so invites are saved without sending. ${FIND_IT}`,
+};
+
+const NotifyToggle = ({
+   email,
+   notify,
+   disabled,
+   onChange,
+}: {
+   email: EmailState;
+   notify: boolean;
+   disabled?: boolean;
+   onChange: (notify: boolean) => void;
+}) => {
+   const id = useId();
+   const available = email === "enabled";
+   return (
+      <label
+         htmlFor={id}
+         className={cn(
+            "flex items-start gap-3 rounded-lg border border-viewerborder px-3 py-3",
+            available && !disabled && "cursor-pointer"
+         )}
+      >
+         <Checkbox
+            id={id}
+            className="mt-0.5"
+            checked={available && notify}
+            disabled={disabled || !available}
+            onCheckedChange={(next) => onChange(next === true)}
+         />
+         <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-sm text-viewerblack">
+               Email each person an invite
+            </span>
+            <span className="text-xs leading-5 text-viewertext">
+               {NOTIFY_DETAIL[email]}
+            </span>
+         </span>
+      </label>
+   );
+};
 
 const EditLink = ({
    label,
@@ -110,21 +158,16 @@ const StepReview = ({
    emails,
    servers,
    email,
+   notify,
    requestError,
    retrying,
    disabled,
+   onNotifyChange,
    onEditPeople,
    onEditServer,
    onRetry,
 }: StepReviewProps) => (
    <div className="flex min-w-0 flex-col gap-4">
-      {email === "disabled" ? (
-         <NoEmailNotice>{NO_EMAIL_DETAIL}</NoEmailNotice>
-      ) : email === "loading" ? (
-         <Reserve show={false} as="div">
-            <NoEmailNotice>{NO_EMAIL_DETAIL}</NoEmailNotice>
-         </Reserve>
-      ) : null}
       <div className="flex min-w-0 flex-col gap-2">
          <div className="flex h-5 items-center justify-between gap-2">
             <h3 className="text-sm font-medium text-viewerblack">People</h3>
@@ -153,6 +196,12 @@ const StepReview = ({
             onEdit={onEditServer}
          />
       ))}
+      <NotifyToggle
+         email={email}
+         notify={notify}
+         disabled={disabled}
+         onChange={onNotifyChange}
+      />
       <div className="flex min-h-12 flex-col justify-end">
          {requestError && (
             <InlineAlert

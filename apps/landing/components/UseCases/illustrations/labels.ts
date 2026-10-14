@@ -17,6 +17,8 @@ export const ILLUSTRATION_LABELS = {
       "Renaming report-final.pdf to report-2026-09.pdf in S3 Viewer, done under the hood as a CopyObject to the new key followed by a DeleteObject of the old one.",
    search:
       "Filtering a bucket by the prefix invoice-2026: three of six objects match.",
+   shareFolder:
+      "The Access step of an invite limiting the media-archive bucket to the landing/ folder, next to what the invited Viewer sees: only that folder, with the rest of the bucket neither listed nor openable.",
    shareLink:
       "Copying a 15-minute, read-only presigned link to q3-report.pdf that the recipient can open without an account.",
    sideBySide:

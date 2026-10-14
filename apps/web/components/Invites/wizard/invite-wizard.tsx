@@ -80,6 +80,8 @@ const InviteWizard = () => {
    const [announcement, setAnnouncement] = useState("");
    const cardRef = useRef<HTMLDivElement>(null);
    const { step, emails, access, result } = state;
+   // an email goes out only when the instance can send one and the sender kept the toggle on
+   const notify = email === "enabled" && state.notify;
 
    const manageable = useMemo(() => manageableServers(servers), [servers]);
    const listLoading = isSessionPending || isServerListLoading;
@@ -124,13 +126,13 @@ const InviteWizard = () => {
       previousView.current = view;
       setAnnouncement(
          result !== null
-            ? resultTitle(result.outcomes, email !== "disabled")
+            ? resultTitle(result.outcomes, notify)
             : stepAnnouncement(steps, step)
       );
       const card = cardRef.current;
       card?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
       card?.scrollIntoView?.({ block: "nearest" });
-   }, [view, step, steps, result, email]);
+   }, [view, step, steps, result, notify]);
 
    const selectedSet = useMemo(() => new Set(state.selected), [state.selected]);
    const selectedServers = useMemo<ServerInfo[]>(
@@ -204,7 +206,7 @@ const InviteWizard = () => {
    const send = () => {
       setRequestError(null);
       sendInvites.mutate(
-         { emails: emails.chips, targets: targetsFor(selectedIds) },
+         { emails: emails.chips, targets: targetsFor(selectedIds), notify },
          {
             onSuccess: (sent) => dispatch({ type: "sent", result: sent }),
             onError: (error) => setRequestError(error.message),
@@ -221,7 +223,7 @@ const InviteWizard = () => {
          error: message,
       });
       sendInvites.mutate(
-         { emails: emails.chips, targets: targetsFor([serverId]) },
+         { emails: emails.chips, targets: targetsFor([serverId]), notify },
          {
             onSuccess: (sent) =>
                dispatch({
@@ -305,6 +307,7 @@ const InviteWizard = () => {
             outcomes={result.outcomes}
             servers={selectedServers}
             retrying={retrying}
+            notified={notify}
             disabled={sending}
             onRetry={retryServer}
          />
@@ -351,9 +354,13 @@ const InviteWizard = () => {
                access: accessFor(server),
             }))}
             email={email}
+            notify={state.notify}
             requestError={requestError}
             retrying={sending}
             disabled={sending}
+            onNotifyChange={(next) =>
+               dispatch({ type: "notify", notify: next })
+            }
             onEditPeople={() => goTo("who")}
             onEditServer={editServer}
             onRetry={send}
@@ -410,7 +417,7 @@ const InviteWizard = () => {
                   onClick={send}
                >
                   {sendLabel(
-                     email !== "disabled",
+                     notify,
                      emails.chips.length,
                      selectedServers.length
                   )}
@@ -461,7 +468,7 @@ const InviteWizard = () => {
                className="max-md:overflow-visible"
                title={
                   result !== null
-                     ? resultTitle(result.outcomes, email !== "disabled")
+                     ? resultTitle(result.outcomes, notify)
                      : STEP_TITLES[step]
                }
                description={

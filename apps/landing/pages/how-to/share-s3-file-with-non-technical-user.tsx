@@ -149,6 +149,7 @@ export default createHowToPage({
    useCases: ["share-with-non-technical-users"],
    related: [
       "invite-teammate-to-s3-bucket",
+      "share-one-folder-in-s3-bucket",
       "set-granular-s3-permissions",
       "download-file-from-s3",
    ],

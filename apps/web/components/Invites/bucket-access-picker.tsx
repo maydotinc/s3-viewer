@@ -28,12 +28,6 @@ import GrantScope from "./grant-scope";
 import RoleSelect from "./role-select";
 import { grantableBucketRoles, lowestRole } from "./roles";
 
-type HelpToggle = {
-   expanded: boolean;
-   controls: string;
-   onToggle: () => void;
-};
-
 type BucketAccessPickerProps = {
    serverId: string;
    serverName?: string;
@@ -53,7 +47,6 @@ type BucketAccessPickerProps = {
    disabled?: boolean;
    label: string;
    heading?: string;
-   help?: HelpToggle;
    children?: ReactNode;
 };
 
@@ -162,14 +155,11 @@ const LinkButton = ({
    disabled,
    onClick,
    children,
-   ...props
 }: {
    hidden: boolean;
    disabled?: boolean;
    onClick: () => void;
    children: ReactNode;
-   "aria-expanded"?: boolean;
-   "aria-controls"?: string;
 }) => (
    <Button
       type="button"
@@ -180,7 +170,6 @@ const LinkButton = ({
       disabled={disabled || hidden}
       aria-hidden={hidden || undefined}
       tabIndex={hidden ? -1 : undefined}
-      {...props}
    >
       {children}
    </Button>
@@ -205,7 +194,6 @@ const BucketAccessPicker = ({
    disabled,
    label,
    heading,
-   help,
    children,
 }: BucketAccessPickerProps) => {
    const labelId = useId();
@@ -296,8 +284,8 @@ const BucketAccessPicker = ({
       );
    };
 
-   const linksHidden = isLoading || loadError !== null;
-   const canToggleAll = !linksHidden && grantable.length > 0;
+   const canToggleAll =
+      !isLoading && loadError === null && grantable.length > 0;
 
    const list = isLoading ? (
       <BucketSkeletonRows />
@@ -355,36 +343,13 @@ const BucketAccessPicker = ({
             ) : (
                <span aria-hidden="true" />
             )}
-            <div className="flex shrink-0 items-center gap-2">
-               {help && (
-                  <>
-                     <LinkButton
-                        hidden={linksHidden}
-                        onClick={help.onToggle}
-                        aria-expanded={help.expanded}
-                        aria-controls={help.controls}
-                     >
-                        How folder access works
-                     </LinkButton>
-                     <span
-                        aria-hidden="true"
-                        className={cn(
-                           "text-xs text-viewerlighttext",
-                           linksHidden && "invisible"
-                        )}
-                     >
-                        ·
-                     </span>
-                  </>
-               )}
-               <LinkButton
-                  hidden={!canToggleAll}
-                  disabled={disabled}
-                  onClick={toggleAll}
-               >
-                  {allSelected ? "Clear" : "Select all"}
-               </LinkButton>
-            </div>
+            <LinkButton
+               hidden={!canToggleAll}
+               disabled={disabled}
+               onClick={toggleAll}
+            >
+               {allSelected ? "Clear" : "Select all"}
+            </LinkButton>
          </div>
          {children}
          <div
@@ -411,4 +376,3 @@ const BucketAccessPicker = ({
 };
 
 export default BucketAccessPicker;
-export type { HelpToggle };
