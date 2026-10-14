@@ -109,7 +109,7 @@ describe("invites saved without an email", () => {
          },
       ]);
       expect(container.textContent).toContain(
-         "Saved, but no email went to x@x.com. Ask them to sign in with that address and open Settings, Invites."
+         "Saved, but no email went to x@x.com. Ask them to sign in with that address and open Settings, Invitations."
       );
    });
 });

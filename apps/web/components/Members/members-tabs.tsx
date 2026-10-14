@@ -9,6 +9,7 @@ import {
 } from "@s3-viewer/types";
 import { TabButton, TabList } from "@s3-viewer/ui/components/tabs";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import { useRouter } from "next/router";
 import { useState } from "react";
 import Members from "./members";
 import PendingInvites from "./pending-invites";
@@ -32,7 +33,11 @@ const MembersTabs = ({
    buckets,
    isBucketsLoading,
 }: MembersTabsProps) => {
-   const [tab, setTab] = useState<Tab>("members");
+   const { query } = useRouter();
+   // the invite wizard lands here on the list it just added to
+   const [tab, setTab] = useState<Tab>(
+      query.tab === "pending" ? "invites" : "members"
+   );
    const members = useMembers(serverId);
    const invites = useSentInvites(serverId);
    const inviteList = invites.data ?? NO_INVITES;

@@ -409,7 +409,7 @@ describe("while the server list loads", () => {
       expect(container.querySelector("input")).not.toBeNull();
       expect(buttonByText(container, "Cancel", "exact")).toBeUndefined();
       expect(
-         container.querySelector('a[href="/settings/invites"]')
+         container.querySelector('a[href="/settings/members"]')
       ).not.toBeNull();
    });
 });

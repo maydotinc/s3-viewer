@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Role } from "@s3-viewer/types";
 import { decodeCursor } from "../cursor";
-import { receivedInvitePage, sentInvitePage } from "../services/invites";
+import { receivedInvitePage } from "../services/invites";
 import { listMembers } from "../services/members";
 import {
    assertDisposableDatabase,
@@ -142,31 +142,6 @@ describe.skipIf(!integrationUrl)("database pagination", () => {
       expect(second[0]!.bucketAccess).toEqual([]);
       expect(
          await receivedInvitePage("someone-else@example.com", undefined, 5)
-      ).toEqual([]);
-   });
-
-   it("seeks a sender's live invitations only on servers they still manage", async () => {
-      const sender = userIds[0]!;
-      const managing = [Role.OWNER, Role.ADMIN];
-      expect(await sentInvitePage(sender, managing, undefined, 5)).toEqual([]);
-      await prisma.serverAccess.update({
-         where: { id: `${run}m0` },
-         data: { role: "ADMIN" },
-      });
-      const first = await sentInvitePage(sender, managing, undefined, 5);
-      expect(first.map((row) => row.id)).toEqual([`${run}i0`]);
-      expect(first[0]!.server.id).toBe(serverIds[0]);
-      const after = (id: string) =>
-         decodeCursor(
-            Buffer.from(`${at.toISOString()}|${id}`).toString("base64url")
-         );
-      expect(
-         (await sentInvitePage(sender, managing, after(`${run}i9`), 5)).map(
-            (row) => row.id
-         )
-      ).toEqual([`${run}i0`]);
-      expect(
-         await sentInvitePage(sender, managing, after(`${run}i0`), 5)
       ).toEqual([]);
    });
 });

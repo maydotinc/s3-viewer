@@ -10,7 +10,7 @@ const useRemoveMember = () =>
       success: "Member removed",
       invalidates: ({ variables: { serverId }, scope }) => [
          queryKeys.members(scope.userId, serverId),
-         ...queryKeys.sentInviteScopes(scope.userId, serverId),
+         queryKeys.sentInvites(scope.userId, serverId),
       ],
       failure: "Couldn't remove the member",
    });

@@ -13,7 +13,7 @@ const useRemoveBucket = () =>
       ],
       invalidates: ({ scope }) => [
          queryKeys.buckets(scope.userId, scope.serverId),
-         ...queryKeys.sentInviteScopes(scope.userId, scope.serverId),
+         queryKeys.sentInvites(scope.userId, scope.serverId),
       ],
       failure: invalidateOn(404, ({ scope }) => [
          queryKeys.buckets(scope.userId, scope.serverId),

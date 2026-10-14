@@ -180,7 +180,7 @@ describe("member commands", () => {
       expect(byId("nav:invite")).toMatchObject({
          label: "Invite people",
          description: "Primary",
-         href: "/settings/invites/new?server=server-1",
+         href: "/settings/members/invite?server=server-1",
       });
       expect(byId("nav:members")).toMatchObject({
          label: "Manage members",

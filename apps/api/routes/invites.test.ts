@@ -29,7 +29,6 @@ const state = vi.hoisted(() => ({
    writeAudit: vi.fn(),
    grantServerRole: vi.fn(),
    findReceived: vi.fn(async () => [] as unknown[]),
-   findSent: vi.fn(async () => [] as unknown[]),
 }));
 
 vi.mock("@/lib/audit/writer", () => ({
@@ -56,7 +55,6 @@ vi.mock("@/lib/services/invite-authority", () => ({
 vi.mock("@/lib/services/invites", async (original) => ({
    ...(await original<typeof import("@/lib/services/invites")>()),
    receivedInvitePage: state.findReceived,
-   sentInvitePage: state.findSent,
    grantServerRole: state.grantServerRole,
    grantBucketRoles: async () =>
       state.grants.map(
@@ -152,7 +150,6 @@ beforeEach(() => {
    state.writeAudit.mockReset().mockResolvedValue(undefined);
    state.grantServerRole.mockReset().mockResolvedValue(Role.EDITOR);
    state.findReceived.mockReset().mockResolvedValue([]);
-   state.findSent.mockReset().mockResolvedValue([]);
 });
 
 const post = (action: "accept" | "reject") =>
@@ -275,68 +272,6 @@ describe("GET /invites", () => {
       const res = await fetch(`${listBase}?limit=1000`);
       expect(res.status).toBe(400);
       expect(state.findReceived).not.toHaveBeenCalled();
-   });
-});
-
-describe("GET /invites/sent", () => {
-   it("asks for one row past the limit on servers the sender still manages", async () => {
-      state.findSent.mockResolvedValue([
-         receivedRow("s1", "2026-09-01T00:00:00.000Z"),
-      ]);
-      const res = await fetch(`${listBase}/sent`);
-      expect(res.status).toBe(200);
-      const body = (await res.json()) as {
-         invites: unknown[];
-         nextCursor: unknown;
-      };
-      expect(body.invites).toHaveLength(1);
-      expect(body.nextCursor).toBeNull();
-      expect(state.findSent).toHaveBeenCalledWith(
-         USER,
-         [Role.OWNER, Role.ADMIN],
-         undefined,
-         51
-      );
-   });
-
-   it("returns a cursor for the last row of the page when more remain", async () => {
-      state.findSent.mockResolvedValue([
-         receivedRow("s1", "2026-09-02T00:00:00.000Z"),
-         receivedRow("s2", "2026-09-01T00:00:00.000Z"),
-      ]);
-      const res = await fetch(`${listBase}/sent?limit=1`);
-      const body = (await res.json()) as {
-         invites: unknown[];
-         nextCursor: string;
-      };
-      expect(body.invites).toHaveLength(1);
-      expect(body.nextCursor).toBe(
-         Buffer.from("2026-09-02T00:00:00.000Z|s1").toString("base64url")
-      );
-   });
-
-   it("decodes a cursor into the position the next page seeks past", async () => {
-      const cursor = Buffer.from("2026-09-01T00:00:00.000Z|s2").toString(
-         "base64url"
-      );
-      await fetch(`${listBase}/sent?cursor=${cursor}`);
-      expect(state.findSent).toHaveBeenCalledWith(
-         USER,
-         [Role.OWNER, Role.ADMIN],
-         { createdAt: new Date("2026-09-01T00:00:00.000Z"), id: "s2" },
-         51
-      );
-   });
-
-   it("rejects a garbage cursor with 400", async () => {
-      const res = await fetch(`${listBase}/sent?cursor=not-valid`);
-      expect(res.status).toBe(400);
-   });
-
-   it("rejects a limit above the maximum page size", async () => {
-      const res = await fetch(`${listBase}/sent?limit=1000`);
-      expect(res.status).toBe(400);
-      expect(state.findSent).not.toHaveBeenCalled();
    });
 });
 

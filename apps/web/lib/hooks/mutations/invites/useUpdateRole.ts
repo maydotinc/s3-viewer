@@ -24,7 +24,7 @@ const useUpdateRole = () =>
       success: "Access updated",
       invalidates: ({ variables: { serverId }, scope }) => [
          queryKeys.members(scope.userId, serverId),
-         ...queryKeys.sentInviteScopes(scope.userId, serverId),
+         queryKeys.sentInvites(scope.userId, serverId),
       ],
       failure: (failure) => {
          refreshChanged(failure);

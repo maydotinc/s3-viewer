@@ -10,16 +10,13 @@ const PAGE_SIZE = MAX_PAGE_SIZE;
 
 const pageInvites = (page: InvitesPage) => page.invites;
 
-const usePagedInvites = (kind: "received" | "sent") => {
+const useReceivedInvites = () => {
    const userId = useUserId();
    const { items: invites, ...pages } = useCursorQuery({
-      queryKey:
-         kind === "received"
-            ? queryKeys.receivedInvites(userId)
-            : queryKeys.sentInvitesAll(userId),
+      queryKey: queryKeys.receivedInvites(userId),
       queryFn: (cursor, signal) =>
          api.get<InvitesPage>(
-            `${kind === "received" ? "/invites" : "/invites/sent"}${qs({ cursor, limit: PAGE_SIZE })}`,
+            `/invites${qs({ cursor, limit: PAGE_SIZE })}`,
             signal
          ),
       select: pageInvites,
@@ -28,9 +25,6 @@ const usePagedInvites = (kind: "received" | "sent") => {
    });
    return { ...pages, invites };
 };
-
-const useReceivedInvites = () => usePagedInvites("received");
-const useAllSentInvites = () => usePagedInvites("sent");
 
 const useSentInvites = (serverId: string) => {
    const userId = useUserId();
@@ -44,5 +38,5 @@ const useSentInvites = (serverId: string) => {
    });
 };
 
-export { useAllSentInvites, useReceivedInvites, useSentInvites };
+export { useReceivedInvites, useSentInvites };
 export type { InvitesPage };

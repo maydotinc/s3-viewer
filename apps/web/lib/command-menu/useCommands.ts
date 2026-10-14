@@ -35,7 +35,7 @@ import {
    LayoutDashboard,
    LifeBuoy,
    LogOut,
-   Mail,
+   MailOpen,
    PanelLeft,
    PenLine,
    Plus,
@@ -127,10 +127,10 @@ const useCommands = (): CommandItem[] => {
          {
             id: "nav:invites",
             group: "Navigation",
-            label: "Invites",
-            description: "Invitations you have sent and received",
-            keywords: "settings invitations pending accept decline revoke",
-            icon: Mail,
+            label: "Invitations",
+            description: "Servers you've been invited to",
+            keywords: "settings invitations received accept decline",
+            icon: MailOpen,
             href: SITE_PATHS.settingsInvites,
          },
       ];

@@ -82,23 +82,6 @@ const receivedInvitePage = (
 ): Promise<InviteRow[]> =>
    livePage(Prisma.sql`"email" = ${normalizeEmail(email)}`, position, take);
 
-const sentInvitePage = (
-   userId: string,
-   roles: readonly Role[],
-   position: Position | undefined,
-   take: number
-): Promise<InviteRow[]> =>
-   livePage(
-      Prisma.sql`"invitedById" = ${userId} AND EXISTS (
-         SELECT 1 FROM "server_access" a
-         WHERE a."serverId" = "pending_invitation"."serverId"
-           AND a."userId" = ${userId}
-           AND a."role"::text IN (${Prisma.join(roles)})
-      )`,
-      position,
-      take
-   );
-
 const toServerInvite = (row: InviteRow): ServerInvite => ({
    id: row.id,
    role: Role[row.role],
@@ -180,6 +163,5 @@ export {
    inviteToken,
    invitesUrl,
    receivedInvitePage,
-   sentInvitePage,
    toServerInvite,
 };

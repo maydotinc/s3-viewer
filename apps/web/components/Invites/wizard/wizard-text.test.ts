@@ -179,7 +179,7 @@ describe("the result rows", () => {
       ];
       expect(unemailedAddresses(outcomes)).toEqual(["a@x.com"]);
       expect(unemailedText(["a@x.com"])).toBe(
-         "Saved, but no email went to a@x.com. Ask them to sign in with that address and open Settings, Invites."
+         "Saved, but no email went to a@x.com. Ask them to sign in with that address and open Settings, Invitations."
       );
       expect(unemailedText(["a@x.com", "b@x.com"])).toContain(
          "those addresses"

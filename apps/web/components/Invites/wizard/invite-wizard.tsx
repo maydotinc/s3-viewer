@@ -26,6 +26,7 @@ import {
 } from "react";
 import { grantPayload, type GrantRow } from "../bucket-grants";
 import { manageableServers } from "../manageable";
+import { membersPath } from "@/lib/server-paths";
 import { canContinue as canContinueWho, commitInput } from "./email-chips";
 import SendResult from "./send-result";
 import StepAccess from "./step-access";
@@ -101,6 +102,11 @@ const InviteWizard = () => {
 
    const preselected = useRef(false);
    const wanted = router.query.server;
+   // leaving returns to the server the user came from, when they came from one
+   const backHref =
+      typeof wanted === "string"
+         ? membersPath(wanted)
+         : SITE_PATHS.settingsMembers;
    useEffect(() => {
       if (preselected.current || !router.isReady) return;
       if (typeof wanted !== "string") {
@@ -372,10 +378,14 @@ const InviteWizard = () => {
          <div className={FOOTER}>
             <Button type="button" variant="outline" disabled={sending} asChild>
                <Link
-                  href={SITE_PATHS.settingsInvites}
+                  href={
+                     selectedIds[0]
+                        ? membersPath(selectedIds[0], "pending")
+                        : SITE_PATHS.settingsMembers
+                  }
                   aria-disabled={sending || undefined}
                >
-                  Back to invites
+                  View pending invites
                </Link>
             </Button>
             <Button
@@ -395,7 +405,7 @@ const InviteWizard = () => {
          >
             {step === "who" ? (
                <Button variant="outline" className="w-24" asChild>
-                  <Link href={SITE_PATHS.settingsInvites}>Cancel</Link>
+                  <Link href={backHref}>Cancel</Link>
                </Button>
             ) : (
                <Button
@@ -442,10 +452,7 @@ const InviteWizard = () => {
          </div>
          <div className="flex h-9 items-center gap-2">
             <Button variant="ghost" size="icon" asChild>
-               <Link
-                  href={SITE_PATHS.settingsInvites}
-                  aria-label="Back to invites"
-               >
+               <Link href={backHref} aria-label="Back to members">
                   <ChevronLeft aria-hidden="true" />
                </Link>
             </Button>

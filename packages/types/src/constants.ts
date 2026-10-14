@@ -46,8 +46,8 @@ export const SITE_PATHS = {
    resetPassword: "/reset-password",
    settingsProfile: "/settings/profile",
    settingsInvites: "/settings/invites",
-   settingsInviteNew: "/settings/invites/new",
    settingsMembers: "/settings/members",
+   settingsMembersInvite: "/settings/members/invite",
    buckets: "/buckets",
 } as const;
 

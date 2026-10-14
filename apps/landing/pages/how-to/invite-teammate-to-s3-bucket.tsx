@@ -37,7 +37,7 @@ const steps: HowToStep[] = [
       body: (
          <>
             Click <strong>Invite</strong> above the bucket list, or open{" "}
-            <strong>Settings, Invites</strong>. Type your teammate&apos;s email,
+            <strong>Settings, Members</strong>. Type your teammate&apos;s email,
             pick the servers to share, then a role on each:{" "}
             <strong>Viewer</strong> (browse and download),{" "}
             <strong>Editor</strong> (also upload, rename, delete, and create

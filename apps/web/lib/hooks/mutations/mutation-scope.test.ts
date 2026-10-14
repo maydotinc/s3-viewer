@@ -251,9 +251,6 @@ describe("per-invocation mutation scope", () => {
       expect(invalidate).toHaveBeenCalledWith({
          queryKey: queryKeys.sentInvites("original-user", "shared-server"),
       });
-      expect(invalidate).toHaveBeenCalledWith({
-         queryKey: queryKeys.sentInvitesAll("original-user"),
-      });
    });
 
    it("removes a deleted server from the account that requested deletion", async () => {

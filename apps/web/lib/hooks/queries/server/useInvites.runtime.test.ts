@@ -4,7 +4,7 @@ import { deferred, flushRuntime, mountRuntime } from "@/lib/test/runtime";
 import type { InvitesPage, ServerInvite } from "@s3-viewer/types";
 import { act, createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useAllSentInvites, useReceivedInvites } from "./useInvites";
+import { useReceivedInvites } from "./useInvites";
 
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user" }));
 vi.mock("@/lib/api", async (original) => ({
@@ -36,7 +36,6 @@ afterEach(async () => {
 
 describe.each([
    { name: "received", useInvites: useReceivedInvites, path: "/invites" },
-   { name: "sent", useInvites: useAllSentInvites, path: "/invites/sent" },
 ])("on-demand $name invites", ({ useInvites, path }) => {
    it("keeps available invites usable through a delayed page, failure, and retry", async () => {
       const Probe = () => {

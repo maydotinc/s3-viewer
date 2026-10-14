@@ -14,7 +14,7 @@ const sentInvitesOf = ({
 }: {
    variables: RevokeInviteInput;
    scope: { userId: string };
-}) => queryKeys.sentInviteScopes(scope.userId, serverId);
+}) => [queryKeys.sentInvites(scope.userId, serverId)];
 
 const refreshGone = invalidateOn<ApiError, RevokeInviteInput>(
    404,

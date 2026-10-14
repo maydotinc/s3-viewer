@@ -34,7 +34,7 @@ const faqs: Faq[] = [
       question:
          "How do I give my team access to an S3 bucket without creating IAM users for each of them?",
       answer:
-         "Add the server once with a single least-privilege IAM key, then invite teammates by email from Settings, Invites. They authenticate against S3 Viewer, not AWS, so you never need per-person IAM users and you don't have to rotate access keys when someone leaves.",
+         "Add the server once with a single least-privilege IAM key, then invite teammates by email from Settings, Members. They authenticate against S3 Viewer, not AWS, so you never need per-person IAM users and you don't have to rotate access keys when someone leaves.",
    },
    {
       question: "What roles are available?",

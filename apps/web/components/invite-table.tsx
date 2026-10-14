@@ -170,7 +170,7 @@ const RevokeInviteButton = ({
 
 type InviteListCardProps<T extends { id: string }> = {
    title: string;
-   description: string;
+   description: ReactNode;
    action?: ReactNode;
    notice?: ReactNode;
    pending: boolean;

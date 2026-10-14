@@ -45,7 +45,7 @@ const steps: HowToStep[] = [
       ),
    },
    {
-      title: "Open Settings, Invites and add the people",
+      title: "Open Settings, Members and add the people",
       body: (
          <>
             Click <strong>Invite people</strong>, type up to five email

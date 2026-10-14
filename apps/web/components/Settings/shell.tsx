@@ -2,15 +2,15 @@ import { Page, PageTitle } from "@/components/Layout/page";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { Mail, UserRound, Users } from "lucide-react";
+import { MailOpen, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import type { ReactNode } from "react";
 
 const SECTIONS = [
    { href: SITE_PATHS.settingsProfile, label: "Profile", icon: UserRound },
-   { href: SITE_PATHS.settingsInvites, label: "Invites", icon: Mail },
    { href: SITE_PATHS.settingsMembers, label: "Members", icon: Users },
+   { href: SITE_PATHS.settingsInvites, label: "Invitations", icon: MailOpen },
 ] as const;
 
 // nested pages such as /settings/invites/new highlight their section

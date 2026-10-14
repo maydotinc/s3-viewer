@@ -12,8 +12,10 @@ import useRejectInvite from "@/lib/hooks/mutations/invites/useRejectInvite";
 import { useReceivedInvites } from "@/lib/hooks/queries/server/useInvites";
 import { useUserId } from "@/lib/stores/session-store";
 import type { ServerInvite } from "@s3-viewer/types";
+import { SITE_PATHS } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { MailOpen } from "lucide-react";
+import Link from "next/link";
 
 const COLUMNS: readonly Column[] = [
    { label: "Server" },
@@ -59,8 +61,20 @@ const ReceivedInvites = () => {
 
    return (
       <InviteListCard
-         title="Received"
-         description="Servers other people have invited you to."
+         title="Invitations"
+         description={
+            <>
+               Servers other people have invited you to. To invite people to
+               your own servers, go to{" "}
+               <Link
+                  href={SITE_PATHS.settingsMembers}
+                  className="font-medium text-viewerblack underline-offset-4 hover:underline"
+               >
+                  Members
+               </Link>
+               .
+            </>
+         }
          pending={!userId}
          query={query}
          errorTitle="Couldn't load your invites"

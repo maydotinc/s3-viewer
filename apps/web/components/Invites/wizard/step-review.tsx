@@ -30,7 +30,7 @@ type StepReviewProps = {
 };
 
 const FIND_IT =
-   "People find the invite under Settings, Invites after signing in with that address.";
+   "People find the invite under Settings, Invitations after signing in with that address.";
 
 const NOTIFY_DETAIL: Readonly<Record<EmailState, string>> = {
    enabled: `Without an email, nobody is told. ${FIND_IT}`,

@@ -8,8 +8,8 @@ const useSendInvites = () =>
    useApiMutation<SendInvitesResult, ApiError, SendInvitesInput>({
       request: (body) => api.post<SendInvitesResult>("/invites", body),
       invalidates: ({ variables: { targets }, scope }) =>
-         targets.flatMap(({ serverId }) =>
-            queryKeys.sentInviteScopes(scope.userId, serverId)
+         targets.map(({ serverId }) =>
+            queryKeys.sentInvites(scope.userId, serverId)
          ),
       failure: () => {},
    });

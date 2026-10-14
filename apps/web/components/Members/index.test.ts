@@ -135,7 +135,7 @@ describe("choosing the server to manage", () => {
       expect(picker()).toContain("Admin storage");
       expect(picker()).toContain("Admin");
       expect(inviteLink()?.getAttribute("href")).toBe(
-         "/settings/invites/new?server=admin"
+         "/settings/members/invite?server=admin"
       );
       expect(h.replace).not.toHaveBeenCalled();
    });

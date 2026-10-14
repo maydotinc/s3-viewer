@@ -13,7 +13,6 @@ import {
    grantBucketRoles,
    grantServerRole,
    receivedInvitePage,
-   sentInvitePage,
    toServerInvite,
 } from "@/lib/services/invites";
 import { bucketGrantSelect } from "@/lib/services/bucket-grants";
@@ -30,7 +29,7 @@ import {
    toServerInfo,
 } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
-import { Permission, hasPermission } from "@s3-viewer/permissions";
+
 import {
    Role,
    inviteIdSchema,
@@ -73,29 +72,6 @@ const listReceived = async (
       invites: page.map(toServerInvite),
       nextCursor:
          nextCursor ?? (more && position ? encodeCursor(position) : null),
-   } satisfies InvitesPage);
-};
-
-const MANAGING_ROLES = Object.values(Role).filter((role) =>
-   hasPermission(role, Permission.MANAGE_MEMBERS)
-);
-
-const listSent = async (
-   req: Request,
-   res: Response,
-   { cursor, limit }: PageInput
-) => {
-   const user = requireUser(req);
-   const rows = await sentInvitePage(
-      user.id,
-      MANAGING_ROLES,
-      cursor ? decodeCursor(cursor) : undefined,
-      limit + 1
-   );
-   const { page, nextCursor } = pageOf(rows, limit);
-   res.json({
-      invites: page.map(toServerInvite),
-      nextCursor,
    } satisfies InvitesPage);
 };
 
@@ -202,7 +178,6 @@ const rejectInvite = async (
 };
 
 invitesRouter.get("/", ...validatedRoute(pageSchema, listReceived));
-invitesRouter.get("/sent", ...validatedRoute(pageSchema, listSent));
 invitesRouter.post(
    "/",
    inviteLimit,

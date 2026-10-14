@@ -39,7 +39,7 @@ vi.mock("@/lib/api", async (original) => ({
    ...(await original<typeof import("@/lib/api")>()),
    api: { get: h.get },
 }));
-import { useAllSentInvites, useReceivedInvites } from "./useInvites";
+import { useReceivedInvites } from "./useInvites";
 
 const invite = (id: string): ServerInvite =>
    ({ id, email: `${id}@example.com` }) as unknown as ServerInvite;
@@ -95,21 +95,5 @@ describe("invites waiting for the signed-in user", () => {
       h.userId = "";
       useReceivedInvites();
       expect(options().enabled).toBe(false);
-   });
-});
-
-describe("invites the user sent", () => {
-   it("asks for a page, and follows the cursor it is given", async () => {
-      useAllSentInvites();
-      expect(options().queryKey).toEqual(
-         queryKeys.sentInvitesAll("signed-in-user")
-      );
-      h.get.mockResolvedValue(page(["one"], "next"));
-      await options().queryFn({ pageParam: null });
-      expect(h.get).toHaveBeenCalledWith(
-         `/invites/sent?limit=${MAX_PAGE_SIZE}`,
-         undefined
-      );
-      expect(options().getNextPageParam(page(["one"], "next"))).toBe("next");
    });
 });

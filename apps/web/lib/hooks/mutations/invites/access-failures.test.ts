@@ -49,10 +49,7 @@ const invalidated = (variables: unknown): readonly unknown[][] =>
       scope,
    });
 
-const SENT_INVITES = [
-   queryKeys.sentInvites("me", "server"),
-   queryKeys.sentInvitesAll("me"),
-];
+const SENT_INVITES = [queryKeys.sentInvites("me", "server")];
 
 beforeEach(() => {
    h.options = null;

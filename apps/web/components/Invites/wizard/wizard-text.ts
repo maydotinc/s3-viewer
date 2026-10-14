@@ -113,7 +113,7 @@ const alreadyMembersText = (emails: readonly string[]): string =>
       : `${joinList(emails)} are already members`;
 
 const unemailedText = (emails: readonly string[]): string =>
-   `Saved, but no email went to ${joinList(emails)}. Ask them to sign in with ${emails.length === 1 ? "that address" : "those addresses"} and open Settings, Invites.`;
+   `Saved, but no email went to ${joinList(emails)}. Ask them to sign in with ${emails.length === 1 ? "that address" : "those addresses"} and open Settings, Invitations.`;
 
 const unemailedAddresses = (outcomes: readonly InviteOutcome[]): string[] => [
    ...new Set(

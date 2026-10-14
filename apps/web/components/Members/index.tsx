@@ -120,14 +120,14 @@ const MembersSettings = () => {
                className="inline-flex"
             >
                {selected ? (
-                  <Button variant="outline" asChild>
+                  <Button asChild>
                      <Link href={invitePeoplePath(selected.id)}>
                         <UserRoundPlus aria-hidden="true" />
                         Invite people
                      </Link>
                   </Button>
                ) : (
-                  <Button variant="outline" disabled>
+                  <Button disabled>
                      <UserRoundPlus aria-hidden="true" />
                      Invite people
                   </Button>

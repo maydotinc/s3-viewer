@@ -10,7 +10,7 @@ const SettingsInviteNewPage: NextPageWithLayout = () => (
       <Seo
          title="Invite people"
          description="Invite people to the servers you manage."
-         canonical={SITE_PATHS.settingsInviteNew}
+         canonical={SITE_PATHS.settingsMembersInvite}
       />
       <SettingsShell>
          <InviteWizard />

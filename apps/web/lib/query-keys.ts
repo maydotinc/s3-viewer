@@ -33,9 +33,6 @@ const auditLogs = (userId: string, serverId: string) =>
 const sentInvites = (userId: string, serverId: string) =>
    [...server(userId, serverId), "invites"] as const;
 
-const sentInvitesAll = (userId: string) =>
-   ["user", userId, "sent-invites"] as const;
-
 const queryKeys = {
    instanceConfig: ["instance-config"] as const,
    servers: (userId: string) => ["user", userId, "servers"] as const,
@@ -45,9 +42,6 @@ const queryKeys = {
    members: (userId: string, serverId: string) =>
       [...server(userId, serverId), "members"] as const,
    sentInvites,
-   sentInvitesAll,
-   sentInviteScopes: (userId: string, serverId: string) =>
-      [sentInvites(userId, serverId), sentInvitesAll(userId)] as const,
    receivedInvites: (userId: string) => ["user", userId, "invites"] as const,
    auditLogs,
    auditLog: (userId: string, serverId: string, filters: AuditFilters = {}) =>
