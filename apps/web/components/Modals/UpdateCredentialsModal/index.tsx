@@ -81,7 +81,6 @@ const UpdateCredentialsModal = ({
                leaving your browser.
             </>
          }
-         height="lg"
          bodyClassName="flex flex-col gap-4"
          formAutoComplete="off"
          onSubmit={submit}
@@ -111,7 +110,7 @@ const UpdateCredentialsModal = ({
                )}
             </>
          ) : (
-            <div className="flex min-h-0 flex-1 items-center justify-center">
+            <div className="flex min-h-80 items-center justify-center">
                <EncryptionStatus state={keyState} />
             </div>
          )}

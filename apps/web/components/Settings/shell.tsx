@@ -14,13 +14,14 @@ const SECTIONS = [
 
 const SettingsShell = ({ children }: { children: ReactNode }) => {
    const { pathname } = useRouter();
+   // the whole page scrolls, not the card column, so cards run past the window edges instead of clipping in the page padding.
    return (
-      <Page className="overflow-y-hidden">
+      <Page>
          <PageHeader title="Settings" />
-         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
+         <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
             <nav
                aria-label="Settings"
-               className="flex shrink-0 gap-1 overflow-x-auto lg:w-40 lg:flex-col"
+               className="flex shrink-0 gap-1 overflow-x-auto lg:sticky lg:top-6 lg:w-40 lg:flex-col"
             >
                {SECTIONS.map(({ href, label, icon: Icon }) => {
                   const active = pathname === href;
@@ -47,7 +48,7 @@ const SettingsShell = ({ children }: { children: ReactNode }) => {
                   );
                })}
             </nav>
-            <div className="flex min-h-0 w-full min-w-0 max-w-3xl flex-col gap-6 overflow-y-auto [scrollbar-gutter:stable] lg:pr-2">
+            <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
                {children}
             </div>
          </div>
