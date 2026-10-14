@@ -4,6 +4,7 @@ import { ApiHttpError } from "@/lib/http";
 import {
    bucketGrantSelect,
    bucketGrantsLateral,
+   canRemoveGrant,
    findUnremovableGrant,
    folderColumns,
    grantFoldersOf,
@@ -368,17 +369,38 @@ const assertNotLimited = (
    if (limited) throw new ApiHttpError(409, message(limited.bucketName));
 };
 
+// only grants the actor could hand out are clamped; the rest may exceed the new role, like grants above the actor's rank.
 const clampBucketAccess = async (
    tx: Prisma.TransactionClient,
    userId: string,
    serverId: string,
    role: Role,
-   actorRole: Role
+   actor: { id: string; role: Role }
 ): Promise<void> => {
-   const above = rolesAbove(role).filter((r) => canManageRole(actorRole, r));
+   const above = rolesAbove(role).filter((r) => canManageRole(actor.role, r));
    if (above.length === 0) return;
+   const where = { userId, serverId, role: { in: above } };
+   if (actor.role === Role.OWNER) {
+      await tx.bucketAccess.updateMany({ where, data: { role } });
+      return;
+   }
+   const rows = await tx.bucketAccess.findMany({
+      where,
+      select: bucketGrantSelect,
+   });
+   const { bucketGrants } = await loadGrantingActor(
+      actor.id,
+      serverId,
+      actor.role,
+      rows,
+      tx
+   );
+   const clamped = rows
+      .filter((row) => canRemoveGrant(actor.role, bucketGrants, row))
+      .map((row) => row.bucketName);
+   if (clamped.length === 0) return;
    await tx.bucketAccess.updateMany({
-      where: { userId, serverId, role: { in: above } },
+      where: { ...where, bucketName: { in: clamped } },
       data: { role },
    });
 };

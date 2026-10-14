@@ -10,7 +10,20 @@ import {
 } from "@/lib/testing/route-harness";
 import type { DbRole } from "@/lib/testing/scope-probe";
 
-type Row = { email: string; role: DbRole; bucketAccess?: { role: DbRole }[] };
+type Grant = {
+   bucketName: string;
+   role: DbRole;
+   restrictedFolders: boolean;
+   allowedFolders: string[];
+};
+type Row = { email: string; role: DbRole; bucketAccess?: Grant[] };
+
+const grant = (bucketName: string, role: DbRole): Grant => ({
+   bucketName,
+   role,
+   restrictedFolders: false,
+   allowedFolders: [],
+});
 
 const ACTOR = "actor12345";
 const SERVER = "server12345";
@@ -18,6 +31,8 @@ const SERVER = "server12345";
 const state = vi.hoisted(() => ({
    actor: "actor12345",
    role: "OWNER" as DbRole | null,
+   held: new Map<string, { role: string; folders: string[] | null }>(),
+   loadGrantingActor: vi.fn(),
    members: [] as string[],
    pending: [] as { email: string; role: string; token?: string }[],
    written: [] as { email: string; role: string }[],
@@ -78,10 +93,7 @@ vi.mock("@/lib/services/servers", async (original) => ({
 
 vi.mock("@/lib/services/members", async (original) => ({
    ...(await original<typeof import("@/lib/services/members")>()),
-   loadGrantingActor: async () => ({
-      serverRole: "OWNER",
-      bucketGrants: new Map(),
-   }),
+   loadGrantingActor: state.loadGrantingActor,
    assertBucketGrants: () => undefined,
 }));
 
@@ -254,6 +266,15 @@ beforeEach(() => {
    state.written = [];
    state.tokens.clear();
    state.grantRows = [];
+   state.held.clear();
+   state.loadGrantingActor
+      .mockReset()
+      .mockImplementation(
+         async (_userId: string, _serverId: string, role: string) => ({
+            serverRole: role,
+            bucketGrants: state.held,
+         })
+      );
    revoked.target = { email: "invitee@example.com", role: "VIEWER" };
    state.record.mockReset().mockResolvedValue(undefined);
    state.recordMany.mockReset().mockResolvedValue(undefined);
@@ -324,6 +345,48 @@ describe("POST /servers/:serverId/invites", () => {
             }),
          })
       );
+   });
+
+   it("refuses an admin replacing an invite with a grant on a bucket the admin doesn't hold", async () => {
+      state.role = "ADMIN";
+      state.pending = [{ email: "one@example.com", role: "EDITOR" }];
+      state.grantRows = [
+         {
+            invitationId: inviteId("one@example.com"),
+            ...grant("finance", "EDITOR"),
+         },
+      ];
+      const response = await send({
+         emails: ["one@example.com"],
+         role: "VIEWER",
+         bucketAccess: [
+            { bucketName: "photos", role: "VIEWER", folders: null },
+         ],
+      });
+      expect(response.status).toBe(403);
+      expect(state.written).toEqual([]);
+      expect(state.deleteGrants).not.toHaveBeenCalled();
+   });
+
+   it("lets an admin replace an invite whose grants the admin could hand out", async () => {
+      state.role = "ADMIN";
+      state.held.set("finance", { role: "EDITOR", folders: null });
+      state.pending = [{ email: "one@example.com", role: "EDITOR" }];
+      state.grantRows = [
+         {
+            invitationId: inviteId("one@example.com"),
+            ...grant("finance", "EDITOR"),
+         },
+      ];
+      const response = await send({
+         emails: ["one@example.com"],
+         role: "VIEWER",
+         bucketAccess: [
+            { bucketName: "photos", role: "VIEWER", folders: null },
+         ],
+      });
+      expect(response.status).toBe(200);
+      expect(state.deleteGrants).toHaveBeenCalledOnce();
    });
 
    it("allows an owner to replace the protected invitation", async () => {
@@ -621,7 +684,7 @@ describe("DELETE /servers/:serverId/invites/:inviteId", () => {
          revoked.target = {
             email: "invitee@example.com",
             role: "VIEWER",
-            bucketAccess: [{ role: "ADMIN" }],
+            bucketAccess: [grant("photos", "ADMIN")],
          };
          expect(
             (await fetch(`${base}/invite12345`, { method: "DELETE" })).status
@@ -657,6 +720,62 @@ describe("DELETE /servers/:serverId/invites/:inviteId", () => {
       expect(res.status).toBe(404);
       expect(state.record).not.toHaveBeenCalled();
    });
+
+   it("refuses an admin revoking an invite with a grant on a bucket the admin doesn't hold", async () => {
+      state.role = "ADMIN";
+      revoked.target = {
+         email: "invitee@example.com",
+         role: "EDITOR",
+         bucketAccess: [grant("finance", "EDITOR")],
+      };
+      const res = await fetch(`${base}/invite12345`, { method: "DELETE" });
+      expect(res.status).toBe(403);
+      expect(state.deleteInvites).not.toHaveBeenCalled();
+   });
+
+   it("lets an admin revoke an invite whose grants the admin could hand out", async () => {
+      state.role = "ADMIN";
+      state.held.set("finance", { role: "EDITOR", folders: null });
+      revoked.target = {
+         email: "invitee@example.com",
+         role: "EDITOR",
+         bucketAccess: [grant("finance", "EDITOR")],
+      };
+      const res = await fetch(`${base}/invite12345`, { method: "DELETE" });
+      expect(res.status).toBe(204);
+      expect(state.deleteInvites).toHaveBeenCalledOnce();
+      expect(state.loadGrantingActor).toHaveBeenCalledWith(
+         ACTOR,
+         SERVER,
+         "ADMIN",
+         revoked.target?.bucketAccess,
+         expect.anything()
+      );
+   });
+
+   it.each([
+      ["refuses", null, 403],
+      ["allows", ["2026/q1/"], 204],
+   ] as const)(
+      "%s an admin limited to a folder revoking an invite for %j",
+      async (_verb, folders, status) => {
+         state.role = "ADMIN";
+         state.held.set("finance", { role: "EDITOR", folders: ["2026/"] });
+         revoked.target = {
+            email: "invitee@example.com",
+            role: "EDITOR",
+            bucketAccess: [
+               {
+                  ...grant("finance", "EDITOR"),
+                  restrictedFolders: folders !== null,
+                  allowedFolders: folders ? [...folders] : [],
+               },
+            ],
+         };
+         const res = await fetch(`${base}/invite12345`, { method: "DELETE" });
+         expect(res.status).toBe(status);
+      }
+   );
 
    it("records nothing when the invite outranks the actor", async () => {
       state.role = "ADMIN";
@@ -714,7 +833,7 @@ describe("invitation authority while waiting for the server lock", () => {
          revoked.target = {
             email: "invitee@example.com",
             role: "VIEWER",
-            bucketAccess: [{ role: "ADMIN" }],
+            bucketAccess: [grant("photos", "ADMIN")],
          };
       }
       if (change === "actor demoted") state.role = "EDITOR";

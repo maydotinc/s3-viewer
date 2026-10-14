@@ -25,6 +25,12 @@ const state = vi.hoisted(() => ({
    >,
    role: "ADMIN" as DbRole | null,
    grants: [] as Grant[],
+   invitedOn: [] as {
+      email: string;
+      role: DbRole;
+      bucketAccess: Grant[];
+      expiresAt?: Date;
+   }[],
    allowed: ["original-bucket"],
    restricted: true,
    credentials: "encrypted-a",
@@ -113,6 +119,7 @@ beforeEach(() => {
    state.creationStore = bucketCreationStore();
    state.role = "ADMIN";
    state.grants = [];
+   state.invitedOn = [];
    state.allowed = ["original-bucket"];
    state.restricted = true;
    state.credentials = "encrypted-a";
@@ -192,21 +199,57 @@ beforeEach(() => {
             },
             server: state.server,
             pendingInvitation: {
-               findMany: state.invites,
+               findMany: (args: {
+                  where: {
+                     expiresAt?: { gt: Date };
+                     bucketAccess?: { some: { bucketName: string } };
+                  };
+               }) =>
+                  args.where.bucketAccess
+                     ? state.invitedOn
+                          .filter(
+                             (invite) =>
+                                (invite.expiresAt ?? new Date(8.64e15)) >
+                                   (args.where.expiresAt?.gt ?? new Date(0)) &&
+                                invite.bucketAccess.some(
+                                   (grant) =>
+                                      grant.bucketName ===
+                                      args.where.bucketAccess?.some.bucketName
+                                )
+                          )
+                          .map((invite) => ({
+                             ...invite,
+                             bucketAccess: invite.bucketAccess.map((grant) => ({
+                                ...folderDefaults,
+                                ...grant,
+                             })),
+                          }))
+                     : state.invites(args),
                deleteMany: async () => ({ count: 1 }),
             },
             bucketAccess: {
                findMany: async ({
                   where,
                }: {
-                  where: { bucketName: string; userId: { not: string } };
+                  where: {
+                     bucketName: string | { in: string[] };
+                     userId: string | { not: string };
+                  };
                }) =>
                   state.grants
-                     .filter(
-                        (grant) =>
-                           grant.bucketName === where.bucketName &&
-                           (grant.userId ?? ACTOR_ID) !== where.userId.not
-                     )
+                     .filter((grant) => {
+                        const holder = grant.userId ?? ACTOR_ID;
+                        const names =
+                           typeof where.bucketName === "string"
+                              ? [where.bucketName]
+                              : where.bucketName.in;
+                        return (
+                           names.includes(grant.bucketName) &&
+                           (typeof where.userId === "string"
+                              ? holder === where.userId
+                              : holder !== where.userId.not)
+                        );
+                     })
                      .map((grant) => ({ ...folderDefaults, ...grant })),
                deleteMany: async ({
                   where,
@@ -846,6 +889,93 @@ describe("bucket removal authorization", () => {
       expect(state.auditMany).not.toHaveBeenCalled();
       expect(state.invites).not.toHaveBeenCalled();
       expectUntouched();
+   });
+
+   const invite = (role: DbRole, ...bucketAccess: Grant[]) => ({
+      email: "invitee@example.com",
+      role,
+      bucketAccess,
+   });
+
+   it.each([
+      [
+         "grants admin on the bucket",
+         invite("VIEWER", { bucketName: "new-bucket", role: "ADMIN" }),
+      ],
+      [
+         "also grants a bucket the admin doesn't hold",
+         invite(
+            "VIEWER",
+            { bucketName: "new-bucket", role: "VIEWER" },
+            { bucketName: "finance", role: "EDITOR" }
+         ),
+      ],
+      [
+         "outranks the admin",
+         invite("ADMIN", { bucketName: "new-bucket", role: "VIEWER" }),
+      ],
+   ])("refuses an admin when a pending invite %s", async (_case, pending) => {
+      state.invitedOn = [pending];
+      await expect(requestBucket("delete").finished).rejects.toMatchObject({
+         status: 403,
+         message: expect.stringContaining("A pending invite carries access"),
+      });
+      expect(state.grants).toHaveLength(1);
+      expect(state.auditMany).not.toHaveBeenCalled();
+      expectUntouched();
+   });
+
+   it("permits an admin to remove a bucket whose invites the admin could revoke", async () => {
+      state.grants.push({ bucketName: "finance", role: "EDITOR" });
+      state.invitedOn = [
+         invite(
+            "EDITOR",
+            { bucketName: "new-bucket", role: "EDITOR" },
+            { bucketName: "finance", role: "VIEWER" }
+         ),
+      ];
+      const request = requestBucket("delete");
+      await expect(request.finished).resolves.toBeUndefined();
+      expect(request.res.statusCode).toBe(204);
+      expect(state.allowed).toEqual(["original-bucket"]);
+   });
+
+   it("names no invitee to a bucket admin who can't list invites", async () => {
+      state.role = "EDITOR";
+      state.invitedOn = [
+         invite("VIEWER", { bucketName: "new-bucket", role: "VIEWER" }),
+      ];
+      const failure = await requestBucket("delete").finished.catch(
+         (error: unknown) => error
+      );
+      expect(failure).toMatchObject({
+         status: 403,
+         message: expect.stringContaining("A pending invite carries access"),
+      });
+      expect(JSON.stringify(failure)).not.toContain("invitee@example.com");
+      expectUntouched();
+   });
+
+   it("ignores an expired invite that grants admin on the bucket", async () => {
+      state.invitedOn = [
+         {
+            ...invite("VIEWER", { bucketName: "new-bucket", role: "ADMIN" }),
+            expiresAt: new Date(Date.now() - 1000),
+         },
+      ];
+      const request = requestBucket("delete");
+      await expect(request.finished).resolves.toBeUndefined();
+      expectRemoved(request);
+   });
+
+   it("lets an owner remove a bucket a pending invite grants admin on", async () => {
+      state.role = "OWNER";
+      state.invitedOn = [
+         invite("ADMIN", { bucketName: "new-bucket", role: "ADMIN" }),
+      ];
+      const request = requestBucket("delete");
+      await expect(request.finished).resolves.toBeUndefined();
+      expect(request.res.statusCode).toBe(204);
    });
 
    it("lets an owner remove a bucket that other admins hold", async () => {

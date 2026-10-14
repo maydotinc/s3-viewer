@@ -21,6 +21,10 @@ import {
 } from "@/lib/services/invites";
 import { folderColumns } from "@/lib/services/bucket-grants";
 import {
+   canRevokeInvite,
+   revocableInviteSelect,
+} from "@/lib/services/invite-authority";
+import {
    assertBucketGrants,
    bucketDetail,
    loadGrantingActor,
@@ -31,11 +35,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import { liveInvite } from "@s3-viewer/db/invitations";
 import { sendServerInviteEmail } from "@s3-viewer/email";
-import {
-   Permission,
-   canManageRole,
-   canRemoveAccess,
-} from "@s3-viewer/permissions";
+import { Permission, canManageRole } from "@s3-viewer/permissions";
 import {
    MAX_PENDING_INVITES,
    Role,
@@ -79,35 +79,26 @@ const memberEmails = async (
    return rows.map((r) => normalizeEmail(r.user.email));
 };
 
-const inviteAuthoritySelect = {
-   role: true,
-   bucketAccess: { select: { role: true } },
-} satisfies Prisma.PendingInvitationSelect;
-
-const canRevoke = (
-   actorRole: Role,
-   invite: Prisma.PendingInvitationGetPayload<{
-      select: typeof inviteAuthoritySelect;
-   }>
-): boolean =>
-   canRemoveAccess(
-      actorRole,
-      Role[invite.role],
-      invite.bucketAccess.map(({ role }) => Role[role])
-   );
-
 const assertCanReplaceInvites = async (
    serverId: string,
    emails: string[],
+   actorId: string,
    actorRole: Role,
    db: Prisma.TransactionClient,
    res: Response
 ): Promise<void> => {
    const existing = await db.pendingInvitation.findMany({
       where: { serverId, email: { in: emails }, ...liveInvite() },
-      select: { email: true, ...inviteAuthoritySelect },
+      select: revocableInviteSelect,
    });
-   const blocked = existing.find((invite) => !canRevoke(actorRole, invite));
+   const actor = await loadGrantingActor(
+      actorId,
+      serverId,
+      actorRole,
+      existing.flatMap((invite) => invite.bucketAccess),
+      db
+   );
+   const blocked = existing.find((invite) => !canRevokeInvite(actor, invite));
    if (blocked) {
       throw refuse(
          res,
@@ -305,7 +296,14 @@ const sendInvites = async (
       ]);
       assertBucketGrants(granting, scope, bucketAccess);
       const pending = emails.filter((e) => !alreadyMembers.includes(e));
-      await assertCanReplaceInvites(serverId, pending, currentRole, tx, res);
+      await assertCanReplaceInvites(
+         serverId,
+         pending,
+         actor.id,
+         currentRole,
+         tx,
+         res
+      );
       await assertUnderPendingCap(tx, serverId, pending);
       return {
          saved: await writeInvites(tx, pending, write),
@@ -348,11 +346,18 @@ const revokeInvite = async (
          lockedPermission(tx, res, serverId, Permission.MANAGE_MEMBERS),
          tx.pendingInvitation.findUnique({
             where: { id: inviteId, serverId },
-            select: { email: true, ...inviteAuthoritySelect },
+            select: revocableInviteSelect,
          }),
       ]);
       if (!invite) throw new ApiHttpError(404, INVITE_NOT_FOUND);
-      if (!canRevoke(actorRole, invite)) {
+      const actor = await loadGrantingActor(
+         getAuth(res).userId,
+         serverId,
+         actorRole,
+         invite.bucketAccess,
+         tx
+      );
+      if (!canRevokeInvite(actor, invite)) {
          throw refuse(
             res,
             Permission.MANAGE_MEMBERS,

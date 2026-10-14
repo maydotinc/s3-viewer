@@ -65,24 +65,29 @@ const toScopedGrant = (row: BucketRow): ScopedGrant => ({
 });
 
 // removing a grant takes the same authority as handing it out, or an admin could strip access on buckets they don't hold.
+const canRemoveGrant = (
+   serverRole: Role | null,
+   held: ReadonlyMap<string, ScopedGrant>,
+   row: BucketRow
+): boolean =>
+   canGrantBucketAccess(
+      serverRole,
+      held.get(row.bucketName),
+      toScopedGrant(row)
+   );
+
 const findUnremovableGrant = <Row extends BucketRow>(
    serverRole: Role | null,
    held: ReadonlyMap<string, ScopedGrant>,
    rows: readonly Row[]
 ): Row | undefined =>
-   rows.find(
-      (row) =>
-         !canGrantBucketAccess(
-            serverRole,
-            held.get(row.bucketName),
-            toScopedGrant(row)
-         )
-   );
+   rows.find((row) => !canRemoveGrant(serverRole, held, row));
 
 export {
    bucketGrantJson,
    bucketGrantSelect,
    bucketGrantsLateral,
+   canRemoveGrant,
    findUnremovableGrant,
    folderColumns,
    grantFoldersOf,

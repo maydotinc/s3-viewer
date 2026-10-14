@@ -18,7 +18,12 @@ import {
    credentialsUnreadableError,
    throwListBucketsError,
 } from "@/lib/s3/errors";
-import { revokeInvalidInvites } from "@/lib/services/invite-authority";
+import {
+   canRevokeInvite,
+   revocableInviteSelect,
+   revokeInvalidInvites,
+} from "@/lib/services/invite-authority";
+import { loadGrantingActor } from "@/lib/services/members";
 import {
    bucketGrantSelect,
    findUnremovableGrant,
@@ -32,6 +37,7 @@ import {
 import { assertPublicEndpoint } from "@/lib/utils/endpoint";
 import { decryptCredentials } from "@/lib/utils/encryption";
 import { prisma } from "@s3-viewer/db";
+import { liveInvite } from "@s3-viewer/db/invitations";
 import { Permission, ROLE_LABELS } from "@s3-viewer/permissions";
 import {
    Provider,
@@ -280,18 +286,25 @@ bucketsRouter.delete(
                where: { serverId, bucketName, userId: { not: userId } },
                select: bucketGrantSelect,
             });
-            const blocking = findUnremovableGrant(
+            // revokeInvalidInvites below deletes each invite granting this bucket, all its grants included, so the actor must be able to revoke it.
+            const invites = await tx.pendingInvitation.findMany({
+               where: {
+                  serverId,
+                  ...liveInvite(),
+                  bucketAccess: { some: { bucketName } },
+               },
+               select: revocableInviteSelect,
+            });
+            const actor = await loadGrantingActor(
+               userId,
+               serverId,
                auth.serverRole,
-               new Map(
-                  auth.bucketRole
-                     ? [
-                          [
-                             bucketName,
-                             { role: auth.bucketRole, folders: auth.folders },
-                          ],
-                       ]
-                     : []
-               ),
+               [...peers, ...invites.flatMap((invite) => invite.bucketAccess)],
+               tx
+            );
+            const blocking = findUnremovableGrant(
+               actor.serverRole,
+               actor.bucketGrants,
                peers
             );
             if (blocking) {
@@ -300,6 +313,15 @@ bucketsRouter.delete(
                   Permission.DELETE_BUCKET,
                   "member",
                   `Other members hold ${ROLE_LABELS[Role[blocking.role]]} access to ${bucketName} that you can't remove, so you can't remove the bucket`
+               );
+            }
+            // the message names no invitee: a bucket admin below server admin can't list invites.
+            if (invites.some((invite) => !canRevokeInvite(actor, invite))) {
+               throw refuse(
+                  res,
+                  Permission.DELETE_BUCKET,
+                  "member",
+                  `A pending invite carries access to ${bucketName} that you can't remove, so you can't remove the bucket`
                );
             }
             await tx.$executeRaw`UPDATE "server" SET "allowedBuckets" = array_remove("allowedBuckets", ${bucketName}) WHERE "id" = ${serverId}`;

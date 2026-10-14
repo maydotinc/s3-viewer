@@ -536,55 +536,107 @@ describe("listMembers", () => {
 });
 
 describe("clampBucketAccess", () => {
+   const MEMBER = "user123456";
+   const ACTOR = "actor12345";
+   const grant = (
+      bucketName: string,
+      role: Role,
+      folders: string[] | null = null
+   ) => ({
+      bucketName,
+      role,
+      restrictedFolders: folders !== null,
+      allowedFolders: folders ?? [],
+   });
+   let memberGrants: ReturnType<typeof grant>[] = [];
+   let actorGrants: ReturnType<typeof grant>[] = [];
+   const findMany = vi.fn(
+      async ({
+         where,
+      }: {
+         where: {
+            userId: string;
+            role?: { in: Role[] };
+            bucketName?: { in: string[] };
+         };
+      }) =>
+         where.userId === MEMBER
+            ? memberGrants.filter((g) => where.role?.in.includes(g.role))
+            : actorGrants.filter((g) =>
+                 where.bucketName?.in.includes(g.bucketName)
+              )
+   );
    const tx = {
-      bucketAccess: { updateMany: h.updateMany },
+      bucketAccess: { findMany, updateMany: h.updateMany },
    } as unknown as Prisma.TransactionClient;
+   const clamp = (role: Role, actorRole: Role) =>
+      clampBucketAccess(tx, MEMBER, "server12345", role, {
+         id: ACTOR,
+         role: actorRole,
+      });
+   const clampedBuckets = () =>
+      h.updateMany.mock.calls[0]?.[0]?.where?.bucketName?.in;
 
    beforeEach(() => {
       h.updateMany.mockReset().mockResolvedValue({ count: 0 });
+      findMany.mockClear();
+      memberGrants = [];
+      actorGrants = [];
    });
 
    it("pulls every grant down for an owner", async () => {
-      await clampBucketAccess(
-         tx,
-         "user123456",
-         "server12345",
-         Role.VIEWER,
-         Role.OWNER
-      );
+      memberGrants = [grant("logs", Role.EDITOR), grant("media", Role.ADMIN)];
+      await clamp(Role.VIEWER, Role.OWNER);
       expect(h.updateMany).toHaveBeenCalledWith({
          where: {
-            userId: "user123456",
+            userId: MEMBER,
             serverId: "server12345",
             role: { in: [Role.EDITOR, Role.ADMIN] },
          },
          data: { role: Role.VIEWER },
       });
+      expect(findMany).not.toHaveBeenCalled();
    });
 
-   it("leaves an admin's demotion off grants the admin could not remove", async () => {
-      await clampBucketAccess(
-         tx,
-         "user123456",
-         "server12345",
-         Role.VIEWER,
-         Role.ADMIN
-      );
-      expect(h.updateMany).toHaveBeenCalledWith(
-         expect.objectContaining({
-            where: expect.objectContaining({ role: { in: [Role.EDITOR] } }),
-         })
-      );
+   it("leaves an admin's demotion off grants above the admin's rank", async () => {
+      memberGrants = [grant("logs", Role.EDITOR), grant("media", Role.ADMIN)];
+      actorGrants = [grant("logs", Role.ADMIN), grant("media", Role.ADMIN)];
+      await clamp(Role.VIEWER, Role.ADMIN);
+      expect(clampedBuckets()).toEqual(["logs"]);
+   });
+
+   it("leaves an admin's demotion off buckets the admin holds no grant on", async () => {
+      memberGrants = [
+         grant("logs", Role.EDITOR),
+         grant("finance", Role.EDITOR),
+      ];
+      actorGrants = [grant("logs", Role.EDITOR)];
+      await clamp(Role.VIEWER, Role.ADMIN);
+      expect(clampedBuckets()).toEqual(["logs"]);
+   });
+
+   it("leaves a whole-bucket grant alone for an admin limited to folders of it", async () => {
+      memberGrants = [
+         grant("logs", Role.EDITOR, ["2026/"]),
+         grant("media", Role.EDITOR),
+      ];
+      actorGrants = [
+         grant("logs", Role.EDITOR, ["2026/"]),
+         grant("media", Role.EDITOR, ["raw/"]),
+      ];
+      await clamp(Role.VIEWER, Role.ADMIN);
+      expect(clampedBuckets()).toEqual(["logs"]);
+   });
+
+   it("writes nothing when the admin could hand out none of the grants", async () => {
+      memberGrants = [grant("finance", Role.EDITOR)];
+      await clamp(Role.VIEWER, Role.ADMIN);
+      expect(h.updateMany).not.toHaveBeenCalled();
    });
 
    it("writes nothing when every grant above the new role is out of reach", async () => {
-      await clampBucketAccess(
-         tx,
-         "user123456",
-         "server12345",
-         Role.EDITOR,
-         Role.ADMIN
-      );
+      await clamp(Role.EDITOR, Role.ADMIN);
+      expect(findMany).not.toHaveBeenCalled();
       expect(h.updateMany).not.toHaveBeenCalled();
    });
 });

@@ -101,7 +101,10 @@ const updateRole = async (
          await replaceBucketAccess(tx, userId, serverId, bucketAccess);
       // bucket grants may exceed the server role; clamp them only on demotion.
       if (demoted)
-         await clampBucketAccess(tx, userId, serverId, newRole, serverRole);
+         await clampBucketAccess(tx, userId, serverId, newRole, {
+            id: actorId,
+            role: serverRole,
+         });
       // read back inside the transaction so a concurrent removal rolls the change back instead of answering 404 after it committed.
       const member = await findMember(serverId, userId, tx);
       if (!member) throw new ApiHttpError(404, MEMBER_NOT_FOUND);

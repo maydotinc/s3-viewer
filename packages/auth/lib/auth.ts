@@ -106,7 +106,8 @@ const SIGN_IN_RULES: readonly ThrottleRule[] = [
       throttle: makeThrottle("sign-in", 10, 10 * MINUTE_MS),
       key: perAddressAndIp,
    },
-   // successful sign-ins are refunded so a third party cannot lock the owner out.
+   // successful sign-ins are refunded, but failures from any source count: ~100/hour
+   // locks password sign-in for the address until the window resets (accepted).
    {
       throttle: makeThrottle("sign-in-address-failures", 100, HOUR_MS),
       key: perAddress,

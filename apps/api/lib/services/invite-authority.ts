@@ -2,9 +2,11 @@ import type { Prisma, $Enums } from "@prisma/client";
 import { canGrantBucketAccess, canManageRole } from "@s3-viewer/permissions";
 import {
    bucketGrantSelect,
+   findUnremovableGrant,
    toScopedGrant,
    type BucketRow,
 } from "./bucket-grants";
+import type { GrantingActor } from "./members";
 import { isBucketAllowed } from "./servers";
 import { Role, type AuditEntry } from "@s3-viewer/types";
 
@@ -98,6 +100,28 @@ const senderCanStillGrant = async (
    invite: InviteAuthority
 ) => (await stillGrantable(tx, [invite])).length === 1;
 
+const revocableInviteSelect = {
+   email: true,
+   role: true,
+   bucketAccess: { select: bucketGrantSelect },
+} satisfies Prisma.PendingInvitationSelect;
+
+type RevocableInvite = Prisma.PendingInvitationGetPayload<{
+   select: typeof revocableInviteSelect;
+}>;
+
+// revoking an invite takes the same bucket authority as removing a member holding those grants.
+const canRevokeInvite = (
+   actor: GrantingActor,
+   invite: RevocableInvite
+): boolean =>
+   canManageRole(actor.serverRole, Role[invite.role]) &&
+   !findUnremovableGrant(
+      actor.serverRole,
+      actor.bucketGrants,
+      invite.bucketAccess
+   );
+
 const inviteRevoked = (email: string, reason: string): AuditEntry => ({
    action: "invite.revoke",
    target: email,
@@ -134,7 +158,9 @@ const revokeInvalidInvites = async (
 };
 
 export {
+   canRevokeInvite,
    inviteRevoked,
+   revocableInviteSelect,
    revokeInvalidInvites,
    senderCanStillGrant,
    stillGrantable,

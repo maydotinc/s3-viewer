@@ -385,7 +385,7 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
          TARGET,
          "server12345",
          "VIEWER",
-         "ADMIN"
+         { id: ACTOR, role: "ADMIN" }
       );
    });
 
