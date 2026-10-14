@@ -1,4 +1,4 @@
-import { Page, PageHeader } from "@/components/Layout/page";
+import { Page, PageTitle } from "@/components/Layout/page";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -17,37 +17,39 @@ const SettingsShell = ({ children }: { children: ReactNode }) => {
    // the whole page scrolls, not the card column, so cards run past the window edges instead of clipping in the page padding.
    return (
       <Page>
-         <PageHeader title="Settings" />
          <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-            <nav
-               aria-label="Settings"
-               className="flex shrink-0 gap-1 overflow-x-auto lg:sticky lg:top-6 lg:w-40 lg:flex-col"
-            >
-               {SECTIONS.map(({ href, label, icon: Icon }) => {
-                  const active = pathname === href;
-                  return (
-                     <Link
-                        key={href}
-                        href={href}
-                        aria-current={active ? "page" : undefined}
-                        className={cn(
-                           "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2 text-sm text-viewertext outline-none transition-colors duration-150 hover:bg-viewergray/70",
-                           FOCUS_RING,
-                           // the nav scrolls on narrow screens, so an outset ring would be clipped.
-                           "focus-visible:-outline-offset-2",
-                           active &&
-                              "bg-viewergray font-medium text-viewerblack hover:bg-viewergray"
-                        )}
-                     >
-                        <Icon
-                           aria-hidden="true"
-                           className="size-4 shrink-0 text-viewertext"
-                        />
-                        {label}
-                     </Link>
-                  );
-               })}
-            </nav>
+            <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:sticky lg:top-0 lg:w-40">
+               <PageTitle>Settings</PageTitle>
+               <nav
+                  aria-label="Settings"
+                  className="flex gap-1 overflow-x-auto lg:flex-col"
+               >
+                  {SECTIONS.map(({ href, label, icon: Icon }) => {
+                     const active = pathname === href;
+                     return (
+                        <Link
+                           key={href}
+                           href={href}
+                           aria-current={active ? "page" : undefined}
+                           className={cn(
+                              "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2 text-sm text-viewertext outline-none transition-colors duration-150 hover:bg-viewergray/70",
+                              FOCUS_RING,
+                              // the nav scrolls on narrow screens, so an outset ring would be clipped.
+                              "focus-visible:-outline-offset-2",
+                              active &&
+                                 "bg-viewergray font-medium text-viewerblack hover:bg-viewergray"
+                           )}
+                        >
+                           <Icon
+                              aria-hidden="true"
+                              className="size-4 shrink-0 text-viewertext"
+                           />
+                           {label}
+                        </Link>
+                     );
+                  })}
+               </nav>
+            </div>
             <div className="flex w-full min-w-0 max-w-3xl flex-col gap-6">
                {children}
             </div>
