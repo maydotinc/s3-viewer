@@ -1,8 +1,9 @@
 // @vitest-environment happy-dom
 import { act, createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mountedRuntime } from "@/components/test-helpers";
-import { DOT_SEGMENTS, type KnownReach } from "@/lib/utils/folder-access";
+import { mountedRuntime, typeInto } from "@/components/test-helpers";
+import type { KnownReach } from "@/lib/utils/folder-access";
+import { DOT_SEGMENTS_MESSAGE } from "@s3-viewer/types";
 import CreateFolderModal from "./CreateFolderModal";
 import { KeyDialog } from "./key-dialog";
 
@@ -22,7 +23,7 @@ vi.mock("@/lib/hooks/mutations/object/useCreateFolder", () => ({
    default: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const target = { userId: "user", serverId: "server", bucketName: "site" };
 const mount = async (element: ReactNode) => {
    await view.mount(element);
@@ -32,14 +33,9 @@ const submitDisabled = () =>
       "button[type=submit]"
    )!.disabled;
 const type = async (value: string) =>
-   act(async () => {
-      const field = view.current.container.querySelector("input")!;
-      Object.getOwnPropertyDescriptor(
-         HTMLInputElement.prototype,
-         "value"
-      )!.set!.call(field, value);
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-   });
+   act(async () =>
+      typeInto(view.current.container.querySelector("input")!, value)
+   );
 
 beforeEach(() => {
    h.reach = { folders: ["landing/"], owner: false };
@@ -111,6 +107,12 @@ describe("a new folder", () => {
       await open("a\\..\\b/");
       await type("x");
       expect(submitDisabled()).toBe(true);
-      expect(view.current.container.textContent).toContain(DOT_SEGMENTS);
+      expect(view.current.container.textContent).toContain(
+         DOT_SEGMENTS_MESSAGE
+      );
+      h.reach = { folders: null, owner: true };
+      await open("a\\..\\b/");
+      await type("x");
+      expect(submitDisabled()).toBe(false);
    });
 });

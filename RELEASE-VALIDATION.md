@@ -13,7 +13,7 @@ ports. The runner uses `docker-compose.smoke.yml`, a randomly named project,
 empty PostgreSQL/API volumes, and random loopback ports. It ignores the root
 `.env`; credentials in the smoke file belong only to this disposable stack.
 Its `finally` block removes its containers, volumes, network, and image tags,
-including after a failed assertion. Docker's build cache remains available.
+including after a failed assertion or an interrupt (Ctrl-C or SIGTERM). Docker's build cache remains available.
 
 The `distribution` job of the CI workflow (`.github/workflows/ci.yml`) runs
 this check on main/tag pushes and manual dispatches. Packaging PRs can run the
@@ -22,8 +22,8 @@ credentials.
 
 ## What it checks
 
-- Both production Dockerfiles build, including API dependency pruning and the
-  web standalone output.
+- The API and web Dockerfiles build, including API dependency pruning and the
+  web standalone output. The landing Dockerfile is not built by this check.
 - API startup applies all checked-in migrations to an empty PostgreSQL 16
   database; the packaged Prisma CLI reports the schema up to date.
 - API `/health` and `/config`, web `/api/health`, and the rendered `/login` page

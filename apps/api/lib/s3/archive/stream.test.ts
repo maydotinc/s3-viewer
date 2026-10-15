@@ -433,23 +433,23 @@ describe("archive streaming", () => {
 
    it("measures the drain from the first byte sent, not from the first request", async () => {
       const trickle = async function* () {
-         for (let i = 0; i < 64; i++) {
+         for (let i = 0; i < 16; i++) {
             await new Promise((resolve) => setTimeout(resolve, 20));
             yield Buffer.alloc(KIB, 7);
          }
       };
       const f = s3Fixture(async () => {
-         await new Promise((resolve) => setTimeout(resolve, 600));
+         await new Promise((resolve) => setTimeout(resolve, 150));
          return reply(200, Readable.from(trickle()));
       });
       try {
          await streamArchive({
             maxBytes: limits.maxBytes,
             scope: f.scope,
-            entries: [{ key: "logs/a.txt", name: "a.txt", size: 64 * KIB }],
+            entries: [{ key: "logs/a.txt", name: "a.txt", size: 16 * KIB }],
             output: collect().output,
             abortController: new AbortController(),
-            idleTimeoutMs: 800,
+            idleTimeoutMs: 200,
          });
       } finally {
          f.client.destroy();

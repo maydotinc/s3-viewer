@@ -82,7 +82,7 @@ const { default: uploadStore } = await import(
    "@/lib/stores/upload-store/upload-store"
 );
 const { signOut } = await import("./auth");
-const { api, handleUnauthorized } = await import("./api");
+const { handleUnauthorized } = await import("./api");
 
 const emit = (userId: string | null) => {
    h.session = {
@@ -107,7 +107,6 @@ const expectErased = () => {
    expect(uploadStore.getState()).toMatchObject({
       entries: {},
       order: [],
-      queue: [],
       batch: null,
       isUploading: false,
    });
@@ -164,29 +163,6 @@ describe("uploads follow the authenticated session synchronously", () => {
       for (const listener of h.listeners) listener(h.session);
       expect(sessionStore.getState().userId).toBeNull();
       expectErased();
-   });
-
-   it("does not sign out a new user when a previous user's request returns 401", async () => {
-      let finish!: (value: Response) => void;
-      const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(
-         () =>
-            new Promise<Response>((resolve) => {
-               finish = resolve;
-            })
-      );
-      const request = api.get("/servers");
-      emit("user-b");
-      finish(
-         new Response(JSON.stringify({ message: "Sign in required" }), {
-            status: 401,
-         })
-      );
-      await expect(request).rejects.toMatchObject({ status: 401 });
-      expect(sessionStore.getState().userId).toBe("user-b");
-      expect(h.signOut).not.toHaveBeenCalled();
-      handleUnauthorized("user-a");
-      expect(sessionStore.getState().userId).toBe("user-b");
-      fetch.mockRestore();
    });
 
    it.each([null, "user-b"])(

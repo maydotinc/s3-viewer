@@ -4,7 +4,12 @@ import {
    mountedRuntime,
    serverInfo,
 } from "@/components/test-helpers";
-import { Role, type ServerInfo, type ServerInvite } from "@s3-viewer/types";
+import {
+   MAX_PENDING_INVITES,
+   Role,
+   type ServerInfo,
+   type ServerInvite,
+} from "@s3-viewer/types";
 import { act, createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,6 +21,7 @@ const h = vi.hoisted(() => ({
    isServerListLoading: false,
    serverListError: null as Error | null,
    invites: [] as ServerInvite[],
+   refetch: vi.fn(),
 }));
 
 const router = {
@@ -33,6 +39,9 @@ vi.mock("next/link", () => ({
       createElement("a", { href }, children),
 }));
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "owner" }));
+vi.mock("@s3-viewer/ui/components/tooltip", () => ({
+   SimpleTooltip: ({ children }: { children: ReactNode }) => children,
+}));
 vi.mock("@/lib/hooks/queries/server/useServers", () => ({
    default: () => ({
       servers: h.servers,
@@ -44,7 +53,7 @@ vi.mock("@/lib/hooks/queries/server/useServers", () => ({
       isFetching: false,
       isFetchNextPageError: false,
       fetchNextPage: vi.fn(),
-      refetch: vi.fn(),
+      refetch: h.refetch,
    }),
 }));
 vi.mock("@/lib/hooks/queries/s3/useBucketsForServer", () => ({
@@ -108,7 +117,7 @@ const invite = (id: string): ServerInvite => ({
    bucketAccess: [],
 });
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const mount = () => view.mount(createElement(MembersSettings));
 const picker = () =>
    view.current.container.querySelector('[aria-label="Server"]')?.textContent ??
@@ -199,7 +208,10 @@ describe("without a server to manage", () => {
       await mount();
       expect(view.text()).toContain("Couldn't load your servers");
       expect(view.text()).toContain("Network error");
-      expect(buttonByText(view.current.container, "Try again")).toBeDefined();
+      await act(async () =>
+         buttonByText(view.current.container, "Try again")!.click()
+      );
+      expect(h.refetch).toHaveBeenCalledOnce();
    });
 });
 
@@ -213,7 +225,9 @@ describe("the pending invites tab", () => {
          "prefix"
       );
       await act(async () => tab!.click());
-      expect(view.text()).toContain("2 of 30 pending invites");
+      expect(view.text()).toContain(
+         `2 of ${MAX_PENDING_INVITES} pending invites`
+      );
       expect(view.text()).toContain("a@example.test");
    });
 });

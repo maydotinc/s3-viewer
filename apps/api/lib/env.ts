@@ -67,12 +67,12 @@ const schema = z
       RESEND_KEY: optionalString,
       EMAIL_FROM: optionalString,
       SUPPORT_EMAIL: optionalString,
-      PORT: z.coerce.number().int().min(1).max(65535).default(5001),
+      PORT: withDefault(z.coerce.number().int().min(1).max(65535), 5001),
       MAX_CONCURRENT_UPLOADS: positiveInt(6),
       MAX_USER_UPLOADS: positiveInt(3),
       MAX_IP_UPLOADS: positiveInt(2),
       // 5 GiB at the 128 KiB/s upload floor takes 11.4 h and a 10 GiB zip at the 32 KiB/s drain floor 91 h, so no cap
-      // short of days fits a client held to the floors; 2 h already asks 5 GiB for ~745 KiB/s, and lowering it would
+      // short of days fits a client held to the floors; 2 h already asks 5 GiB for ~728 KiB/s, and lowering it would
       // fail uploads that work today. slot abuse is bounded by those floors, per-server fair share and size-based lifetimes.
       UPLOAD_SLOT_MAX_MS: positiveInt(2 * HOUR_MS),
       UPLOAD_MEMORY_BUDGET_BYTES: positiveInt(256 * MIB),

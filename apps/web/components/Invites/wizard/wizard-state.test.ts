@@ -1,9 +1,4 @@
-import {
-   MAX_BUCKET_NAMES,
-   Role,
-   type GrantableRole,
-   type S3Bucket,
-} from "@s3-viewer/types";
+import { MAX_BUCKET_NAMES, Role, type S3Bucket } from "@s3-viewer/types";
 import { describe, expect, it } from "vitest";
 import type { GrantRow } from "../bucket-grants";
 import { EMPTY_EMAIL_FIELD } from "./email-chips";
@@ -36,14 +31,13 @@ const row = (
 const withAccess = (
    state: WizardState,
    serverId: string,
-   rows: GrantRow[],
-   role: GrantableRole = Role.VIEWER
+   rows: GrantRow[]
 ): WizardState =>
    wizardReducer(state, {
       type: "access",
       serverId,
       fallback: defaultAccess(Role.OWNER),
-      update: (current) => ({ ...current, role, rows }),
+      update: (current) => ({ ...current, rows }),
    });
 
 describe("choosing servers", () => {
@@ -72,14 +66,9 @@ describe("choosing servers", () => {
 
 describe("per-server access", () => {
    it("starts a server from the fallback the section supplies", () => {
-      const state = withAccess(
-         INITIAL_WIZARD_STATE,
-         "a",
-         [row("site")],
-         Role.EDITOR
-      );
+      const state = withAccess(INITIAL_WIZARD_STATE, "a", [row("site")]);
       expect(state.access.a).toEqual({
-         role: Role.EDITOR,
+         role: defaultAccess(Role.OWNER).role,
          rows: [row("site")],
       });
    });

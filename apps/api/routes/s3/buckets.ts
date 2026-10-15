@@ -23,7 +23,7 @@ import {
    revocableInviteSelect,
    revokeInvalidInvites,
 } from "@/lib/services/invite-authority";
-import { loadGrantingActor } from "@/lib/services/members";
+import { loadBucketGrants, loadGrantingActor } from "@/lib/services/members";
 import {
    bucketGrantSelect,
    findUnremovableGrant,
@@ -62,18 +62,13 @@ const toBucket = (
    folders: string[] | null = null
 ): S3Bucket => ({ name, creationDate, userRole, folders });
 
-const visibleBuckets = async (
+const listableBuckets = async (
    auth: AuthContext,
    signal: AbortSignal
 ): Promise<S3Bucket[]> => {
    const { userId, serverId, serverRole, bucketScope: scope } = auth;
    if (serverRole !== Role.OWNER) {
-      const grants = await prisma.bucketAccess.findMany({
-         where: { userId, serverId },
-         select: bucketGrantSelect,
-         orderBy: { bucketName: "asc" },
-      });
-      return grants
+      return (await loadBucketGrants(userId, serverId))
          .filter((g) => isBucketAllowed(scope, g.bucketName))
          .map((g) =>
             toBucket(g.bucketName, Role[g.role], null, grantFoldersOf(g))
@@ -100,7 +95,7 @@ bucketsRouter.get(
    "/",
    ...serverRoute(Permission.LIST_BUCKETS, serverScope, async (_req, res) => {
       res.json({
-         buckets: await visibleBuckets(
+         buckets: await listableBuckets(
             getAuth(res),
             requestSignal(res, S3_ROUTE_TIMEOUT_MS)
          ),

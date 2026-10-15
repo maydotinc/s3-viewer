@@ -58,10 +58,11 @@ const history = {
 };
 const go = async (delta: number) => {
    history.go(delta);
-   await new Promise((resolve) => setTimeout(resolve, 5));
+   await vi.runAllTimersAsync();
 };
 
 beforeEach(() => {
+   vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
    vi.clearAllMocks();
    entries = [entry("/a")];
    position = 0;
@@ -96,6 +97,7 @@ afterEach(() => {
    release();
    cleanup();
    vi.unstubAllGlobals();
+   vi.useRealTimers();
 });
 
 describe("guarded navigation", () => {
@@ -146,7 +148,7 @@ describe("guarded navigation", () => {
       confirm.mockReturnValue(true);
       await expect(router.push("/wrong")).resolves.toBe(false);
       await expect(router.replace("/wrong")).resolves.toBe(false);
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      await vi.runAllTimersAsync();
       expect(entries[position]!.url).toBe("/b");
       await expect(router.push("/c")).resolves.toBe(true);
    });
@@ -165,9 +167,8 @@ describe("guarded navigation", () => {
       expect(rendered).toHaveBeenCalledWith("/a");
    });
 
-   it("keeps Next history state and removes the guard after cleanup", async () => {
+   it("stops asking once the guard is released", async () => {
       await router.push("/b");
-      expect(history.state.__N).toBe(true);
       release();
       confirm.mockReturnValue(false);
       await expect(router.push("/c")).resolves.toBe(true);
@@ -177,10 +178,6 @@ describe("guarded navigation", () => {
 });
 
 describe("whether Back stays in the app", () => {
-   it("is false on the entry the app was opened on", () => {
-      expect(hasInAppHistory()).toBe(false);
-   });
-
    it("is true after navigating inside the app, and false again back at the start", async () => {
       await router.push("/b");
       expect(hasInAppHistory()).toBe(true);
@@ -189,12 +186,8 @@ describe("whether Back stays in the app", () => {
    });
 
    it("is false for an entry the guard never stamped", () => {
-      release();
-      cleanup();
       entries = [entry("/elsewhere")];
       position = 0;
       expect(hasInAppHistory()).toBe(false);
-      cleanup = installNavigationGuard(router);
-      release = registerNavigationGuard(confirm);
    });
 });

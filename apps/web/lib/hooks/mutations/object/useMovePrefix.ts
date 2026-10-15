@@ -53,9 +53,12 @@ const useMovePrefix = () =>
       mutationFn: movePrefix,
       onSuccess: reportMoveResult,
       settle: forgetMatching(
+         ({ newPrefix }) =>
+            (key) =>
+               key.startsWith(newPrefix),
          ({ prefix, newPrefix }) =>
             (key) =>
-               key.startsWith(prefix) || key.startsWith(newPrefix)
+               key.startsWith(prefix) && !key.startsWith(newPrefix)
       ),
    });
 

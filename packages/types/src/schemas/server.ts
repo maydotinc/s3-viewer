@@ -6,6 +6,7 @@ import { pageSchema } from "./pagination";
 import {
    bucketNameListSchema,
    encryptedCredentialsSchema,
+   existingBucketNameSchema,
    isDatabaseDate,
    isDatabaseText,
    roleSchema,
@@ -93,12 +94,7 @@ export const auditQuerySchema = serverScope.merge(pageSchema).extend({
       .max(64)
       .refine(isDatabaseText, "Invalid text")
       .optional(),
-   bucket: z
-      .string()
-      .min(1)
-      .max(63)
-      .refine(isDatabaseText, "Invalid text")
-      .optional(),
+   bucket: existingBucketNameSchema.optional(),
    q: z
       .string()
       .min(3)

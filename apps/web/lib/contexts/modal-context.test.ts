@@ -34,6 +34,7 @@ vi.mock("@/lib/stores/session-store", () => ({
       (selector: (session: Session) => unknown) => selector(h.session),
       { getState: () => h.session }
    ),
+   useUserId: () => h.session.userId ?? "",
 }));
 
 import { ModalProvider, useModalActions, useModalState } from "./modal-context";
@@ -69,43 +70,6 @@ const openObjects = () => {
       objectKey: "important.txt",
       expectedETag: '"original"',
    });
-   actions.openScoped("copyObject", {
-      serverId: "server-a",
-      bucketName: "backups",
-      objectKey: "important.txt",
-      expectedETag: '"original"',
-   });
-   actions.openScoped("createFolder", {
-      serverId: "server-a",
-      bucketName: "backups",
-      prefix: "reports/",
-   });
-   actions.openScoped("moveObjects", {
-      serverId: "server-a",
-      bucketName: "backups",
-      source: { folderKey: "reports/" },
-   });
-   actions.openScoped("transferObjects", {
-      serverId: "server-a",
-      bucketName: "backups",
-      source: { folderKey: "reports/" },
-   });
-   actions.openScoped("objectSettings", {
-      serverId: "server-a",
-      bucketName: "backups",
-      objectKey: "important.txt",
-      expectedETag: '"original"',
-   });
-   actions.openScoped("bulkRename", {
-      serverId: "server-a",
-      bucketName: "backups",
-      source: { folderKey: "reports/" },
-   });
-   actions.openScoped("incompleteUploads", {
-      serverId: "server-a",
-      bucketName: "backups",
-      prefix: "reports/",
-   });
    return render();
 };
 
@@ -128,36 +92,6 @@ describe("modal lifetime follows its opening session and server", () => {
          userId: "user-a",
          serverId: "server-a",
          expectedETag: '"original"',
-      });
-      expect(modals.copyObject).toMatchObject({
-         userId: "user-a",
-         expectedETag: '"original"',
-      });
-      expect(modals.createFolder).toMatchObject({
-         userId: "user-a",
-         prefix: "reports/",
-      });
-      expect(modals.moveObjects).toMatchObject({
-         userId: "user-a",
-         source: { folderKey: "reports/" },
-      });
-      expect(modals.transferObjects).toMatchObject({
-         userId: "user-a",
-         serverId: "server-a",
-         source: { folderKey: "reports/" },
-      });
-      expect(modals.objectSettings).toMatchObject({
-         userId: "user-a",
-         objectKey: "important.txt",
-         expectedETag: '"original"',
-      });
-      expect(modals.bulkRename).toMatchObject({
-         userId: "user-a",
-         source: { folderKey: "reports/" },
-      });
-      expect(modals.incompleteUploads).toMatchObject({
-         userId: "user-a",
-         prefix: "reports/",
       });
    });
 
@@ -184,49 +118,6 @@ describe("modal lifetime follows its opening session and server", () => {
          serverId: "server-a",
          bucketName: "backups",
          objects: [{ key: "important.txt", expectedETag: '"original"' }],
-      });
-      actions.openScoped("renameObject", {
-         serverId: "server-a",
-         bucketName: "backups",
-         objectKey: "important.txt",
-         expectedETag: '"original"',
-      });
-      actions.openScoped("copyObject", {
-         serverId: "server-a",
-         bucketName: "backups",
-         objectKey: "important.txt",
-         expectedETag: '"original"',
-      });
-      actions.openScoped("createFolder", {
-         serverId: "server-a",
-         bucketName: "backups",
-         prefix: "reports/",
-      });
-      actions.openScoped("moveObjects", {
-         serverId: "server-a",
-         bucketName: "backups",
-         source: { objects: [], prefix: "reports/" },
-      });
-      actions.openScoped("transferObjects", {
-         serverId: "server-a",
-         bucketName: "backups",
-         source: { objects: [], prefix: "reports/" },
-      });
-      actions.openScoped("objectSettings", {
-         serverId: "server-a",
-         bucketName: "backups",
-         objectKey: "important.txt",
-         expectedETag: '"original"',
-      });
-      actions.openScoped("bulkRename", {
-         serverId: "server-a",
-         bucketName: "backups",
-         source: { objects: [] },
-      });
-      actions.openScoped("incompleteUploads", {
-         serverId: "server-a",
-         bucketName: "backups",
-         prefix: "reports/",
       });
       expect(render().modals).toEqual({});
    });

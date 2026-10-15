@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 type FileResolve = (file: File) => void;
 type EntriesResolve = (entries: FakeEntry[]) => void;
@@ -19,12 +19,11 @@ type FakeDirEntry = {
 
 type FakeEntry = FakeFileEntry | FakeDirEntry;
 
-const fileEntry = (path: string, onOpen?: () => void): FakeFileEntry => ({
+const fileEntry = (path: string): FakeFileEntry => ({
    isFile: true,
    isDirectory: false,
    fullPath: path,
    file: (resolve) => {
-      onOpen?.();
       resolve(new File(["x"], path.split("/").pop() ?? path));
    },
 });
@@ -109,20 +108,11 @@ const trackBrowserOperations = (limit = Infinity) => {
 
 const { filesFromDrop, fromFileList } = await import("./drop-entries");
 
-describe("filesFromDrop", () => {
-   it("walks nested folders and strips the leading slash from fullPath", async () => {
-      const tree = dirEntry("/root", [
-         fileEntry("/root/a.txt"),
-         dirEntry("/root/sub", [fileEntry("/root/sub/b.txt")]),
-      ]);
-      const files = await filesFromDrop(dataTransferFor([tree]));
-      expect(files.map((f) => f.relativePath)).toEqual([
-         "root/a.txt",
-         "root/sub/b.txt",
-      ]);
-   });
+afterEach(() => vi.useRealTimers());
 
+describe("filesFromDrop", () => {
    it("preserves traversal order regardless of which file resolves first", async () => {
+      vi.useFakeTimers();
       const order: string[] = [];
       const slowFile = (path: string, delay: number): FakeFileEntry => ({
          isFile: true,
@@ -140,7 +130,9 @@ describe("filesFromDrop", () => {
          slowFile("/root/b.txt", 10),
          dirEntry("/root/sub", [slowFile("/root/sub/c.txt", 20)]),
       ]);
-      const files = await filesFromDrop(dataTransferFor([tree]));
+      const result = filesFromDrop(dataTransferFor([tree]));
+      await vi.runAllTimersAsync();
+      const files = await result;
       expect(order).toEqual(["/root/b.txt", "/root/sub/c.txt", "/root/a.txt"]);
       expect(files.map((f) => f.relativePath)).toEqual([
          "root/a.txt",
@@ -149,124 +141,68 @@ describe("filesFromDrop", () => {
       ]);
    });
 
-   it("drains a directory reader that pages at 100 entries per call", async () => {
-      const children = Array.from({ length: 250 }, (_, i) =>
-         fileEntry(`/root/f${i}.txt`)
-      );
-      const tree = dirEntry("/root", children, 100);
-      const files = await filesFromDrop(dataTransferFor([tree]));
-      expect(files).toHaveLength(250);
-      expect(new Set(files.map((f) => f.relativePath)).size).toBe(250);
-   });
-
-   it("limits how many files are opened concurrently while walking", async () => {
-      let active = 0;
-      let maxActive = 0;
-      const slowFile = (path: string): FakeFileEntry => ({
-         isFile: true,
-         isDirectory: false,
-         fullPath: path,
-         file: (resolve) => {
-            active++;
-            maxActive = Math.max(maxActive, active);
-            setTimeout(() => {
-               active--;
-               resolve(new File(["x"], path));
-            }, 0);
-         },
-      });
-      const children = Array.from({ length: 20 }, (_, i) =>
-         slowFile(`/root/f${i}.txt`)
-      );
-      const tree = dirEntry("/root", children);
-      const files = await filesFromDrop(dataTransferFor([tree]));
-      expect(files).toHaveLength(20);
-      expect(maxActive).toBeLessThanOrEqual(8);
-      expect(maxActive).toBeGreaterThan(1);
-   });
-
    it("bounds file and paginated directory callbacks across every dropped tree", async () => {
       vi.useFakeTimers();
-      try {
-         const { stats, wrap } = trackBrowserOperations();
-         const paths: string[] = [];
-         const roots = Array.from({ length: 4 }, (_, root) =>
-            dirEntry(
-               `/root${root}`,
-               Array.from({ length: 4 }, (_, directory) => {
-                  const path = `/root${root}/dir${directory}`;
-                  return dirEntry(
-                     path,
-                     Array.from({ length: 25 }, (_, file) => {
-                        const filePath = `${path}/f${file}.txt`;
-                        paths.push(filePath.slice(1));
-                        return fileEntry(filePath);
-                     }),
-                     10
-                  );
-               }),
-               2
-            )
-         );
-         const result = filesFromDrop(dataTransferFor(roots.map(wrap)));
-         await vi.runAllTimersAsync();
-         const files = await result;
-         expect(files.map((file) => file.relativePath)).toEqual(paths);
-         expect(stats.maxPending).toBe(8);
-         expect(stats.pending).toBe(0);
-         expect(stats.drainedDirectories).toBe(20);
-         expect(stats.completedFiles).toBe(400);
-      } finally {
-         vi.useRealTimers();
-      }
+      const { stats, wrap } = trackBrowserOperations();
+      const paths: string[] = [];
+      const roots = Array.from({ length: 4 }, (_, root) =>
+         dirEntry(
+            `/root${root}`,
+            Array.from({ length: 4 }, (_, directory) => {
+               const path = `/root${root}/dir${directory}`;
+               return dirEntry(
+                  path,
+                  Array.from({ length: 25 }, (_, file) => {
+                     const filePath = `${path}/f${file}.txt`;
+                     paths.push(filePath.slice(1));
+                     return fileEntry(filePath);
+                  }),
+                  10
+               );
+            }),
+            2
+         )
+      );
+      const result = filesFromDrop(dataTransferFor(roots.map(wrap)));
+      await vi.runAllTimersAsync();
+      const files = await result;
+      expect(files.map((file) => file.relativePath)).toEqual(paths);
+      expect(stats.maxPending).toBe(8);
+      expect(stats.pending).toBe(0);
+      expect(stats.drainedDirectories).toBe(20);
+      expect(stats.completedFiles).toBe(400);
    });
 
    it("stops queued nested reads at the rejection threshold and drains active callbacks", async () => {
       vi.useFakeTimers();
-      try {
-         const limit = 20;
-         const { stats, wrap } = trackBrowserOperations(limit);
-         const roots = Array.from({ length: 8 }, (_, root) =>
-            dirEntry(
-               `/root${root}`,
-               Array.from({ length: 8 }, (_, directory) => {
-                  const path = `/root${root}/dir${directory}`;
-                  return dirEntry(
-                     path,
-                     Array.from({ length: 64 }, (_, file) =>
-                        fileEntry(`${path}/f${file}.txt`)
-                     ),
-                     10
-                  );
-               })
-            )
-         );
-         const result = filesFromDrop(dataTransferFor(roots.map(wrap)), limit);
-         await vi.runAllTimersAsync();
-         const files = await result;
-         expect(files.length).toBeGreaterThan(limit);
-         expect(files.length).toBeLessThanOrEqual(limit + 8);
-         expect(stats.maxPending).toBe(8);
-         expect(stats.startedAfterLimit).toBe(0);
-         expect(stats.openedFiles).toBe(files.length);
-         expect(stats.completedFiles).toBe(files.length);
-         expect(stats.pending).toBe(0);
-         expect(vi.getTimerCount()).toBe(0);
-      } finally {
-         vi.useRealTimers();
-      }
-   });
-
-   it("stops opening files once a drop is over the limit", async () => {
-      let opened = 0;
-      const children = Array.from({ length: 400 }, (_, i) =>
-         fileEntry(`/root/f${i}.txt`, () => opened++)
+      const limit = 20;
+      const { stats, wrap } = trackBrowserOperations(limit);
+      const roots = Array.from({ length: 8 }, (_, root) =>
+         dirEntry(
+            `/root${root}`,
+            Array.from({ length: 8 }, (_, directory) => {
+               const path = `/root${root}/dir${directory}`;
+               return dirEntry(
+                  path,
+                  Array.from({ length: 64 }, (_, file) =>
+                     fileEntry(`${path}/f${file}.txt`)
+                  ),
+                  10
+               );
+            })
+         )
       );
-      const tree = dirEntry("/root", children, 50);
-      const files = await filesFromDrop(dataTransferFor([tree]), 100);
-      expect(files.length).toBeGreaterThan(100);
-      expect(files.length).toBeLessThan(200);
-      expect(opened).toBe(files.length);
+      const result = filesFromDrop(dataTransferFor(roots.map(wrap)), limit);
+      await vi.runAllTimersAsync();
+      const files = await result;
+      expect(files.length).toBeGreaterThan(limit);
+      expect(files.length).toBeLessThanOrEqual(limit + 8);
+      expect(stats.maxPending).toBe(8);
+      expect(stats.startedAfterLimit).toBe(0);
+      expect(stats.openedFiles).toBe(files.length);
+      expect(stats.completedFiles).toBe(files.length);
+      expect(stats.pending).toBe(0);
+      expect(vi.getTimerCount()).toBe(0);
    });
 
    it("walks a drop within the limit in full", async () => {

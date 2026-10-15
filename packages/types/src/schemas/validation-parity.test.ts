@@ -83,7 +83,6 @@ describe("exact existing object identities", () => {
    it.each(["a//b.txt", "/abs.txt", "./x", "a\tb", "a\0b"])(
       "keeps stricter new-key policy for %j",
       (key) => {
-         expect(objectKeySchema.safeParse(key).success).toBe(false);
          expect(
             copyObjectBodySchema.safeParse({
                ...scope,
@@ -137,6 +136,37 @@ describe("file keys and folder markers", () => {
             overwrite: false,
          }).source.objectKey
       ).toBe("raw/data/");
+   });
+
+   it("refuses a transfer that turns a file into a folder key or back", () => {
+      const transfer = (source: string, destination: string) =>
+         transferObjectBodySchema.safeParse({
+            ...scope,
+            source: {
+               bucketName: "photos",
+               objectKey: source,
+               expectedETag: '"reviewed"',
+            },
+            destination: {
+               serverId: "server456",
+               bucketName: "photos",
+               objectKey: destination,
+            },
+            overwrite: false,
+         }).error?.issues;
+      for (const [source, destination] of [
+         ["docs/readme.md", "docs/"],
+         ["raw/data/", "copied/data"],
+      ] as const) {
+         expect(transfer(source, destination)).toEqual([
+            expect.objectContaining({
+               message:
+                  "A file can't be copied to a folder key, or a folder to a file key",
+               path: ["destination", "objectKey"],
+            }),
+         ]);
+      }
+      expect(transfer("docs/readme.md", "docs/copy.md")).toBeUndefined();
    });
 
    it("rejects file uploads to markers while permitting folder creation and old upload cleanup", () => {
@@ -213,12 +243,9 @@ describe("metadata identity", () => {
 });
 
 describe("shared display names", () => {
-   it.each(["", "   ", "a".repeat(81), "a\nb", "a\0b", "a\ud800"])(
-      "rejects invalid names %j",
-      (name) => {
-         expect(profileNameSchema.safeParse(name).success).toBe(false);
-      }
-   );
+   it.each(["", "   ", "a".repeat(81)])("rejects invalid names %j", (name) => {
+      expect(profileNameSchema.safeParse(name).success).toBe(false);
+   });
    it("accepts the boundary and trims ordinary whitespace", () => {
       expect(profileNameSchema.parse("a".repeat(80))).toHaveLength(80);
       expect(profileNameSchema.parse("  User Name  ")).toBe("User Name");

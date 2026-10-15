@@ -1,4 +1,3 @@
-import CenteredSpinner from "@/components/centered-spinner";
 import FilterInput from "@/components/filter-input";
 import {
    EmptyRow,
@@ -6,7 +5,9 @@ import {
    TableError,
 } from "@/components/Layout/table-states";
 import ListPagination from "@/components/list-pagination";
+import RefreshButton from "@/components/refresh-button";
 import RelativeTime from "@/components/relative-time";
+import TableSkeletonRows from "@/components/table-skeleton";
 import useAsyncAction from "@/components/use-async-action";
 import { api, qs, serverPath } from "@/lib/api";
 import { SEARCH_DEBOUNCE_MS } from "@/lib/constants";
@@ -32,6 +33,7 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@s3-viewer/ui/components/select";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import {
    Table,
    TableBody,
@@ -42,7 +44,7 @@ import {
 } from "@s3-viewer/ui/components/table";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Download, History } from "lucide-react";
-import { memo, useId, useState } from "react";
+import { memo, useId, useState, type ReactNode } from "react";
 import {
    ACTION_FAMILY_LABELS,
    ACTION_LABELS,
@@ -54,6 +56,8 @@ import { TIME_PRESET_LABELS, type TimePreset } from "./time";
 import VerifyButton, { canVerifyAudit } from "./verify";
 
 const COLUMNS = 4;
+
+const SKELETON_COLUMNS = [{}, {}, {}, { align: "right" }] as const;
 
 const ALL = "all";
 
@@ -142,6 +146,31 @@ const ActivityRows = memo(function ActivityRows({
       </TableBody>
    );
 });
+
+const ActivityTable = ({ children }: { children: ReactNode }) => (
+   <Table className="min-w-[720px] table-fixed">
+      <TableHeader>
+         <TableRow>
+            <TableHead className="w-44 px-6 @4xl:w-56">Person</TableHead>
+            <TableHead className="w-36 @4xl:w-48">Action</TableHead>
+            <TableHead>Details</TableHead>
+            <TableHead className="w-36 text-right tabular-nums">When</TableHead>
+         </TableRow>
+      </TableHeader>
+      {children}
+   </Table>
+);
+
+const ActivitySkeleton = () => (
+   <ActivityTable>
+      <TableBody>
+         <TableSkeletonRows
+            columns={SKELETON_COLUMNS}
+            rowClassName="[&>td:first-child]:px-6"
+         />
+      </TableBody>
+   </ActivityTable>
+);
 
 type FilterSelectProps = {
    label: string;
@@ -252,6 +281,8 @@ type ToolbarProps = {
    onChange: (filters: AuditLogFilters) => void;
    bucketsLoading: boolean;
    hasActivity: boolean;
+   fetching: boolean;
+   onRefresh: () => void;
 };
 
 const Toolbar = ({
@@ -262,6 +293,8 @@ const Toolbar = ({
    onChange,
    bucketsLoading,
    hasActivity,
+   fetching,
+   onRefresh,
 }: ToolbarProps) => {
    const { buckets } = useBuckets();
    const id = useId();
@@ -359,6 +392,7 @@ const Toolbar = ({
             </>
          )}
          <div className="flex w-full min-w-0 flex-wrap items-start gap-2 sm:ml-auto sm:w-auto">
+            <RefreshButton spinning={fetching} onClick={onRefresh} />
             {canVerifyAudit(myRole) && (
                <VerifyButton serverId={serverId} disabled={!hasActivity} />
             )}
@@ -371,6 +405,30 @@ const Toolbar = ({
       </div>
    );
 };
+
+const CONTROL_SKELETON = "h-9 rounded-lg pointer-coarse:h-11";
+
+// the role isn't known yet, so this mirrors the admin toolbar (person filter and verify included)
+const ToolbarSkeleton = () => (
+   <div className="flex min-h-9 shrink-0 flex-wrap items-start gap-2">
+      <div className="flex w-full min-w-0 flex-col gap-1 sm:w-72">
+         <Skeleton className={`w-full ${CONTROL_SKELETON}`} />
+         <div className="h-4" />
+      </div>
+      <Skeleton className={`${HALF_ON_MOBILE} sm:w-40 ${CONTROL_SKELETON}`} />
+      <Skeleton className={`${HALF_ON_MOBILE} sm:w-48 ${CONTROL_SKELETON}`} />
+      <Skeleton className={`${HALF_ON_MOBILE} sm:w-48 ${CONTROL_SKELETON}`} />
+      <Skeleton className={`${HALF_ON_MOBILE} sm:w-40 ${CONTROL_SKELETON}`} />
+      <div className="flex w-full min-w-0 flex-wrap items-start gap-2 sm:ml-auto sm:w-auto">
+         <Skeleton className="size-9 rounded-lg pointer-coarse:size-11" />
+         <div className="flex max-w-full min-w-40 flex-1 flex-col items-start gap-2 sm:w-56 sm:flex-none">
+            <Skeleton className={`w-full ${CONTROL_SKELETON}`} />
+            <div className="h-12 w-full" />
+         </div>
+         <Skeleton className={`w-34 ${CONTROL_SKELETON}`} />
+      </div>
+   </div>
+);
 
 type ActivityProps = {
    serverId: string;
@@ -402,15 +460,20 @@ const Activity = ({
             onChange={setFilters}
             bucketsLoading={bucketsLoading}
             hasActivity={audit.enabled || log.entries.length > 0}
+            fetching={log.isFetching && !log.isFetchingNextPage}
+            onRefresh={() => void log.refresh()}
          />
-         <div className={TABLE_PANEL} aria-busy={refreshing || undefined}>
+         <div
+            className={TABLE_PANEL}
+            aria-busy={log.isLoading || refreshing || undefined}
+         >
             {log.isLoading ? (
-               <CenteredSpinner label="Loading activity" className="h-48" />
+               <ActivitySkeleton />
             ) : log.error && log.entries.length === 0 ? (
                <TableError
                   title="Couldn't load activity"
                   retrying={log.isFetching}
-                  onRetry={() => void log.refetch()}
+                  onRetry={() => void log.refresh()}
                >
                   {log.error.message}
                </TableError>
@@ -421,27 +484,13 @@ const Activity = ({
                      refreshing && "pointer-events-none opacity-60"
                   )}
                >
-                  <Table className="min-w-[720px] table-fixed">
-                     <TableHeader>
-                        <TableRow>
-                           <TableHead className="w-44 px-6 @4xl:w-56">
-                              Person
-                           </TableHead>
-                           <TableHead className="w-36 @4xl:w-48">
-                              Action
-                           </TableHead>
-                           <TableHead>Details</TableHead>
-                           <TableHead className="w-36 text-right tabular-nums">
-                              When
-                           </TableHead>
-                        </TableRow>
-                     </TableHeader>
+                  <ActivityTable>
                      <ActivityRows
                         entries={log.entries}
                         audit={audit}
                         filtered={filtered}
                      />
-                  </Table>
+                  </ActivityTable>
                   <ListPagination
                      variant="footer"
                      disabled={refreshing}
@@ -455,3 +504,4 @@ const Activity = ({
 };
 
 export default Activity;
+export { ActivitySkeleton, ToolbarSkeleton };

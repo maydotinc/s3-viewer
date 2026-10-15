@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isFolderKey } from "../utils";
 import {
    existingBucketNameSchema,
    expectedUserShape,
@@ -32,6 +33,15 @@ export const transferObjectBodySchema = serverScope
          source.objectKey !== destination.objectKey,
       {
          message: "Pick a destination other than the file itself",
+         path: ["destination", "objectKey"],
+      }
+   )
+   .refine(
+      ({ source, destination }) =>
+         isFolderKey(source.objectKey) === isFolderKey(destination.objectKey),
+      {
+         message:
+            "A file can't be copied to a folder key, or a folder to a file key",
          path: ["destination", "objectKey"],
       }
    );

@@ -2,6 +2,7 @@ import CenteredSpinner from "@/components/centered-spinner";
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
+import RefreshIcon from "@/components/refresh-icon";
 import { errorMessage, isAborted } from "@/lib/api";
 import useAbortMultipartUploads, {
    pairId,
@@ -27,7 +28,6 @@ import {
    TableHeader,
    TableRow,
 } from "@s3-viewer/ui/components/table";
-import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 type IncompleteUploadsModalProps = ModalProps<"incompleteUploads">;
@@ -175,7 +175,7 @@ const IncompleteUploadsModal = ({
                   disabled={busy || isFetching}
                   onClick={refresh}
                >
-                  <RefreshCw aria-hidden="true" />
+                  <RefreshIcon spinning={isFetching} />
                   Refresh
                </Button>
                <Button

@@ -82,14 +82,7 @@ describe("sending a save", () => {
       });
       await expect(mutationFn(input)).resolves.toEqual(stored);
       const [params] = h.uploadSingle.mock.calls[0]!;
-      expect(params).toMatchObject({
-         userId: "user1",
-         serverId: "server1",
-         bucketName: "bucket",
-         objectKey: "notes/todo.md",
-         contentType: "text/markdown",
-         expectedETag: '"old"',
-      });
+      expect(params.file.type).toBe("text/markdown");
       await expect(params.file.text()).resolves.toBe("# saved\r\n");
    });
 });

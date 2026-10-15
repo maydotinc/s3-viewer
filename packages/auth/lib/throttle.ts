@@ -1,4 +1,7 @@
-import { hitRateLimit, undoRateLimitHit } from "@s3-viewer/db/rate-limit";
+import {
+   memoryWindowCounter,
+   sharedWindowCounter,
+} from "@s3-viewer/db/rate-limit";
 import { describeError } from "@s3-viewer/types";
 
 type Throttle = {
@@ -9,44 +12,15 @@ type Throttle = {
 
 type ThrottleOptions = { name: string; shared: boolean };
 
-const SWEEP_EVERY = 1000;
 const MAX_KEYS = 20_000;
 
-type Window = { hits: number; resetAt: number };
-
-// a fixed window from the first hit that counts refused attempts too, like the
-// rate_limit table behind the shared store, so RATE_LIMIT_STORE=memory behaves the same.
 const memoryThrottle = (limit: number, windowMs: number): Throttle => {
-   const windows = new Map<string, Window>();
-   let calls = 0;
-
-   const sweep = (now: number) => {
-      for (const [key, { resetAt }] of windows) {
-         if (resetAt <= now) windows.delete(key);
-      }
-   };
-
+   const counter = memoryWindowCounter(MAX_KEYS);
    return {
-      allow: async (key, now = Date.now()) => {
-         if (++calls % SWEEP_EVERY === 0) sweep(now);
-         const current = windows.get(key);
-         const window =
-            current && current.resetAt > now
-               ? { hits: current.hits + 1, resetAt: current.resetAt }
-               : { hits: 1, resetAt: now + windowMs };
-         windows.delete(key);
-         windows.set(key, window);
-         for (const oldest of windows.keys()) {
-            if (windows.size <= MAX_KEYS) break;
-            windows.delete(oldest);
-         }
-         return window.hits <= limit;
-      },
-      refund: async (key) => {
-         const window = windows.get(key);
-         if (window) window.hits = Math.max(window.hits - 1, 0);
-      },
-      size: () => windows.size,
+      allow: async (key, now) =>
+         (await counter.hit(key, windowMs, now)) <= limit,
+      refund: counter.undo,
+      size: counter.size,
    };
 };
 
@@ -57,7 +31,7 @@ const sharedThrottle = (
 ): Throttle => ({
    allow: async (key) => {
       try {
-         const { hits } = await hitRateLimit(
+         const hits = await sharedWindowCounter.hit(
             `throttle:${name}:${key}`,
             windowMs
          );
@@ -71,7 +45,7 @@ const sharedThrottle = (
    },
    refund: async (key) => {
       try {
-         await undoRateLimitHit(`throttle:${name}:${key}`);
+         await sharedWindowCounter.undo(`throttle:${name}:${key}`);
       } catch (error) {
          console.error(
             `[auth] ${name} throttle refund failed: ${describeError(error)}`

@@ -13,9 +13,9 @@ import { folderHref, segmentsFromKey } from "@/lib/utils/s3/paths";
 import { MAX_LIST_BLOCK_SIZE, observedETagSchema } from "@s3-viewer/types";
 import { COMPACT } from "@/components/compact-button";
 import { Toolbar } from "@/components/Layout/page";
-import RefreshIcon from "@/components/refresh-icon";
-import Reserve from "@/components/reserve";
+import RefreshButton from "@/components/refresh-button";
 import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import {
    DropdownMenu,
    DropdownMenuContent,
@@ -213,10 +213,15 @@ const ObjectsToolbar = () => {
             className="@container -mx-1 flex h-11 min-w-0 items-center gap-2 overflow-x-auto px-1 [&>*]:shrink-0"
             aria-busy={isLoading || commands.isResolving || undefined}
          >
-            {commands.isResolving ? null : (
+            {commands.isResolving ? (
+               <>
+                  <Skeleton className="h-9 w-9 rounded-lg pointer-coarse:h-11 @xl:w-36" />
+                  <Skeleton className="size-9 rounded-lg pointer-coarse:size-11" />
+               </>
+            ) : (
                <>
                   <SortMenu />
-                  <Reserve show={commands.can.upload} className="inline-flex">
+                  {commands.can.upload && (
                      <SimpleTooltip label={folderBlocked ?? "New folder"}>
                         <Button
                            variant="outline"
@@ -230,11 +235,8 @@ const ObjectsToolbar = () => {
                            <span className={COMPACT_LABEL}>New folder</span>
                         </Button>
                      </SimpleTooltip>
-                  </Reserve>
-                  <Reserve
-                     show={canUpload || Boolean(blockedReason)}
-                     className="inline-flex"
-                  >
+                  )}
+                  {(canUpload || blockedReason) && (
                      <UploadMenu
                         className={COMPACT_BUTTON}
                         labelClassName={COMPACT_LABEL}
@@ -242,17 +244,12 @@ const ObjectsToolbar = () => {
                         disabled={isLoading || !canUpload}
                         blockedReason={blockedReason}
                      />
-                  </Reserve>
-                  <SimpleTooltip label="Refresh" shortcut="r">
-                     <Button
-                        variant="outline"
-                        size="icon"
-                        aria-label="Refresh"
-                        onClick={refresh}
-                     >
-                        <RefreshIcon spinning={isRefreshing} />
-                     </Button>
-                  </SimpleTooltip>
+                  )}
+                  <RefreshButton
+                     spinning={isRefreshing}
+                     shortcut="r"
+                     onClick={refresh}
+                  />
                   {commands.can.delete && (
                      <SimpleTooltip label={deleteLabel} shortcut="backspace">
                         <Button

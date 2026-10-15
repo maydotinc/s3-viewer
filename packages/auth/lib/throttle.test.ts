@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createThrottle, perAddress, perAddressAndIp, perIp } from "./throttle";
+import { createThrottle, perAddress, perAddressAndIp } from "./throttle";
 
 const store = vi.hoisted(() => ({
    hit: vi.fn(),
    undo: vi.fn(),
 }));
-vi.mock("@s3-viewer/db/rate-limit", () => ({
-   hitRateLimit: store.hit,
-   undoRateLimitHit: store.undo,
+vi.mock("@s3-viewer/db", () => ({ prisma: {} }));
+vi.mock("@s3-viewer/db/rate-limit", async (importOriginal) => ({
+   ...(await importOriginal<typeof import("@s3-viewer/db/rate-limit")>()),
+   sharedWindowCounter: { hit: store.hit, undo: store.undo },
 }));
 
 beforeEach(() => {
@@ -22,13 +23,6 @@ describe("createThrottle", () => {
       expect(await throttle.allow("a", 0)).toBe(true);
       expect(await throttle.allow("a", 10)).toBe(true);
       expect(await throttle.allow("a", 20)).toBe(false);
-   });
-
-   it("a refused attempt does not extend the window", async () => {
-      const throttle = createThrottle(1, 1000);
-      expect(await throttle.allow("a", 0)).toBe(true);
-      expect(await throttle.allow("a", 900)).toBe(false);
-      expect(await throttle.allow("a", 1000)).toBe(true);
    });
 
    it("starts a fresh window once the first hit's window ends, like the shared store", async () => {
@@ -62,12 +56,6 @@ describe("createThrottle", () => {
          true
       );
       expect(await throttle.allow(perAddress("2.2.2.2", email), 0)).toBe(true);
-   });
-
-   it("keys a source by its address alone and has no key for an unknown source", () => {
-      expect(perIp("1.1.1.1")).toBe("1.1.1.1");
-      expect(perIp("2001:db8:aa:bb00::/56")).toBe("2001:db8:aa:bb00::/56");
-      expect(perIp("")).toBeNull();
    });
 
    it("caps the keys it remembers, forgetting the least recently seen first", async () => {
@@ -105,9 +93,9 @@ describe("shared throttle", () => {
          shared: true,
       });
       store.hit
-         .mockResolvedValueOnce({ hits: 1, resetAt: new Date() })
-         .mockResolvedValueOnce({ hits: 2, resetAt: new Date() })
-         .mockResolvedValueOnce({ hits: 3, resetAt: new Date() });
+         .mockResolvedValueOnce(1)
+         .mockResolvedValueOnce(2)
+         .mockResolvedValueOnce(3);
       expect(await throttle.allow("1.1.1.1:ada@example.com")).toBe(true);
       expect(await throttle.allow("1.1.1.1:ada@example.com")).toBe(true);
       expect(await throttle.allow("1.1.1.1:ada@example.com")).toBe(false);

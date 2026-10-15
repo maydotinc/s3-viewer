@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api";
+import { getSessionScope } from "@/lib/stores/session-scope";
 import useSessionStore from "@/lib/stores/session-store";
 import { toastError } from "@/lib/utils/toast";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -51,11 +52,6 @@ const invalidateOn =
       for (const queryKey of keys(failure))
          void failure.queryClient.invalidateQueries({ queryKey });
    };
-
-const currentScope = (): MutationScope => {
-   const { userId, serverId } = useSessionStore.getState();
-   return { userId: userId ?? "", serverId };
-};
 
 const useApiMutation = <TData, TError = ApiError, TVariables = void>({
    request,
@@ -120,7 +116,7 @@ const useApiMutation = <TData, TError = ApiError, TVariables = void>({
       useCallback(
          (variables, options) =>
             runMutation(
-               { variables, scope: currentScope() },
+               { variables, scope: getSessionScope() },
                unwrapOptions(options)
             ),
          [runMutation]
@@ -133,7 +129,7 @@ const useApiMutation = <TData, TError = ApiError, TVariables = void>({
    > = useCallback(
       (variables, options) =>
          runMutationAsync(
-            { variables, scope: currentScope() },
+            { variables, scope: getSessionScope() },
             unwrapOptions(options)
          ),
       [runMutationAsync]

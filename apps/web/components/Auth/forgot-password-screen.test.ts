@@ -1,12 +1,14 @@
 // @vitest-environment happy-dom
 import { act, createElement, type ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushRuntime, mountRuntime } from "@/lib/test/runtime";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mountedRuntime, submitForm } from "@/components/test-helpers";
+import { flushRuntime } from "@/lib/test/runtime";
 import ForgotPasswordScreen from "./forgot-password-screen";
 
 const h = vi.hoisted(() => ({
    requestPasswordReset: vi.fn(),
    onEmailChange: (_value: string) => {},
+   emailError: undefined as string | null | undefined,
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -23,19 +25,19 @@ vi.mock("./auth-layout", () => ({
       createElement("header", null, createElement("h1", null, title), children),
 }));
 vi.mock("./email-field", () => ({
-   default: (props: { onChange: (value: string) => void }) => {
+   default: (props: {
+      error: string | null;
+      onChange: (value: string) => void;
+   }) => {
       h.onEmailChange = props.onChange;
+      h.emailError = props.error;
       return null;
    },
 }));
 
-const mounted: Awaited<ReturnType<typeof mountRuntime>>[] = [];
-
-const mountScreen = async () => {
-   const runtime = await mountRuntime(createElement(ForgotPasswordScreen));
-   mounted.push(runtime);
-   return runtime.container;
-};
+const view = mountedRuntime();
+const mountScreen = async () =>
+   (await view.mount(createElement(ForgotPasswordScreen))).container;
 
 const buttonNamed = (container: HTMLElement, name: string) =>
    Array.from(container.querySelectorAll("button")).find(
@@ -48,11 +50,7 @@ const status = (container: HTMLElement) =>
 const reachSentStep = async (container: HTMLElement) => {
    await act(async () => h.onEmailChange("person@example.com"));
    await act(async () => {
-      container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         );
+      submitForm(container);
    });
    await flushRuntime();
    expect(container.querySelector("h1")?.textContent).toBe("Check your inbox");
@@ -61,10 +59,6 @@ const reachSentStep = async (container: HTMLElement) => {
 beforeEach(() => {
    h.requestPasswordReset.mockReset();
    h.requestPasswordReset.mockResolvedValue({});
-});
-
-afterEach(async () => {
-   while (mounted.length) await mounted.pop()!.unmount();
 });
 
 describe("resending a password reset link", () => {
@@ -113,15 +107,6 @@ describe("resending a password reset link", () => {
       await act(async () =>
          buttonNamed(container, "use another email").click()
       );
-      await act(async () => h.onEmailChange("other@example.com"));
-      await act(async () => {
-         container
-            .querySelector("form")!
-            .dispatchEvent(
-               new Event("submit", { bubbles: true, cancelable: true })
-            );
-      });
-      await flushRuntime();
-      expect(status(container).textContent).toBe("");
+      expect(h.emailError).toBeNull();
    });
 });

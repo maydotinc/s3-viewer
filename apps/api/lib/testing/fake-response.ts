@@ -16,7 +16,6 @@ type FakeResponseState = Partial<
    Pick<FakeResponse, "headersSent" | "writableEnded" | "destroyed">
 >;
 
-// an event emitter wearing the parts of an express response that middleware and route code touch.
 const fakeResponse = (state: FakeResponseState = {}): FakeResponse => {
    const headers: Record<string, string> = {};
    const sent = Promise.withResolvers<unknown>();
@@ -58,4 +57,3 @@ const fakeResponse = (state: FakeResponseState = {}): FakeResponse => {
 };
 
 export { fakeResponse };
-export type { FakeResponse };

@@ -34,12 +34,10 @@ afterEach(async () => {
    vi.unstubAllGlobals();
 });
 
-describe.each([
-   { name: "received", useInvites: useReceivedInvites, path: "/invites" },
-])("on-demand $name invites", ({ useInvites, path }) => {
+describe("on-demand received invites", () => {
    it("keeps available invites usable through a delayed page, failure, and retry", async () => {
       const Probe = () => {
-         result = useInvites();
+         result = useReceivedInvites();
          return createElement(
             "output",
             null,
@@ -53,7 +51,7 @@ describe.each([
       expect(
          vi
             .mocked(api.get)
-            .mock.calls.every(([url]) => url === `${path}?limit=100`)
+            .mock.calls.every(([url]) => url === "/invites?limit=100")
       ).toBe(true);
       const next = deferred<InvitesPage>();
       vi.mocked(api.get).mockImplementationOnce(async () => next.promise);

@@ -35,6 +35,8 @@ const row = (
    id: "server12345",
    name: "Storage",
    provider,
+   capabilities: null,
+   restrictedBuckets: false,
    auditEnabled: false,
    auditLevel: "CHANGES" as const,
    auditViewRole: "ADMIN" as const,
@@ -60,17 +62,17 @@ describe("toServerInfo capabilities", () => {
       expect(state.decrypt).not.toHaveBeenCalled();
    });
 
-   it("reads nothing for a provider that needs no endpoint", () => {
-      const info = toServerInfo(row("S3"), Role.OWNER);
-      expect(info.capabilities?.notice).toBeNull();
-      expect(state.decrypt).not.toHaveBeenCalled();
-   });
-
-   it.each([undefined, { upload: "yes" }])(
-      "reports a custom endpoint whose stored answer is %j as read-only",
-      (capabilities) => {
+   it.each([
+      ["S3", null],
+      ["Other", null],
+      ["Other", { upload: "yes" }],
+   ] as const)(
+      "reports a %s server whose stored answer is %j as read-only",
+      (provider, capabilities) => {
          const info = toServerInfo(
-            row("Other", { capabilities: capabilities as Row["capabilities"] }),
+            row(provider, {
+               capabilities: capabilities as Row["capabilities"],
+            }),
             Role.OWNER
          );
          expect(info.capabilities).toMatchObject({
@@ -110,15 +112,22 @@ describe("server list and info rows", () => {
             }),
             role: "OWNER",
          },
-         { ...row("S3", { id: "aws1234567" }), role: "VIEWER" },
+         {
+            ...row("S3", {
+               id: "aws1234567",
+               capabilities: { ...FLAGS, notice: null },
+            }),
+            role: "VIEWER",
+         },
       ]);
       const page = await listServerPage("user12345", undefined);
       const [strings] = state.queryRaw.mock.calls[0] as [TemplateStringsArray];
       expect(strings.join("")).not.toContain('s."credentials"');
       expect(state.decrypt).not.toHaveBeenCalled();
-      expect(page.servers.map((server) => server.capabilities?.notice)).toEqual(
-         [null, null]
-      );
+      expect(page.servers.map((server) => server.capabilities.notice)).toEqual([
+         null,
+         null,
+      ]);
    });
 
    it("answers one server without its credentials", async () => {

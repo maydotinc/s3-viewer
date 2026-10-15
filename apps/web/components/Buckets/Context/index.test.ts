@@ -8,6 +8,8 @@ import {
 } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountedRuntime } from "@/components/test-helpers";
+import { queryKeys } from "@/lib/query-keys";
+import { QueryClient } from "@tanstack/react-query";
 import { BucketProvider, useBucketContext, useBucketFilter } from "./index";
 
 const h = vi.hoisted(() => ({
@@ -40,7 +42,7 @@ vi.mock("@/lib/hooks/queries/s3/useBuckets", () => ({
 }));
 
 type Seen = { prefix: string; filter: string };
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 let seen: Seen[] = [];
 let navigate!: (path: string[]) => void;
 let context!: ReturnType<typeof useBucketContext>;
@@ -127,7 +129,8 @@ describe("waiting for a member's folder access", () => {
 });
 
 describe("refreshing", () => {
-   it("reloads only the listing for mutations and the bucket list too for a full refresh", async () => {
+   it("reloads only the listing for mutations and the bucket list and server info too for a full refresh", async () => {
+      const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
       await mount();
       const reload = vi.fn();
       context.registerRefresh(reload);
@@ -137,6 +140,10 @@ describe("refreshing", () => {
       context.refresh();
       expect(reload).toHaveBeenCalledTimes(2);
       expect(h.refetch).toHaveBeenCalledOnce();
+      expect(invalidate).toHaveBeenCalledExactlyOnceWith({
+         queryKey: queryKeys.serverInfo("user", "server"),
+      });
+      invalidate.mockRestore();
    });
 });
 

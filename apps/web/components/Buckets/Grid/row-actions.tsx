@@ -174,7 +174,7 @@ const RowActionsMenu = ({
                   </Button>
                </DropdownMenuTrigger>
             </SimpleTooltip>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" className="w-56">
                <ActionMenuItems actions={actions} />
             </DropdownMenuContent>
          </DropdownMenu>

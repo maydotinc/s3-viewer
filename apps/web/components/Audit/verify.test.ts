@@ -1,9 +1,10 @@
 // @vitest-environment happy-dom
-import { deferred, flushRuntime, mountRuntime } from "@/lib/test/runtime";
-import { Role, type AuditVerification } from "@s3-viewer/types";
+import { mountedRuntime } from "@/components/test-helpers";
+import { deferred, flushRuntime } from "@/lib/test/runtime";
+import type { AuditVerification } from "@s3-viewer/types";
 import { act, createElement } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import VerifyButton, { canVerifyAudit } from "./verify";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import VerifyButton from "./verify";
 
 const h = vi.hoisted(() => ({
    session: { userId: "user-a", serverId: "server-a" },
@@ -26,14 +27,14 @@ vi.mock("@s3-viewer/ui/components/toast", async () =>
    })
 );
 
-let runtime!: Awaited<ReturnType<typeof mountRuntime>>;
-const button = () => runtime.container.querySelector("button")!;
+const view = mountedRuntime();
+const button = () => view.current.container.querySelector("button")!;
 const click = async () => {
    await act(async () => button().click());
    await flushRuntime();
 };
 const message = () =>
-   runtime.container.querySelector('p[role="status"]')?.textContent;
+   view.current.container.querySelector('p[role="status"]')?.textContent;
 const partial: AuditVerification = {
    ok: true,
    rows: 100_000,
@@ -56,14 +57,9 @@ const complete: AuditVerification = {
 beforeEach(async () => {
    vi.resetAllMocks();
    h.session = { userId: "user-a", serverId: "server-a" };
-   runtime = await mountRuntime(
+   await view.mount(
       createElement(VerifyButton, { serverId: "server-a", disabled: false })
    );
-});
-afterEach(async () => {
-   await runtime.unmount();
-   runtime.queryClient.clear();
-   vi.unstubAllGlobals();
 });
 
 describe("bounded integrity verification", () => {
@@ -172,20 +168,11 @@ describe("bounded integrity verification", () => {
       await click();
       expect(h.get).toHaveBeenCalledTimes(1);
       const signal = h.get.mock.calls[0]![1] as AbortSignal;
-      await runtime.unmount();
+      await view.current.unmount();
       expect(signal.aborted).toBe(true);
       response.resolve(complete);
       await flushRuntime();
       expect(h.success).not.toHaveBeenCalled();
       expect(h.error).not.toHaveBeenCalled();
-   });
-});
-
-describe("who is offered integrity verification", () => {
-   it("matches the API, which verifies the whole chain for admins and up only", () => {
-      expect(canVerifyAudit(Role.OWNER)).toBe(true);
-      expect(canVerifyAudit(Role.ADMIN)).toBe(true);
-      expect(canVerifyAudit(Role.EDITOR)).toBe(false);
-      expect(canVerifyAudit(Role.VIEWER)).toBe(false);
    });
 });

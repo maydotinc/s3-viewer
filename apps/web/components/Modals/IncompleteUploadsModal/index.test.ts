@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buttonByText, mountedRuntime } from "@/components/test-helpers";
+import {
+   buttonByText,
+   mountedRuntime,
+   submitForm,
+} from "@/components/test-helpers";
 import { deferred, flushRuntime } from "@/lib/test/runtime";
 import type {
    S3AbortUploadsResult,
@@ -53,7 +57,7 @@ const refused = (
 
 const onClose = vi.fn();
 const onAborted = vi.fn();
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const button = (label: string) =>
    buttonByText(view.current.container, label, "prefix");
 const open = async (prefix = "photos/") => {
@@ -80,13 +84,7 @@ const select = (key: string) =>
          .click()
    );
 const submit = async () => {
-   await act(async () =>
-      view.current.container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         )
-   );
+   await act(async () => submitForm(view.current.container));
    await flushRuntime();
 };
 const sent = () =>

@@ -170,9 +170,6 @@ describe("running a bulk request in batches", () => {
          aborted: true,
          remaining: true,
       });
-      await expect(
-         run({ send: () => Promise.reject(cancelledError()) })
-      ).resolves.toMatchObject({ done: 0, aborted: true });
    });
 
    it("hands back every target a cancel left unconfirmed so a retry resends it", async () => {

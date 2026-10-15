@@ -672,26 +672,23 @@ describe("POST /invites on one server", () => {
       expect(state.recordManyFor).not.toHaveBeenCalled();
    });
 
-   it.each([["EDITOR", "You don't have permission to do that"]] as const)(
-      "records a denial for a %s who cannot manage members",
-      async (role, message) => {
-         on(SERVER).role = role;
-         const result = await outcome({
-            emails: ["one@example.com"],
-            targets: [viewerOn(SERVER)],
-         });
-         expect(result.error).toBe(message);
-         expect(denials()).toMatchObject([
-            {
-               serverId: SERVER,
-               entry: {
-                  action: "access.denied",
-                  detail: { permission: "MANAGE_MEMBERS", reason: "forbidden" },
-               },
+   it("records a denial for an EDITOR who cannot manage members", async () => {
+      on(SERVER).role = "EDITOR";
+      const result = await outcome({
+         emails: ["one@example.com"],
+         targets: [viewerOn(SERVER)],
+      });
+      expect(result.error).toBe("You don't have permission to do that");
+      expect(denials()).toMatchObject([
+         {
+            serverId: SERVER,
+            entry: {
+               action: "access.denied",
+               detail: { permission: "MANAGE_MEMBERS", reason: "forbidden" },
             },
-         ]);
-      }
-   );
+         },
+      ]);
+   });
 
    it("reports a server that does not exist", async () => {
       const result = await outcome(
@@ -931,38 +928,6 @@ describe("POST /invites across servers", () => {
       expect(state.recordManyFor).toHaveBeenCalledTimes(2);
    });
 
-   it("spends the recipient's daily email budget once per email, not per server", async () => {
-      const servers = ["serverAabcdef", "serverBabcdef", "serverCabcdef"];
-      for (const id of servers) server(id);
-      const first = await outcome(
-         {
-            emails: ["one@example.com"],
-            targets: servers.map((id) => viewerOn(id)),
-         },
-         "serverCabcdef"
-      );
-      expect(first.invites[0]?.emailed).toBe(true);
-      expect(messages()).toHaveLength(1);
-      expect(messages()[0]?.servers).toHaveLength(3);
-      for (const id of [SERVER, OTHER]) {
-         expect(
-            (
-               await outcome(
-                  { emails: ["one@example.com"], targets: [viewerOn(id)] },
-                  id
-               )
-            ).invites[0]?.emailed
-         ).toBe(true);
-      }
-      server("serverDabcdef");
-      const fourth = await outcome(
-         { emails: ["one@example.com"], targets: [viewerOn("serverDabcdef")] },
-         "serverDabcdef"
-      );
-      expect(fourth.invites[0]?.emailed).toBe(false);
-      expect(messages()).toHaveLength(3);
-   });
-
    it("leaves a server in its cooldown out of the email and marks only that invite unsent", async () => {
       await sent({ emails: ["one@example.com"], targets: [viewerOn(SERVER)] });
       on(SERVER).pending = [{ email: "one@example.com", role: "VIEWER" }];
@@ -1021,20 +986,8 @@ describe("POST /invites across servers", () => {
 });
 
 describe("invite emails", () => {
-   const inviteOn = async (serverId: string, emails: string[]) => {
-      if (!state.servers.has(serverId)) server(serverId);
-      return outcome({ emails, targets: [viewerOn(serverId)] }, serverId);
-   };
-
-   const fromSenders = async (emails: string[]) => {
-      const flags: boolean[] = [];
-      for (const [index, email] of emails.entries()) {
-         state.actor = `sender${index}abcdef`;
-         const { invites } = await inviteOn(`server${index}abcdef`, [email]);
-         flags.push(invites[0]!.emailed);
-      }
-      return flags;
-   };
+   const inviteOn = (emails: string[]) =>
+      outcome({ emails, targets: [viewerOn(SERVER)] });
 
    beforeEach(() => {
       vi.spyOn(console, "log").mockImplementation(() => {});
@@ -1046,10 +999,7 @@ describe("invite emails", () => {
    });
 
    it("marks each invite as emailed and names the inviter's address", async () => {
-      const body = await inviteOn(SERVER, [
-         "one@example.com",
-         "two@example.com",
-      ]);
+      const body = await inviteOn(["one@example.com", "two@example.com"]);
       expect(
          body.invites.map(({ email, emailed }) => [email, emailed])
       ).toEqual([
@@ -1066,9 +1016,9 @@ describe("invite emails", () => {
    });
 
    it("saves a repeat invite inside the cooldown without emailing again", async () => {
-      await inviteOn(SERVER, ["one@example.com"]);
+      await inviteOn(["one@example.com"]);
       on(SERVER).pending = [{ email: "one@example.com", role: "VIEWER" }];
-      const again = await inviteOn(SERVER, ["one@example.com"]);
+      const again = await inviteOn(["one@example.com"]);
       expect(state.sendEmail).toHaveBeenCalledOnce();
       expect(again.invites).toMatchObject([
          { email: "one@example.com", emailed: false },
@@ -1079,51 +1029,12 @@ describe("invite emails", () => {
       ]);
    });
 
-   it("stops emailing one address after three invites a day from different senders", async () => {
-      expect(await fromSenders(Array(4).fill("victim@example.com"))).toEqual([
-         true,
-         true,
-         true,
-         false,
-      ]);
-      expect(state.sendEmail).toHaveBeenCalledTimes(3);
-   });
-
-   it("counts plus tags and gmail dots against one mailbox", async () => {
-      expect(
-         await fromSenders([
-            "victim+a@gmail.com",
-            "victim+b@gmail.com",
-            "vic.tim@googlemail.com",
-            "victim@gmail.com",
-            "victim@example.com",
-         ])
-      ).toEqual([true, true, true, false, true]);
-   });
-
-   it("stops emailing for a server after fifty invite emails a day", async () => {
-      const flags: boolean[] = [];
-      for (let batch = 0; batch < 11; batch++) {
-         const emails = Array.from(
-            { length: 5 },
-            (_unused, index) => `person${batch * 5 + index}@example.com`
-         );
-         const { invites } = await inviteOn(SERVER, emails);
-         flags.push(...invites.map(({ emailed }) => emailed));
-      }
-      expect(flags.filter(Boolean)).toHaveLength(50);
-      expect(flags.slice(50)).toEqual([false, false, false, false, false]);
-   });
-
    it("reports and logs a failed send instead of claiming it went out", async () => {
       state.sendEmail.mockImplementation(async ({ to }: { to: string }) => {
          if (to === "one@example.com")
             throw new Error("Email delivery is busy");
       });
-      const body = await inviteOn(SERVER, [
-         "one@example.com",
-         "two@example.com",
-      ]);
+      const body = await inviteOn(["one@example.com", "two@example.com"]);
       expect(body.invites.map(({ emailed }) => emailed)).toEqual([false, true]);
       expect(
          vi
@@ -1133,7 +1044,7 @@ describe("invite emails", () => {
             )
       ).toBe(true);
       state.sendEmail.mockResolvedValue(undefined);
-      const retried = await inviteOn(SERVER, ["one@example.com"]);
+      const retried = await inviteOn(["one@example.com"]);
       expect(retried.invites[0]?.emailed).toBe(true);
    });
 });

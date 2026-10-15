@@ -1,6 +1,7 @@
 import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { logger } from "@/lib/logger";
 import { listing, reply, s3Fixture } from "@/lib/testing/s3-fixture";
+import { EXISTS_LIST_THRESHOLD } from "../listing";
 import { describe, expect, it, vi } from "vitest";
 import {
    MAX_CONCURRENT_COLLECTIONS,
@@ -135,6 +136,40 @@ describe("archive entry collection", () => {
          expect(bytes).toBe(5);
          expect(fileSizes).toEqual(new Map([["notes.md", 3]]));
          expect(f.requests.every(({ method }) => method !== "HEAD")).toBe(true);
+      } finally {
+         f.client.destroy();
+      }
+   });
+
+   it("sizes a crowded selection from one listing and heads only what it missed", async () => {
+      const files = Array.from(
+         { length: EXISTS_LIST_THRESHOLD + 2 },
+         (_, i) => `logs/f${String(i).padStart(2, "0")}`
+      );
+      const f = s3Fixture(async (request) => {
+         if (request.method === "HEAD") return reply(404, "");
+         return listing(files.slice(1).map((key) => ({ key, size: 2 })));
+      });
+      try {
+         const { bytes, fileSizes } = await collectArchiveEntries(
+            f.scope,
+            files.slice(1),
+            limits
+         );
+         expect(bytes).toBe(2 * (EXISTS_LIST_THRESHOLD + 1));
+         expect(fileSizes.size).toBe(EXISTS_LIST_THRESHOLD + 1);
+         expect(f.requests).toHaveLength(1);
+         expect(decodeURIComponent(f.requests[0]?.query.prefix ?? "")).toBe(
+            "logs/f"
+         );
+
+         f.requests.length = 0;
+         await expect(
+            collectArchiveEntries(f.scope, files, limits)
+         ).rejects.toMatchObject({ status: 404 });
+         expect(f.requests.filter((r) => r.method === "HEAD")).toEqual([
+            expect.objectContaining({ path: expect.stringContaining("f00") }),
+         ]);
       } finally {
          f.client.destroy();
       }

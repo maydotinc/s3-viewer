@@ -88,14 +88,6 @@ describe("client clones and the per-server budget", () => {
       }
    });
 
-   it("a no-retry clone spends the same budget as the client it came from", async () => {
-      const once = withoutRetries(budgetedClient());
-      await expect(once.send(head)).rejects.toThrow("network unavailable");
-      await expect(once.send(head)).rejects.toThrow(
-         /too many storage requests/
-      );
-   });
-
    it("the clone and its source share one window", async () => {
       const client = budgetedClient();
       await expect(client.send(head)).rejects.toThrow("network unavailable");

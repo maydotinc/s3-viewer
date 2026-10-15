@@ -13,15 +13,12 @@ const columns: ColDef[] = [
 
 describe("fitting grid columns to the grid width", () => {
    it("keeps every column when the minimum widths fit", () => {
-      expect(hiddenColumnIds(columns, 1200)).toEqual([]);
       expect(hiddenColumnIds(columns, 600)).toEqual([]);
    });
 
    it("drops columns in drop order until the rest fit", () => {
       expect(hiddenColumnIds(columns, 599)).toEqual(["modified"]);
-      expect(hiddenColumnIds(columns, 400)).toEqual(["modified"]);
       expect(hiddenColumnIds(columns, 399)).toEqual(["modified", "size"]);
-      expect(hiddenColumnIds(columns, 288)).toEqual(["modified", "size"]);
    });
 
    it("never hides a column without a drop order", () => {

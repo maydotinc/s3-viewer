@@ -416,7 +416,7 @@ describe("record", () => {
       expect(h.warn).not.toHaveBeenCalled();
    });
 
-   it.each(["object.download", "object.archive", "audit.export"] as const)(
+   it.each(["object.download", "object.archive"] as const)(
       "refuses with 503 when %s cannot be recorded, so nothing is issued",
       async (action) => {
          h.createMany.mockRejectedValue(new Error("connection reset"));

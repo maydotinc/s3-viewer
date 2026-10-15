@@ -6,12 +6,12 @@ import type { LucideIcon } from "lucide-react";
 const TABLE_PANEL =
    "@container min-h-64 min-w-0 flex-1 overflow-auto rounded-xl border border-viewerborder bg-viewerwhite [scrollbar-gutter:stable]";
 
-// below md each row becomes a card so the row actions stay on screen instead of past a horizontal scroll
+// in a narrow panel each row becomes a card so the row actions stay on screen instead of past a horizontal scroll
 const STACKED_TABLE =
-   "md:min-w-[640px] md:table-fixed max-md:block max-md:[&_thead]:hidden max-md:[&_tbody]:block max-md:[&_tbody_tr]:flex max-md:[&_tbody_tr]:h-auto max-md:[&_tbody_tr]:flex-col max-md:[&_tbody_tr]:gap-1 max-md:[&_tbody_tr]:px-4 max-md:[&_tbody_tr]:py-3 max-md:[&_td]:block max-md:[&_td]:h-auto max-md:[&_td]:p-0 max-md:[&_td]:text-left";
+   "@min-[40rem]:min-w-[640px] @min-[40rem]:table-fixed @max-[40rem]:block @max-[40rem]:[&_thead]:hidden @max-[40rem]:[&_tbody]:block @max-[40rem]:[&_tbody_tr]:flex @max-[40rem]:[&_tbody_tr]:h-auto @max-[40rem]:[&_tbody_tr]:flex-col @max-[40rem]:[&_tbody_tr]:gap-1 @max-[40rem]:[&_tbody_tr]:px-4 @max-[40rem]:[&_tbody_tr]:py-3 @max-[40rem]:[&_td]:block @max-[40rem]:[&_td]:h-auto @max-[40rem]:[&_td]:p-0 @max-[40rem]:[&_td]:text-left";
 
 const STACKED_LABEL =
-   "max-md:before:mr-2 max-md:before:text-viewerlighttext max-md:before:content-[attr(data-label)]";
+   "@max-[40rem]:before:mr-2 @max-[40rem]:before:text-viewerlighttext @max-[40rem]:before:content-[attr(data-label)]";
 
 const EMPTY_NOTICE = "py-12";
 

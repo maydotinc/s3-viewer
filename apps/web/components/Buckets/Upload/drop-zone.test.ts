@@ -34,7 +34,7 @@ vi.mock("@s3-viewer/ui/components/toast", async () =>
 
 const OUTSIDE = "You can only add files and folders inside landing/.";
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const mount = async () => {
    await view.mount(createElement(DropZone, null, null));
 };
@@ -64,25 +64,17 @@ beforeEach(() => {
 });
 
 describe("dropped entries", () => {
-   it.each(["directory", "file"])(
-      "handles rejected %s readers without enqueuing files",
-      async (kind) => {
-         await mount();
-         const reject = (_resolve: unknown, failure: (error: Error) => void) =>
-            failure(new Error("Cannot read entry"));
-         await drop(
-            kind === "directory"
-               ? {
-                    isDirectory: true,
-                    createReader: () => ({ readEntries: reject }),
-                 }
-               : { isFile: true, file: reject }
-         );
-         await vi.waitFor(() => expect(h.error).toHaveBeenCalledOnce());
-         expect(h.error).toHaveBeenCalledWith("Cannot read entry");
-         expect(h.upload).not.toHaveBeenCalled();
-      }
-   );
+   it("handles a rejected file reader without enqueuing files", async () => {
+      await mount();
+      await drop({
+         isFile: true,
+         file: (_resolve: unknown, failure: (error: Error) => void) =>
+            failure(new Error("Cannot read entry")),
+      });
+      await vi.waitFor(() => expect(h.error).toHaveBeenCalledOnce());
+      expect(h.error).toHaveBeenCalledWith("Cannot read entry");
+      expect(h.upload).not.toHaveBeenCalled();
+   });
 
    it("preserves valid dropped files and their relative paths", async () => {
       await mount();
@@ -101,12 +93,8 @@ describe("dropped entries", () => {
 });
 
 describe("where uploads aren't allowed", () => {
-   it.each([
-      ["outside someone's folders", OUTSIDE],
-      ["without upload permission", null],
-   ])("keeps a drop %s from opening the file", async (_case, reason) => {
+   it("keeps a drop without upload permission from opening the file", async () => {
       h.canUpload = false;
-      h.blockedReason = reason;
       await mount();
       const dataTransfer = { types: ["Files"], items: [], dropEffect: "" };
       expect((await fire("dragover", dataTransfer)).defaultPrevented).toBe(

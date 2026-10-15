@@ -13,6 +13,7 @@ import {
    describeError,
    normalizeEmail,
    type AccountSummary,
+   type AuditEntry,
 } from "@s3-viewer/types";
 
 const accountSummary = async (
@@ -58,7 +59,7 @@ const accountSummary = async (
    };
 };
 
-type Departure = { serverId: string; audit: AuditScope; sentInvites: string[] };
+type Departure = { serverId: string; audit: AuditScope; entries: AuditEntry[] };
 type DeletionStash = { ids: string[]; departures: Departure[]; at: number };
 
 const ACCOUNT_DELETED = "account_deleted";
@@ -98,18 +99,36 @@ const departuresOf = async (userId: string): Promise<Departure[]> => {
    return memberships.map(({ serverId, server }) => ({
       serverId,
       audit: auditScopeOf(server),
-      sentInvites: server.pendingInvitations.map((invite) => invite.email),
+      entries: [
+         { action: "server.leave", detail: { reason: ACCOUNT_DELETED } },
+         ...server.pendingInvitations.map((invite) =>
+            inviteRevoked(invite.email, ACCOUNT_DELETED)
+         ),
+      ],
    }));
 };
 
 const eraseAccountData = async (user: DeletedUser): Promise<void> => {
    const owned = await prisma.server.findMany({
       where: { ownerId: user.id },
-      select: { id: true },
+      select: { id: true, name: true, ...auditScopeSelect },
    });
-   const ownedServerIds = owned.map((server) => server.id);
-   const departures = await departuresOf(user.id);
-   stashDeletion(user.id, ownedServerIds, departures);
+   // written whether or not the server audits, like an explicit DELETE /servers/:id.
+   const deletions: Departure[] = owned.map((server) => ({
+      serverId: server.id,
+      audit: { ...auditScopeOf(server), enabled: true },
+      entries: [
+         {
+            action: "server.delete",
+            detail: { name: server.name, reason: ACCOUNT_DELETED },
+         },
+      ],
+   }));
+   stashDeletion(
+      user.id,
+      owned.map((server) => server.id),
+      [...deletions, ...(await departuresOf(user.id))]
+   );
 };
 
 // invites are keyed by address, so they survive the user cascade and are cleared only once the account is really gone.
@@ -125,17 +144,12 @@ const recordDepartures = (
    departures: readonly Departure[]
 ): Promise<void[]> =>
    Promise.all(
-      departures.map(({ serverId, audit, sentInvites }) =>
+      departures.map(({ serverId, audit, entries }) =>
          writeAudits({
             serverId,
             actor: { id: user.id, email: user.email },
             audit,
-            entries: [
-               { action: "server.leave", detail: { reason: ACCOUNT_DELETED } },
-               ...sentInvites.map((email) =>
-                  inviteRevoked(email, ACCOUNT_DELETED)
-               ),
-            ],
+            entries,
          })
       )
    );

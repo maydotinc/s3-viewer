@@ -72,7 +72,7 @@ const BucketActionsMenu = ({ bucketName }: { bucketName: string }) => {
                   </Button>
                </DropdownMenuTrigger>
             </SimpleTooltip>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" className="w-56">
                <DropdownMenuItem
                   variant="destructive"
                   onSelect={() => setConfirming(true)}

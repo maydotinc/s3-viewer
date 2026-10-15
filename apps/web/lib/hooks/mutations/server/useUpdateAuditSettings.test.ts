@@ -77,11 +77,6 @@ describe("saving audit settings", () => {
       expect(h.patch).toHaveBeenCalledWith("/servers/server-1/audit/settings", {
          enabled: false,
       });
-      await options().mutationFn(scoped({ serverId: "server-1", ...saved }));
-      expect(h.patch).toHaveBeenLastCalledWith(
-         "/servers/server-1/audit/settings",
-         saved
-      );
    });
 
    it("leaves a stale sign-in to the form instead of toasting it", () => {

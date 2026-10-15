@@ -25,10 +25,6 @@ const SYSTEM_ACTOR = { id: "system", email: "system" };
 const daysBefore = (now: Date, days: number): Date =>
    new Date(now.getTime() - days * DAY_MS);
 
-// no retention setting may shorten the log below the floor; 0 still means forever.
-const retentionFloor = (days: number): number =>
-   days === 0 ? 0 : Math.max(days, env.AUDIT_RETENTION_MIN_DAYS);
-
 // a recursive seek avoids scanning every row for DISTINCT serverId, and only servers with
 // something past the cutoff come back, so recent churn costs the sweep no DELETE round trips.
 const orphanedServerIds = (cutoff: string): Promise<{ serverId: string }[]> =>
@@ -103,33 +99,43 @@ const pruneExpired = (table: Prisma.Sql, now: Date): Promise<number> =>
          )`
    );
 
-const serverPage = (
-   after: string | undefined
-): Promise<{ id: string; auditRetentionDays: number }[]> =>
-   prisma.server.findMany({
-      where:
-         env.AUDIT_RETENTION_DAYS === 0
-            ? { auditRetentionDays: { gt: 0 } }
-            : {},
-      select: { id: true, auditRetentionDays: true },
-      orderBy: { id: "asc" },
-      take: SERVER_PAGE,
-      ...(after ? { cursor: { id: after }, skip: 1 } : {}),
-   });
+// a server's own retention, or the instance default when it is 0, raised to the floor; 0 after
+// that still means forever. only servers with an expired row come back, one query per page.
+const expiredServerPage = (
+   now: Date,
+   after: string
+): Promise<{ id: string; seq: number }[]> => {
+   const instanceDays = env.AUDIT_RETENTION_DAYS;
+   return prisma.$queryRaw<{ id: string; seq: number }[]>`
+      SELECT s."id", newest."seq" FROM "server" s
+      CROSS JOIN LATERAL (
+         SELECT "seq" FROM "audit_log"
+         WHERE "serverId" = s."id"
+           AND "createdAt" < ${now.toISOString()}::timestamp - make_interval(
+              days => GREATEST(
+                 COALESCE(NULLIF(s."auditRetentionDays", 0), ${instanceDays}::int),
+                 ${env.AUDIT_RETENTION_MIN_DAYS}::int
+              )
+           )
+         ORDER BY "createdAt" DESC, "seq" DESC
+         LIMIT 1
+      ) newest
+      WHERE s."id" > ${after}
+        AND COALESCE(NULLIF(s."auditRetentionDays", 0), ${instanceDays}::int) > 0
+      ORDER BY s."id"
+      LIMIT ${SERVER_PAGE}`;
+};
 
-const pruneServer = async (serverId: string, cutoff: Date): Promise<number> => {
-   const [newestExpired] = await prisma.$queryRaw<{ seq: number }[]>`
-      SELECT "seq" FROM "audit_log"
-      WHERE "serverId" = ${serverId} AND "createdAt" < ${cutoff.toISOString()}::timestamp
-      ORDER BY "createdAt" DESC, "seq" DESC
-      LIMIT 1`;
-   if (!newestExpired) return 0;
+const pruneServer = async (
+   serverId: string,
+   newestExpired: number
+): Promise<number> => {
    const removed = await deleteBatches(async (limit) => {
       const [batch] = await prisma.$queryRaw<{ count: number }[]>`
          WITH deleted AS (
             DELETE FROM "audit_log" WHERE "id" IN (
                SELECT "id" FROM "audit_log"
-               WHERE "serverId" = ${serverId} AND "seq" <= ${newestExpired.seq}
+               WHERE "serverId" = ${serverId} AND "seq" <= ${newestExpired}
                ORDER BY "seq"
                LIMIT ${limit}
             )
@@ -145,7 +151,7 @@ const pruneServer = async (serverId: string, cutoff: Date): Promise<number> => {
          SELECT COUNT(*)::int AS count FROM deleted`;
       return batch?.count ?? 0;
    });
-   if (removed > 0) await recordPrune(serverId, newestExpired.seq, removed);
+   if (removed > 0) await recordPrune(serverId, newestExpired, removed);
    return removed;
 };
 
@@ -174,18 +180,13 @@ const recordPrune = async (
 
 const pruneAuditLog = async (now: Date): Promise<number> => {
    let total = 0;
-   let after: string | undefined;
+   let after = "";
    for (;;) {
-      const servers = await serverPage(after);
-      for (const { id, auditRetentionDays } of servers) {
-         const days = retentionFloor(
-            auditRetentionDays || env.AUDIT_RETENTION_DAYS
-         );
-         if (days === 0) continue;
-         total += await pruneServer(id, daysBefore(now, days));
-      }
-      after = servers.at(-1)?.id;
-      if (servers.length < SERVER_PAGE || !after) return total;
+      const servers = await expiredServerPage(now, after);
+      for (const { id, seq } of servers) total += await pruneServer(id, seq);
+      const last = servers.at(-1)?.id;
+      if (servers.length < SERVER_PAGE || last === undefined) return total;
+      after = last;
    }
 };
 

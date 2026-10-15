@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 import { act, createElement, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mountedRuntime } from "@/components/test-helpers";
+import {
+   mountedRuntime,
+   submitForm,
+   typeInto,
+} from "@/components/test-helpers";
 import { deferred } from "@/lib/test/runtime";
 import ConnectModal from "./index";
 
@@ -78,25 +82,14 @@ const Probe = () => {
    };
    return createElement(ConnectModal, { onClose: h.close });
 };
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const input = (id: string) =>
    view.current.container.querySelector<HTMLInputElement>(`#${id}`)!;
 const type = async (id: string, value: string) =>
-   act(async () => {
-      const field = input(id);
-      Object.getOwnPropertyDescriptor(
-         HTMLInputElement.prototype,
-         "value"
-      )!.set!.call(field, value);
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-   });
+   act(async () => typeInto(input(id), value));
 const submit = async () =>
    act(async () => {
-      view.current.container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         );
+      submitForm(view.current.container);
    });
 const open = async () => {
    await view.mount(createElement(Probe));

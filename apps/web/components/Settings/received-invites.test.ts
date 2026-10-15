@@ -2,12 +2,15 @@
 import { api } from "@/lib/api";
 import { flushRuntime } from "@/lib/test/runtime";
 import { Role, type ServerInvite } from "@s3-viewer/types";
-import { act, createElement } from "react";
+import { act, createElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { mountedRuntime } from "@/components/test-helpers";
 import ReceivedInvites from "./received-invites";
 
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user" }));
+vi.mock("@s3-viewer/ui/components/tooltip", () => ({
+   SimpleTooltip: ({ children }: { children: ReactNode }) => children,
+}));
 vi.mock("@/lib/api", async (original) => ({
    ...(await original<typeof import("@/lib/api")>()),
    api: { get: vi.fn() },
@@ -19,7 +22,7 @@ vi.mock("@/lib/hooks/mutations/invites/useRejectInvite", () => ({
    default: () => ({ isPending: false, mutate: vi.fn() }),
 }));
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 
 describe("received invites with a filtered first page", () => {
    it.each([true, false])(

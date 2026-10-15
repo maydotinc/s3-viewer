@@ -114,7 +114,7 @@ describe("contentDispositionFilename", () => {
       expect(result).toBe(
          `attachment; filename="evilname.txt"; filename*=UTF-8''evilname.txt`
       );
-      // eslint-disable-next-line no-control-regex
+      // eslint-disable-next-line no-control-regex -- asserting that no control character survives
       expect(/[\x00-\x1f\x7f]/.test(result)).toBe(false);
    });
 

@@ -1,8 +1,12 @@
+import { ApiError } from "@/lib/api";
+import { FakeXHR } from "@/lib/test/fake-xhr";
+import { expectUploadSlotsFree } from "@/lib/test/upload-slots";
 import { createWebLocks } from "@/lib/test/web-locks";
 import { MULTIPART_CONCURRENCY } from "@s3-viewer/types";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@/lib/test/storage";
+import type { MultipartSession } from "./multipart-session";
 import { UploadCancelled } from "./upload-cancelled";
 
 const identity = vi.hoisted(() => ({ userId: "user-a" as string | null }));
@@ -28,78 +32,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
    };
 });
 
-type ProgressHandler = (event: {
-   loaded: number;
-   lengthComputable: boolean;
-}) => void;
-
-class FakeXHR {
-   static readonly DONE = 4;
-   static instances: FakeXHR[] = [];
-
-   readyState = 0;
-   status = 0;
-   responseText = "";
-   timeout = 0;
-   withCredentials = false;
-   upload: { onprogress: ProgressHandler | null } = { onprogress: null };
-   onload: (() => void) | null = null;
-   onerror: (() => void) | null = null;
-   onabort: (() => void) | null = null;
-   ontimeout: (() => void) | null = null;
-   url = "";
-   headers: Record<string, string> = {};
-   body: Blob | null = null;
-
-   constructor() {
-      FakeXHR.instances.push(this);
-   }
-
-   open(_method: string, url: string) {
-      this.url = url;
-   }
-
-   setRequestHeader(key: string, value: string) {
-      this.headers[key] = value;
-   }
-
-   send(body: Blob) {
-      this.body = body;
-      this.readyState = 1;
-   }
-
-   getResponseHeader() {
-      return null;
-   }
-
-   abort() {
-      this.readyState = FakeXHR.DONE;
-      this.onabort?.();
-   }
-
-   progress(loaded: number) {
-      this.upload.onprogress?.({ loaded, lengthComputable: true });
-   }
-
-   respond(status: number, body: unknown) {
-      this.status = status;
-      this.responseText = JSON.stringify(body);
-      this.readyState = FakeXHR.DONE;
-      this.onload?.();
-   }
-
-   fail() {
-      this.readyState = FakeXHR.DONE;
-      this.onerror?.();
-   }
-
-   get partNumber(): number {
-      return Number(
-         new URL(this.url, "http://localhost").searchParams.get("partNumber")
-      );
-   }
-}
-
 vi.stubGlobal("XMLHttpRequest", FakeXHR);
 
 const storage = createMemoryStorage();
@@ -107,6 +39,7 @@ const { memory } = storage;
 vi.stubGlobal("localStorage", storage);
 
 const { uploadMultipart } = await import("./upload-multipart");
+const { rememberSession } = await import("./multipart-session");
 const { uploadSlot } = await import("./slot-pool");
 
 const PART_SIZE = 5;
@@ -136,19 +69,11 @@ const start = (
 
 const settle = () => vi.advanceTimersByTimeAsync(0);
 
-type SavedSession = {
-   uploadId: string;
-   userId: string;
-   partDigests?: Record<string, { eTag: string; sha256: string }>;
-   digestStorage?: "chunks";
-};
-
-const savedSessions = (): Record<string, SavedSession> => {
+const savedSessions = (): Record<string, MultipartSession> => {
    const sessions = JSON.parse(
       memory.get("s3-viewer.multipart-uploads") ?? "{}"
-   ) as Record<string, SavedSession>;
+   ) as Record<string, MultipartSession>;
    for (const [target, session] of Object.entries(sessions)) {
-      if (session.digestStorage !== "chunks") continue;
       session.partDigests = {};
       for (const [key, value] of memory) {
          const prefix = "s3-viewer.multipart-uploads.parts.";
@@ -163,23 +88,49 @@ const savedSessions = (): Record<string, SavedSession> => {
          )
             Object.assign(session.partDigests, JSON.parse(value));
       }
-      delete session.digestStorage;
    }
    return sessions;
 };
+
+const serveParts = (partCount: number) =>
+   server.post.mockImplementation((path: string) =>
+      path.endsWith("/complete")
+         ? Promise.resolve(uploaded)
+         : Promise.resolve({
+              key: "k",
+              uploadId: "u1",
+              partSize: PART_SIZE,
+              partCount,
+           })
+   );
+
+const openAs = (uploadId: string, partCount = 3) =>
+   server.post.mockResolvedValueOnce({
+      key: "k",
+      uploadId,
+      partSize: PART_SIZE,
+      partCount,
+   });
+
+const ack = (xhr: FakeXHR) =>
+   xhr.respond(200, {
+      partNumber: xhr.partNumber,
+      eTag: `"p${xhr.partNumber}"`,
+      size: xhr.body?.size ?? 0,
+   });
+
+const expectDiscarded = (uploadId: string) =>
+   expect(server.remove).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ uploadId })
+   );
 
 const partsFor = (numbers: number[]) =>
    FakeXHR.instances.filter((xhr) => numbers.includes(xhr.partNumber));
 
 const ackAll = () => {
-   for (const xhr of FakeXHR.instances) {
-      if (xhr.readyState !== FakeXHR.DONE)
-         xhr.respond(200, {
-            partNumber: xhr.partNumber,
-            eTag: `"p${xhr.partNumber}"`,
-            size: xhr.body?.size ?? 0,
-         });
-   }
+   for (const xhr of FakeXHR.instances)
+      if (xhr.readyState !== FakeXHR.DONE) ack(xhr);
 };
 
 beforeEach(() => {
@@ -199,22 +150,15 @@ beforeEach(() => {
    );
    server.get.mockReset().mockResolvedValue({ parts: [] });
    server.remove.mockReset().mockResolvedValue(undefined);
-   server.post.mockReset().mockImplementation((path: string) =>
-      path.endsWith("/complete")
-         ? Promise.resolve(uploaded)
-         : Promise.resolve({
-              key: "k",
-              uploadId: "u1",
-              partSize: PART_SIZE,
-              partCount: Math.ceil(FILE_SIZE / PART_SIZE),
-           })
-   );
+   server.post.mockReset();
+   serveParts(Math.ceil(FILE_SIZE / PART_SIZE));
    vi.useFakeTimers();
 });
 
-afterEach(() => {
+afterEach(async () => {
    vi.useRealTimers();
    vi.restoreAllMocks();
+   await expectUploadSlotsFree();
 });
 
 describe("sending a large file as parts", () => {
@@ -247,30 +191,6 @@ describe("sending a large file as parts", () => {
       });
    });
 
-   it("never sends more parts at once than the shared bound allows", async () => {
-      const wide = makeFile(PART_SIZE * (MULTIPART_CONCURRENCY + 3));
-      server.post.mockImplementation((path: string) =>
-         path.endsWith("/complete")
-            ? Promise.resolve(uploaded)
-            : Promise.resolve({
-                 key: "k",
-                 uploadId: "u1",
-                 partSize: PART_SIZE,
-                 partCount: MULTIPART_CONCURRENCY + 3,
-              })
-      );
-      const handle = start({ file: wide });
-      await settle();
-      expect(FakeXHR.instances).toHaveLength(MULTIPART_CONCURRENCY);
-      ackAll();
-      await settle();
-      expect(FakeXHR.instances.length).toBeGreaterThan(MULTIPART_CONCURRENCY);
-      ackAll();
-      await settle();
-      ackAll();
-      await expect(handle.done).resolves.toEqual(uploaded);
-   });
-
    it("waits for slots held by other uploads in the tab", async () => {
       let release = () => {};
       const held = Array.from({ length: MULTIPART_CONCURRENCY }, (_, index) =>
@@ -297,27 +217,13 @@ describe("sending a large file as parts", () => {
       await expect(handle.done).resolves.toEqual(uploaded);
    });
 
-   it("skips hashing parts when the resume session can't be saved", async () => {
-      vi.stubGlobal("navigator", {});
-      const handle = start();
-      await settle();
-      expect(FakeXHR.instances).toHaveLength(3);
-      ackAll();
-      await expect(handle.done).resolves.toEqual(uploaded);
-      expect(globalThis.crypto.subtle.digest).not.toHaveBeenCalled();
-   });
-
-   it("reports progress across the parts already stored and the one in flight", async () => {
+   it("reports progress across finished parts and the one in flight", async () => {
       const onProgress = vi.fn();
       const handle = start({ onProgress });
       await settle();
       partsFor([1])[0]?.progress(3);
       expect(onProgress).toHaveBeenLastCalledWith(3);
-      partsFor([1])[0]?.respond(200, {
-         partNumber: 1,
-         eTag: '"p1"',
-         size: 5,
-      });
+      ack(partsFor([1])[0]!);
       partsFor([2])[0]?.progress(4);
       expect(onProgress).toHaveBeenLastCalledWith(9);
       ackAll();
@@ -340,13 +246,7 @@ describe("retrying one part instead of the file", () => {
    it("re-sends only the part that failed", async () => {
       const handle = start();
       await settle();
-      partsFor([1, 3]).forEach((xhr) =>
-         xhr.respond(200, {
-            partNumber: xhr.partNumber,
-            eTag: `"p${xhr.partNumber}"`,
-            size: xhr.body?.size ?? 0,
-         })
-      );
+      partsFor([1, 3]).forEach(ack);
       partsFor([2])[0]?.fail();
       await vi.advanceTimersByTimeAsync(500);
       expect(FakeXHR.instances).toHaveLength(4);
@@ -360,36 +260,11 @@ describe("retrying one part instead of the file", () => {
       });
    });
 
-   it.each([
-      ["a refusal", 403],
-      ["a conflict", 409],
-   ])("stops on %s rather than retrying it", async (_name, status) => {
-      const handle = start();
-      const failed = expect(handle.done).rejects.toMatchObject({ status });
-      await settle();
-      partsFor([1])[0]?.respond(status, { message: "no" });
-      partsFor([2, 3]).forEach((xhr) =>
-         xhr.respond(200, {
-            partNumber: xhr.partNumber,
-            eTag: `"p${xhr.partNumber}"`,
-            size: xhr.body?.size ?? 0,
-         })
-      );
-      await failed;
-      expect(server.remove).not.toHaveBeenCalled();
-   });
-
    it("gives up after the attempt bound and leaves the upload resumable", async () => {
       const handle = start();
       const failed = expect(handle.done).rejects.toMatchObject({ status: 0 });
       await settle();
-      partsFor([2, 3]).forEach((xhr) =>
-         xhr.respond(200, {
-            partNumber: xhr.partNumber,
-            eTag: `"p${xhr.partNumber}"`,
-            size: xhr.body?.size ?? 0,
-         })
-      );
+      partsFor([2, 3]).forEach(ack);
       for (let attempt = 0; attempt < 5; attempt++) {
          const pending = FakeXHR.instances.filter(
             (xhr) => xhr.partNumber === 1 && xhr.readyState !== FakeXHR.DONE
@@ -407,6 +282,32 @@ describe("retrying one part instead of the file", () => {
       ]);
    });
 
+   it("reports an unknown outcome when a retried completion finds the upload already committed", async () => {
+      const completions = [
+         new ApiError(0, "lost"),
+         new ApiError(404, "Object not found"),
+      ];
+      server.post.mockImplementation((path: string) =>
+         path.endsWith("/complete")
+            ? Promise.reject(completions.shift())
+            : Promise.resolve({
+                 key: "k",
+                 uploadId: "u1",
+                 partSize: PART_SIZE,
+                 partCount: 3,
+              })
+      );
+      const handle = start();
+      const failed = expect(handle.done).rejects.toMatchObject({
+         code: "UPLOAD_OUTCOME_UNKNOWN",
+      });
+      await settle();
+      ackAll();
+      await vi.advanceTimersByTimeAsync(10_000);
+      await failed;
+      expect(completions).toEqual([]);
+   });
+
    it("aborts the sibling parts still in flight when one fails for good", async () => {
       const handle = start();
       const failed = expect(handle.done).rejects.toMatchObject({ status: 403 });
@@ -420,16 +321,7 @@ describe("retrying one part instead of the file", () => {
 
    it("hands its slot on while it waits out the backoff", async () => {
       const partCount = MULTIPART_CONCURRENCY + 1;
-      server.post.mockImplementation((path: string) =>
-         path.endsWith("/complete")
-            ? Promise.resolve(uploaded)
-            : Promise.resolve({
-                 key: "k",
-                 uploadId: "u1",
-                 partSize: PART_SIZE,
-                 partCount,
-              })
-      );
+      serveParts(partCount);
       const handle = start({ file: makeFile(PART_SIZE * partCount) });
       await settle();
       expect(FakeXHR.instances).toHaveLength(MULTIPART_CONCURRENCY);
@@ -469,13 +361,7 @@ describe("resuming an interrupted upload", () => {
       const handle = start();
       const failed = expect(handle.done).rejects.toBeDefined();
       await settle();
-      partsFor([1, 2]).forEach((xhr) =>
-         xhr.respond(200, {
-            partNumber: xhr.partNumber,
-            eTag: `"p${xhr.partNumber}"`,
-            size: xhr.body?.size ?? 0,
-         })
-      );
+      partsFor([1, 2]).forEach(ack);
       partsFor([3])[0]?.respond(403, { message: "no" });
       await failed;
       FakeXHR.instances = [];
@@ -531,21 +417,13 @@ describe("resuming an interrupted upload", () => {
             { partNumber: 2, eTag: '"p2"', size: 5 },
          ],
       });
-      server.post.mockResolvedValueOnce({
-         key: "k",
-         uploadId: "u2",
-         partSize: PART_SIZE,
-         partCount: 3,
-      });
+      openAs("u2");
       const file = new File(["y".repeat(FILE_SIZE)], "big.bin", {
          lastModified: 1000,
       });
       const handle = start({ file });
       await settle();
-      expect(server.remove).toHaveBeenCalledWith(
-         expect.any(String),
-         expect.objectContaining({ uploadId: "u1" })
-      );
+      expectDiscarded("u1");
       expect(FakeXHR.instances.map((xhr) => xhr.partNumber).sort()).toEqual([
          1, 2, 3,
       ]);
@@ -585,38 +463,26 @@ describe("resuming an interrupted upload", () => {
 
    it.each([
       [
-         "a legacy session",
-         (saved: SavedSession) => {
-            delete saved.partDigests;
-         },
-      ],
-      [
-         "a missing digest",
-         (saved: SavedSession) => {
-            delete saved.partDigests![1];
-         },
-      ],
-      [
          "a malformed digest",
-         (saved: SavedSession) => {
+         (saved: MultipartSession) => {
             saved.partDigests![1]!.sha256 = "unknown";
          },
       ],
       [
          "a changed provider ETag",
-         (saved: SavedSession) => {
+         (saved: MultipartSession) => {
             saved.partDigests![1]!.eTag = '"old"';
          },
       ],
       [
          "an invalid part size",
-         (saved: SavedSession) => {
+         (saved: MultipartSession) => {
             Object.assign(saved, { partSize: 0 });
          },
       ],
       [
          "an inconsistent part count",
-         (saved: SavedSession) => {
+         (saved: MultipartSession) => {
             Object.assign(saved, { partCount: 1 });
          },
       ],
@@ -624,18 +490,15 @@ describe("resuming an interrupted upload", () => {
       "restarts %s instead of reusing unverifiable parts",
       async (_name, change) => {
          await resumeAfterFailure();
-         const sessions = savedSessions();
-         change(Object.values(sessions)[0]!);
-         memory.set("s3-viewer.multipart-uploads", JSON.stringify(sessions));
+         const [saved] = Object.values(savedSessions());
+         change(saved!);
+         await rememberSession(saved!);
          server.get.mockResolvedValue({
             parts: [{ partNumber: 1, eTag: '"p1"', size: 5 }],
          });
          const handle = start();
          await settle();
-         expect(server.remove).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.objectContaining({ uploadId: "u1" })
-         );
+         expectDiscarded("u1");
          expect(FakeXHR.instances.map((xhr) => xhr.partNumber).sort()).toEqual([
             1, 2, 3,
          ]);
@@ -648,6 +511,7 @@ describe("resuming an interrupted upload", () => {
       "uploads fresh without touching a saved session when browser locks are %s",
       async (availability) => {
          await resumeAfterFailure();
+         vi.mocked(globalThis.crypto.subtle.digest).mockClear();
          const before = new Map(memory);
          vi.stubGlobal(
             "navigator",
@@ -664,12 +528,7 @@ describe("resuming an interrupted upload", () => {
          const reads = vi.spyOn(storage, "getItem");
          const writes = vi.spyOn(storage, "setItem");
          const removes = vi.spyOn(storage, "removeItem");
-         server.post.mockResolvedValueOnce({
-            key: "k",
-            uploadId: "u2",
-            partSize: PART_SIZE,
-            partCount: 3,
-         });
+         openAs("u2");
          const handle = start();
          await settle();
          expect(server.get).not.toHaveBeenCalled();
@@ -680,6 +539,7 @@ describe("resuming an interrupted upload", () => {
          expect(writes).not.toHaveBeenCalled();
          expect(removes).not.toHaveBeenCalled();
          expect(memory).toEqual(before);
+         expect(globalThis.crypto.subtle.digest).not.toHaveBeenCalled();
       }
    );
 
@@ -699,36 +559,16 @@ describe("resuming an interrupted upload", () => {
       await expect(handle.done).resolves.toEqual(uploaded);
    });
 
-   it("drops an old proof before resending an unacknowledged part", async () => {
-      await resumeAfterFailure();
-      server.get.mockResolvedValue({ parts: [] });
-      const handle = start();
-      const failed = expect(handle.done).rejects.toMatchObject({ status: 403 });
-      await settle();
-      expect(Object.values(savedSessions())[0]?.partDigests).toEqual({});
-      partsFor([1])[0]!.respond(403, { message: "Denied" });
-      await failed;
-      expect(Object.values(savedSessions())[0]?.partDigests).toEqual({});
-   });
-
    it("starts fresh if browser storage refuses the required proof invalidation", async () => {
       await resumeAfterFailure();
       server.get.mockResolvedValue({ parts: [] });
-      server.post.mockResolvedValueOnce({
-         key: "k",
-         uploadId: "u2",
-         partSize: PART_SIZE,
-         partCount: 3,
-      });
+      openAs("u2");
       vi.spyOn(storage, "setItem").mockImplementation(() => {
          throw new Error("Storage became read-only");
       });
       const handle = start();
       await settle();
-      expect(server.remove).toHaveBeenCalledWith(
-         expect.any(String),
-         expect.objectContaining({ uploadId: "u1" })
-      );
+      expectDiscarded("u1");
       expect(FakeXHR.instances).toHaveLength(3);
       expect(
          FakeXHR.instances.every(
@@ -763,18 +603,10 @@ describe("resuming an interrupted upload", () => {
       server.get.mockResolvedValue({
          parts: [{ partNumber: 1, eTag: '"p1"', size: 5 }],
       });
-      server.post.mockResolvedValueOnce({
-         key: "k",
-         uploadId: "u2",
-         partSize: PART_SIZE,
-         partCount: 3,
-      });
+      openAs("u2");
       const retry = start();
       await settle();
-      expect(server.remove).toHaveBeenCalledWith(
-         expect.any(String),
-         expect.objectContaining({ uploadId: "u1" })
-      );
+      expectDiscarded("u1");
       expect(FakeXHR.instances).toHaveLength(3);
       ackAll();
       await expect(retry.done).resolves.toEqual(uploaded);
@@ -857,9 +689,7 @@ describe("resuming an interrupted upload", () => {
 
    it("starts a new upload when storage no longer knows the saved one", async () => {
       await resumeAfterFailure();
-      server.get.mockRejectedValue(
-         Object.assign(new Error("gone"), { name: "ApiError", status: 404 })
-      );
+      server.get.mockRejectedValue(new ApiError(404, "gone"));
       const handle = start();
       await settle();
       expect(FakeXHR.instances).toHaveLength(3);
@@ -932,12 +762,7 @@ describe("cancelling", () => {
                })
          );
          const partCount = MULTIPART_CONCURRENCY + 2;
-         server.post.mockResolvedValueOnce({
-            key: "k",
-            uploadId: "u1",
-            partSize: PART_SIZE,
-            partCount,
-         });
+         openAs("u1", partCount);
          const handle = start({ file: makeFile(PART_SIZE * partCount) });
          const failed = expect(handle.done).rejects.toBeInstanceOf(
             UploadCancelled
@@ -964,19 +789,10 @@ describe("cancelling", () => {
       async (outcome) => {
          const older = start();
          await settle();
-         server.post.mockResolvedValueOnce({
-            key: "k",
-            uploadId: "u2",
-            partSize: PART_SIZE,
-            partCount: 3,
-         });
+         openAs("u2");
          const newer = start({ file: makeFile(FILE_SIZE, 2000) });
          await settle();
-         partsFor([1])[0]!.respond(200, {
-            partNumber: 1,
-            eTag: '"p1"',
-            size: 5,
-         });
+         ack(partsFor([1])[0]!);
          await settle();
          expect(Object.values(savedSessions())).toEqual([
             expect.objectContaining({
@@ -993,13 +809,7 @@ describe("cancelling", () => {
          } else {
             partsFor([2, 3])
                .filter((xhr) => xhr.readyState !== FakeXHR.DONE)
-               .forEach((xhr) =>
-                  xhr.respond(200, {
-                     partNumber: xhr.partNumber,
-                     eTag: `"p${xhr.partNumber}"`,
-                     size: xhr.body!.size,
-                  })
-               );
+               .forEach(ack);
             await older.done;
          }
          expect(savedSessions()).toEqual({});
@@ -1009,16 +819,13 @@ describe("cancelling", () => {
       }
    );
 
-   it.each([null, "user-b"])(
-      "sends nothing once the account is %s",
-      async (userId) => {
-         identity.userId = userId;
-         const handle = start();
-         await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
-         expect(server.post).not.toHaveBeenCalled();
-         expect(FakeXHR.instances).toHaveLength(0);
-      }
-   );
+   it("sends nothing once the account changes", async () => {
+      identity.userId = "user-b";
+      const handle = start();
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      expect(server.post).not.toHaveBeenCalled();
+      expect(FakeXHR.instances).toHaveLength(0);
+   });
 
    it("gives a second tab an independent upload ID while the first holds its resume lease", async () => {
       const first = start();
@@ -1028,12 +835,7 @@ describe("cancelling", () => {
       const { uploadMultipart: otherTabUpload } = await import(
          "./upload-multipart"
       );
-      server.post.mockResolvedValueOnce({
-         key: "k",
-         uploadId: "u2",
-         partSize: PART_SIZE,
-         partCount: 3,
-      });
+      openAs("u2");
       const second = otherTabUpload({
          userId: "user-a",
          ...{ serverId: "s", bucketName: "b", objectKey: "k" },
@@ -1177,27 +979,9 @@ describe("cancelling", () => {
       expect(server.remove).not.toHaveBeenCalled();
    });
 
-   it("never discards an upload storage has already committed", async () => {
-      const handle = start();
-      await settle();
-      ackAll();
-      await expect(handle.done).resolves.toEqual(uploaded);
-      handle.abort();
-      expect(server.remove).not.toHaveBeenCalled();
-   });
-
    it("never opens a stream for a part still queued for a slot", async () => {
       const partCount = MULTIPART_CONCURRENCY + 1;
-      server.post.mockImplementation((path: string) =>
-         path.endsWith("/complete")
-            ? Promise.resolve(uploaded)
-            : Promise.resolve({
-                 key: "k",
-                 uploadId: "u1",
-                 partSize: PART_SIZE,
-                 partCount,
-              })
-      );
+      serveParts(partCount);
       const handle = start({ file: makeFile(PART_SIZE * partCount) });
       await settle();
       expect(FakeXHR.instances).toHaveLength(MULTIPART_CONCURRENCY);

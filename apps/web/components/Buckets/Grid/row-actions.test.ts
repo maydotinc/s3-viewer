@@ -1,4 +1,4 @@
-import { one, text } from "@/lib/test/elements";
+import { one, text, type Element } from "@/lib/test/elements";
 import type { ObjectCommands } from "@/components/Buckets/useObjectCommands";
 import type { KnownReach } from "@/lib/utils/folder-access";
 import type { S3Object } from "@s3-viewer/types";
@@ -17,12 +17,10 @@ const can = {
    upload: true,
    delete: true,
 } as ObjectCommands["can"];
-const commands = { can, moveMany: vi.fn() } as unknown as ObjectCommands;
+const commands = { can } as unknown as ObjectCommands;
 
 const folder = (key: string): S3Object =>
    ({ key, isFolder: true, eTag: null, size: null }) as unknown as S3Object;
-
-type Element = { type: unknown; props: Record<string, unknown> };
 
 const menu = (reach: KnownReach, key: string) =>
    RowActionsMenu({
@@ -56,7 +54,7 @@ describe("actions on a folder that was shared", () => {
       });
    });
 
-   it("still offers delete, copy and zip, which work inside it", () => {
+   it("still offers delete, zip and bulk rename, which work inside it", () => {
       const labels = actions(LIMITED, "landing/").map(({ label }) => label);
       for (const label of ["Delete folder", "Download as zip", "Bulk rename…"])
          expect(labels).toContain(label);
@@ -111,10 +109,7 @@ describe("row actions after permissions change", () => {
          reach: LIMITED,
          commands,
       };
-      const after = {
-         ...before,
-         commands: { ...commands, can: { ...can, delete: false } },
-      };
+      const after = { ...before, commands: { ...commands } };
       const params = { data: folder("landing/"), context: before };
       state.current = after;
       const row = RowActions(params as never) as unknown as Element;

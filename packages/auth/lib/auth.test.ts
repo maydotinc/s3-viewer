@@ -669,6 +669,22 @@ describe("revoked sessions", () => {
 });
 
 describe("sign-up policy", () => {
+   it.each([
+      ["closed", true],
+      ["invite", false],
+   ] as const)(
+      "sets better auth's own sign-up switches in %s mode",
+      async (mode, disabled) => {
+         policy.mode = mode;
+         vi.resetModules();
+         const { auth } = await import("./auth");
+         expect(auth.options.emailAndPassword?.disableSignUp).toBe(disabled);
+         expect(auth.options.socialProviders?.github?.disableSignUp).toBe(
+            disabled
+         );
+      }
+   );
+
    it("refuses every sign-up when the instance is closed", async () => {
       policy.mode = "closed";
       const { db, rawSignUp } = createTestAuth();

@@ -142,7 +142,6 @@ describe("authGuard", () => {
          }
       });
       const result = await runGuard();
-      expect(asBetterAuthFailure().cause).toBeUndefined();
       expect(result.status).toBe(503);
       expect(result.headers).toEqual({ "Retry-After": "2" });
       expect(result.body).toEqual({

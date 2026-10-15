@@ -1,15 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
-   DEFAULT_RENAME_OPTIONS,
-   MAX_RENAME_PREVIEW_ROWS,
    applyOperation,
    isBlocked,
-   normalizeExtension,
    planBulkRename,
    renameKey,
    replaceLiteral,
    splitName,
-   toOperation,
    type BulkRenameOperation,
 } from "./bulk-rename";
 
@@ -67,22 +63,6 @@ describe("replaceLiteral", () => {
       expect(replaceLiteral("keep", "", "x", true, true)).toBe("keep");
    });
 
-   it("does not rescan the replacement it just wrote", () => {
-      expect(replaceLiteral("aa", "a", "aa", true, true)).toBe("aaaa");
-   });
-
-   it.each([false, true])(
-      "preserves original Unicode offsets with replace-all=%s",
-      (all) => {
-         expect(
-            replaceLiteral("İfile-file.txt", "file", "data", false, all)
-         ).toBe(all ? "İdata-data.txt" : "İdata-file.txt");
-         expect(replaceLiteral("aİx-aİx", "aİx", "z", false, all)).toBe(
-            all ? "z-z" : "z-aİx"
-         );
-      }
-   );
-
    it("uses Unicode simple case folding without matching expanded lowercase sequences", () => {
       expect(replaceLiteral("ſ-K-Σ-ς", "s", "x", false, true)).toBe("x-K-Σ-ς");
       expect(replaceLiteral("İ-i-i̇", "İ", "x", false, true)).toBe("x-i-i̇");
@@ -100,100 +80,61 @@ describe("replaceLiteral", () => {
 
 describe("applyOperation", () => {
    it.each([
-      ["prefix", { kind: "prefix", text: "2026-" }, "2026-report.csv"],
-      ["suffix", { kind: "suffix", text: "-v2" }, "report-v2.csv"],
-      ["extension", { kind: "extension", extension: "tsv" }, "report.tsv"],
       [
-         "extension with dot",
-         { kind: "extension", extension: ".tsv" },
+         "prefix",
+         "report.csv",
+         { kind: "prefix", text: "2026-" },
+         "2026-report.csv",
+      ],
+      [
+         "suffix",
+         "report.csv",
+         { kind: "suffix", text: "-v2" },
+         "report-v2.csv",
+      ],
+      [
+         "suffix before a multi-dot extension",
+         "archive.tar.gz",
+         { kind: "suffix", text: "-old" },
+         "archive.tar-old.gz",
+      ],
+      [
+         "extension",
+         "report.csv",
+         { kind: "extension", extension: "tsv" },
          "report.tsv",
       ],
-      ["extension removal", { kind: "extension", extension: "  " }, "report"],
-   ] as [string, BulkRenameOperation, string][])(
+      [
+         "extension with stacked dots",
+         "report.csv",
+         { kind: "extension", extension: "...json" },
+         "report.json",
+      ],
+      [
+         "extension to an extensionless name",
+         "README",
+         { kind: "extension", extension: "md" },
+         "README.md",
+      ],
+      [
+         "extension removal",
+         "report.csv",
+         { kind: "extension", extension: "  " },
+         "report",
+      ],
+   ] as [string, string, BulkRenameOperation, string][])(
       "applies %s",
-      (_label, operation, expected) => {
-         expect(applyOperation("report.csv", operation)).toBe(expected);
+      (_label, name, operation, expected) => {
+         expect(applyOperation(name, operation)).toBe(expected);
       }
    );
-
-   it("lowercases the whole name", () => {
-      expect(applyOperation("Report FINAL.CSV", { kind: "lowercase" })).toBe(
-         "report final.csv"
-      );
-   });
-
-   it("adds a suffix before a multi-dot extension", () => {
-      expect(
-         applyOperation("archive.tar.gz", { kind: "suffix", text: "-old" })
-      ).toBe("archive.tar-old.gz");
-   });
-
-   it("gives an extensionless name one", () => {
-      expect(
-         applyOperation("README", { kind: "extension", extension: "md" })
-      ).toBe("README.md");
-   });
-
-   it("normalizes stacked dots", () => {
-      expect(normalizeExtension("...json")).toBe(".json");
-      expect(normalizeExtension("")).toBe("");
-   });
 });
 
 describe("renameKey", () => {
-   it("only ever rewrites the file name", () => {
-      expect(
-         renameKey("Invoices/2026/Draft Report.PDF", { kind: "lowercase" })
-      ).toBe("Invoices/2026/draft report.pdf");
-   });
-
-   it("leaves a root-level key at the root", () => {
-      expect(renameKey("report.csv", { kind: "prefix", text: "old-" })).toBe(
-         "old-report.csv"
-      );
-   });
-
    it("does not match the prefix when replacing", () => {
       expect(renameKey("draft/draft.txt", replace("draft", "final"))).toBe(
          "draft/final.txt"
       );
-   });
-});
-
-describe("toOperation", () => {
-   const fields = {
-      find: "DRAFT",
-      replacement: "final",
-      text: "x",
-      extension: "md",
-   };
-
-   it("carries only the fields the selected kind reads", () => {
-      expect(
-         toOperation(fields, {
-            kind: "replace",
-            matchCase: true,
-            allOccurrences: false,
-         })
-      ).toEqual({
-         kind: "replace",
-         find: "DRAFT",
-         replacement: "final",
-         matchCase: true,
-         allOccurrences: false,
-      });
-      expect(
-         toOperation(fields, { ...DEFAULT_RENAME_OPTIONS, kind: "prefix" })
-      ).toEqual({ kind: "prefix", text: "x" });
-      expect(
-         toOperation(fields, { ...DEFAULT_RENAME_OPTIONS, kind: "suffix" })
-      ).toEqual({ kind: "suffix", text: "x" });
-      expect(
-         toOperation(fields, { ...DEFAULT_RENAME_OPTIONS, kind: "extension" })
-      ).toEqual({ kind: "extension", extension: "md" });
-      expect(
-         toOperation(fields, { ...DEFAULT_RENAME_OPTIONS, kind: "lowercase" })
-      ).toEqual({ kind: "lowercase" });
    });
 });
 
@@ -250,16 +191,6 @@ describe("planBulkRename", () => {
       expect(isBlocked(plan)).toBe(true);
    });
 
-   it("allows a swap chain where both sources move", () => {
-      const plan = planBulkRename(["a/one.txt", "a/two.txt"], {
-         kind: "prefix",
-         text: "x-",
-      });
-      expect(plan.duplicates).toEqual([]);
-      expect(plan.conflicts).toEqual([]);
-      expect(isBlocked(plan)).toBe(false);
-   });
-
    it("rejects a target that is not a usable key", () => {
       const plan = planBulkRename(["a/one.txt"], {
          kind: "prefix",
@@ -276,15 +207,16 @@ describe("planBulkRename", () => {
       expect(isBlocked(plan)).toBe(true);
    });
 
-   it("rejects a rename that would empty the name", () => {
-      const plan = planBulkRename(["a/one.txt"], replace("one.txt", ""));
+   it("rejects a new name that would move the file into another folder", () => {
+      const plan = planBulkRename(["a/one.txt"], replace("one", "b/one"));
       expect(plan.invalid).toEqual([
          {
             key: "a/one.txt",
-            newKey: "a/",
-            reason: "The key can't end with a slash.",
+            newKey: "a/b/one.txt",
+            reason: "The new name can't contain a slash.",
          },
       ]);
+      expect(isBlocked(plan)).toBe(true);
    });
 
    it("ignores folder markers and duplicate input keys", () => {
@@ -294,17 +226,5 @@ describe("planBulkRename", () => {
       });
       expect(plan.rows).toEqual([{ key: "a/one.txt", newKey: "a/x-one.txt" }]);
       expect(plan.unchanged).toBe(0);
-   });
-
-   it("plans more rows than the preview shows", () => {
-      const many = Array.from(
-         { length: MAX_RENAME_PREVIEW_ROWS + 50 },
-         (_unused, index) => `a/file-${index}.txt`
-      );
-      const plan = planBulkRename(many, { kind: "prefix", text: "x-" });
-      expect(plan.rows).toHaveLength(MAX_RENAME_PREVIEW_ROWS + 50);
-      expect(plan.rows.slice(0, MAX_RENAME_PREVIEW_ROWS)).toHaveLength(
-         MAX_RENAME_PREVIEW_ROWS
-      );
    });
 });

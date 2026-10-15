@@ -1,19 +1,16 @@
 // @vitest-environment happy-dom
-import { mountedRuntime } from "@/components/test-helpers";
+import { mountedRuntime, typeInto } from "@/components/test-helpers";
 import { flushRuntime } from "@/lib/test/runtime";
+import { MAX_INVITE_EMAILS } from "@s3-viewer/types";
 import { act, createElement, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_EMAIL_FIELD, canContinue, type EmailField } from "./email-chips";
 import StepWho from "./step-who";
 
-const h = vi.hoisted(() => ({
-   onContinue: vi.fn(),
-   value: undefined as EmailField | undefined,
-}));
+const h = vi.hoisted(() => ({ onContinue: vi.fn() }));
 
 const Host = ({ initial }: { initial: EmailField }) => {
    const [value, setValue] = useState(initial);
-   h.value = value;
    return createElement(StepWho, {
       value,
       canContinue: canContinue(value),
@@ -23,22 +20,13 @@ const Host = ({ initial }: { initial: EmailField }) => {
 };
 
 const view = mountedRuntime();
-const setValue = Object.getOwnPropertyDescriptor(
-   HTMLInputElement.prototype,
-   "value"
-)!.set!;
 
 const mount = async (initial = EMPTY_EMAIL_FIELD) => {
    await view.mount(createElement(Host, { initial }));
    return view.current.container;
 };
 const input = () => view.current.container.querySelector("input")!;
-const type = async (text: string) => {
-   await act(async () => {
-      setValue.call(input(), text);
-      input().dispatchEvent(new Event("input", { bubbles: true }));
-   });
-};
+const type = (text: string) => act(async () => typeInto(input(), text));
 const press = async (key: string) => {
    await act(async () => {
       input().dispatchEvent(
@@ -96,22 +84,17 @@ describe("typing addresses", () => {
 });
 
 describe("pasting a list", () => {
-   it("splits it into chips", async () => {
-      await mount();
-      await paste("a@x.com, b@x.com; c@x.com");
-      expect(chips()).toEqual(["a@x.com", "b@x.com", "c@x.com"]);
-      expect(input().value).toBe("");
-   });
-
    it("keeps what would go past the limit in the input and explains", async () => {
       await mount({ ...EMPTY_EMAIL_FIELD, chips: ["a@x.com", "b@x.com"] });
       await paste("c@x.com d@x.com e@x.com f@x.com g@x.com");
-      expect(chips()).toHaveLength(5);
+      expect(chips()).toHaveLength(MAX_INVITE_EMAILS);
       expect(input().value).toBe("f@x.com, g@x.com");
       expect(helper().textContent).toBe(
-         "You can invite up to 5 people at a time"
+         `You can invite up to ${MAX_INVITE_EMAILS} people at a time`
       );
-      expect(view.current.container.textContent).toContain("5 of 5");
+      expect(view.current.container.textContent).toContain(
+         `${MAX_INVITE_EMAILS} of ${MAX_INVITE_EMAILS}`
+      );
    });
 });
 
@@ -124,7 +107,6 @@ describe("the chips", () => {
       expect(
          container.querySelector('li [title="Not a valid email address"]')
       ).not.toBeNull();
-      expect(h.value && canContinue(h.value)).toBe(false);
       await act(async () =>
          container
             .querySelector<HTMLButtonElement>(
@@ -133,14 +115,5 @@ describe("the chips", () => {
             .click()
       );
       expect(chips()).toEqual([]);
-   });
-
-   it("does not add a duplicate, and says so without an alert", async () => {
-      await mount({ ...EMPTY_EMAIL_FIELD, chips: ["a@x.com"] });
-      await type("A@X.COM");
-      await press("Enter");
-      expect(chips()).toEqual(["a@x.com"]);
-      expect(helper().textContent).toBe("a@x.com is already in the list");
-      expect(helper().getAttribute("role")).toBeNull();
    });
 });

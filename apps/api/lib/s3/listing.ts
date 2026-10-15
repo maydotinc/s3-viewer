@@ -37,6 +37,8 @@ import { budgetServerOf } from "./request-budget";
 
 const MAX_CALLS_PER_PAGE = 20;
 const MAX_EXISTS_PAGES = 20;
+// above this many keys one listing page answers faster than a HEAD per key.
+const EXISTS_LIST_THRESHOLD = 50;
 const LISTED_ROW_OVERHEAD_BYTES = 128;
 
 type S3Scope = { client: S3Client; bucket: string; signal?: AbortSignal };
@@ -252,6 +254,7 @@ const listKeysPage = async (
 type ExistingKeys = {
    existing: string[];
    eTags: Record<string, string>;
+   sizes: Record<string, number>;
    unresolved: string[];
 };
 
@@ -279,6 +282,7 @@ const existingKeys = async (
    const prefix = prefixHasDotSegment(shared) ? parentPrefix(shared) : shared;
    const existing: string[] = [];
    const eTags: Record<string, string> = Object.create(null);
+   const sizes: Record<string, number> = Object.create(null);
    let cursor = "";
    let i = 0;
 
@@ -308,6 +312,7 @@ const existingKeys = async (
                   const key = copyRetainedString(object.Key);
                   existing.push(key);
                   if (object.ETag) eTags[key] = copyRetainedString(object.ETag);
+                  if (object.Size !== undefined) sizes[key] = object.Size;
                }
             }
             if (!page.IsTruncated) {
@@ -322,11 +327,12 @@ const existingKeys = async (
          }
       }
 
-      return { existing, eTags, unresolved: sorted.slice(i) };
+      return { existing, eTags, sizes, unresolved: sorted.slice(i) };
    });
 };
 
 export {
+   EXISTS_LIST_THRESHOLD,
    existingKeys,
    listKeysPage,
    listObjects,

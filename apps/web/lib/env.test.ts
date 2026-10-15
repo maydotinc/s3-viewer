@@ -47,11 +47,6 @@ describe("publicEnv on the server", () => {
       expect(publicEnv.siteOrigin).toBe("");
       expect(publicEnv.apiOrigin).toBe("");
    });
-
-   it("exposes the landing origin", async () => {
-      const { landingOrigin } = await load();
-      expect(landingOrigin).toBe("http://landing.localhost:3001");
-   });
 });
 
 describe("publicEnv in the browser", () => {
@@ -60,12 +55,6 @@ describe("publicEnv in the browser", () => {
       const { publicEnv } = await load();
       expect(publicEnv.siteOrigin).toBe(CLIENT.siteUrl);
       expect(publicEnv.apiOrigin).toBe(CLIENT.apiUrl);
-   });
-
-   it("prefers __NEXT_DATA__ over anything baked into the bundle", async () => {
-      asBrowser({ props: { runtimeEnv: CLIENT } });
-      const { publicEnv } = await load();
-      expect(publicEnv.apiOrigin).not.toBe(SERVER.NEXT_PUBLIC_API_URL);
    });
 
    it("falls back to empty origins when the page carries none", async () => {
@@ -96,28 +85,13 @@ describe("setRuntimeEnv", () => {
       expect(publicEnv.apiOrigin).toBe("http://api.example.com");
    });
 
-   it("leaves the resolved values alone when given nothing", async () => {
-      const { publicEnv, setRuntimeEnv } = await load();
-      setRuntimeEnv(undefined);
-      expect(publicEnv.apiOrigin).toBe(SERVER.NEXT_PUBLIC_API_URL);
-   });
-
-   it("ignores an empty pair, as a client-side transition produces", async () => {
+   it("ignores a missing or empty pair, as a client-side transition produces", async () => {
       asBrowser({ props: { runtimeEnv: CLIENT } });
       const { publicEnv, setRuntimeEnv } = await load();
       setRuntimeEnv(CLIENT);
+      setRuntimeEnv(undefined);
       setRuntimeEnv({ siteUrl: "", apiUrl: "" });
       expect(publicEnv.apiOrigin).toBe(CLIENT.apiUrl);
       expect(publicEnv.siteOrigin).toBe(CLIENT.siteUrl);
-   });
-});
-
-describe("serverRuntimeEnv", () => {
-   it("returns the raw pair _app serialises into the page", async () => {
-      const { serverRuntimeEnv } = await load();
-      expect(serverRuntimeEnv()).toEqual({
-         siteUrl: SERVER.NEXT_PUBLIC_SITE_URL,
-         apiUrl: SERVER.NEXT_PUBLIC_API_URL,
-      });
    });
 });

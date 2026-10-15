@@ -438,6 +438,9 @@ describe("part sizing for a transfer between servers", () => {
       expect(state.transfer.mock.calls[0]?.[0].source.client).toBe(
          state.head.mock.calls[0]?.[0].client
       );
+      expect(state.transfer.mock.calls[0]?.[0].source.head).toBe(
+         await state.head.mock.results[0]?.value
+      );
    });
 
    it.each([42, undefined])(
@@ -613,6 +616,13 @@ describe("both ends are authorized", () => {
       expectNoStorage();
    });
 
+   it("answers the source refusal when both ends refuse", async () => {
+      state.grants[`${SOURCE_SERVER}/from-bucket`] = undefined;
+      state.grants[`${SOURCE_SERVER}/to-bucket`] = "VIEWER";
+      expect((await post()).status).toBe(404);
+      expectNoStorage();
+   });
+
    it("refuses a member without upload access on the destination", async () => {
       state.grants[`${SOURCE_SERVER}/to-bucket`] = "VIEWER";
       expect((await post()).status).toBe(403);
@@ -646,6 +656,11 @@ describe("transfer validation", () => {
             bucketName: "from-bucket",
             objectKey: "reports/",
             expectedETag: '"reviewed"',
+         },
+         destination: {
+            serverId: SOURCE_SERVER,
+            bucketName: "to-bucket",
+            objectKey: "imported/reports/",
          },
       });
       expect(response.status).toBe(201);

@@ -76,7 +76,7 @@ export const IamReadOnlyIllustration = () => (
          </Card>
          <Card x={264} y={30} w={192} h={300}>
             <Txt x={12} y={24} weight={600} fill={C.black}>
-               Connect server
+               Connect a server
             </Txt>
             <HR x={0} y={36} w={192} />
             <Txt x={12} y={56} size={10} fill={C.light}>

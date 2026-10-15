@@ -36,6 +36,58 @@ const undoRateLimitHit = async (key: string): Promise<void> => {
    `;
 };
 
+type WindowCounter = {
+   hit: (key: string, windowMs: number, now?: number) => Promise<number>;
+   undo: (key: string) => Promise<void>;
+};
+
+const SWEEP_EVERY = 1000;
+
+// the same fixed window as the rate_limit table: it starts at the first hit, counts refused hits
+// too and resets on the first hit after it ends, so RATE_LIMIT_STORE=memory behaves the same.
+const memoryWindowCounter = (
+   maxKeys: number
+): WindowCounter & { size: () => number } => {
+   const windows = new Map<string, { hits: number; resetAt: number }>();
+   let calls = 0;
+
+   const sweep = (now: number) => {
+      for (const [key, { resetAt }] of windows) {
+         if (resetAt <= now) windows.delete(key);
+      }
+   };
+
+   return {
+      hit: async (key, windowMs, now = Date.now()) => {
+         if (++calls % SWEEP_EVERY === 0) sweep(now);
+         const live = windows.get(key);
+         const window =
+            live && live.resetAt > now
+               ? { hits: live.hits + 1, resetAt: live.resetAt }
+               : { hits: 1, resetAt: now + windowMs };
+         // delete-then-set moves the key to the end, so eviction drops the least recently seen.
+         windows.delete(key);
+         windows.set(key, window);
+         for (const oldest of windows.keys()) {
+            if (windows.size <= maxKeys) break;
+            windows.delete(oldest);
+         }
+         return window.hits;
+      },
+      undo: async (key) => {
+         const window = windows.get(key);
+         if (window) window.hits = Math.max(window.hits - 1, 0);
+      },
+      size: () => windows.size,
+   };
+};
+
+const sharedWindowCounter: WindowCounter = {
+   hit: async (key, windowMs, now = Date.now()) =>
+      (await hitRateLimit(key, windowMs, new Date(now))).hits,
+   undo: undoRateLimitHit,
+};
+
 const resetRateLimit = async (key: string): Promise<void> => {
    await prisma.$executeRaw`DELETE FROM "rate_limit" WHERE "key" = ${key}`;
 };
@@ -50,4 +102,12 @@ const sweepRateLimits = (now: Date = new Date()): Promise<number> =>
          )`
    );
 
-export { hitRateLimit, resetRateLimit, sweepRateLimits, undoRateLimitHit };
+export {
+   hitRateLimit,
+   memoryWindowCounter,
+   resetRateLimit,
+   sharedWindowCounter,
+   sweepRateLimits,
+   undoRateLimitHit,
+};
+export type { WindowCounter };

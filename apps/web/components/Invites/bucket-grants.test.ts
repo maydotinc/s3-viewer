@@ -7,8 +7,6 @@ import {
 } from "@s3-viewer/types";
 import { describe, expect, it } from "vitest";
 
-const ADMIN_FOLDERS =
-   "Admins can't be limited to folders. Choose Whole bucket or a different server role.";
 import {
    accessErrors,
    accessKey,
@@ -29,6 +27,9 @@ import {
    type GrantRow,
 } from "./bucket-grants";
 
+const ADMIN_FOLDERS =
+   "Admins can't be limited to folders. Choose Whole bucket or a different server role.";
+
 const bucket = (
    userRole: Role,
    folders: string[] | null = null,
@@ -43,8 +44,6 @@ const grant = (
 
 const ownerBucket = bucket(Role.OWNER);
 const limitedBucket = bucket(Role.EDITOR, ["landing/"]);
-
-const sent = (rows: readonly GrantRow[]) => grantPayload(rows);
 
 describe("starting a grant", () => {
    it("gives the whole bucket when the actor has it", () => {
@@ -102,12 +101,12 @@ describe("changing a row's role", () => {
    it("restores the folders when the role comes back from admin", () => {
       const limitedRow = grant(Role.EDITOR, ["a/", "b/"]);
       const admin = withRole(limitedRow, Role.ADMIN);
-      expect(sent([admin])).toEqual([
+      expect(grantPayload([admin])).toEqual([
          { bucketName: "site", role: Role.ADMIN, folders: null },
       ]);
       const back = withRole(admin, Role.VIEWER);
       expect(back.folders).toEqual(["a/", "b/"]);
-      expect(sent([back])).toEqual([
+      expect(grantPayload([back])).toEqual([
          { bucketName: "site", role: Role.VIEWER, folders: ["a/", "b/"] },
       ]);
       expect(

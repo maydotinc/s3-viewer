@@ -64,12 +64,8 @@ beforeEach(() => {
    };
 });
 describe("paged server picker", () => {
-   it("renders the selected server even while the membership list is loading", () => {
-      Object.assign(h.result, {
-         currentServer: selected,
-         servers: [selected],
-         isServerListLoading: true,
-      });
+   it("names the selected server on the trigger", () => {
+      Object.assign(h.result, { currentServer: selected, servers: [selected] });
       expect(render()).toContain("Selected storage");
       expect(render()).toContain(
          'aria-label="Switch server, current: Selected storage"'
@@ -102,6 +98,5 @@ describe("per-server actions", () => {
       const html = render();
       expect(count(html, "Invite people")).toBe(2);
       expect(count(html, ">Members<")).toBe(2);
-      expect(html).not.toContain(">Share<");
    });
 });

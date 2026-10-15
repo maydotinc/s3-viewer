@@ -2,11 +2,10 @@ packages:
    - apps/*
    - packages/*
 
-# dev-only advisories with no runtime path: braces via eslint tooling, source-map-js via vite.
+# dev-only advisory with no runtime path: braces via eslint tooling.
 auditConfig:
    ignoreGhsas:
       - GHSA-vfj7-8cjw-p6xm
-      - GHSA-68fv-2mgg-jv7q
 
 catalog:
    "@prisma/client": ^6.1.0
@@ -21,6 +20,11 @@ catalog:
    typescript: ^5.8.3
    zod: ^3.25.67
    vitest: ^4.1.11
+
+# better-call uses zod only for instanceof checks in its OpenAPI docs generator, which this app never serves; the app stays on zod 3.
+peerDependencyRules:
+   allowedVersions:
+      "better-call>zod": "3"
 
 onlyBuiltDependencies:
    - "@prisma/client"
@@ -45,6 +49,7 @@ overrides:
    qs: ^6.16.0
    rollup: ^4.63.1
    sharp: ^0.35.5
+   source-map-js: ^1.2.2
    "brace-expansion@1": ^1.1.21
    "brace-expansion@2": ^2.1.7
    "brace-expansion@5": ^5.0.12

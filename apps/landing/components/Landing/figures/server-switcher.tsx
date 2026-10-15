@@ -7,7 +7,7 @@ import type { ProviderId } from "@/lib/provider-paths";
 import { ProviderMark, ProviderChip } from "./provider-marks";
 import { useAutoplay } from "./use-autoplay";
 
-export type Server = {
+type Server = {
    id: string;
    name: string;
    provider: ProviderId;
@@ -168,7 +168,7 @@ export const ServerSwitcher = ({
                <span className="grid size-6 shrink-0 place-items-center rounded-full border border-viewerborder text-viewerlighttext">
                   <Plus className="size-3.5" />
                </span>
-               Add new server
+               Add server
             </button>
          </div>
       </div>

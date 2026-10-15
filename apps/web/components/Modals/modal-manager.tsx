@@ -1,16 +1,28 @@
 import { useModalActions, useModalState } from "@/lib/contexts/modal-context";
 import type { ModalProps, ModalType } from "@/lib/contexts/modal-props";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
+import {
+   DIALOG_CONTENT,
+   DIALOG_OVERLAY,
+} from "@s3-viewer/ui/components/dialog";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
 
+// a dialog-shaped card, so the first open of a modal doesn't go spinner -> dialog
 const loading = () => (
-   <div
-      data-backdrop=""
-      className="fixed inset-0 z-50 flex items-center justify-center bg-viewerblack/40"
-   >
-      <Spinner size="lg" label="Loading" />
-   </div>
+   <>
+      <div data-backdrop="" className={DIALOG_OVERLAY} />
+      <div
+         aria-busy="true"
+         className={cn(DIALOG_CONTENT, "gap-3 px-4 pt-5 pb-6 sm:px-6")}
+      >
+         <span className="sr-only">Loading</span>
+         <Skeleton className="h-6 w-40" />
+         <Skeleton className="h-4 w-full" />
+         <Skeleton className="h-4 w-2/3" />
+      </div>
+   </>
 );
 
 // the static `import()` string inside each arrow is what lets next split a chunk per modal.

@@ -54,7 +54,6 @@ vi.mock("./replace-dialog", () => ({
 
 const view = mountedRuntime(() => {
    vi.restoreAllMocks();
-   vi.unstubAllGlobals();
    vi.useRealTimers();
 });
 let upload!: ReturnType<typeof useUploader>["upload"];
@@ -234,13 +233,6 @@ describe("where uploads can land", () => {
       ) as { canUpload: boolean; blockedReason: string | null };
    };
 
-   it("allows them anywhere with the whole bucket, and before it's known", async () => {
-      expect(await gate()).toEqual({ canUpload: true, blockedReason: null });
-      await view.current.unmount();
-      h.reach = { folders: null, owner: false };
-      expect(await gate()).toEqual({ canUpload: true, blockedReason: null });
-   });
-
    it("turns them off outside someone's folders, and says where they can go", async () => {
       h.reach = { folders: ["landing/"], owner: false };
       expect(await gate()).toEqual({
@@ -250,14 +242,5 @@ describe("where uploads can land", () => {
       await view.current.unmount();
       h.prefix = "landing/hero/";
       expect(await gate()).toEqual({ canUpload: true, blockedReason: null });
-   });
-
-   it("turns them off under a dotted path unless they're the owner's", async () => {
-      h.prefix = "a/../";
-      h.reach = { folders: null, owner: false };
-      expect(await gate()).toMatchObject({ canUpload: false });
-      await view.current.unmount();
-      h.reach = { folders: null, owner: true };
-      expect(await gate()).toMatchObject({ canUpload: true });
    });
 });

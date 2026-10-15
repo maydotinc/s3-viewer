@@ -31,56 +31,41 @@ describe("remote schemes", () => {
       const policy = await load({
          NEXT_PUBLIC_SITE_URL: "http://s3.lan:3000",
       });
-      for (const directive of ["img-src", "media-src", "frame-src"]) {
-         expect(policy[directive]).toContain("http:");
-         expect(policy[directive]).toContain("https:");
-      }
-   });
-
-   it("lets an http install fetch an http endpoint's presigned url", async () => {
-      const policy = await load({
-         NEXT_PUBLIC_SITE_URL: "http://s3.lan:3000",
-      });
-      expect(policy["connect-src"]).toContain("http:");
-      expect(policy["connect-src"]).toContain("https://api.example.com");
-   });
-
-   it("keeps an https install free of mixed content", async () => {
-      const policy = await load({
-         NEXT_PUBLIC_SITE_URL: "https://s3.example.com",
-      });
       for (const directive of [
          "img-src",
          "media-src",
          "frame-src",
          "connect-src",
       ]) {
-         expect(policy[directive]).toContain("https:");
-         expect(policy[directive]).not.toContain("http:");
+         expect(policy[directive]?.split(" ")).toContain("http:");
+         expect(policy[directive]?.split(" ")).toContain("https:");
       }
+      expect(policy["connect-src"]).toContain("https://api.example.com");
    });
 
-   it("does not widen a production https install just because NODE_ENV is production", async () => {
-      const policy = await load({
-         NEXT_PUBLIC_SITE_URL: "https://s3.example.com",
-      });
-      expect(policy["script-src"]).not.toContain("'unsafe-eval'");
-      expect(policy["connect-src"]).not.toContain("ws:");
-   });
-
-   it("stays https-only when no site origin is configured", async () => {
-      const policy = await load({ NEXT_PUBLIC_SITE_URL: "" });
-      expect(policy["img-src"]).not.toContain("http:");
-   });
+   it.each(["https://s3.example.com", ""])(
+      "keeps the install at site origin %j free of mixed content",
+      async (siteUrl) => {
+         const policy = await load({ NEXT_PUBLIC_SITE_URL: siteUrl });
+         for (const directive of [
+            "img-src",
+            "media-src",
+            "frame-src",
+            "connect-src",
+         ]) {
+            expect(policy[directive]?.split(" ")).toContain("https:");
+            expect(policy[directive]?.split(" ")).not.toContain("http:");
+         }
+      }
+   );
 });
 
 describe("landing origin", () => {
-   it("keeps the landing origin allowed for scripts, styles and fonts", async () => {
+   it("keeps the landing origin allowed for styles and fonts", async () => {
       vi.stubEnv("LANDING_ORIGIN", "http://landing:3001");
       const policy = await load({
          NEXT_PUBLIC_SITE_URL: "https://s3.example.com",
       });
-      expect(policy["script-src"]).toContain("http://landing:3001");
       expect(policy["style-src"]).toContain("http://landing:3001");
       expect(policy["font-src"]).toContain("http://landing:3001");
    });
@@ -120,7 +105,7 @@ describe("script nonce", () => {
       expect(policy["script-src"]).not.toContain("nonce-");
    });
 
-   it.each(["staging", "test", ""])(
+   it.each(["production", "staging", "test", ""])(
       "fails closed when NODE_ENV is %j rather than development",
       async (nodeEnv) => {
          vi.stubEnv("NODE_ENV", nodeEnv);

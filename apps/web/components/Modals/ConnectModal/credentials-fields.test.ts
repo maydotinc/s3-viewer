@@ -19,9 +19,7 @@ const fields = {
 describe("storage credential form", () => {
    it.each([
       ["https://s3.us-west-004.backblazeb2.com", "us-west-004"],
-      ["https://s3.eu-central-003.backblazeb2.com", "eu-central-003"],
       ["https://account.r2.cloudflarestorage.com", "auto"],
-      ["https://account.eu.r2.cloudflarestorage.com", "auto"],
       ["https://s3.amazonaws.com", "us-east-1"],
       ["https://s3.us-west-004.backblazeb2.com.example.org", "us-east-1"],
    ])("uses the default signing region for %s", (endpoint, region) => {

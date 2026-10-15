@@ -157,7 +157,7 @@ describe("existingKeys", () => {
             );
             const page = matching.slice(0, Math.min(MaxKeys, pageSize));
             return {
-               Contents: page.map((Key) => ({ Key })),
+               Contents: page.map((Key) => ({ Key, Size: Key.length })),
                IsTruncated: page.length < matching.length,
             };
          }
@@ -173,6 +173,7 @@ describe("existingKeys", () => {
          "up/b.txt",
       ]);
       expect(result.existing.sort()).toEqual(["up/a.txt", "up/c.txt"]);
+      expect(result.sizes).toEqual({ "up/a.txt": 8, "up/c.txt": 8 });
       expect(result.unresolved).toEqual([]);
       expect(inputs).toHaveLength(1);
       expect(inputs[0]?.Prefix).toBe("up/");
@@ -196,6 +197,7 @@ describe("existingKeys", () => {
       ).toEqual({
          existing: [],
          eTags: {},
+         sizes: {},
          unresolved: [],
       });
       expect(inputs).toHaveLength(1);

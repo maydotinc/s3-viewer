@@ -1,9 +1,12 @@
 // @vitest-environment happy-dom
 import { ApiError } from "@/lib/api";
-import { mountRuntime } from "@/lib/test/runtime";
 import { act, createElement, useState } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { buttonByText } from "@/components/test-helpers";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+   buttonByText,
+   mountedRuntime,
+   typeInto,
+} from "@/components/test-helpers";
 import ObjectEditor from "./editor";
 
 const h = vi.hoisted(() => ({
@@ -44,19 +47,13 @@ const Harness = () => {
    return createElement(ObjectEditor, props);
 };
 
-let runtime!: Awaited<ReturnType<typeof mountRuntime>>;
-const textarea = () => runtime.container.querySelector("textarea")!;
+const view = mountedRuntime();
+const textarea = () => view.current.container.querySelector("textarea")!;
 const button = (label: string) =>
-   buttonByText(runtime.container, label, "includes")!;
-const alert = () => runtime.container.querySelector('[role="alert"]');
+   buttonByText(view.current.container, label, "includes")!;
+const alert = () => view.current.container.querySelector('[role="alert"]');
 const edit = async (text: string) => {
-   await act(async () => {
-      Object.getOwnPropertyDescriptor(
-         HTMLTextAreaElement.prototype,
-         "value"
-      )!.set!.call(textarea(), text);
-      textarea().dispatchEvent(new Event("input", { bubbles: true }));
-   });
+   await act(async () => typeInto(textarea(), text));
 };
 const save = () => act(async () => button("Save").click());
 const pressSave = async () => {
@@ -67,7 +64,7 @@ const pressSave = async () => {
       cancelable: true,
    });
    await act(async () => {
-      runtime.container.querySelector("section")!.dispatchEvent(event);
+      view.current.container.querySelector("section")!.dispatchEvent(event);
    });
    return event;
 };
@@ -77,12 +74,7 @@ beforeEach(async () => {
    h.session = { userId: "user-a", serverId: "server-a" };
    h.data = { text: "original", eTag: '"v1"' };
    h.saving = false;
-   runtime = await mountRuntime(createElement(Harness));
-});
-afterEach(async () => {
-   await runtime.unmount();
-   runtime.queryClient.clear();
-   vi.unstubAllGlobals();
+   await view.mount(createElement(Harness));
 });
 
 describe("editor target identity", () => {
@@ -175,7 +167,7 @@ describe("editor saving", () => {
 describe("editor gutter limits", () => {
    it("omits a million-line gutter without changing the editable or saved contents", async () => {
       const gutter = () =>
-         runtime.container.querySelector('div[aria-hidden="true"]');
+         view.current.container.querySelector('div[aria-hidden="true"]');
       const text = "\n".repeat(1024 * 1024);
       await edit(text);
       expect(gutter()).toBeNull();

@@ -9,16 +9,12 @@ import { EncryptionStatus } from "@/components/Modals/ConnectModal/encryption-st
 import { sealCredentialFields } from "@/components/Modals/ConnectModal/seal-credentials";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
-import StaleSignIn, {
-   isSessionStale,
-   signInAgain,
-} from "@/components/stale-sign-in";
+import StaleSignIn, { isSessionStale } from "@/components/stale-sign-in";
 import useUpdateCredentials from "@/lib/hooks/mutations/server/useUpdateCredentials";
 import useInstanceConfig, {
    encryptionState,
 } from "@/lib/hooks/queries/useInstanceConfig";
 import { useUserId } from "@/lib/stores/session-store";
-import { Button } from "@s3-viewer/ui/components/button";
 import { useState, type FormEvent } from "react";
 
 type UpdateCredentialsModalProps = ModalProps<"updateCredentials">;
@@ -99,11 +95,6 @@ const UpdateCredentialsModal = ({
                   <StaleSignIn
                      title="Sign in again to replace these credentials"
                      action="replacing credentials"
-                     actions={
-                        <Button size="sm" type="button" onClick={signInAgain}>
-                           Sign in again
-                        </Button>
-                     }
                   />
                ) : (
                   <FormError>{error}</FormError>

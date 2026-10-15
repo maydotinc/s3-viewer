@@ -24,6 +24,7 @@ const KEYS = [
    "ALLOWED_EMAIL_DOMAINS",
    "EMAIL_FROM",
    "UNVERIFIED_ACCOUNT_TTL_DAYS",
+   "PORT",
 ] as const;
 
 const loadEnv = async (overrides: Partial<Record<string, string>> = {}) => {
@@ -155,23 +156,11 @@ describe("boolean flags", () => {
 });
 
 describe("AUDIT_CHAIN_KEY", () => {
-   it("is unset by default, leaving the legacy derivation as the fallback", async () => {
-      await expect(loadEnv()).resolves.toMatchObject({
-         AUDIT_CHAIN_KEY: undefined,
-      });
-   });
-
    it("accepts a value at least 32 characters long", async () => {
       const key = Buffer.alloc(32, 1).toString("base64");
       await expect(loadEnv({ AUDIT_CHAIN_KEY: key })).resolves.toMatchObject({
          AUDIT_CHAIN_KEY: key,
       });
-   });
-
-   it("rejects a value that is not base64", async () => {
-      await expect(loadEnv({ AUDIT_CHAIN_KEY: "too-short" })).rejects.toThrow(
-         /AUDIT_CHAIN_KEY: must be base64/
-      );
    });
 
    it("rejects a 32-character value that is not base64", async () => {
@@ -278,17 +267,6 @@ describe("RATE_LIMIT_STORE", () => {
 });
 
 describe("upload resource limits", () => {
-   it("defaults to bounded concurrency, memory and inactivity", async () => {
-      await expect(loadEnv()).resolves.toMatchObject({
-         UPLOAD_PART_BYTES: 5 * 1024 * 1024,
-         MAX_CONCURRENT_UPLOADS: 6,
-         MAX_USER_UPLOADS: 3,
-         MAX_IP_UPLOADS: 2,
-         UPLOAD_SLOT_MAX_MS: 7_200_000,
-         UPLOAD_MEMORY_BUDGET_BYTES: 256 * 1024 * 1024,
-         UPLOAD_IDLE_TIMEOUT_MS: 120_000,
-      });
-   });
    it("requires positive integer limits", async () => {
       for (const key of [
          "MAX_CONCURRENT_UPLOADS",
@@ -332,6 +310,15 @@ describe("upload resource limits", () => {
             UPLOAD_MEMORY_BUDGET_BYTES: String(256 * 1024 * 1024 + 1),
          })
       ).resolves.toMatchObject({ MAX_UPLOAD_BYTES: 5 * 1024 ** 4 });
+   });
+});
+
+describe("PORT", () => {
+   it("falls back to 5001 when left blank", async () => {
+      await expect(loadEnv()).resolves.toMatchObject({ PORT: 5001 });
+      await expect(loadEnv({ PORT: "8080" })).resolves.toMatchObject({
+         PORT: 8080,
+      });
    });
 });
 

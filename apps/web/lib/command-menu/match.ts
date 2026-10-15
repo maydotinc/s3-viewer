@@ -113,8 +113,6 @@ const matchFields = (
    keywords: string,
    terms: readonly string[]
 ): TextMatch | null => {
-   if (terms.length === 0) return { score: 0, ranges: [] };
-
    let total = 0;
    const ranges: Range[] = [];
 

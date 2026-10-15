@@ -9,7 +9,6 @@ type Options = {
       signal: AbortSignal;
    }) => Promise<AuditLogPage>;
    initialPageParam: string | null;
-   getNextPageParam: (page: AuditLogPage) => string | null;
    enabled: boolean;
    refetchOnWindowFocus: boolean;
    placeholderData: (
@@ -21,6 +20,7 @@ type Options = {
 const h = vi.hoisted(() => ({
    get: vi.fn(),
    resetQueries: vi.fn(),
+   setQueryData: vi.fn(),
    options: null as unknown,
    result: { data: undefined, error: null } as Record<string, unknown>,
 }));
@@ -33,7 +33,10 @@ vi.mock("@tanstack/react-query", () => ({
       h.options = options;
       return h.result;
    },
-   useQueryClient: () => ({ resetQueries: h.resetQueries }),
+   useQueryClient: () => ({
+      resetQueries: h.resetQueries,
+      setQueryData: h.setQueryData,
+   }),
 }));
 vi.mock("react", async (original) => ({
    ...(await original<typeof import("react")>()),
@@ -71,6 +74,7 @@ beforeEach(() => {
    h.get.mockReset();
    h.get.mockResolvedValue(page(1, null));
    h.resetQueries.mockReset();
+   h.setQueryData.mockReset();
 });
 
 describe("audit log paging", () => {
@@ -97,25 +101,6 @@ describe("audit log paging", () => {
          "/servers/server-1/audit?cursor=MjAyNi0wOS0wNnxpZA%3D%3D&limit=50",
          signal
       );
-   });
-
-   it("follows nextCursor until the api stops sending one", () => {
-      useAuditLog("server-1", {});
-      expect(options().getNextPageParam(page(50, "next"))).toBe("next");
-      expect(options().getNextPageParam(page(3, null))).toBeNull();
-   });
-
-   it("flattens the pages it has into one list, newest page first", () => {
-      h.result = {
-         data: { pages: [page(2, "next"), page(1, null)] },
-         error: null,
-      };
-      const { entries } = useAuditLog("server-1", {});
-      expect(entries.map((entry) => entry.id)).toEqual([
-         "next-0",
-         "next-1",
-         "last-0",
-      ]);
    });
 
    it("hands back a stable empty list before the first page lands", () => {
@@ -230,14 +215,35 @@ describe("a cursor the api refuses", () => {
    });
 });
 
+describe("refresh", () => {
+   it("drops every page but the first before refetching, so it costs one read", async () => {
+      const refetch = vi.fn().mockResolvedValue(undefined);
+      h.result = { data: undefined, error: null, refetch };
+      await useAuditLog("server-1", {}).refresh();
+      expect(h.setQueryData).toHaveBeenCalledWith(
+         queryKeys.auditLog("signed-in-user", "server-1", {}),
+         expect.any(Function)
+      );
+      const trim = h.setQueryData.mock.calls[0]![1] as (
+         current: unknown
+      ) => unknown;
+      expect(
+         trim({
+            pages: [page(1, "b"), page(1, "c"), page(1, null)],
+            pageParams: [null, "b", "c"],
+         })
+      ).toEqual({ pages: [page(1, "b")], pageParams: [null] });
+      expect(trim(undefined)).toBeUndefined();
+      expect(refetch).toHaveBeenCalledTimes(1);
+      expect(h.setQueryData.mock.invocationCallOrder[0]).toBeLessThan(
+         refetch.mock.invocationCallOrder[0]!
+      );
+   });
+});
+
 describe("when the log is fetched", () => {
    it("stays idle while no server is selected", () => {
       useAuditLog("", {});
       expect(options().enabled).toBe(false);
-   });
-
-   it("runs on a real server", () => {
-      useAuditLog("server-1", {});
-      expect(options().enabled).toBe(true);
    });
 });

@@ -1,12 +1,19 @@
+import StatusMessage from "@/components/status-message";
+import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import {
    MAX_PREVIEW_BYTES,
    isStreamedKind,
    previewKind,
 } from "@/lib/utils/file-utils";
 import { formatBytes, visibleText } from "@/lib/utils/format";
-import { canPresignObjectKey, type S3ObjectPreview } from "@s3-viewer/types";
+import {
+   Provider,
+   canPresignObjectKey,
+   type S3ObjectPreview,
+} from "@s3-viewer/types";
 import {
    CircleAlert,
+   ExternalLink,
    EyeOff,
    FileWarning,
    FileX,
@@ -30,6 +37,12 @@ import {
    PreviewLoading,
    TextFrame,
 } from "./preview-frame";
+
+// S3 and R2 serve a presigned URL with the content type it was signed for; an Other endpoint may serve markup, which the unsandboxed PDF frame would run
+const INLINE_PDF_PROVIDERS: ReadonlySet<Provider> = new Set([
+   Provider.S3,
+   Provider.R2,
+]);
 
 type ObjectPreviewProps = {
    preview: S3ObjectPreview | undefined;
@@ -65,6 +78,7 @@ const ObjectPreview = ({
    fileName,
    refreshPreview,
 }: ObjectPreviewProps) => {
+   const { currentServer, isLoading: isServerLoading } = useCurrentServer();
    if (!canPresignObjectKey(objectKey)) {
       return (
          <PreviewMessage
@@ -104,6 +118,35 @@ const ObjectPreview = ({
             text="Download it to view."
             objectKey={objectKey}
          />
+      );
+   }
+
+   if (
+      kind === "pdf" &&
+      !(currentServer && INLINE_PDF_PROVIDERS.has(currentServer.provider))
+   ) {
+      if (isServerLoading) return <PreviewLoading />;
+      return (
+         <div className={PREVIEW_BOX}>
+            <StatusMessage
+               icon={EyeOff}
+               title="No PDF preview for this server"
+               actions={
+                  <Button variant="outline" asChild>
+                     <a
+                        href={preview.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                     >
+                        <ExternalLink aria-hidden="true" />
+                        Open in new tab
+                     </a>
+                  </Button>
+               }
+            >
+               Open it in a new tab or download it to view.
+            </StatusMessage>
+         </div>
       );
    }
 
@@ -243,7 +286,7 @@ const ActivePreview = ({
          )}
          {kind === "pdf" && (
             <MediaFrame painted={painted} className="size-full">
-               {/* Chrome won't render a PDF in any sandboxed frame, and a typed blob url would need bucket CORS and inherit this page's frame-ancestors, which Safari enforces on it; preview URLs are served as application/pdf, never markup. */}
+               {/* Chrome won't render a PDF in any sandboxed frame, and a typed blob url would need bucket CORS and inherit this page's frame-ancestors, which Safari enforces on it. */}
                <iframe
                   key={generation}
                   src={source.url}

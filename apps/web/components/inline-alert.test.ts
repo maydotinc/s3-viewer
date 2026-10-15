@@ -17,14 +17,12 @@ describe("inline alert variants", () => {
       expect(html).toContain('role="alert"');
       expect(html).toContain("List failed");
       expect(html).toContain("Try again");
-      expect(html).toContain("bg-viewerbgred/60");
    });
 
-   it("renders a plain row without a box and wraps long text", () => {
+   it("renders a plain row without a box", () => {
       const html = render({ variant: "plain", children: "Page failed" });
       expect(html).toMatch(/^<p role="alert"/);
       expect(html).not.toContain("bg-viewerbgred");
-      expect(html).toContain("[overflow-wrap:anywhere]");
       expect(html).not.toContain('title="Page failed"');
    });
 

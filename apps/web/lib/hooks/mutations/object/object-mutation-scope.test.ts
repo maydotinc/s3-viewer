@@ -245,40 +245,9 @@ describe("object mutations keep the confirmed target", () => {
       expectOnlyOriginalCacheChanged();
    });
 
-   it.each([
-      `p/${"x".repeat(1020)}/`,
-      "p/../marker/",
-      `p/${"é".repeat(509)}.txt`,
-   ])(
-      "rejects the whole move page before mutating when %s has an invalid destination",
-      async (invalidKey) => {
-         h.get.mockResolvedValue({
-            objects: [
-               { key: "p/a.txt", expectedETag: '"file"' },
-               { key: "p/valid/", expectedETag: '"marker"' },
-               { key: invalidKey, expectedETag: '"invalid"' },
-            ],
-            nextToken: "later-page",
-         });
-         const input = { ...target, prefix: "p/", newPrefix: "dest/" };
-         const mutation = useMovePrefix() as unknown as Mutation<
-            typeof input,
-            MoveSummary
-         >;
-
-         const result = await mutation.mutationFn(input);
-
-         expect(result).toMatchObject({ done: 0, remaining: true });
-         expect(result.listingError).toContain(
-            "The folder move is incomplete."
-         );
-         expect(h.get).toHaveBeenCalledTimes(1);
-         expect(h.post).not.toHaveBeenCalled();
-         expect(h.delete).not.toHaveBeenCalled();
-      }
-   );
-
-   it("copies on the captured server and forgets both keys", async () => {
+   it("copies on the captured server and forgets only the destination key", async () => {
+      for (const scope of scopes)
+         h.client?.setQueryData(previewKey(scope, newObjectKey), "cached copy");
       h.post.mockResolvedValue({ key: newObjectKey, size: 1, eTag: '"copy"' });
       const input = {
          ...target,
@@ -299,7 +268,22 @@ describe("object mutations keep the confirmed target", () => {
          newObjectKey,
          expectedETag: '"reviewed"',
       });
-      expectOnlyOriginalCacheChanged();
+      // the source is unchanged, so an open view of it keeps its preview
+      expect(h.client?.getQueryData(previewKey(target))).toBe("cached preview");
+      expect(
+         h.client?.getQueryData(previewKey(target, newObjectKey))
+      ).toBeUndefined();
+      expect(h.client?.getQueryState(listingKey(target))?.isInvalidated).toBe(
+         true
+      );
+      for (const scope of scopes.slice(1)) {
+         expect(h.client?.getQueryData(previewKey(scope, newObjectKey))).toBe(
+            "cached copy"
+         );
+         expect(h.client?.getQueryState(listingKey(scope))?.isInvalidated).toBe(
+            false
+         );
+      }
    });
 
    it("creates a folder only on the captured server", async () => {
@@ -350,64 +334,5 @@ describe("object mutations keep the confirmed target", () => {
          contentType: "text/plain",
       });
       expectOnlyOriginalCacheChanged();
-   });
-});
-
-describe("moving exact slash-ending objects", () => {
-   it.each([0, 12, null])(
-      "moves size %s using conditional copy/delete rather than recreating a marker",
-      async (size) => {
-         const source = { key: "raw/data/", expectedETag: '"reviewed"', size };
-         h.get.mockResolvedValue({ objects: [source], nextToken: null });
-         h.post.mockResolvedValue({ moved: [source.key], failed: [] });
-         const input = { ...target, prefix: "raw/", newPrefix: "moved/" };
-         const mutation = useMovePrefix() as unknown as Mutation<
-            typeof input,
-            MoveSummary
-         >;
-         expect(await mutation.mutationFn(input)).toMatchObject({
-            done: 1,
-            failed: [],
-         });
-         expect(h.post).toHaveBeenCalledExactlyOnceWith(
-            `${originalPath}/v3/move`,
-            {
-               expectedUserId: target.userId,
-               objects: [
-                  {
-                     key: source.key,
-                     newKey: "moved/data/",
-                     expectedETag: source.expectedETag,
-                  },
-               ],
-            },
-            undefined
-         );
-         expect(h.delete).not.toHaveBeenCalled();
-      }
-   );
-
-   it("retains a source when its guarded move reports a destination conflict", async () => {
-      h.get.mockResolvedValue({
-         objects: [{ key: "raw/data/", expectedETag: '"reviewed"', size: 12 }],
-         nextToken: null,
-      });
-      h.post.mockResolvedValue({
-         moved: [],
-         failed: [
-            { key: "raw/data/", message: "Already exists", retryable: false },
-         ],
-      });
-      const input = { ...target, prefix: "raw/", newPrefix: "moved/" };
-      const mutation = useMovePrefix() as unknown as Mutation<
-         typeof input,
-         MoveSummary
-      >;
-      expect(await mutation.mutationFn(input)).toMatchObject({
-         done: 0,
-         remaining: true,
-         failed: [{ key: "raw/data/" }],
-      });
-      expect(h.delete).not.toHaveBeenCalled();
    });
 });

@@ -1,4 +1,4 @@
-import { ApiError, ClientErrorCode } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import useSessionStore from "@/lib/stores/session-store";
 import { backoffMs, sleep } from "@/lib/utils/retry";
 import {
@@ -9,6 +9,7 @@ import { nextUploadJob, uploadSlot } from "./slot-pool";
 import { UploadCancelled } from "./upload-cancelled";
 import {
    objectUploadUrl,
+   outcomeUnknown,
    putBytes,
    retryAfterMs,
    type TransportHandle,
@@ -33,13 +34,6 @@ const busyWaitMs = (attempt: number, error: unknown): number =>
             maxMs: MAX_BUSY_BACKOFF_MS,
          })
       )
-   );
-
-const outcomeUnknown = () =>
-   new ApiError(
-      0,
-      "Upload result unknown. Refresh the folder and review the file before uploading again.",
-      ClientErrorCode.UPLOAD_OUTCOME_UNKNOWN
    );
 
 type UploadHandle = TransportHandle<S3ObjectUploaded>;

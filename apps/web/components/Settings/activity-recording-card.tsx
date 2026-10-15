@@ -1,7 +1,7 @@
-import CenteredSpinner from "@/components/centered-spinner";
 import ServerListPagination from "@/components/server-list-pagination";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { PRODUCT_NAME, Role } from "@s3-viewer/types";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { Fragment } from "react";
 import SettingsCard from "./card";
 
@@ -16,10 +16,15 @@ const ActivityRecordingCard = () => {
       <SettingsCard title="Activity recording">
          <div className="flex min-h-10 flex-col items-start gap-3 break-words">
             {isServerListLoading ? (
-               <CenteredSpinner
-                  label="Loading activity recording settings"
-                  className="min-h-10 self-stretch"
-               />
+               <div
+                  aria-busy="true"
+                  className="flex h-5 items-center self-stretch"
+               >
+                  <span className="sr-only">
+                     Loading activity recording settings
+                  </span>
+                  <Skeleton className="h-3.5 w-full max-w-md" />
+               </div>
             ) : recording.length === 0 && !hasNextPage && !serverListError ? (
                <p className="text-sm text-viewertext">
                   None of your shared servers record activity.

@@ -83,8 +83,9 @@ const useMoveObjects = () =>
             signal
          ),
       onSuccess: reportMoveResult,
-      settle: forgetTouched(({ objects }) =>
-         objects.flatMap(({ key, newKey }) => [key, newKey])
+      settle: forgetTouched(
+         ({ objects }) => objects.map(({ newKey }) => newKey),
+         ({ objects }) => objects.map(({ key }) => key)
       ),
    });
 

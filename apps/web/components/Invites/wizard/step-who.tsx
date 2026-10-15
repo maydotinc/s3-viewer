@@ -19,7 +19,6 @@ import {
 type StepWhoProps = {
    value: EmailField;
    canContinue: boolean;
-   disabled?: boolean;
    onChange: (next: EmailField) => void;
    onContinue: () => void;
 };
@@ -27,7 +26,6 @@ type StepWhoProps = {
 const StepWho = ({
    value,
    canContinue,
-   disabled,
    onChange,
    onContinue,
 }: StepWhoProps) => {
@@ -85,7 +83,6 @@ const StepWho = ({
                         invalid={!valid}
                         title={valid ? undefined : INVALID_CHIP_TITLE}
                         className="py-1"
-                        disabled={disabled}
                         onRemove={() => onChange(removeChip(value, chip))}
                      />
                   );
@@ -98,7 +95,6 @@ const StepWho = ({
                inputMode="email"
                autoComplete="off"
                spellCheck={false}
-               disabled={disabled}
                value={value.input}
                placeholder={
                   value.chips.length === 0 ? "name@example.com" : undefined

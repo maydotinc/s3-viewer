@@ -13,7 +13,6 @@ type RelatedLinksProps = {
    all?: { href: string; label: string };
    compact?: boolean;
    cardTitleClassName?: string;
-   className?: string;
 };
 
 const RelatedLinks = ({
@@ -23,9 +22,8 @@ const RelatedLinks = ({
    all,
    compact = false,
    cardTitleClassName,
-   className,
 }: RelatedLinksProps) => (
-   <div className={className}>
+   <div>
       <div
          className={cn(
             "flex items-end justify-between gap-6",

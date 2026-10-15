@@ -4,7 +4,7 @@ import {
    type UseCaseStep,
 } from "@/components/UseCases/use-case-page";
 import type { Faq } from "@/lib/types";
-import { Database, KeyRound, Lock, Server, UserMinus } from "lucide-react";
+import { Database, KeyRound, Lock, ScrollText, Server } from "lucide-react";
 import { GitHubMark } from "@/components/social-marks";
 
 const SLUG = "security-and-audit";
@@ -21,7 +21,7 @@ const steps: UseCaseStep[] = [
    },
    {
       title: "Invite the team — no IAM users to mint",
-      body: "Each member gets their own login and a role — Owner, Admin, Editor or Viewer — with a per-bucket override where you need one. Off-boarding is removing them from the members dialog; you don't rotate any AWS keys because they never had any.",
+      body: "Each member gets their own login and a role — Owner, Admin, Editor or Viewer — with a per-bucket override where you need one. Off-boarding is removing them under Settings, Members; you don't rotate any AWS keys because they never had any.",
    },
    {
       title: "Self-host if compliance demands it",
@@ -53,7 +53,12 @@ const faqs: Faq[] = [
    {
       question: "How do I off-board someone who's leaving?",
       answer:
-         "Remove them in the members dialog. They lose access to that server on their next request; a download link they already opened keeps working for up to 15 minutes. You don't have to rotate any AWS or R2 keys — they never held any. Other teammates and applications keep working.",
+         "Remove them under Settings, Members. They lose access to that server on their next request; a download link they already opened keeps working for up to 15 minutes. You don't have to rotate any AWS or R2 keys — they never held any. Other teammates and applications keep working.",
+   },
+   {
+      question: "Is there an audit log?",
+      answer:
+         "Owners can switch on a tamper-evident audit log per server; it is off until they do. Every record is hash-chained to the previous one, so Verify integrity detects edited or missing rows. The owner decides who can view it, whether it records everything or only changes and downloads, and how long records are kept — self-hosters set the minimum with AUDIT_RETENTION_MIN_DAYS (90 days by default). It covers actions taken through S3 Viewer; changes made with other keys or the provider's console never appear.",
    },
    {
       question: "What IAM policy should I use?",
@@ -95,12 +100,12 @@ export default createUseCasePage({
       {
          icon: Lock,
          title: "No IAM users to rotate",
-         body: "Members aren't IAM users — they sign in to S3 Viewer and their role is checked before any request is signed with the server's single credential. Off-boarding is removing them. Nothing permanent for attackers to lift, nothing for you to forget about.",
+         body: "Members aren't IAM users — they sign in to S3 Viewer and their role is checked before any request is signed with the server's single credential. Removing one cuts their access on the next request; a download link they already opened keeps working for up to 15 minutes. No AWS keys to cycle, nothing for you to forget about.",
       },
       {
-         icon: UserMinus,
-         title: "Remove without key rotation",
-         body: "Removing a member cuts their access on the next request; a download link they already opened keeps working for up to 15 minutes. No AWS keys to cycle, no policies to edit, no other teammates affected, no applications broken.",
+         icon: ScrollText,
+         title: "Tamper-evident audit log",
+         body: "Owners can switch on an audit log per server. Each record is hash-chained to the one before it, so Verify integrity catches edited or missing rows. Choose who can view it, whether it records everything or only changes and downloads, and how long records are kept; export to CSV any time.",
       },
       {
          icon: Server,

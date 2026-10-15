@@ -90,7 +90,7 @@ vi.mock("./useObjectCommands", () => ({
    }),
 }));
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const mount = async () => {
    await view.mount(createElement(ObjectsToolbar));
 };
@@ -127,7 +127,10 @@ describe("acting on a selection with a row the caller can't act on", () => {
       await mount();
       await click("Delete");
       await click("Download zip");
-      expect(h.remove).toHaveBeenCalledOnce();
+      expect(h.remove).toHaveBeenCalledExactlyOnceWith(
+         h.selectedIds.map((key) => ({ key, expectedETag: '"e"', size: 1 })),
+         expect.any(Function)
+      );
       expect(h.downloadZip).toHaveBeenCalledWith(h.selectedIds);
       expect(h.toastError).not.toHaveBeenCalled();
    });

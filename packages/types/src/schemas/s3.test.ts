@@ -4,6 +4,7 @@ import {
    bucketScope,
    copyObjectBodySchema,
    createFolderBodySchema,
+   deleteObjectsBodySchema,
    moveObjectsBodySchema,
    newBucketScope,
    putObjectQuerySchema,
@@ -72,8 +73,7 @@ describe("destructive object request validation", () => {
    });
    it.each([undefined, "*", '"*"', 'W/"abc"', '"abc", "other"', ""])(
       "rejects deletion with a missing or unsafe ETag field: %s",
-      async (expectedETag) => {
-         const { deleteObjectsBodySchema } = await import("./s3");
+      (expectedETag) => {
          expect(
             deleteObjectsBodySchema.safeParse({
                ...input,
@@ -82,8 +82,7 @@ describe("destructive object request validation", () => {
          ).toBe(false);
       }
    );
-   it("rejects duplicate keys with conflicting snapshots", async () => {
-      const { deleteObjectsBodySchema } = await import("./s3");
+   it("rejects duplicate keys with conflicting snapshots", () => {
       expect(
          deleteObjectsBodySchema.safeParse({
             ...input,
@@ -94,10 +93,7 @@ describe("destructive object request validation", () => {
          }).success
       ).toBe(false);
    });
-   it("requires the originating account on every destructive operation", async () => {
-      const { deleteObjectsBodySchema, renameObjectBodySchema } = await import(
-         "./s3"
-      );
+   it("requires the originating account on every destructive operation", () => {
       const { expectedUserId, ...legacy } = input;
       void expectedUserId;
       expect(putObjectQuerySchema.safeParse(legacy).success).toBe(false);

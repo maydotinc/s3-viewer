@@ -119,16 +119,17 @@ aws s3 cp ./x.txt s3://my-bucket/x.txt --profile readonly # AccessDenied (expect
       title: "Connect it in S3 Viewer",
       body: (
          <>
-            <strong>Connect server</strong> → Endpoint{" "}
+            <strong>Add server</strong> in the sidebar → Endpoint{" "}
             <code>https://s3.us-east-1.amazonaws.com</code> (use the
             bucket&apos;s region), pick the region, paste the access key ID and
-            secret. Because the user cannot list buckets, S3 Viewer shows a{" "}
-            <strong>Bucket names</strong> field: type <code>my-bucket</code>,
-            press <strong>Check</strong> and it verifies the name with{" "}
-            <code>HeadBucket</code>, then <strong>Connect</strong>. The keys are
-            encrypted in your browser with the server&apos;s public key before
-            they are sent. Teammates you invite afterwards get a Viewer or
-            Editor role on top of this key and never see the AWS credentials.
+            secret, then <strong>Continue</strong>. Because the user cannot list
+            buckets, S3 Viewer shows a <strong>Bucket names</strong> field: type{" "}
+            <code>my-bucket</code>, press <strong>Check access</strong> and it
+            verifies the name with <code>HeadBucket</code>, then{" "}
+            <strong>Connect</strong>. The keys are encrypted in your browser
+            with the server&apos;s public key before they are sent. Teammates
+            you invite afterwards get a Viewer or Editor role on top of this key
+            and never see the AWS credentials.
          </>
       ),
    },

@@ -39,7 +39,6 @@ type ServerAccessSectionProps = {
    single: boolean;
    submitted: boolean;
    focusRequest: number;
-   disabled?: boolean;
    onAccessChange: (
       serverId: string,
       fallback: ServerAccess,
@@ -69,7 +68,6 @@ const ServerAccessSection = memo(function ServerAccessSection({
    single,
    submitted,
    focusRequest,
-   disabled,
    onAccessChange,
    onExpand,
    onRemove,
@@ -189,7 +187,6 @@ const ServerAccessSection = memo(function ServerAccessSection({
                      className="w-full sm:w-64"
                      value={role}
                      roles={roles}
-                     disabled={disabled}
                      onChange={setRole}
                   />
                   <p className="min-h-10 text-xs leading-5 text-viewerlighttext">
@@ -220,14 +217,12 @@ const ServerAccessSection = memo(function ServerAccessSection({
                            variant="link"
                            size="sm"
                            className="h-auto shrink-0 px-0"
-                           disabled={disabled}
                            onClick={() => onRemove(server.id)}
                         >
                            Remove this server
                         </Button>
                      )
                   }
-                  disabled={disabled}
                />
             </div>
          )}

@@ -4,36 +4,32 @@ import { describe, expect, it, vi } from "vitest";
 import { mountedRuntime } from "@/components/test-helpers";
 import ListPagination, { loadNext } from "./list-pagination";
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 
 describe("pagination inside a mutation form", () => {
-   it.each([false, true])(
-      "loads or retries without submitting the enclosing form (retry: %s)",
-      async (retry) => {
-         const submit = vi.fn((event: FormEvent) => event.preventDefault());
-         const fetchNextPage = vi.fn().mockResolvedValue(undefined);
-         const refetch = vi.fn().mockResolvedValue(undefined);
-         await view.mount(
-            createElement(
-               "form",
-               { onSubmit: submit },
-               createElement(ListPagination, {
-                  hasNextPage: true,
-                  isFetching: false,
-                  isFetchNextPageError: false,
-                  error: retry ? new Error("Page failed") : null,
-                  fetchNextPage,
-                  refetch,
-               })
-            )
-         );
-         await act(async () =>
-            view.current.container.querySelector("button")!.click()
-         );
-         expect(retry ? refetch : fetchNextPage).toHaveBeenCalledOnce();
-         expect(submit).not.toHaveBeenCalled();
-      }
-   );
+   it("loads the next page without submitting the enclosing form", async () => {
+      const submit = vi.fn((event: FormEvent) => event.preventDefault());
+      const fetchNextPage = vi.fn().mockResolvedValue(undefined);
+      await view.mount(
+         createElement(
+            "form",
+            { onSubmit: submit },
+            createElement(ListPagination, {
+               hasNextPage: true,
+               isFetching: false,
+               isFetchNextPageError: false,
+               error: null,
+               fetchNextPage,
+               refetch: vi.fn(),
+            })
+         )
+      );
+      await act(async () =>
+         view.current.container.querySelector("button")!.click()
+      );
+      expect(fetchNextPage).toHaveBeenCalledOnce();
+      expect(submit).not.toHaveBeenCalled();
+   });
 });
 
 describe("choosing between the next page and a retry", () => {

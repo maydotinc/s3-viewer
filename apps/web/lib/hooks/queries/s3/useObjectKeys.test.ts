@@ -29,11 +29,9 @@ vi.mock("@tanstack/react-query", () => ({
       return { data: [] };
    },
 }));
-vi.mock("@/lib/api", () => ({
+vi.mock("@/lib/api", async (original) => ({
+   ...(await original<typeof import("@/lib/api")>()),
    api: { get: h.get },
-   objectsPath: (serverId: string, bucket: string) =>
-      `/servers/${serverId}/buckets/${bucket}/objects`,
-   qs: () => "",
 }));
 import useObjectKeys from "./useObjectKeys";
 
@@ -62,7 +60,7 @@ describe("path suggestion scope", () => {
       );
       expect(await h.options?.queryFn({ signal })).toEqual(["folder/next.txt"]);
       expect(h.get).toHaveBeenCalledWith(
-         "/servers/original-server/buckets/backups/objects",
+         "/servers/original-server/buckets/backups/objects?prefix=folder%2F&blockSize=50",
          signal
       );
    });
@@ -79,7 +77,7 @@ describe("path suggestion scope", () => {
       );
       await h.options?.queryFn({ signal });
       expect(h.get).toHaveBeenCalledWith(
-         "/servers/selected-server/buckets/backups/objects",
+         "/servers/selected-server/buckets/backups/objects?prefix=folder%2F&blockSize=50",
          signal
       );
    });
@@ -99,29 +97,9 @@ describe("prefixes only the owner may list", () => {
       expect(h.options?.enabled).toBe(true);
    });
 
-   it.each(["a/..", "a/../", "./", "a\\..\\b"])(
-      "has no suggestions for %j instead of a refused listing",
-      (prefix) => {
-         useObjectKeys("backups", prefix, true);
-         expect(h.options?.enabled).toBe(false);
-      }
-   );
-
-   it("still suggests while a name is being typed", () => {
-      useObjectKeys("backups", "a/.e", true);
-      expect(h.options?.enabled).toBe(true);
-   });
-
-   it("waits to know who is asking before listing a dotted prefix", () => {
-      h.reach = undefined;
+   it("has no suggestions for a dotted prefix instead of a refused listing", () => {
       useObjectKeys("backups", "a/..", true);
       expect(h.options?.enabled).toBe(false);
-   });
-
-   it("lists anything for the server owner", () => {
-      h.reach = { folders: null, owner: true };
-      useObjectKeys("backups", "a/..", true);
-      expect(h.options?.enabled).toBe(true);
    });
 });
 

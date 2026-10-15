@@ -31,7 +31,8 @@ const state = vi.hoisted(() => ({
    role: "OWNER" as DbRole | null,
    held: new Map<string, { role: string; folders: string[] | null }>(),
    loadGrantingActor: vi.fn(),
-   pending: [] as { email: string; role: string; token?: string }[],
+   pending: [] as { email: string; role: string }[],
+   findInvites: vi.fn(),
    // the buckets the acting member holds; null is an owner's view of every bucket.
    visible: null as Set<string> | null,
    grantRows: [] as {
@@ -80,6 +81,7 @@ const listedRow = ({ email, role }: { email: string; role: string }) => ({
    id: inviteId(email),
    email,
    role,
+   token: "kept-token-1",
    expiresAt: new Date("2030-01-01T00:00:00.000Z"),
    serverId: SERVER,
    invitedById: ACTOR,
@@ -104,7 +106,10 @@ const revoked = vi.hoisted(() => ({ target: null as Row | null }));
 
 vi.mock("@s3-viewer/db", () => {
    const pendingInvitation = {
-      findMany: async () => state.pending.map(listedRow),
+      findMany: async (args: unknown) => {
+         state.findInvites(args);
+         return state.pending.map(listedRow);
+      },
       deleteMany: state.deleteInvites,
       findUnique: async () =>
          revoked.target
@@ -153,6 +158,7 @@ beforeEach(() => {
    state.actor = ACTOR;
    state.role = "OWNER";
    state.pending = [];
+   state.findInvites.mockReset();
    state.visible = null;
    state.grantRows = [];
    state.held.clear();
@@ -173,14 +179,14 @@ beforeEach(() => {
 
 describe("GET /servers/:serverId/invites", () => {
    it("lists pending invites without reading or returning their tokens", async () => {
-      state.pending = [
-         { email: "one@example.com", role: "VIEWER", token: "kept-token-1" },
-      ];
+      state.pending = [{ email: "one@example.com", role: "VIEWER" }];
       const res = await fetch(base);
       expect(res.status).toBe(200);
       const body = await res.text();
       expect(JSON.parse(body).invites).toHaveLength(1);
       expect(body).not.toContain("token");
+      const [args] = state.findInvites.mock.calls[0] ?? [];
+      expect(args.select).not.toHaveProperty("token");
    });
 
    it("shows an admin only the invite grants on buckets the admin holds", async () => {

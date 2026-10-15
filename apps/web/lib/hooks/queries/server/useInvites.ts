@@ -22,6 +22,7 @@ const useReceivedInvites = () => {
       select: pageInvites,
       nextCursor: pageCursor,
       enabled: Boolean(userId),
+      refetchOnWindowFocus: true,
    });
    return { ...pages, invites };
 };
@@ -35,8 +36,8 @@ const useSentInvites = (serverId: string) => {
             .get<InvitesResponse>(`${serverPath(serverId)}/invites`, signal)
             .then(field("invites")),
       enabled: Boolean(userId && serverId),
+      refetchOnWindowFocus: true,
    });
 };
 
 export { useReceivedInvites, useSentInvites };
-export type { InvitesPage };

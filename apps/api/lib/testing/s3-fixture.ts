@@ -63,7 +63,6 @@ const xml = (body: string, statusCode = 200): FixtureReply =>
 const errorXml = (code: string): string =>
    `<Error><Code>${code}</Code></Error>`;
 
-// a bodiless reply such as HEAD, DELETE or a plain PUT acknowledgement.
 const empty = (
    statusCode = 200,
    headers: Record<string, string> = {}

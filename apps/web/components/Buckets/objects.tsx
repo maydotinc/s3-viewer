@@ -7,14 +7,10 @@ import { Page, PageHeader } from "@/components/Layout/page";
 import { onListingChanged } from "@/lib/listing-events";
 import { queryKeys } from "@/lib/query-keys";
 import usePreferencesStore from "@/lib/stores/preferences-store";
-import {
-   DOT_SEGMENTS,
-   canListPrefix,
-   folderAccessAt,
-} from "@/lib/utils/folder-access";
+import { canListPrefix, folderAccessAt } from "@/lib/utils/folder-access";
 import { useServerId } from "@/lib/stores/session-scope";
 import { useUserId } from "@/lib/stores/session-store";
-import { MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
+import { DOT_SEGMENTS_MESSAGE, MAX_LIST_BLOCK_SIZE } from "@s3-viewer/types";
 import { useQueryClient } from "@tanstack/react-query";
 import type { GridApi } from "ag-grid-community";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -71,6 +67,7 @@ const Objects = () => {
       awaitingReach,
       refresh,
       registerRefresh,
+      setListingReloading,
       notFound,
       bucketsError,
       isRefreshing,
@@ -115,15 +112,18 @@ const Objects = () => {
    useEffect(() => {
       const reload = () => {
          setFailure(null);
-         source.current?.reload();
+         if (!source.current) return;
+         setListingReloading(true);
+         source.current.reload();
       };
       registerRefresh(reload);
       const stopListening = onListingChanged(reload);
       return () => {
          registerRefresh(null);
          stopListening();
+         setListingReloading(false);
       };
-   }, [registerRefresh]);
+   }, [registerRefresh, setListingReloading]);
 
    const createDatasource = useCallback(
       (api: GridApi) => {
@@ -135,6 +135,7 @@ const Objects = () => {
             firstBlock: firstBlock.take(),
             getGridApi: () => api,
             onError: (error) => setFailure({ listingKey, error }),
+            onReloaded: () => setListingReloading(false),
             onFirstPage: (keys) =>
                queryClient.setQueryData(
                   queryKeys.objectKeySuggestions(
@@ -158,6 +159,7 @@ const Objects = () => {
          listingKey,
          queryClient,
          userId,
+         setListingReloading,
       ]
    );
 
@@ -217,7 +219,7 @@ const Objects = () => {
                      <DropZone className="flex min-h-0 flex-1 flex-col">
                         <EmptyState
                            title="No matching objects"
-                           description={DOT_SEGMENTS}
+                           description={DOT_SEGMENTS_MESSAGE}
                         />
                      </DropZone>
                   ) : !listable ? (

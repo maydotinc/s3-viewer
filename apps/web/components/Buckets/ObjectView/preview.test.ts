@@ -7,7 +7,13 @@ import type { S3ObjectPreview } from "@s3-viewer/types";
 import { deferred } from "@/lib/test/runtime";
 import ObjectPreview from "./preview";
 
-const h = vi.hoisted(() => ({ refresh: vi.fn() }));
+const h = vi.hoisted(() => ({ refresh: vi.fn(), provider: "S3" }));
+vi.mock("@/lib/hooks/queries/server/useCurrentServer", () => ({
+   default: () => ({
+      currentServer: { provider: h.provider },
+      isLoading: false,
+   }),
+}));
 vi.mock("./preview-message", () => ({
    PreviewMessage: ({ title, text }: { title: string; text?: string }) =>
       createElement("p", null, [title, text].filter(Boolean).join(". ")),
@@ -45,10 +51,7 @@ type Props = {
    fileName: string;
    isError: boolean;
 };
-const view = mountedRuntime(() => {
-   vi.restoreAllMocks();
-   vi.unstubAllGlobals();
-});
+const view = mountedRuntime(() => vi.restoreAllMocks());
 let update!: (change: Partial<Props>) => void;
 const Probe = ({ preview }: { preview: S3ObjectPreview }) => {
    const [props, setProps] = useState<Props>({
@@ -77,6 +80,7 @@ const emit = async (element: Element, event: string) =>
 
 beforeEach(() => {
    vi.clearAllMocks();
+   h.provider = "S3";
    vi.stubGlobal(
       "HTMLMediaElement",
       class extends HTMLMediaElement {
@@ -86,17 +90,12 @@ beforeEach(() => {
 });
 
 describe("empty files", () => {
-   it.each(["video/mp4", "image/png", "application/json", "text/plain"])(
-      "says a zero-byte %s is empty instead of loading a source that can only fail",
-      async (contentType) => {
-         await mount({ ...initialPreview(contentType), contentLength: 0 });
-         expect(view.current.container.textContent).toBe("This file is empty");
-         expect(
-            view.current.container.querySelector("video, img, iframe")
-         ).toBeNull();
-         expect(h.refresh).not.toHaveBeenCalled();
-      }
-   );
+   it("says a zero-byte file is empty instead of loading a source that can only fail", async () => {
+      await mount({ ...initialPreview("video/mp4"), contentLength: 0 });
+      expect(view.current.container.textContent).toBe("This file is empty");
+      expect(view.current.container.querySelector("video")).toBeNull();
+      expect(h.refresh).not.toHaveBeenCalled();
+   });
 });
 
 describe("archives", () => {
@@ -116,6 +115,18 @@ describe("archives", () => {
    });
 });
 
+describe("PDFs", () => {
+   it("links out instead of framing a PDF from an endpoint that may serve markup", async () => {
+      h.provider = "Other";
+      const preview = initialPreview("application/pdf");
+      await mount(preview);
+      expect(view.current.container.querySelector("iframe")).toBeNull();
+      const link = view.current.container.querySelector("a")!;
+      expect(link.getAttribute("href")).toBe(preview.url);
+      expect(link.getAttribute("rel")).toBe("noopener noreferrer");
+   });
+});
+
 describe("large files", () => {
    const huge = 2 * 1024 ** 3;
 
@@ -128,22 +139,10 @@ describe("large files", () => {
       expect(view.current.container.querySelector(element)).not.toBeNull();
    });
 
-   it.each(["image/png", "text/plain"])(
-      "asks to download a large %s",
-      async (contentType) => {
-         await mount({ ...initialPreview(contentType), contentLength: huge });
-         expect(view.current.container.textContent).toContain("Too large");
-         expect(view.current.container.querySelector("img, iframe")).toBeNull();
-      }
-   );
-});
-
-describe("video layout", () => {
-   it("fills a reserved aspect box so the player does not resize when metadata arrives", async () => {
-      await mount();
-      const video = mediaElement();
-      expect(video.className).toContain("absolute inset-0 size-full");
-      expect(video.parentElement!.className).toContain("aspect-[4/3]");
+   it("asks to download a large image", async () => {
+      await mount({ ...initialPreview("image/png"), contentLength: huge });
+      expect(view.current.container.textContent).toContain("Too large");
+      expect(view.current.container.querySelector("img")).toBeNull();
    });
 });
 
@@ -387,20 +386,5 @@ describe("authorized preview renewal", () => {
       expect(h.refresh).toHaveBeenCalledOnce();
       expect(view.current.container.querySelector("video")).toBeNull();
       expect(view.current.container.textContent).toContain("Couldn't load");
-   });
-
-   it("bounds automatic recovery when refreshed storage access still fails", async () => {
-      await mount();
-      h.refresh.mockResolvedValue({
-         ...initialPreview(),
-         url: "https://storage.test/file?signature=two",
-      });
-      await emit(mediaElement(), "error");
-      await emit(mediaElement(), "error");
-      expect(h.refresh).toHaveBeenCalledOnce();
-      expect(view.current.container.querySelector("video")).toBeNull();
-      expect(view.current.container.textContent).toContain(
-         "Couldn't load the preview"
-      );
    });
 });

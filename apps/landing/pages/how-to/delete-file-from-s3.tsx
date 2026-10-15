@@ -16,13 +16,13 @@ const steps: HowToStep[] = [
          <>
             Open the ⋮ menu on the object&apos;s row and choose{" "}
             <strong>Delete</strong>. To clear several at once, tick their
-            checkboxes and use the <strong>Delete</strong> button in the toolbar
-            — the selection is sent in batches of up to 1,000 keys. The
-            confirmation shows how many objects you are about to delete. Each
-            must still match the file you reviewed, on AWS S3, R2, B2, MinIO, or
-            any other connected provider. Uncertain deletion requests are never
-            automatically replayed; refresh and review them before another
-            attempt.
+            checkboxes and use the toolbar&apos;s trash button, whose tooltip
+            reads <strong>Delete 3 selected</strong> — the selection is sent in
+            batches of up to 1,000 keys. The confirmation shows how many objects
+            you are about to delete. Each must still match the file you
+            reviewed, on AWS S3, R2, B2, MinIO, or any other connected provider.
+            Uncertain deletion requests are never automatically replayed;
+            refresh and review them before another attempt.
          </>
       ),
    },

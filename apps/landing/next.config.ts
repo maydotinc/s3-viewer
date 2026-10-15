@@ -50,7 +50,7 @@ const nextConfig: NextConfig = {
    },
    reactStrictMode: true,
    poweredByHeader: false,
-   transpilePackages: ["@s3-viewer/ui"],
+   transpilePackages: ["@s3-viewer/ui", "@s3-viewer/types"],
    assetPrefix,
    images: {
       path: `${assetPrefix}/_next/image`,

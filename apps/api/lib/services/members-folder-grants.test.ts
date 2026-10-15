@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
-import { ErrorCode, Role } from "@s3-viewer/types";
+import { AuditLevel, ErrorCode, Role } from "@s3-viewer/types";
 import { describe, expect, it, vi } from "vitest";
+import { grantRefusal } from "@/lib/middleware/authorize";
 import type { BucketRow } from "./bucket-grants";
 import { grantBucketRoles } from "./invites";
 import {
@@ -14,6 +15,12 @@ import {
 } from "./members";
 
 vi.mock("@s3-viewer/db", () => ({ prisma: {} }));
+
+const refuse = grantRefusal({
+   serverId: "server12345",
+   actorId: "actor12345",
+   audit: { enabled: true, level: AuditLevel.ALL },
+});
 
 const openScope = { restrictedBuckets: false, allowedBuckets: [] };
 
@@ -44,9 +51,12 @@ const limitedAdmin: GrantingActor = {
 
 describe("assertBucketGrants with a folder-limited actor", () => {
    const granting = (folders: string[] | null) => () =>
-      assertBucketGrants(limitedAdmin, openScope, [
-         grant("company", Role.VIEWER, folders),
-      ]);
+      assertBucketGrants(
+         limitedAdmin,
+         openScope,
+         [grant("company", Role.VIEWER, folders)],
+         refuse
+      );
 
    it("lets them share their own folders and folders inside them", () => {
       expect(granting(["landing/"])).not.toThrow();
@@ -66,6 +76,12 @@ describe("assertBucketGrants with a folder-limited actor", () => {
                code: ErrorCode.FOLDER_ACCESS,
                message:
                   "Your access to company is limited to folders, so you can only grant access inside them",
+               denial: expect.objectContaining({
+                  entry: expect.objectContaining({
+                     bucket: "company",
+                     detail: { permission: "MANAGE_MEMBERS", reason: "folder" },
+                  }),
+               }),
             })
          );
       }
@@ -76,7 +92,8 @@ describe("assertBucketGrants with a folder-limited actor", () => {
          assertBucketGrants(
             { serverRole: Role.OWNER, bucketGrants: new Map() },
             openScope,
-            [grant("company", Role.ADMIN, ["landing/"])]
+            [grant("company", Role.ADMIN, ["landing/"])],
+            refuse
          )
       ).toThrow(
          expect.objectContaining({
@@ -92,17 +109,25 @@ describe("assertBucketGrantChanges with folders", () => {
 
    it("keeps an unchanged limited grant the actor could not make", () => {
       expect(() =>
-         assertBucketGrantChanges(limitedAdmin, openScope, current, [
-            grant("company", Role.VIEWER, ["private/"]),
-         ])
+         assertBucketGrantChanges(
+            limitedAdmin,
+            openScope,
+            current,
+            [grant("company", Role.VIEWER, ["private/"])],
+            refuse
+         )
       ).not.toThrow();
    });
 
    it("checks a change of folders alone like a fresh grant", () => {
       const changing = (folders: string[] | null) => () =>
-         assertBucketGrantChanges(limitedAdmin, openScope, current, [
-            grant("company", Role.VIEWER, folders),
-         ]);
+         assertBucketGrantChanges(
+            limitedAdmin,
+            openScope,
+            current,
+            [grant("company", Role.VIEWER, folders)],
+            refuse
+         );
       expect(changing(["private/", "landing/"])).toThrow(
          expect.objectContaining({ code: ErrorCode.FOLDER_ACCESS })
       );
@@ -122,7 +147,8 @@ describe("assertBucketGrantChanges with folders", () => {
             limitedAdmin,
             openScope,
             [row("company", Role.VIEWER, ["landing/img/"])],
-            [grant("company", Role.VIEWER, ["landing/"])]
+            [grant("company", Role.VIEWER, ["landing/"])],
+            refuse
          )
       ).not.toThrow();
       expect(() =>
@@ -130,7 +156,8 @@ describe("assertBucketGrantChanges with folders", () => {
             limitedAdmin,
             openScope,
             [row("company", Role.VIEWER, ["landing/img/"])],
-            []
+            [],
+            refuse
          )
       ).not.toThrow();
    });
@@ -141,7 +168,8 @@ describe("assertBucketGrantChanges with folders", () => {
             limitedAdmin,
             openScope,
             [row("company", Role.VIEWER, ["b/", "a/"])],
-            [grant("company", Role.VIEWER, ["a/", "b/"])]
+            [grant("company", Role.VIEWER, ["a/", "b/"])],
+            refuse
          )
       ).not.toThrow();
    });

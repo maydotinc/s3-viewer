@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mountedRuntime } from "@/components/test-helpers";
+import { mountedRuntime, typeInto } from "@/components/test-helpers";
 import { flushRuntime } from "@/lib/test/runtime";
 
 const h = vi.hoisted(() => ({
@@ -23,10 +23,6 @@ vi.mock("@/lib/auth", () => ({
 import VerifyCodeStep from "./verify-code-step";
 
 const view = mountedRuntime();
-const setValue = Object.getOwnPropertyDescriptor(
-   HTMLInputElement.prototype,
-   "value"
-)!.set!;
 
 const mount = async () => {
    await view.mount(
@@ -44,10 +40,7 @@ const mount = async () => {
 const field = (container: HTMLElement) =>
    container.querySelector<HTMLInputElement>("#verification-code")!;
 const type = async (input: HTMLInputElement, text: string) => {
-   await act(async () => {
-      setValue.call(input, text);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-   });
+   await act(async () => typeInto(input, text));
    await flushRuntime();
 };
 const message = (container: HTMLElement) =>

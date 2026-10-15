@@ -413,7 +413,7 @@ const objectRoutes = (router: Router): string[] =>
       const { path, methods } = layer.route;
       return [path].flat().flatMap((each) =>
          Object.keys(methods)
-            // Express answers HEAD from a GET route; only archive declares one.
+            // route.all registers an _all marker, not a verb; HEAD is listed only where declared (archive), though Express also answers it from GET routes.
             .filter((method) => method !== "_all")
             .map((method) => `${method.toUpperCase()} ${each}`)
       );

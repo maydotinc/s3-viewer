@@ -210,8 +210,8 @@ archiveRouter.get(
                         output: res,
                         abortController: aborted,
                         maxBytes: limits.maxBytes,
+                        // the record can refuse with "try again", so the ticket is spent only once it is written.
                         beforeOutput: async () => {
-                           await takeArchiveTicket(token, binding);
                            await record(res, {
                               action: "object.archive",
                               bucket: bucketName,
@@ -222,6 +222,7 @@ archiveRouter.get(
                                  outcome: "attempt",
                               },
                            });
+                           await takeArchiveTicket(token, binding);
                         },
                      });
                   } catch (error) {

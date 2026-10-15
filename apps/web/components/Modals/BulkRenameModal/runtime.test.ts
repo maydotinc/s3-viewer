@@ -17,10 +17,7 @@ vi.mock("@s3-viewer/ui/components/toast", async () =>
    (await import("@/components/test-helpers")).toastMock()
 );
 
-const view = mountedRuntime(() => {
-   vi.restoreAllMocks();
-   vi.unstubAllGlobals();
-});
+const view = mountedRuntime(() => vi.restoreAllMocks());
 let run!: ReturnType<typeof useBulkRename>;
 const onClose = vi.fn();
 const onRenamed = vi.fn();

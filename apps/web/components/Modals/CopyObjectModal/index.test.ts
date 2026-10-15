@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
 import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { buttonByText, mountedRuntime } from "@/components/test-helpers";
+import {
+   buttonByText,
+   mountedRuntime,
+   submitForm,
+   typeInto,
+} from "@/components/test-helpers";
 import { flushRuntime } from "@/lib/test/runtime";
 import Modal from "./index";
 
@@ -25,7 +30,7 @@ vi.mock("@s3-viewer/ui/components/toast", async () =>
    (await import("@/components/test-helpers")).toastMock()
 );
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const input = () => view.current.container.querySelector("input")!;
 const press = async (label: string) =>
    act(async () => buttonByText(view.current.container, label)!.click());
@@ -42,20 +47,8 @@ const open = async () => {
    );
 };
 const submit = async (key: string) => {
-   await act(async () => {
-      Object.getOwnPropertyDescriptor(
-         HTMLInputElement.prototype,
-         "value"
-      )!.set!.call(input(), key);
-      input().dispatchEvent(new Event("input", { bubbles: true }));
-   });
-   await act(async () =>
-      view.current.container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         )
-   );
+   await act(async () => typeInto(input(), key));
+   await act(async () => submitForm(view.current.container));
    await flushRuntime();
 };
 

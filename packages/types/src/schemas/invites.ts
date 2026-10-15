@@ -31,7 +31,6 @@ const ADMIN_FOLDERS = {
    path: ["bucketAccess"],
 };
 
-// one server's share of an invite: the server role plus the buckets (and folders) it opens.
 export const inviteTargetSchema = z
    .object({
       serverId: idSchema,

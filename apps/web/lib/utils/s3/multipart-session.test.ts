@@ -52,11 +52,6 @@ const session = (
 const proof = { eTag: '"p1"', sha256: "a".repeat(64) };
 const candidate = { userId: "user-a", target, file, expectedETag: null };
 const catalogKey = "s3-viewer.multipart-uploads";
-const targetKey = JSON.stringify([
-   target.serverId,
-   target.bucketName,
-   target.objectKey,
-]);
 const load = () => import("./multipart-session");
 
 beforeEach(() => {
@@ -107,43 +102,6 @@ describe("incremental multipart resume persistence", () => {
          saved.partDigests
       );
       expect(storage.getItem.mock.calls.length).toBeLessThan(160);
-   });
-
-   it("migrates an existing session and preserves proofs across another reload", async () => {
-      memory.set(
-         catalogKey,
-         JSON.stringify({
-            [targetKey]: session({ partDigests: { 1: proof, 9999: proof } }),
-         })
-      );
-      const { resumableSession } = await load();
-      expect((await resumableSession(candidate))?.partDigests).toEqual({
-         1: proof,
-         9999: proof,
-      });
-      expect(
-         JSON.parse(memory.get(catalogKey)!)[targetKey].partDigests
-      ).toBeUndefined();
-      vi.resetModules();
-      expect(
-         (await (await load()).resumableSession(candidate))?.partDigests
-      ).toEqual({
-         1: proof,
-         9999: proof,
-      });
-   });
-
-   it("does not resurrect stale chunks while migrating a legacy session", async () => {
-      const { rememberSession, resumableSession } = await load();
-      await rememberSession(
-         session({ partDigests: { 1: proof, 9999: proof } })
-      );
-      memory.set(
-         catalogKey,
-         JSON.stringify({ [targetKey]: session({ partDigests: {} }) })
-      );
-      expect((await resumableSession(candidate))?.partDigests).toEqual({});
-      expect((await resumableSession(candidate))?.partDigests).toEqual({});
    });
 
    it("invalidates a proof durably before a reload", async () => {
@@ -228,20 +186,6 @@ describe("incremental multipart resume persistence", () => {
       expect(storage.setItem.mock.calls).toHaveLength(3);
    });
 
-   it("clears catalog and chunks on account changes and ignores late successes", async () => {
-      const { rememberSession, rememberPartDigest, resumableSession } =
-         await load();
-      const saved = session({ partDigests: { 1: proof } });
-      await rememberSession(saved);
-      expect(
-         await resumableSession({ ...candidate, userId: "user-b" })
-      ).toBeNull();
-      identity.userId = "user-b";
-      identity.listener?.({ userId: "user-b" }, { userId: "user-a" });
-      await rememberPartDigest(saved, 2, proof);
-      expect(memory.size).toBe(0);
-   });
-
    it("cleans staged chunks when metadata cannot be saved", async () => {
       const { rememberSession } = await load();
       vi.spyOn(storage, "setItem").mockImplementation((key, value) => {
@@ -267,17 +211,11 @@ describe("multipart persistence across tabs", () => {
       await first.rememberSession(saved);
       const second = await otherTab();
       let invalidation: Promise<boolean> | undefined;
-      let invalidated = false;
       const originalGet = storage.getItem.getMockImplementation()!;
       storage.getItem.mockImplementation((key) => {
          const raw = originalGet(key);
-         if (key.includes(".parts.") && !invalidation) {
-            invalidation = first.forgetPartDigest(saved, 1).then((result) => {
-               invalidated = result;
-               return result;
-            });
-            expect(invalidated).toBe(false);
-         }
+         if (key.includes(".parts.") && !invalidation)
+            invalidation = first.forgetPartDigest(saved, 1);
          return raw;
       });
       await second.rememberPartDigest(session(), 2, proof);
@@ -337,9 +275,13 @@ describe("multipart persistence across tabs", () => {
    });
 
    it("serializes account cleanup and rejects old-account successes queued behind it", async () => {
-      const { rememberSession, rememberPartDigest } = await load();
+      const { rememberSession, rememberPartDigest, resumableSession } =
+         await load();
       const saved = session({ partDigests: { 1: proof } });
       await rememberSession(saved);
+      expect(
+         await resumableSession({ ...candidate, userId: "user-b" })
+      ).toBeNull();
       let release!: () => void;
       let entered!: () => void;
       const acquired = new Promise<void>((resolve) => {

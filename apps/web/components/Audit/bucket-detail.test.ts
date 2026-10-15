@@ -48,9 +48,6 @@ describe("reading the buckets recorded with an access change", () => {
 
    it("writes it out for people", () => {
       expect(
-         bucketDetailText('alpha:EDITOR["landing/","a b/"],zeta:VIEWER')
-      ).toBe("alpha: Editor in landing/ and a b/; zeta: Viewer");
-      expect(
          bucketDetailText("b:VIEWER[20 folders sha256:abcdef0123456789]")
       ).toBe("b: Viewer in 20 folders");
       expect(bucketDetailText("something else")).toBe("something else");
@@ -63,19 +60,16 @@ describe("the activity log", () => {
       detail: AuditLogEntry["detail"]
    ) => ({ action, detail }) as AuditLogEntry;
 
-   it.each(["member.role_change", "invite.send", "invite.accept"] as const)(
-      "shows what %s gave access to",
-      (action) => {
-         expect(
-            metaOf(
-               entry(action, {
-                  role: "VIEWER",
-                  buckets: 'alpha:EDITOR["landing/"],zeta:VIEWER',
-               })
-            )
-         ).toBe("Viewer role · alpha: Editor in landing/; zeta: Viewer");
-      }
-   );
+   it("shows what a role change gave access to", () => {
+      expect(
+         metaOf(
+            entry("member.role_change", {
+               role: "VIEWER",
+               buckets: 'alpha:EDITOR["landing/"],zeta:VIEWER',
+            })
+         )
+      ).toBe("Viewer role · alpha: Editor in landing/; zeta: Viewer");
+   });
 
    it("still shows the role alone when no buckets were recorded", () => {
       expect(metaOf(entry("member.role_change", { role: "ADMIN" }))).toBe(

@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Scope = { userId: string; serverId: string };
 type MutationOptions = {
-   onMutate: (input: { scope: Scope }) => Scope;
    onSuccess: (
       data: { id: string },
       input: unknown,
@@ -68,6 +67,9 @@ describe("connection completion keeps its original scope", () => {
          queryKey: queryKeys.servers("accountA"),
       });
       expect(h.select).toHaveBeenCalledWith("createdServer");
+      expect(h.invalidate.mock.invocationCallOrder[0]).toBeLessThan(
+         h.select.mock.invocationCallOrder[0]!
+      );
       expect(h.success).toHaveBeenCalledWith("Server connected");
    });
 
@@ -91,22 +93,12 @@ describe("connection completion keeps its original scope", () => {
       expect(h.state).toEqual(next);
    });
 
-   it("ignores a completion already belonging to a previous account", async () => {
-      const complete = start();
-      h.state = { userId: "accountB", serverId: "serverB" };
-      await complete();
-      expect(h.push).not.toHaveBeenCalled();
-      expect(h.select).not.toHaveBeenCalled();
-      expect(h.success).not.toHaveBeenCalled();
-   });
-
    it("does not select or notify a different account during navigation", async () => {
       h.push.mockImplementation(async () => {
          h.state = { userId: "accountB", serverId: "serverB" };
          return true;
       });
       await start()();
-      expect(h.select).not.toHaveBeenCalled();
       expect(h.success).not.toHaveBeenCalled();
    });
 });

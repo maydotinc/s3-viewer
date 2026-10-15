@@ -17,10 +17,10 @@ const PasswordInput = ({
          <Input
             type={shown ? "text" : "password"}
             disabled={disabled}
-            className={cn("pr-10", className)}
+            className={cn("pr-10 pointer-coarse:pr-12", className)}
             {...props}
          />
-         <span className="absolute right-1 top-0.5 inline-flex">
+         <span className="absolute inset-y-0 right-1 flex items-center">
             <SimpleTooltip label={label}>
                <Button
                   type="button"
@@ -30,7 +30,7 @@ const PasswordInput = ({
                   aria-pressed={shown}
                   disabled={disabled}
                   onClick={() => setShown((value) => !value)}
-                  className="text-viewerlighttext"
+                  className="text-viewerlighttext pointer-coarse:size-10"
                >
                   {shown ? <EyeOff /> : <Eye />}
                </Button>

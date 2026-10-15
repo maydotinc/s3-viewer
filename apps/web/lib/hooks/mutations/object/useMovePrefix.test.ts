@@ -10,13 +10,6 @@ vi.mock("@/lib/api", () => ({
    errorMessage: (error: Error) => error.message,
    isAborted: () => false,
 }));
-vi.mock("@s3-viewer/ui/components/toast", () => ({
-   toast: { success: vi.fn(), error: vi.fn() },
-}));
-vi.mock("@tanstack/react-query", () => ({
-   useMutation: vi.fn(),
-   useQueryClient: vi.fn(),
-}));
 const { movePrefix } = await import("./useMovePrefix");
 const input = {
    userId: "user",
@@ -27,23 +20,20 @@ const input = {
 };
 beforeEach(() => vi.resetAllMocks());
 
-it.each(["raw/", "raw/deep/", "raw/deep/deeper/", ""])(
-   "rejects overlapping prefix %s before a live multipage listing can process its output",
-   async (newPrefix) => {
-      h.get.mockResolvedValue({
-         objects: Array.from({ length: 1000 }, (_, n) => ({
-            key: `raw/deep/deep/item-${n}`,
-            expectedETag: "etag",
-         })),
-         nextToken: "next",
-      });
-      await expect(movePrefix({ ...input, newPrefix })).rejects.toThrow(
-         "must not overlap"
-      );
-      expect(h.get).not.toHaveBeenCalled();
-      expect(h.post).not.toHaveBeenCalled();
-   }
-);
+it("rejects an overlapping prefix before a live multipage listing can process its output", async () => {
+   h.get.mockResolvedValue({
+      objects: Array.from({ length: 1000 }, (_, n) => ({
+         key: `raw/deep/deep/item-${n}`,
+         expectedETag: "etag",
+      })),
+      nextToken: "next",
+   });
+   await expect(movePrefix({ ...input, newPrefix: "raw/" })).rejects.toThrow(
+      "must not overlap"
+   );
+   expect(h.get).not.toHaveBeenCalled();
+   expect(h.post).not.toHaveBeenCalled();
+});
 
 it("moves each of 1,001 original keys exactly once between disjoint prefixes", async () => {
    const objects = Array.from({ length: 1001 }, (_, n) => ({

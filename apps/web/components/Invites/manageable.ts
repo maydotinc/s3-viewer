@@ -7,4 +7,4 @@ const canInviteTo = (server: ServerInfo): boolean =>
 const manageableServers = (servers: readonly ServerInfo[]): ServerInfo[] =>
    servers.filter(canInviteTo);
 
-export { canInviteTo, manageableServers };
+export { manageableServers };

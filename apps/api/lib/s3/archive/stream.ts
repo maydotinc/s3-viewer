@@ -261,7 +261,6 @@ const streamArchive = async ({
 
 export {
    archiveDeadlineMs,
-   archiveWorkMs,
    PREFETCH_AHEAD_BYTES,
    PREFETCH_WINDOW,
    streamArchive,

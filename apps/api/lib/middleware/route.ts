@@ -28,12 +28,12 @@ const handle = <S extends ZodTypeAny>(
 ): RequestHandler =>
    asyncHandler((req, res) => handler(req, res, input<TypeOf<S>>(res)));
 
-// omit caller-controlled bucket names from the dedupe key to prevent one audit row per guessed name.
+// entry.bucket is null for names the server doesn't hold, so guessed names still share one key.
 const denialKey = (
    { actorId, serverId, entry }: Denial,
    unverifiedOrigin: boolean
 ): string =>
-   `${actorId}:${serverId}:${entry.detail.permission}${unverifiedOrigin ? ":unverified" : ""}`;
+   `${actorId}:${serverId}:${entry.detail.permission}:${entry.detail.reason}:${entry.bucket ?? "-"}${unverifiedOrigin ? ":unverified" : ""}`;
 
 // a denial never fails its request, and a repeat within the window is not written again.
 const recordDenial = (

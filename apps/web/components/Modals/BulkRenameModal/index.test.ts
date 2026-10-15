@@ -1,7 +1,11 @@
 // @vitest-environment happy-dom
 import { act, createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mountedRuntime } from "@/components/test-helpers";
+import {
+   mountedRuntime,
+   submitForm,
+   typeInto,
+} from "@/components/test-helpers";
 import { INPUT_DEBOUNCE_MS } from "@/lib/constants";
 import type { BulkRenameSource } from "@/lib/contexts/modal-sources";
 import type {
@@ -77,10 +81,7 @@ vi.mock("@/lib/hooks/mutations/object/useMoveObjects", () => ({
 }));
 
 const onClose = vi.fn();
-const view = mountedRuntime(() => {
-   vi.useRealTimers();
-   vi.unstubAllGlobals();
-});
+const view = mountedRuntime(() => vi.useRealTimers());
 const submitButton = () =>
    view.current.container.querySelector<HTMLButtonElement>(
       "button[type=submit]"
@@ -112,12 +113,7 @@ const type = (label: string, value: string) => {
    const field = [...view.current.container.querySelectorAll("label")].find(
       (candidate) => candidate.textContent === label
    )!;
-   const input = document.getElementById(field.htmlFor) as HTMLInputElement;
-   Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value"
-   )!.set!.call(input, value);
-   input.dispatchEvent(new Event("input", { bubbles: true }));
+   typeInto(document.getElementById(field.htmlFor) as HTMLInputElement, value);
 };
 const enter = async (label: string, value: string) => {
    await act(async () => type(label, value));
@@ -132,13 +128,7 @@ const choose = async (kind: string) => {
    await flush();
 };
 const submit = async () => {
-   await act(async () =>
-      view.current.container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         )
-   );
+   await act(async () => submitForm(view.current.container));
    await flush();
 };
 

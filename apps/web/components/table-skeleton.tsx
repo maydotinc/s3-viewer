@@ -6,17 +6,15 @@ type SkeletonColumn = { align?: "left" | "right" };
 
 type TableSkeletonRowsProps = {
    columns: readonly SkeletonColumn[];
-   rows?: number;
    rowClassName?: string;
 };
 
 const TableSkeletonRows = ({
    columns,
-   rows = 3,
    rowClassName,
 }: TableSkeletonRowsProps) => (
    <>
-      {Array.from({ length: rows }, (_, row) => (
+      {Array.from({ length: 3 }, (_, row) => (
          <TableRow
             key={row}
             aria-hidden="true"

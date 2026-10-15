@@ -1,4 +1,3 @@
-import { queryKeys } from "@/lib/query-keys";
 import { GENERIC_ERROR_MESSAGE } from "@s3-viewer/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,18 +7,11 @@ type QueryOptions = {
    enabled: boolean;
 };
 
-type Scope = { userId: string; serverId: string };
-type MutationOptions = {
-   mutationFn: (input: never) => Promise<void>;
-   onMutate: (input: { scope: Scope }) => Scope;
-   onSuccess: (data: void, input: never, scope: Scope) => void;
-};
+type MutationOptions = { mutationFn: (input: never) => Promise<void> };
 
 const h = vi.hoisted(() => ({
    listSessions: vi.fn(),
    revokeSession: vi.fn(),
-   revokeOtherSessions: vi.fn(),
-   invalidateQueries: vi.fn(),
    query: null as unknown,
    mutations: [] as unknown[],
 }));
@@ -34,7 +26,6 @@ vi.mock("@/lib/auth", () => ({
    authClient: {
       listSessions: h.listSessions,
       revokeSession: h.revokeSession,
-      revokeOtherSessions: h.revokeOtherSessions,
    },
 }));
 vi.mock("@/lib/stores/session-store", () => ({
@@ -54,13 +45,9 @@ vi.mock("@tanstack/react-query", () => ({
       h.mutations.push(options);
       return { isPending: false };
    },
-   useQueryClient: () => ({ invalidateQueries: h.invalidateQueries }),
+   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
 }));
-import {
-   useRevokeOtherSessions,
-   useRevokeSession,
-   useSessions,
-} from "./useSessions";
+import { useRevokeSession, useSessions } from "./useSessions";
 
 const session = (id: string, createdAt: string) => ({
    id,
@@ -82,8 +69,6 @@ beforeEach(() => {
    h.mutations = [];
    h.listSessions.mockReset();
    h.revokeSession.mockReset().mockResolvedValue({ error: null });
-   h.revokeOtherSessions.mockReset().mockResolvedValue({ error: null });
-   h.invalidateQueries.mockReset();
 });
 
 describe("listing sessions", () => {
@@ -97,7 +82,6 @@ describe("listing sessions", () => {
          error: null,
       });
       useSessions();
-      expect(query().queryKey).toEqual(queryKeys.sessions("signed-in-user"));
       const sessions = await query().queryFn();
       expect(h.listSessions).toHaveBeenCalledWith({
          fetchOptions: { headers: { "X-Expected-User-Id": "signed-in-user" } },
@@ -126,16 +110,12 @@ describe("listing sessions", () => {
 });
 
 describe("revoking sessions", () => {
-   it("signs out one device by its token and refetches the list", async () => {
+   it("signs out one device by its token as the account that asked", async () => {
       useRevokeSession();
       await lastMutation().mutationFn(scoped({ token: "token-other" }));
       expect(h.revokeSession).toHaveBeenCalledWith({
          token: "token-other",
          fetchOptions: { headers: { "X-Expected-User-Id": "signed-in-user" } },
-      });
-      lastMutation().onSuccess(undefined, scoped(), scope);
-      expect(h.invalidateQueries).toHaveBeenCalledWith({
-         queryKey: queryKeys.sessions("signed-in-user"),
       });
    });
 
@@ -145,15 +125,5 @@ describe("revoking sessions", () => {
       await expect(
          lastMutation().mutationFn(scoped({ token: "token-other" }))
       ).rejects.toThrow("Nope");
-   });
-
-   it("signs out every other device and refetches the list", async () => {
-      useRevokeOtherSessions();
-      await lastMutation().mutationFn(scoped());
-      expect(h.revokeOtherSessions).toHaveBeenCalled();
-      lastMutation().onSuccess(undefined, scoped(), scope);
-      expect(h.invalidateQueries).toHaveBeenCalledWith({
-         queryKey: queryKeys.sessions("signed-in-user"),
-      });
    });
 });

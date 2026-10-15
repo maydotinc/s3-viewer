@@ -134,7 +134,7 @@ const listStoredUploads = async (
 
    return {
       uploads: (uploads ?? []).flatMap((upload) =>
-         upload.Key && upload.UploadId && upload.Key.startsWith(prefix ?? "")
+         upload.Key && upload.UploadId && upload.Key.startsWith(prefix)
             ? [
                  {
                     key: upload.Key,
@@ -164,7 +164,7 @@ const NO_MORE_UPLOADS: S3MultipartUploadPage = {
 const walkUploadsInFolders = async (
    scope: S3Scope,
    folders: readonly string[],
-   { prefix = "", keyMarker, uploadIdMarker }: UploadsQuery
+   { prefix, keyMarker, uploadIdMarker }: UploadsQuery
 ): Promise<S3MultipartUploadPage> => {
    const ranges = (
       isPrefixInFolderScope(folders, prefix)

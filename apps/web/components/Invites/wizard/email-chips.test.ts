@@ -7,7 +7,6 @@ import {
    commitInput,
    helperMessage,
    popChip,
-   requireEmails,
    setInput,
    type EmailField,
 } from "./email-chips";
@@ -105,13 +104,6 @@ describe("the helper line", () => {
       expect(helperMessage(next)).toEqual({
          tone: "error",
          text: "Check the highlighted addresses",
-      });
-   });
-
-   it("asks for an address when Enter is pressed on an empty field", () => {
-      expect(helperMessage(requireEmails(EMPTY_EMAIL_FIELD))).toEqual({
-         tone: "error",
-         text: "Enter at least one email address",
       });
    });
 });

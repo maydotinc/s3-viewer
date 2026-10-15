@@ -5,7 +5,6 @@ import { pluralize } from "@/lib/utils/format";
 import { chunk, DEFAULT_CONTENT_TYPE } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { create } from "zustand";
-import { immer } from "zustand/middleware/immer";
 import type { UploadFile } from "@/lib/utils/s3/drop-entries";
 import { isCancelled } from "@/lib/utils/s3/upload-cancelled";
 import { uploadObject } from "@/lib/utils/s3/upload-object";
@@ -18,6 +17,7 @@ const MIN_PROGRESS_STEP = 64 * 1024;
 const PROGRESS_STEPS = 100;
 const ENQUEUE_CHUNK_SIZE = 200;
 const COMPLETED_HISTORY_LIMIT = 1000;
+const QUEUE_COMPACT_AT = 1024;
 
 type Job = BucketTarget & {
    file: File;
@@ -66,7 +66,6 @@ type UploadState = {
    entries: Record<string, UploadEntry>;
    progress: Record<string, number>;
    order: string[];
-   queue: string[];
    batch: UploadBatch | null;
    isUploading: boolean;
 };
@@ -90,330 +89,333 @@ type UploadStore = UploadState & UploadActions;
 const entryId = (serverId: string, bucketName: string, objectKey: string) =>
    JSON.stringify([serverId, bucketName, objectKey]);
 
-const useUploadStore = create<UploadStore>()(
-   immer((set, get) => {
-      const setEntry = (id: string, patch: Partial<UploadEntry>) =>
-         set((state) => {
-            const entry = state.entries[id];
-            if (!entry) return;
-            if (patch.status && patch.status !== "active") {
-               entry.uploadedBytes = state.progress[id] ?? entry.uploadedBytes;
-               delete state.progress[id];
-            }
-            if (patch.status && state.batch) {
-               adjustBatchCounts(state.batch, entry.status, -1);
-               adjustBatchCounts(state.batch, patch.status, 1);
-            }
-            Object.assign(entry, patch);
-         });
+// pending ids live past queueHead so dequeuing a 10k drop is not O(n) per slot
+let queue: string[] = [];
+let queueHead = 0;
 
-      const settleBatchIfDone = () => {
-         const { batch, queue } = get();
+const queued = () => queue.length - queueHead;
+
+const dequeue = (count: number) => {
+   const next = queue.slice(queueHead, queueHead + count);
+   queueHead += next.length;
+   if (queueHead >= QUEUE_COMPACT_AT && queueHead * 2 >= queue.length) {
+      queue = queue.slice(queueHead);
+      queueHead = 0;
+   }
+   return next;
+};
+
+// entries and progress are patched in place with a new object for the changed row only:
+// copying the whole record per update cost over a minute of main-thread time on a 10k drop
+const useUploadStore = create<UploadStore>()((set, get) => {
+   const setEntry = (id: string, patch: Partial<UploadEntry>) => {
+      const { entries, progress, batch } = get();
+      const entry = entries[id];
+      if (!entry) return;
+      const settles = patch.status && patch.status !== "active";
+      entries[id] = {
+         ...entry,
+         ...(settles && { uploadedBytes: progress[id] ?? entry.uploadedBytes }),
+         ...patch,
+      };
+      if (settles) delete progress[id];
+      if (patch.status && batch) {
+         const next = { ...batch };
+         adjustBatchCounts(next, entry.status, -1);
+         adjustBatchCounts(next, patch.status, 1);
+         set({ batch: next });
+      } else set({});
+   };
+
+   const settleBatchIfDone = () => {
+      const { batch } = get();
+      if (
+         !batch ||
+         batch.settled ||
+         jobs.size > 0 ||
+         queued() > 0 ||
+         activeEnqueues > 0
+      )
+         return;
+
+      set({ batch: { ...batch, settled: true }, isUploading: false });
+
+      const { completed, failed, refusal } = batch;
+      const total = batch.ids.length;
+      if (failed > 0) {
+         const title = `${completed} of ${pluralize(total, "file")} uploaded. ${failed} failed.`;
+         if (refusal) toast.error(title, { description: refusal });
+         else toast.error(title);
+      } else if (completed > 0) {
+         toast.success(
+            completed === 1
+               ? "File uploaded."
+               : `${pluralize(completed, "file")} uploaded.`
+         );
+      }
+      flushBatchCallbacks();
+      const { entries, order } = get();
+      const finished = order.filter(
+         (id) => entries[id]?.status === "completed"
+      );
+      if (finished.length > COMPLETED_HISTORY_LIMIT) {
+         const expired = new Set(finished.slice(0, -COMPLETED_HISTORY_LIMIT));
+         for (const id of expired) delete entries[id];
+         set({ order: order.filter((id) => !expired.has(id)) });
+      }
+   };
+
+   const runJob = async (id: string) => {
+      const job = jobs.get(id);
+      if (!job) return;
+      if (useSessionStore.getState().userId !== job.userId) {
+         get().cancelAllAndClear();
+         return;
+      }
+      const owns = () => jobs.get(id) === job;
+      const step = Math.min(
+         job.file.size,
+         Math.max(MIN_PROGRESS_STEP, Math.ceil(job.file.size / PROGRESS_STEPS))
+      );
+      let reported = 0;
+      const onProgress = (loaded: number) => {
          if (
-            !batch ||
-            batch.settled ||
-            jobs.size > 0 ||
-            queue.length > 0 ||
-            activeEnqueues > 0
+            !owns() ||
+            get().entries[id]?.status !== "active" ||
+            (loaded >= reported && loaded - reported < step)
          )
             return;
-
-         set((state) => {
-            if (state.batch) state.batch.settled = true;
-            state.isUploading = false;
-         });
-
-         const { completed, failed, refusal } = batch;
-         const total = batch.ids.length;
-         if (failed > 0) {
-            const title = `${completed} of ${pluralize(total, "file")} uploaded. ${failed} failed.`;
-            if (refusal) toast.error(title, { description: refusal });
-            else toast.error(title);
-         } else if (completed > 0) {
-            toast.success(
-               completed === 1
-                  ? "File uploaded."
-                  : `${pluralize(completed, "file")} uploaded.`
-            );
-         }
-         flushBatchCallbacks();
-         const finished = get().order.filter(
-            (id) => get().entries[id]?.status === "completed"
-         );
-         if (finished.length > COMPLETED_HISTORY_LIMIT) {
-            const expired = new Set(
-               finished.slice(0, -COMPLETED_HISTORY_LIMIT)
-            );
-            set((state) => {
-               for (const id of expired) delete state.entries[id];
-               state.order = state.order.filter((id) => !expired.has(id));
-            });
-         }
+         reported = loaded;
+         get().progress[id] = Math.min(loaded, job.file.size);
+         set({});
       };
 
-      const runJob = async (id: string) => {
-         const job = jobs.get(id);
-         if (!job) return;
-         if (useSessionStore.getState().userId !== job.userId) {
-            get().cancelAllAndClear();
-            return;
-         }
-         const owns = () => jobs.get(id) === job;
-         const step = Math.min(
-            job.file.size,
-            Math.max(
-               MIN_PROGRESS_STEP,
-               Math.ceil(job.file.size / PROGRESS_STEPS)
-            )
-         );
-         let reported = 0;
-         const onProgress = (loaded: number) => {
-            if (
-               !owns() ||
-               get().entries[id]?.status !== "active" ||
-               (loaded >= reported && loaded - reported < step)
-            )
-               return;
-            reported = loaded;
-            set((state) => {
-               state.progress[id] = Math.min(loaded, job.file.size);
+      try {
+         batchCallbacks
+            .get(batchScope(job.userId, job.serverId, job.bucketName))
+            ?.keys.set(id, job.objectKey);
+         const handle = uploadObject({ ...job, onProgress });
+         job.abort = handle.abort;
+         await handle.done;
+         if (owns())
+            setEntry(id, {
+               status: "completed",
+               uploadedBytes: job.file.size,
             });
-         };
-
-         try {
-            batchCallbacks
-               .get(batchScope(job.userId, job.serverId, job.bucketName))
-               ?.keys.set(id, job.objectKey);
-            const handle = uploadObject({ ...job, onProgress });
-            job.abort = handle.abort;
-            await handle.done;
-            if (owns())
-               setEntry(id, {
-                  status: "completed",
-                  uploadedBytes: job.file.size,
-               });
-         } catch (error) {
-            if (!owns()) return;
-            if (
-               isCancelled(error) ||
-               get().entries[id]?.status === "cancelled"
-            ) {
-               setEntry(id, { status: "cancelled" });
-            } else {
-               setEntry(id, {
-                  status: "failed",
-                  error:
-                     error instanceof Error ? error.message : "Upload failed",
-               });
-               if (isFolderRefusal(error))
-                  set((state) => {
-                     if (state.batch) state.batch.refusal ??= error.message;
-                  });
-            }
-         } finally {
-            if (owns()) jobs.delete(id);
-            pump();
-         }
-      };
-
-      const pump = () => {
-         const { queue } = get();
-         const slots = FILE_CONCURRENCY - (jobs.size - queue.length);
-         const next = slots > 0 ? queue.slice(0, slots) : [];
-         if (next.length > 0) {
-            set((state) => {
-               state.queue = state.queue.slice(next.length);
-               for (const id of next) {
-                  const entry = state.entries[id];
-                  if (entry) entry.status = "active";
-               }
+      } catch (error) {
+         if (!owns()) return;
+         if (isCancelled(error) || get().entries[id]?.status === "cancelled") {
+            setEntry(id, { status: "cancelled" });
+         } else {
+            setEntry(id, {
+               status: "failed",
+               error: error instanceof Error ? error.message : "Upload failed",
             });
-            for (const id of next) {
-               const worker = runJob(id);
-               workers.add(worker);
-               void worker.then(
-                  () => workers.delete(worker),
-                  () => workers.delete(worker)
-               );
-            }
+            const { batch } = get();
+            if (isFolderRefusal(error) && batch && batch.refusal === null)
+               set({ batch: { ...batch, refusal: error.message } });
          }
-         settleBatchIfDone();
-      };
-
-      const cancelMany = (ids: readonly string[]) => {
-         const aborts: Job[] = [];
-         set((state) => {
-            let dequeued = false;
-            for (const id of ids) {
-               const entry = state.entries[id];
-               if (!entry || !isOpen(entry.status)) continue;
-               const job = jobs.get(id);
-               if (entry.status === "pending") {
-                  jobs.delete(id);
-                  dequeued = true;
-               } else if (job) aborts.push(job);
-               entry.uploadedBytes = state.progress[id] ?? entry.uploadedBytes;
-               delete state.progress[id];
-               entry.status = "cancelled";
-            }
-            if (dequeued)
-               state.queue = state.queue.filter(
-                  (id) => state.entries[id]?.status === "pending"
-               );
-         });
-         for (const job of aborts) job.abort?.();
+      } finally {
+         if (owns()) jobs.delete(id);
          pump();
-      };
+      }
+   };
 
-      return {
-         entries: {},
-         progress: {},
-         order: [],
-         queue: [],
-         batch: null,
-         isUploading: false,
+   const pump = () => {
+      const slots = FILE_CONCURRENCY - (jobs.size - queued());
+      const next = slots > 0 ? dequeue(slots) : [];
+      if (next.length > 0) {
+         const { entries } = get();
+         for (const id of next) {
+            const entry = entries[id];
+            if (entry) entries[id] = { ...entry, status: "active" };
+         }
+         set({});
+         for (const id of next) {
+            const worker = runJob(id);
+            workers.add(worker);
+            void worker.then(
+               () => workers.delete(worker),
+               () => workers.delete(worker)
+            );
+         }
+      }
+      settleBatchIfDone();
+   };
 
-         enqueue: ({
-            files,
-            serverId,
-            bucketName,
-            prefix,
-            eTags,
-            onSettled,
-         }) => {
-            if (files.length === 0 || uploadsSuspended()) return;
-            const userId = useSessionStore.getState().userId;
-            if (!userId) return;
+   const cancelMany = (ids: readonly string[]) => {
+      const aborts: Job[] = [];
+      const { entries, progress } = get();
+      let changed = false;
+      let dequeued = false;
+      for (const id of ids) {
+         const entry = entries[id];
+         if (!entry || !isOpen(entry.status)) continue;
+         const job = jobs.get(id);
+         if (entry.status === "pending") {
+            jobs.delete(id);
+            dequeued = true;
+         } else if (job) aborts.push(job);
+         entries[id] = {
+            ...entry,
+            uploadedBytes: progress[id] ?? entry.uploadedBytes,
+            status: "cancelled",
+         };
+         delete progress[id];
+         changed = true;
+      }
+      if (dequeued) {
+         queue = queue
+            .slice(queueHead)
+            .filter((id) => entries[id]?.status === "pending");
+         queueHead = 0;
+      }
+      if (changed) set({});
+      for (const job of aborts) job.abort?.();
+      pump();
+   };
 
-            const deduped = new Map<string, UploadFile>();
-            let collisions = 0;
-            for (const entry of files) {
-               const id = entryId(
-                  serverId,
-                  bucketName,
-                  `${prefix}${entry.relativePath}`
-               );
-               if (deduped.has(id)) collisions++;
-               deduped.set(id, entry);
-            }
-            if (onSettled) {
-               const scope = batchScope(userId, serverId, bucketName);
-               const keys =
-                  batchCallbacks.get(scope)?.keys ?? new Map<string, string>();
-               batchCallbacks.set(scope, { callback: onSettled, keys });
-            }
-            if (collisions > 0) {
-               toast.error(
-                  collisions === 1
-                     ? "One file shares a name with another in this drop. Only the last was queued."
-                     : `${collisions} files share a name with another in this drop. Only the last of each was queued.`
-               );
-            }
+   return {
+      entries: {},
+      progress: {},
+      order: [],
+      batch: null,
+      isUploading: false,
 
-            const generation = enqueueGeneration;
-            const inBatch = new Set<string>();
-            activeEnqueues++;
-            void (async () => {
-               try {
-                  for (const slice of chunk(
-                     [...deduped.values()],
-                     ENQUEUE_CHUNK_SIZE
-                  )) {
-                     if (
-                        generation !== enqueueGeneration ||
-                        useSessionStore.getState().userId !== userId
-                     )
-                        return;
-                     set((state) => {
-                        const batch =
-                           !state.batch || state.batch.settled
-                              ? {
-                                   ids: [],
-                                   settled: false,
-                                   completed: 0,
-                                   failed: 0,
-                                   refusal: null,
-                                }
-                              : state.batch;
-                        if (inBatch.size !== batch.ids.length) {
-                           inBatch.clear();
-                           for (const id of batch.ids) inBatch.add(id);
-                        }
-                        state.batch = batch;
-                        state.isUploading = true;
-                        for (const { file, relativePath } of slice) {
-                           const objectKey = `${prefix}${relativePath}`;
-                           const id = entryId(serverId, bucketName, objectKey);
-                           const prev = state.entries[id];
-                           if (prev && inBatch.has(id))
-                              adjustBatchCounts(batch, prev.status, -1);
-                           delete state.progress[id];
-                           jobs.get(id)?.abort?.();
-                           jobs.set(id, {
-                              userId,
-                              file,
-                              serverId,
-                              bucketName,
-                              objectKey,
-                              contentType: file.type || DEFAULT_CONTENT_TYPE,
-                              expectedETag:
-                                 eTags && Object.hasOwn(eTags, objectKey)
-                                    ? eTags[objectKey]
-                                    : undefined,
-                              abort: null,
-                           });
-                           state.entries[id] = {
-                              id,
-                              fileName: file.name,
-                              relativePath,
-                              size: file.size,
-                              uploadedBytes: 0,
-                              status: "pending",
-                              error: null,
-                           };
-                           if (!prev) state.order.push(id);
-                           if (prev?.status !== "pending") state.queue.push(id);
-                           if (!inBatch.has(id)) {
-                              inBatch.add(id);
-                              batch.ids.push(id);
-                           }
-                        }
-                     });
-                     pump();
-                     if (slice.length === ENQUEUE_CHUNK_SIZE)
-                        await yieldToEventLoop();
+      enqueue: ({ files, serverId, bucketName, prefix, eTags, onSettled }) => {
+         if (files.length === 0 || uploadsSuspended()) return;
+         const userId = useSessionStore.getState().userId;
+         if (!userId) return;
+
+         const deduped = new Map<string, UploadFile>();
+         let collisions = 0;
+         for (const entry of files) {
+            const id = entryId(
+               serverId,
+               bucketName,
+               `${prefix}${entry.relativePath}`
+            );
+            if (deduped.has(id)) collisions++;
+            deduped.set(id, entry);
+         }
+         if (onSettled) {
+            const scope = batchScope(userId, serverId, bucketName);
+            const keys =
+               batchCallbacks.get(scope)?.keys ?? new Map<string, string>();
+            batchCallbacks.set(scope, { callback: onSettled, keys });
+         }
+         if (collisions > 0) {
+            toast.error(
+               collisions === 1
+                  ? "One file shares a name with another in this drop. Only the last was queued."
+                  : `${collisions} files share a name with another in this drop. Only the last of each was queued.`
+            );
+         }
+
+         const generation = enqueueGeneration;
+         const inBatch = new Set<string>();
+         activeEnqueues++;
+         void (async () => {
+            try {
+               for (const slice of chunk(
+                  [...deduped.values()],
+                  ENQUEUE_CHUNK_SIZE
+               )) {
+                  if (
+                     generation !== enqueueGeneration ||
+                     useSessionStore.getState().userId !== userId
+                  )
+                     return;
+                  const state = get();
+                  const { entries, progress } = state;
+                  const batch: UploadBatch =
+                     !state.batch || state.batch.settled
+                        ? {
+                             ids: [],
+                             settled: false,
+                             completed: 0,
+                             failed: 0,
+                             refusal: null,
+                          }
+                        : { ...state.batch };
+                  const order = [...state.order];
+                  if (inBatch.size !== batch.ids.length) {
+                     inBatch.clear();
+                     for (const id of batch.ids) inBatch.add(id);
                   }
-               } finally {
-                  activeEnqueues--;
+                  for (const { file, relativePath } of slice) {
+                     const objectKey = `${prefix}${relativePath}`;
+                     const id = entryId(serverId, bucketName, objectKey);
+                     const prev = entries[id];
+                     if (prev && inBatch.has(id))
+                        adjustBatchCounts(batch, prev.status, -1);
+                     delete progress[id];
+                     jobs.get(id)?.abort?.();
+                     jobs.set(id, {
+                        userId,
+                        file,
+                        serverId,
+                        bucketName,
+                        objectKey,
+                        contentType: file.type || DEFAULT_CONTENT_TYPE,
+                        expectedETag:
+                           eTags && Object.hasOwn(eTags, objectKey)
+                              ? eTags[objectKey]
+                              : undefined,
+                        abort: null,
+                     });
+                     entries[id] = {
+                        id,
+                        fileName: file.name,
+                        relativePath,
+                        size: file.size,
+                        uploadedBytes: 0,
+                        status: "pending",
+                        error: null,
+                     };
+                     if (!prev) order.push(id);
+                     if (prev?.status !== "pending") queue.push(id);
+                     if (!inBatch.has(id)) {
+                        inBatch.add(id);
+                        batch.ids.push(id);
+                     }
+                  }
+                  set({ batch, order, isUploading: true });
                   pump();
+                  if (slice.length === ENQUEUE_CHUNK_SIZE)
+                     await yieldToEventLoop();
                }
-            })();
-         },
+            } finally {
+               activeEnqueues--;
+               pump();
+            }
+         })();
+      },
 
-         cancel: (id) => cancelMany([id]),
+      cancel: (id) => cancelMany([id]),
 
-         cancelAll: () => {
-            enqueueGeneration++;
-            cancelMany(get().order);
-         },
+      cancelAll: () => {
+         enqueueGeneration++;
+         cancelMany(get().order);
+      },
 
-         cancelAllAndClear: () => {
-            get().cancelAll();
-            jobs.clear();
-            flushBatchCallbacks();
-            set((state) => {
-               state.entries = {};
-               state.progress = {};
-               state.order = [];
-               state.queue = [];
-               state.batch = null;
-               state.isUploading = false;
-            });
-            return Promise.allSettled([...workers]).then(() => undefined);
-         },
-      };
-   })
-);
+      cancelAllAndClear: () => {
+         get().cancelAll();
+         jobs.clear();
+         flushBatchCallbacks();
+         queue = [];
+         queueHead = 0;
+         set({
+            entries: {},
+            progress: {},
+            order: [],
+            batch: null,
+            isUploading: false,
+         });
+         return Promise.allSettled([...workers]).then(() => undefined);
+      },
+   };
+});
 
 registerUploadReset(() => useUploadStore.getState().cancelAllAndClear());
 

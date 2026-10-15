@@ -1,6 +1,10 @@
 import type { ModalPropsMap, ModalType, ScopedModalType } from "./modal-props";
-import { useServerId } from "@/lib/stores/session-scope";
-import useSessionStore from "@/lib/stores/session-store";
+import {
+   getSessionScope,
+   useServerId,
+   type SessionScope,
+} from "@/lib/stores/session-scope";
+import { useUserId } from "@/lib/stores/session-store";
 import {
    ReactNode,
    createContext,
@@ -12,15 +16,10 @@ import {
 } from "react";
 
 type OpenModals = { [K in ModalType]?: ModalPropsMap[K] };
-type ModalScope = { userId: string | null; serverId: string };
-type ScopedModals = { scope: ModalScope; modals: OpenModals };
+type ScopedModals = { scope: SessionScope; modals: OpenModals };
 const NO_MODALS: OpenModals = {};
 
-const currentScope = (): ModalScope => {
-   const { userId, serverId } = useSessionStore.getState();
-   return { userId, serverId };
-};
-const sameScope = (left: ModalScope, right: ModalScope): boolean =>
+const sameScope = (left: SessionScope, right: SessionScope): boolean =>
    left.userId === right.userId && left.serverId === right.serverId;
 
 type ScopedProps<T extends ScopedModalType> = Omit<ModalPropsMap[T], "userId">;
@@ -41,10 +40,10 @@ const ModalActionsContext = createContext<ModalActions | null>(null);
 const ModalStateContext = createContext<OpenModals | null>(null);
 
 const ModalProvider = ({ children }: { children: ReactNode }) => {
-   const userId = useSessionStore((state) => state.userId);
+   const userId = useUserId();
    const serverId = useServerId();
    const [state, setState] = useState<ScopedModals>(() => ({
-      scope: currentScope(),
+      scope: getSessionScope(),
       modals: NO_MODALS,
    }));
    const modals = sameScope(state.scope, { userId, serverId })
@@ -71,7 +70,7 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
 
    const show = useCallback(
       <T extends ModalType>(type: T, props: ModalPropsMap[T]) => {
-         const scope = currentScope();
+         const scope = getSessionScope();
          setState((previous) => {
             return {
                scope,
@@ -89,7 +88,7 @@ const ModalProvider = ({ children }: { children: ReactNode }) => {
 
    const openScoped = useCallback(
       <T extends ScopedModalType>(type: T, props: ScopedProps<T>) => {
-         const scope = currentScope();
+         const scope = getSessionScope();
          if (!scope.userId || scope.serverId !== props.serverId) return;
          show(type, { ...props, userId: scope.userId } as ModalPropsMap[T]);
       },

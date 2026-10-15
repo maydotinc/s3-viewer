@@ -190,8 +190,9 @@ describe("a failed multipart copy waits for its siblings", () => {
          },
          6 * GIB
       );
-      expect(result).toHaveProperty("status");
+      expect(result).toMatchObject({ status: 502 });
       expect(events).toContain("abort");
+      expect(events).toContain("part-2-done");
       expect(events.indexOf("abort")).toBeGreaterThan(
          events.indexOf("part-2-done")
       );
@@ -765,6 +766,13 @@ describe("an overwriting copy pins the version it replaces", () => {
 describe("a reviewed destination ETag replaces only that version", () => {
    const REVIEWED = '"what-the-user-saw"';
 
+   const reviewed =
+      (rest: (request: FixtureRequest) => Promise<FixtureReply>) =>
+      async (request: FixtureRequest) =>
+         request.method === "HEAD"
+            ? empty(200, { etag: REVIEWED, "content-length": "1" })
+            : occupied(rest)(request);
+
    it.each([
       ["MinIO", Provider.Other, PROVIDER_ENDPOINTS[Provider.Other]],
       ["B2", Provider.Other, PROVIDER_ENDPOINTS.B2],
@@ -775,7 +783,7 @@ describe("a reviewed destination ETag replaces only that version", () => {
          const { requests, result } = await run(
             endpoint,
             provider,
-            occupied(async () => xml(COPIED)),
+            reviewed(async () => xml(COPIED)),
             12,
             { destinationETag: REVIEWED }
          );
@@ -786,15 +794,31 @@ describe("a reviewed destination ETag replaces only that version", () => {
       }
    );
 
-   it("never looks the destination up again", async () => {
-      const { requests } = await run(
-         PROVIDER_ENDPOINTS[Provider.Other],
+   it("looks the destination up again only where storage ignores if-match", async () => {
+      const heads = async (provider: Provider) => {
+         const { requests } = await run(
+            PROVIDER_ENDPOINTS[provider],
+            provider,
+            reviewed(async () => xml(COPIED)),
+            12,
+            { destinationETag: REVIEWED, sourceBucket: "archive" }
+         );
+         return requests.filter((r) => r.method === "HEAD").map((r) => r.path);
+      };
+      expect(await heads(Provider.S3)).toEqual([]);
+      expect(await heads(Provider.Other)).toEqual([`/${BUCKET}/${DEST}`]);
+   });
+
+   it("refuses a newer destination on storage that ignores if-match", async () => {
+      const { requests, result } = await run(
+         PROVIDER_ENDPOINTS.B2,
          Provider.Other,
          occupied(async () => xml(COPIED)),
          12,
-         { destinationETag: REVIEWED, sourceBucket: "archive" }
+         { destinationETag: REVIEWED }
       );
-      expect(requests.filter((r) => r.method === "HEAD")).toEqual([]);
+      expect(result).toMatchObject({ status: 409 });
+      expect(requests.filter((r) => r.method === "PUT")).toEqual([]);
    });
 
    it("keeps R2 on its own destination condition", async () => {
@@ -812,8 +836,8 @@ describe("a reviewed destination ETag replaces only that version", () => {
 
    it("reports the storage refusal when that version is gone", async () => {
       const { result } = await run(
-         PROVIDER_ENDPOINTS[Provider.Other],
-         Provider.Other,
+         PROVIDER_ENDPOINTS[Provider.S3],
+         Provider.S3,
          occupied(async () => empty(412)),
          12,
          { destinationETag: REVIEWED }

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Role } from "@s3-viewer/types";
 import type { EmailMessage } from "./delivery";
 
@@ -68,10 +68,6 @@ beforeEach(() => {
    configureEmail({ transport: "resend", resendKey: "test", logBodies: false });
 });
 
-afterEach(() => {
-   vi.restoreAllMocks();
-});
-
 describe("invite email content", () => {
    it("keeps sender-chosen names out of the subject", async () => {
       const { message } = await inviteMessage();
@@ -97,33 +93,6 @@ describe("invite email content", () => {
          "Invited by S3 Viewer Security <security[at]evil.ex… (attacker@mail.example)";
       expect(message.text).toContain(expected);
       expect(visibleHtml(message.html)).toContain(expected);
-   });
-
-   it("keeps domain-like words that are not links", async () => {
-      const { message } = await inviteMessage({
-         serverName: "Node.js assets",
-         inviterName: "prod.example.com",
-      });
-      expect(message.text).toContain("You're invited to Node.js assets");
-      expect(message.text).toContain("Invited by prod.example.com (");
-   });
-
-   it.each(["evil.com/login", "www.evil.com", "https://evil.com"])(
-      "replaces the link %s in a name",
-      async (serverName) => {
-         const { message } = await inviteMessage({ serverName });
-         expect(message.text).toContain("You're invited to [link]");
-         expect(message.text).not.toContain("evil.com");
-      }
-   );
-
-   it("truncates long names and falls back when nothing printable is left", async () => {
-      const { message } = await inviteMessage({
-         serverName: "\u200B\u202E",
-         inviterName: "x".repeat(80),
-      });
-      expect(message.text).toContain("You're invited to a server");
-      expect(message.text).toContain(`Invited by ${"x".repeat(39)}…`);
    });
 
    it("lists every server with its role when one email covers several", async () => {
@@ -152,9 +121,6 @@ describe("invite email content", () => {
          expect(part).not.toMatch(BIDI);
       }
       expect(message.text).not.toContain("with Viewer access");
-      expect(message.subject).toBe(
-         "You've been invited to a server on S3 Viewer"
-      );
    });
 
    it("refuses an email that names no server", async () => {

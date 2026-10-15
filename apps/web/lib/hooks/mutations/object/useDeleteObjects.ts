@@ -92,7 +92,10 @@ const useDeleteObjects = () =>
             signal
          ),
       onSuccess: reportDeleteResult,
-      settle: forgetTouched(({ objects }) => objects.map(({ key }) => key)),
+      settle: forgetTouched(
+         () => [],
+         ({ objects }) => objects.map(({ key }) => key)
+      ),
    });
 
 export default useDeleteObjects;

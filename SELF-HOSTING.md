@@ -130,7 +130,7 @@ the API needs `DATABASE_URL` and secrets that survive restarts. the Docker image
 
 the Docker image sets `UV_THREADPOOL_SIZE=16` so hostname lookups cannot starve crypto and zlib; when running the API from source, export it before starting Node.
 
-audit logging is off until a server owner turns it on; a server's own retention, when set, replaces `AUDIT_RETENTION_DAYS`. no retention can go below `AUDIT_RETENTION_MIN_DAYS` (default 90), and a deleted server's log is kept that long.
+audit logging is off until a server owner turns it on; a server's own retention, when set, replaces `AUDIT_RETENTION_DAYS`. Compose, Render and Fly default to 365 days; the API alone defaults to keeping everything. no retention can go below `AUDIT_RETENTION_MIN_DAYS` (default 90), and a deleted server's log is kept that long.
 
 ## other platforms
 
@@ -186,9 +186,6 @@ the optional demo uses endpoint `http://localhost:9000`, bucket `demo`, and `rus
 
 - **back up Postgres and the API's `/data` volume together.** the volume holds `auth-secret`, `encryption-private-key.pem`, and, on a fresh Docker install, `audit-chain-key`. lose the encryption key and saved storage credentials become unreadable. lose the audit key and you can't verify past audit rows. the API won't start with keys that don't match the database, so restore both together. back up secrets from environment variables too.
 - **update both services together.** after updating your checkout, run `docker compose up -d --build` with your usual overlay and profiles. migrations run automatically. back up first, and test your restore process.
-- **finish a rolling update before limiting anyone to folders.** an API replica still on an older version doesn't know about folder limits and treats those grants as whole-bucket access. with one API container this never comes up.
-- **before rolling back past folder limits, remove them.** a version from before folder access reads every grant as the whole bucket. to fail closed, delete the limited grants first: `DELETE FROM "bucket_access" WHERE "restrictedFolders"; DELETE FROM "invitation_bucket_access" WHERE "restrictedFolders";` then re-invite those people after you upgrade again.
-- **large uploads in progress during an update may need restarting.** multipart upload ids are now tied to the server, bucket, and key they were started for, so an upload begun on a version before that can be cancelled but not continued. anything left behind shows up under **Incomplete uploads**.
 - **check startup:** `docker compose ps` and `docker compose logs --tail=100 api web`. the web health check checks the web process, not storage access.
 - **keep the volumes.** `docker compose down` keeps them; adding `--volumes` deletes their data. changing `POSTGRES_PASSWORD` after database setup doesn't change the database user's existing password.
 - **before scaling:** share one `/data` volume across API replicas, or give them all the same `BETTER_AUTH_SECRET` and `ENCRYPTION_PRIVATE_KEY`. on a fresh install, also copy `/data/audit-chain-key` into `AUDIT_CHAIN_KEY`; an install that had audit history before that key existed derives it from `BETTER_AUTH_SECRET`, so leave `AUDIT_CHAIN_KEY` unset there. keep `RATE_LIMIT_STORE=postgres`, and set `RUN_MIGRATIONS=false` on all but one API replica. budget database connections across all processes. high-volume rate limits and transfer limits stay per process.

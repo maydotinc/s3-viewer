@@ -55,10 +55,7 @@ const preview = {
    versionId: null,
    contentEncoding: null,
 } as S3ObjectPreview;
-const view = mountedRuntime(() => {
-   vi.restoreAllMocks();
-   vi.unstubAllGlobals();
-});
+const view = mountedRuntime(() => vi.restoreAllMocks());
 let update!: (props: { objectKey: string; preview: S3ObjectPreview }) => void;
 const Probe = () => {
    const [props, setProps] = useState({ objectKey: "one.json", preview });
@@ -71,23 +68,22 @@ const Probe = () => {
    );
 };
 
+const branch = () =>
+   [...view.current.container.querySelectorAll("button[aria-expanded]")].find(
+      (button) => button.textContent?.includes('"nested"')
+   ) as HTMLButtonElement;
+
 beforeEach(() => {
    h.text = '{"ok":true}';
    h.failTree = false;
 });
 
 describe("JSON preview containment", () => {
-   it.each(["scalar", "key", "nested"])(
+   it.each(["scalar", "key"])(
       "bounds a near-limit JSON %s while copying the entire original",
       async (shape) => {
          const long = "x".repeat(MAX_BODY_PREVIEW_BYTES - 100);
-         h.text = JSON.stringify(
-            shape === "scalar"
-               ? long
-               : shape === "key"
-                 ? { [long]: true }
-                 : { nested: { value: long } }
-         );
+         h.text = JSON.stringify(shape === "scalar" ? long : { [long]: true });
          const writeText = vi
             .spyOn(navigator.clipboard, "writeText")
             .mockResolvedValue();
@@ -111,28 +107,6 @@ describe("JSON preview containment", () => {
       await view.mount(createElement(Probe));
       expect(view.current.container.textContent).toContain("… truncated");
       expect(view.current.container.textContent).not.toContain("\\ud83d");
-   });
-
-   it("copies the original deep-and-wide document without pretty-printing it", async () => {
-      h.text =
-         "[".repeat(1500) +
-         Array.from({ length: 1000 }, () => "0").join(",") +
-         "]".repeat(1500);
-      const stringify = vi.spyOn(JSON, "stringify");
-      const writeText = vi
-         .spyOn(navigator.clipboard, "writeText")
-         .mockResolvedValue();
-      await view.mount(createElement(Probe));
-      const copy = buttonByText(view.current.container, "Copy");
-      expect(copy).toBeDefined();
-      await act(async () => copy!.click());
-      expect(writeText).toHaveBeenCalledWith(h.text);
-      expect(stringify.mock.calls.every((call) => call[2] === undefined)).toBe(
-         true
-      );
-      expect(view.current.container.textContent).not.toContain(
-         "Couldn't render"
-      );
    });
 
    it("renders escaped lone surrogates as valid JSON keys", async () => {
@@ -186,12 +160,6 @@ describe("JSON view toggle", () => {
    it("switches between the tree and the source without losing folds", async () => {
       h.text = '{"nested":{"value":1}}';
       await view.mount(createElement(Probe));
-      const branch = () =>
-         [
-            ...view.current.container.querySelectorAll("button[aria-expanded]"),
-         ].find((button) =>
-            button.textContent?.includes('"nested"')
-         ) as HTMLButtonElement;
       await act(async () => branch().click());
       const folded = branch().getAttribute("aria-expanded");
       await act(async () =>
@@ -218,12 +186,6 @@ describe("JSON tree keyboard folding", () => {
    it("keeps focus on a branch row when it is collapsed and expanded", async () => {
       h.text = '{"nested":{"value":1}}';
       await view.mount(createElement(Probe));
-      const branch = () =>
-         [
-            ...view.current.container.querySelectorAll("button[aria-expanded]"),
-         ].find((button) =>
-            button.textContent?.includes('"nested"')
-         ) as HTMLButtonElement;
       const row = branch();
       row.focus();
       const expanded = row.getAttribute("aria-expanded");

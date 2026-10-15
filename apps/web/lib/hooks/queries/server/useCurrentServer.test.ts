@@ -3,7 +3,8 @@ import { api } from "@/lib/api";
 import useSessionStore from "@/lib/stores/session-store";
 import { queryKeys } from "@/lib/query-keys";
 import { deferred, flushRuntime, mountRuntime } from "@/lib/test/runtime";
-import { Provider, Role, type ServerInfo } from "@s3-viewer/types";
+import { serverInfo } from "@/components/test-helpers";
+import type { ServerInfo } from "@s3-viewer/types";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import useCurrentServer from "./useCurrentServer";
@@ -22,13 +23,12 @@ vi.mock("@/lib/api", async (original) => ({
    api: { get: vi.fn() },
 }));
 
-const server = (id: string): ServerInfo => ({
-   id,
-   name: id,
-   userRole: Role.OWNER,
-   provider: Provider.S3,
-   audit: { enabled: false, canView: false, canManage: true },
-});
+const server = (id: string): ServerInfo =>
+   serverInfo({
+      id,
+      name: id,
+      audit: { enabled: false, canView: false, canManage: true },
+   });
 
 let runtime: Awaited<ReturnType<typeof mountRuntime>> | undefined;
 let result!: ReturnType<typeof useCurrentServer>;
@@ -58,13 +58,9 @@ describe("the selected server alone", () => {
          currentServer: server("picked"),
          isLoading: false,
       });
-      expect(vi.mocked(api.get).mock.calls.map(([path]) => path)).toEqual(
-         expect.arrayContaining(["/servers/picked"])
-      );
-      expect(api.get).not.toHaveBeenCalledWith(
-         expect.stringMatching(/^\/servers(\?|$)/),
-         expect.anything()
-      );
+      expect(
+         new Set(vi.mocked(api.get).mock.calls.map(([path]) => path))
+      ).toEqual(new Set(["/servers/picked"]));
    });
 
    it("waits for the session before reporting anything", async () => {

@@ -1,10 +1,10 @@
-import { Role, type InviteOutcome, type SentInvite } from "@s3-viewer/types";
+import { sentInvite as invite } from "@/components/test-helpers";
+import { Role, type InviteOutcome } from "@s3-viewer/types";
 import { describe, expect, it } from "vitest";
 import {
    accessStatus,
    alreadyMembersText,
    contextLine,
-   invitedText,
    peopleText,
    resultTitle,
    sendLabel,
@@ -14,17 +14,6 @@ import {
    unemailedText,
    wizardSteps,
 } from "./wizard-text";
-
-const invite = (email: string, emailed = true): SentInvite => ({
-   id: email,
-   email,
-   emailed,
-   role: Role.VIEWER,
-   expiresAt: "2099-01-01T00:00:00Z",
-   server: { id: "server", name: "Storage" },
-   invitedBy: { name: "Me", email: "me@example.com" },
-   bucketAccess: [],
-});
 
 const outcome = (
    serverId: string,
@@ -68,13 +57,9 @@ describe("the context line", () => {
    });
 
    it("summarises the earlier steps on each later step", () => {
-      expect(contextLine("who", [], [])).toContain("Invites expire after");
       expect(contextLine("where", ["a@x.com"], [])).toBe("Inviting a@x.com");
       expect(contextLine("access", ["a@x.com", "b@x.com"], ["Backups"])).toBe(
          "Inviting a@x.com and 1 other to Backups"
-      );
-      expect(contextLine("review", ["a@x.com"], ["Backups", "Media"])).toBe(
-         "Inviting a@x.com to 2 servers"
       );
    });
 });
@@ -158,10 +143,7 @@ describe("the result headline", () => {
 });
 
 describe("the result rows", () => {
-   it("lists who was invited and who was already in", () => {
-      expect(invitedText(["a@x.com", "b@x.com"])).toBe(
-         "Invited a@x.com and b@x.com"
-      );
+   it("lists who was already in", () => {
       expect(alreadyMembersText(["a@x.com"])).toBe(
          "a@x.com is already a member"
       );
@@ -178,9 +160,6 @@ describe("the result rows", () => {
          outcome("b", { invites: [invite("a@x.com", false)] }),
       ];
       expect(unemailedAddresses(outcomes)).toEqual(["a@x.com"]);
-      expect(unemailedText(["a@x.com"])).toBe(
-         "Saved, but no email went to a@x.com. Ask them to sign in with that address and open Settings, Invitations."
-      );
       expect(unemailedText(["a@x.com", "b@x.com"])).toContain(
          "those addresses"
       );

@@ -26,7 +26,11 @@ import {
 import { nextUploadJob, uploadSlot as withSlot } from "./slot-pool";
 import { withMultipartLease } from "./multipart-locks";
 import { UploadCancelled } from "./upload-cancelled";
-import type { TransportHandle, UploadParams } from "./upload-transport";
+import {
+   outcomeUnknown,
+   type TransportHandle,
+   type UploadParams,
+} from "./upload-transport";
 
 const PART_ATTEMPTS = 5;
 const COMPLETE_ATTEMPTS = 3;
@@ -101,10 +105,7 @@ const uploadMultipart = ({
             saved.partSize <= 0 ||
             saved.partCount !== Math.ceil(file.size / saved.partSize) ||
             saved.partCount < 1 ||
-            saved.partCount > MAX_MULTIPART_PARTS ||
-            !saved.partDigests ||
-            typeof saved.partDigests !== "object" ||
-            Array.isArray(saved.partDigests)
+            saved.partCount > MAX_MULTIPART_PARTS
          ) {
             await abandon();
             return null;
@@ -124,7 +125,7 @@ const uploadMultipart = ({
                withSlot(job, async () => {
                   if (stopped()) throw new UploadCancelled();
                   if (!verified) return;
-                  const proof = saved.partDigests?.[part.partNumber];
+                  const proof = saved.partDigests[part.partNumber];
                   if (
                      proof?.eTag !== part.eTag ||
                      typeof proof?.sha256 !== "string" ||
@@ -345,6 +346,8 @@ const uploadMultipart = ({
       if (parts.length !== plan.length)
          throw new ApiError(0, "Some parts of this file were never sent.");
 
+      // a complete that failed in transit or on the server may have committed, so a retry's 404 or 409 proves nothing
+      let ambiguous = false;
       for (let attempt = 0; ; attempt++) {
          if (stopped()) throw new UploadCancelled();
          try {
@@ -360,8 +363,11 @@ const uploadMultipart = ({
             onProgress(file.size);
             return uploaded;
          } catch (error) {
-            if (attempt >= COMPLETE_ATTEMPTS - 1 || !isRetryable(error))
-               throw error;
+            const retryable = isRetryable(error);
+            if (retryable && error instanceof ApiError && error.status !== 429)
+               ambiguous = true;
+            if (attempt >= COMPLETE_ATTEMPTS - 1 || !retryable)
+               throw ambiguous ? outcomeUnknown() : error;
             await sleep(backoffMs(attempt, RETRY_BACKOFF), controller.signal);
          }
       }

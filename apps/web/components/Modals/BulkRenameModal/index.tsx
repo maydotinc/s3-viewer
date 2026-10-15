@@ -238,23 +238,23 @@ const BulkRenameModal = ({
             )}
          </div>
          <FormError>{notice}</FormError>
-         <div className="flex shrink-0 flex-col gap-1.5">
+         <div className="flex h-72 shrink-0 flex-col gap-1.5">
             {run.step === "listing" || run.sources === null ? (
                <CenteredSpinner
                   size="sm"
                   label="Listing objects"
-                  className="h-40 gap-2 text-sm text-viewertext"
+                  className="flex-1 gap-2 text-sm text-viewertext"
                >
                   {progress}
                </CenteredSpinner>
             ) : (
                <>
-                  <div className="flex items-center justify-between gap-2 text-xs text-viewertext">
+                  <div className="flex shrink-0 items-center justify-between gap-2 text-xs text-viewertext">
                      <span>{changeSummary(run.plan, total)}</span>
                      {progress && <span>{progress}</span>}
                   </div>
-                  {preview.length > 0 && (
-                     <div className="max-h-72 overflow-y-auto rounded-md border border-viewerborder">
+                  <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-viewerborder">
+                     {preview.length > 0 ? (
                         <Table>
                            <TableHeader>
                               <TableRow>
@@ -275,10 +275,16 @@ const BulkRenameModal = ({
                               ))}
                            </TableBody>
                         </Table>
-                     </div>
-                  )}
+                     ) : (
+                        kind !== "lowercase" && (
+                           <p className="flex h-full items-center justify-center p-4 text-center text-sm text-viewerlighttext">
+                              Type to preview renames
+                           </p>
+                        )
+                     )}
+                  </div>
                   {run.plan.rows.length > preview.length && (
-                     <p className="text-xs text-viewertext">
+                     <p className="shrink-0 text-xs text-viewertext">
                         Showing the first {formatCount(preview.length)} of{" "}
                         {formatCount(run.plan.rows.length)} renames.
                      </p>

@@ -193,6 +193,19 @@ type GrantingActor = {
    bucketGrants: ReadonlyMap<string, ScopedGrant>;
 };
 
+type GrantRefusal = (
+   message: string,
+   reason: "member" | "folder",
+   bucket: string | null,
+   code?: ErrorCode
+) => Error;
+
+// only a bucket the actor holds is named in the audit row; any other name is whatever the caller typed.
+const heldBucket = (
+   bucketGrants: ReadonlyMap<string, ScopedGrant>,
+   bucketName: string
+): string | null => (bucketGrants.has(bucketName) ? bucketName : null);
+
 const loadGrantingActor = async (
    userId: string,
    serverId: string,
@@ -222,7 +235,11 @@ const loadBucketGrants = (
    db.bucketAccess.findMany({
       where: { userId, serverId },
       select: bucketGrantSelect,
+      orderBy: { bucketName: "asc" },
    });
+
+const heldBucketNames = (held: readonly BucketRow[]): Set<string> =>
+   new Set(held.map((row) => row.bucketName));
 
 // a bucket-limited admin would otherwise learn the names and folders of buckets it can't open.
 const visibleBuckets = async (
@@ -230,11 +247,10 @@ const visibleBuckets = async (
    serverId: string,
    serverRole: Role,
    db: Prisma.TransactionClient = prisma
-): Promise<VisibleBuckets> => {
-   if (serverRole === Role.OWNER) return null;
-   const held = await loadBucketGrants(viewerId, serverId, db);
-   return new Set(held.map((row) => row.bucketName));
-};
+): Promise<VisibleBuckets> =>
+   serverRole === Role.OWNER
+      ? null
+      : heldBucketNames(await loadBucketGrants(viewerId, serverId, db));
 
 const grantsByBucket = (
    rows: readonly BucketRow[]
@@ -288,11 +304,13 @@ const assertBucketInScope = (
 const assertBucketGrants = (
    actor: GrantingActor,
    scope: BucketScopeSettings,
-   grants: readonly BucketGrant[]
+   grants: readonly BucketGrant[],
+   refuse: GrantRefusal
 ): void => {
    assertUniqueBuckets(grants);
    for (const { bucketName, role, folders } of grants) {
       assertBucketInScope(actor, scope, bucketName);
+      const audited = heldBucket(actor.bucketGrants, bucketName);
       if (folders !== null && !canLimitToFolders(Role[role])) {
          throw new ApiHttpError(
             400,
@@ -301,16 +319,18 @@ const assertBucketGrants = (
          );
       }
       if (!canManageRole(actor.serverRole, Role[role])) {
-         throw new ApiHttpError(
-            403,
-            `You can't grant ${ROLE_LABELS[Role[role]]} on ${bucketName}`
+         throw refuse(
+            `You can't grant ${ROLE_LABELS[Role[role]]} on ${bucketName}`,
+            "member",
+            audited
          );
       }
       const held = actor.bucketGrants.get(bucketName);
       if (!canGrantBucketRole(actor.serverRole, held?.role, Role[role])) {
-         throw new ApiHttpError(
-            403,
-            `You don't have ${ROLE_LABELS[Role[role]]} access to ${bucketName}, so you can't grant it`
+         throw refuse(
+            `You don't have ${ROLE_LABELS[Role[role]]} access to ${bucketName}, so you can't grant it`,
+            "member",
+            audited
          );
       }
       if (
@@ -319,9 +339,10 @@ const assertBucketGrants = (
             folders,
          })
       ) {
-         throw new ApiHttpError(
-            403,
+         throw refuse(
             `Your access to ${bucketName} is limited to folders, so you can only grant access inside them`,
+            "folder",
+            audited,
             ErrorCode.FOLDER_ACCESS
          );
       }
@@ -332,7 +353,8 @@ const assertBucketGrantChanges = (
    actor: GrantingActor,
    scope: BucketScopeSettings,
    current: readonly BucketRow[],
-   grants: readonly BucketGrant[]
+   grants: readonly BucketGrant[],
+   refuse: GrantRefusal
 ): void => {
    assertUniqueBuckets(grants);
    const held = grantsByBucket(current);
@@ -343,7 +365,8 @@ const assertBucketGrantChanges = (
    assertBucketGrants(
       actor,
       scope,
-      grants.filter((grant) => !unchanged(grant))
+      grants.filter((grant) => !unchanged(grant)),
+      refuse
    );
    const kept = new Set(grants.filter(unchanged).map((g) => g.bucketName));
    const dropped = current.filter((row) => !kept.has(row.bucketName));
@@ -353,9 +376,10 @@ const assertBucketGrantChanges = (
       dropped
    );
    if (unremovable) {
-      throw new ApiHttpError(
-         403,
-         `You can't change ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`
+      throw refuse(
+         `You can't change ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`,
+         "member",
+         heldBucket(actor.bucketGrants, unremovable.bucketName)
       );
    }
 };
@@ -482,7 +506,8 @@ const assertGrantsRemovable = async (
    actorId: string,
    serverId: string,
    serverRole: Role | null,
-   grants: readonly BucketRow[]
+   grants: readonly BucketRow[],
+   refuse: GrantRefusal
 ): Promise<void> => {
    if (serverRole === null || grants.length === 0) return;
    const { bucketGrants } = await loadGrantingActor(
@@ -496,21 +521,27 @@ const assertGrantsRemovable = async (
    if (!unremovable) return;
    // naming a bucket the actor holds nothing on would reveal it.
    if (serverRole !== Role.OWNER && !bucketGrants.has(unremovable.bucketName)) {
-      throw new ApiHttpError(
-         403,
-         "You can't remove a member with access to buckets you don't hold"
+      throw refuse(
+         "You can't remove a member with access to buckets you don't hold",
+         "member",
+         null
       );
    }
-   throw new ApiHttpError(
-      403,
-      `You can't remove a member with ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`
+   throw refuse(
+      `You can't remove a member with ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`,
+      "member",
+      heldBucket(bucketGrants, unremovable.bucketName)
    );
 };
 
 const removeMembership = (
    userId: string,
    serverId: string,
-   actor?: { id: string; assertAuthority: MemberAuthorityCheck }
+   actor?: {
+      id: string;
+      assertAuthority: MemberAuthorityCheck;
+      refuse: GrantRefusal;
+   }
 ): Promise<{ email: string; revokedInvites: AuditEntry[] }> =>
    prisma.$transaction(async (tx) => {
       await lockBucketScope(tx, serverId);
@@ -532,7 +563,8 @@ const removeMembership = (
             actor.id,
             serverId,
             actorRole,
-            targetGrants
+            targetGrants,
+            actor.refuse
          );
       } else if (targetRole === Role.OWNER) {
          throw new ApiHttpError(403, "Owners can't leave their server");
@@ -557,6 +589,7 @@ export {
    clampBucketAccess,
    findMember,
    grantsByBucket,
+   heldBucketNames,
    listMembers,
    loadBucketGrants,
    loadGrantingActor,
@@ -565,4 +598,4 @@ export {
    replaceBucketAccess,
    visibleBuckets,
 };
-export type { GrantingActor };
+export type { GrantRefusal, GrantingActor };

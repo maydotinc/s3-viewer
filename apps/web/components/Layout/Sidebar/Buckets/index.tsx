@@ -1,4 +1,3 @@
-import CenteredSpinner from "@/components/centered-spinner";
 import FoldersOnlyLabel from "@/components/folders-only-label";
 import InlineAlert from "@/components/inline-alert";
 import { RetryButton } from "@/components/status-message";
@@ -6,6 +5,7 @@ import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import { folderHref } from "@/lib/utils/s3/paths";
 import { SITE_PATHS } from "@s3-viewer/types";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -41,11 +41,13 @@ const BucketList = () => {
 
    if (isBucketsLoading) {
       return (
-         <CenteredSpinner
-            size="sm"
-            label="Loading buckets"
-            className="min-h-0 flex-1 items-start pt-3"
-         />
+         <div
+            aria-busy="true"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden [scrollbar-gutter:stable]"
+         >
+            <span className="sr-only">Loading buckets</span>
+            <Skeleton className="h-9 shrink-0 rounded-lg pointer-coarse:h-11" />
+         </div>
       );
    }
 

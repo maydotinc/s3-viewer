@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { mountRuntime } from "@/lib/test/runtime";
+import { Permission, hasPermission } from "@s3-viewer/permissions";
 import { Provider, Role, type S3Bucket } from "@s3-viewer/types";
 import { createElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -21,7 +22,9 @@ const server = () => ({
    name: "Primary",
    provider: Provider.S3,
    userRole: h.serverRole,
-   canCreateBucket: h.canCreateBucket,
+   canCreateBucket:
+      h.canCreateBucket ??
+      hasPermission(h.serverRole, Permission.CREATE_BUCKET),
 });
 vi.mock("@/lib/hooks/queries/server/useCurrentServer", () => ({
    default: () => ({ currentServer: server(), isLoading: false }),
@@ -177,16 +180,12 @@ describe("member commands", () => {
       h.buckets = [];
       const all = await mount();
       const byId = (id: string) => all.find((command) => command.id === id);
-      expect(byId("nav:invite")).toMatchObject({
-         label: "Invite people",
-         description: "Primary",
-         href: "/settings/members/invite?server=server-1",
-      });
-      expect(byId("nav:members")).toMatchObject({
-         label: "Manage members",
-         description: "Primary",
-         href: "/settings/members?server=server-1",
-      });
+      expect(byId("nav:invite")?.href).toBe(
+         "/settings/members/invite?server=server-1"
+      );
+      expect(byId("nav:members")?.href).toBe(
+         "/settings/members?server=server-1"
+      );
    });
 });
 
@@ -216,7 +215,7 @@ describe("creating a bucket on a server restricted to an allow-list", () => {
    });
 
    it("is offered when the API allows it", async () => {
-      h.serverRole = Role.EDITOR;
+      h.serverRole = Role.VIEWER;
       h.buckets = [bucket(Role.VIEWER)];
       h.canCreateBucket = true;
       expect(await offered()).toContain("action:create-bucket");

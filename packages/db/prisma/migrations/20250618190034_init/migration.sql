@@ -308,14 +308,14 @@ CREATE INDEX "audit_log_serverId_actorId_createdAt_id_idx" ON "audit_log"("serve
 CREATE INDEX "audit_log_serverId_bucket_createdAt_id_idx" ON "audit_log"("serverId", "bucket", "createdAt" DESC, "id" DESC);
 
 -- CreateIndex
--- AuditLog: `target: { contains: q, mode: "insensitive" }` (whereFor() in
--- apps/api/lib/services/audit.ts) is an unanchored ILIKE with no B-tree
--- support, used by the audit search UI and the export path. A trigram GIN
--- index lets Postgres index-scan it.
+-- AuditLog: the audit search's "target" ILIKE '%q%' (apps/api/lib/audit/query.ts)
+-- is an unanchored ILIKE with no B-tree support, used by the audit search UI
+-- and the export path. A trigram GIN index lets Postgres index-scan it.
 --
 -- `CREATE EXTENSION` needs elevated privileges that some managed Postgres
--- providers do not grant the application role. Degrade gracefully rather
--- than hard-failing the migration: if pg_trgm can't be installed, skip the
+-- providers do not grant the application role, and a Postgres built without
+-- contrib does not ship pg_trgm at all. Degrade gracefully rather than
+-- hard-failing the migration: if pg_trgm can't be installed, skip the
 -- index and leave a NOTICE explaining why. Searches on `target` then
 -- sequential-scan until a DBA/superuser runs:
 --   CREATE EXTENSION pg_trgm;
@@ -324,8 +324,8 @@ DO $$
 BEGIN
    BEGIN
       CREATE EXTENSION IF NOT EXISTS pg_trgm;
-   EXCEPTION WHEN insufficient_privilege THEN
-      RAISE NOTICE 'pg_trgm extension could not be created (insufficient privilege) - skipping trigram index on audit_log.target. Searches on target will continue to sequential-scan. Ask a DBA to run CREATE EXTENSION pg_trgm; then CREATE INDEX "audit_log_target_trgm_idx" ON "audit_log" USING gin ("target" gin_trgm_ops); to enable it later.';
+   EXCEPTION WHEN insufficient_privilege OR feature_not_supported OR undefined_file THEN
+      RAISE NOTICE 'pg_trgm extension could not be created (insufficient privilege, or not installed) - skipping trigram index on audit_log.target. Searches on target will continue to sequential-scan. Ask a DBA to run CREATE EXTENSION pg_trgm; then CREATE INDEX "audit_log_target_trgm_idx" ON "audit_log" USING gin ("target" gin_trgm_ops); to enable it later.';
       RETURN;
    END;
 

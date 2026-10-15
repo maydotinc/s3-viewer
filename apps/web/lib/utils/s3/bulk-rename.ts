@@ -157,7 +157,11 @@ const planBulkRename = (
          unchanged++;
          continue;
       }
-      const reason = validateObjectKey(newKey);
+      const reason =
+         validateObjectKey(newKey) ??
+         (newKey.slice(parentPrefix(key).length).includes("/")
+            ? "The new name can't contain a slash."
+            : null);
       if (reason) {
          invalid.push({ key, newKey, reason });
          continue;
@@ -192,7 +196,6 @@ export {
    MAX_RENAME_PREVIEW_ROWS,
    applyOperation,
    isBlocked,
-   normalizeExtension,
    planBulkRename,
    renameKey,
    replaceLiteral,

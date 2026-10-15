@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { act, createElement, type ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushRuntime, mountRuntime } from "@/lib/test/runtime";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mountedRuntime, submitForm } from "@/components/test-helpers";
+import { flushRuntime } from "@/lib/test/runtime";
 import SignInForm, { type Mode } from "./sign-in-form";
 
 const h = vi.hoisted(() => ({
@@ -35,7 +36,7 @@ vi.mock("./password-input", () => ({
    },
 }));
 
-const mounted: Awaited<ReturnType<typeof mountRuntime>>[] = [];
+const view = mountedRuntime();
 
 beforeEach(() => {
    h.continueWithPassword.mockReset();
@@ -46,12 +47,8 @@ beforeEach(() => {
    });
 });
 
-afterEach(async () => {
-   while (mounted.length) await mounted.pop()!.unmount();
-});
-
 const submitAs = async (mode: Mode, inviteId?: string) => {
-   const runtime = await mountRuntime(
+   const { container } = await view.mount(
       createElement(SignInForm, {
          mode,
          notice: null,
@@ -60,20 +57,15 @@ const submitAs = async (mode: Mode, inviteId?: string) => {
          onDone: async () => {},
       })
    );
-   mounted.push(runtime);
    await act(async () => h.onEmail("typo@gmial.com"));
    await act(async () =>
       h.onPassword({ target: { value: "a-long-enough-password" } })
    );
    await act(async () => {
-      runtime.container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         );
+      submitForm(container);
    });
    await flushRuntime();
-   return runtime.container;
+   return container;
 };
 
 describe("password sign-in", () => {

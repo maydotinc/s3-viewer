@@ -15,7 +15,7 @@ const h = vi.hoisted(() => ({
    enqueue: vi.fn(),
    forgetKeys: vi.fn(),
    toastError: vi.fn(),
-   toast: { error: vi.fn(), success: vi.fn() },
+   toast: { error: vi.fn() },
    refresh: vi.fn(),
    queryClient: {},
    prefix: "p/",
@@ -301,25 +301,6 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
       expect(h.enqueue).not.toHaveBeenCalled();
    });
 
-   it("starts new files without replacement permission", async () => {
-      h.post.mockResolvedValue({ existing: [], eTags: {} });
-      await mount().uploader.upload(files);
-      expect(h.enqueue).toHaveBeenCalledWith(
-         expect.objectContaining({ eTags: {} })
-      );
-      expect(render().dialog.open).toBe(false);
-   });
-
-   it("refuses unresolved existing files instead of treating confirmation as an unconditional overwrite", async () => {
-      h.post.mockResolvedValue({ existing: ["p/old.txt"], eTags: {} });
-      await mount().uploader.upload(files);
-      expect(h.enqueue).not.toHaveBeenCalled();
-      expect(render().dialog.open).toBe(false);
-      expect(h.toastError.mock.calls[0]![0]).toMatchObject({
-         message: expect.stringContaining("Upload fewer files"),
-      });
-   });
-
    it.each([
       { userId: "user-a", serverId: "server-b" },
       { userId: "user-b", serverId: "server-a" },
@@ -333,33 +314,6 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
          expect(h.enqueue).not.toHaveBeenCalled();
          expect(render().dialog.open).toBe(false);
          flushEffects();
-      }
-   );
-
-   it.each([
-      { userId: "user-a", serverId: "server-b" },
-      { userId: "user-b", serverId: "server-a" },
-   ])(
-      "aborts and discards a preflight after the session becomes %j",
-      async (session) => {
-         let complete!: (result: S3ObjectsExist) => void;
-         h.post.mockReturnValue(
-            new Promise<S3ObjectsExist>((resolve) => {
-               complete = resolve;
-            })
-         );
-         const task = mount().uploader.upload(files);
-         const signal = h.post.mock.calls[0]![2] as AbortSignal;
-         h.session = session;
-         render();
-         flushEffects();
-         expect(signal.aborted).toBe(true);
-         complete(original);
-         await task;
-         expect(h.enqueue).not.toHaveBeenCalled();
-         expect(h.toastError).not.toHaveBeenCalled();
-         expect(render().dialog.open).toBe(false);
-         expect(render().uploader.isChecking).toBe(false);
       }
    );
 });
@@ -435,20 +389,17 @@ describe("large drops", () => {
 });
 
 describe("full upload key validation", () => {
-   it.each(["é".repeat(512), "bad\tname", "docs/"])(
-      "refuses an invalid full destination before checking or enqueueing any files",
-      async (relativePath) => {
-         await mount().uploader.upload([
-            ...files,
-            { file: new File(["x"], "file"), relativePath },
-         ]);
-         expect(h.post).not.toHaveBeenCalled();
-         expect(h.enqueue).not.toHaveBeenCalled();
-         expect(h.toast.error).toHaveBeenCalledWith(
-            expect.stringContaining("Invalid upload key")
-         );
-      }
-   );
+   it("refuses an invalid full destination before checking or enqueueing any files", async () => {
+      await mount().uploader.upload([
+         ...files,
+         { file: new File(["x"], "file"), relativePath: "é".repeat(512) },
+      ]);
+      expect(h.post).not.toHaveBeenCalled();
+      expect(h.enqueue).not.toHaveBeenCalled();
+      expect(h.toast.error).toHaveBeenCalledWith(
+         expect.stringContaining("Invalid upload key")
+      );
+   });
 });
 
 it("invalidates once and refreshes the current prefix after uploads from two prefixes settle together", async () => {

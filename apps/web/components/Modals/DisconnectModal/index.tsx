@@ -1,12 +1,8 @@
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
-import StaleSignIn, {
-   isSessionStale,
-   signInAgain,
-} from "@/components/stale-sign-in";
+import StaleSignIn, { isSessionStale } from "@/components/stale-sign-in";
 import useDeleteServer from "@/lib/hooks/mutations/server/useDeleteServer";
 import useLeaveServer from "@/lib/hooks/mutations/server/useLeaveServer";
-import { Button } from "@s3-viewer/ui/components/button";
 import { Role } from "@s3-viewer/types";
 
 type DisconnectModalProps = ModalProps<"disconnect">;
@@ -41,11 +37,6 @@ const DisconnectModal = ({ server, onClose }: DisconnectModalProps) => {
             <StaleSignIn
                title="Sign in again to delete this server"
                action="deleting a server"
-               actions={
-                  <Button size="sm" onClick={signInAgain}>
-                     Sign in again
-                  </Button>
-               }
             />
          )}
       </ConfirmDialog>

@@ -4,7 +4,7 @@ import { queryKeys, type AuditFilters } from "@/lib/query-keys";
 import { useUserId } from "@/lib/stores/session-store";
 import { timeRange, type TimePreset } from "@/lib/utils/audit-time";
 import { ErrorCode, type AuditLogPage } from "@s3-viewer/types";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, type InfiniteData } from "@tanstack/react-query";
 import { useEffect, useMemo } from "react";
 
 const PAGE_SIZE = 50;
@@ -71,7 +71,20 @@ const useAuditLog = (serverId: string, filters: AuditLogFilters) => {
       if (isBadCursor) void queryClient.resetQueries({ queryKey, exact: true });
    }, [isBadCursor, queryClient, queryKey]);
 
-   return { entries, ...pages };
+   // a plain refetch re-requests every loaded page against the 60/min audit read limit
+   const refresh = () => {
+      queryClient.setQueryData<InfiniteData<AuditLogPage, string | null>>(
+         queryKey,
+         (current) =>
+            current && {
+               pages: current.pages.slice(0, 1),
+               pageParams: current.pageParams.slice(0, 1),
+            }
+      );
+      return pages.refetch();
+   };
+
+   return { entries, refresh, ...pages };
 };
 
 export default useAuditLog;

@@ -1,8 +1,8 @@
 // @vitest-environment happy-dom
+import { mountedRuntime } from "@/components/test-helpers";
 import { act, createElement, useState } from "react";
-import { mountRuntime } from "@/lib/test/runtime";
 import { Role, type S3Bucket } from "@s3-viewer/types";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import BucketAccessPicker from "./bucket-access-picker";
 import type { GrantRow } from "./bucket-grants";
 
@@ -10,22 +10,9 @@ const h = vi.hoisted(() => ({
    roles: new Map<string, { onChange: (role: Role) => void }>(),
 }));
 
-vi.mock("@s3-viewer/ui/components/checkbox", () => ({
-   Checkbox: (props: {
-      id: string;
-      checked: boolean;
-      disabled?: boolean;
-      onCheckedChange: (checked: boolean) => void;
-   }) =>
-      createElement("button", {
-         id: props.id,
-         type: "button",
-         role: "checkbox",
-         "aria-checked": props.checked,
-         disabled: props.disabled,
-         onClick: () => props.onCheckedChange(!props.checked),
-      }),
-}));
+vi.mock("@s3-viewer/ui/components/checkbox", async () =>
+   (await import("@/components/test-helpers")).checkboxButton()
+);
 vi.mock("./grant-scope", () => ({ default: () => null }));
 vi.mock("./role-select", () => ({
    default: (props: { label: string; onChange: (role: Role) => void }) => {
@@ -56,9 +43,9 @@ const Host = () => {
    });
 };
 
-let runtime: Awaited<ReturnType<typeof mountRuntime>>;
+const view = mountedRuntime();
 const checkbox = (name: string) => {
-   const label = [...runtime.container.querySelectorAll("label")].find(
+   const label = [...view.current.container.querySelectorAll("label")].find(
       (candidate) => candidate.textContent === name
    )!;
    return document.getElementById(label.htmlFor) as HTMLButtonElement;
@@ -67,12 +54,7 @@ const toggle = (name: string) => act(async () => checkbox(name).click());
 
 beforeEach(async () => {
    h.roles.clear();
-   runtime = await mountRuntime(createElement(Host));
-});
-afterEach(async () => {
-   await runtime.unmount();
-   runtime.queryClient.clear();
-   vi.unstubAllGlobals();
+   await view.mount(createElement(Host));
 });
 
 describe("choosing buckets", () => {

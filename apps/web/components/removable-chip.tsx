@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { X } from "lucide-react";
 
@@ -35,7 +36,10 @@ const RemovableChip = ({
          aria-label={`Remove ${label}`}
          disabled={disabled}
          onClick={onRemove}
-         className="shrink-0 cursor-pointer rounded-sm border border-transparent p-0.5 outline-none transition-colors hover:bg-viewerborder focus-visible:border-viewerblue disabled:opacity-50"
+         className={cn(
+            "shrink-0 cursor-pointer rounded-sm p-0.5 outline-none transition-colors hover:bg-viewerborder disabled:opacity-50",
+            FOCUS_RING
+         )}
       >
          <X aria-hidden="true" className="size-3" />
       </button>

@@ -187,7 +187,7 @@ const VerifyCodeStep = ({
                      type="button"
                      disabled={pending || resending || secondsLeft !== null}
                      onClick={() => void resend()}
-                     className={TEXT_LINK}
+                     className={`${TEXT_LINK} tabular-nums`}
                   >
                      {secondsLeft === null
                         ? "Resend code"

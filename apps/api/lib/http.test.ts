@@ -473,22 +473,18 @@ describe("rethrowDbError", () => {
          code,
          clientVersion: "test",
       });
-   const unique = new ApiHttpError(409, "Taken");
    const missing = new ApiHttpError(404, "Gone");
 
-   it("maps unique violations and missing rows to the errors it is given", () => {
-      expect(() =>
-         rethrowDbError(prismaError("P2002"), { unique, missing })
-      ).toThrow(unique);
-      expect(() =>
-         rethrowDbError(prismaError("P2025"), { unique, missing })
-      ).toThrow(missing);
+   it("maps a missing row to the error it is given", () => {
+      expect(() => rethrowDbError(prismaError("P2025"), { missing })).toThrow(
+         missing
+      );
    });
 
-   it("rethrows anything it has no mapping for unchanged", () => {
-      const original = prismaError("P2025");
-      expect(() => rethrowDbError(original, { unique })).toThrow(original);
+   it("rethrows anything else unchanged", () => {
+      const unique = prismaError("P2002");
+      expect(() => rethrowDbError(unique, { missing })).toThrow(unique);
       const other = new Error("boom");
-      expect(() => rethrowDbError(other, { unique, missing })).toThrow(other);
+      expect(() => rethrowDbError(other, { missing })).toThrow(other);
    });
 });

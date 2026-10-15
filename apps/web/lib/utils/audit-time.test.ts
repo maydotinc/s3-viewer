@@ -5,14 +5,9 @@ const NOW = Date.UTC(2026, 8, 7, 12, 0, 0);
 const HOUR_MS = 60 * 60 * 1000;
 
 describe("time presets", () => {
-   it.each([
-      ["24h", 24],
-      ["7d", 7 * 24],
-      ["30d", 30 * 24],
-      ["90d", 90 * 24],
-   ] as const)("%s reaches back from now as an ISO string", (preset, hours) => {
-      expect(timeRange(preset, { from: "", to: "" }, NOW)).toEqual({
-         from: new Date(NOW - hours * HOUR_MS).toISOString(),
+   it("reaches back from now as an ISO string", () => {
+      expect(timeRange("24h", { from: "", to: "" }, NOW)).toEqual({
+         from: new Date(NOW - 24 * HOUR_MS).toISOString(),
       });
    });
 

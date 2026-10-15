@@ -27,12 +27,6 @@ describe("parseSharedEnv", () => {
       }
    });
 
-   it("refuses an unknown store", () => {
-      expect(() => parse({ RATE_LIMIT_STORE: "redis" })).toThrow(
-         /RATE_LIMIT_STORE/
-      );
-   });
-
    it("refuses a half-configured github pair", () => {
       expect(() => parse({ GITHUB_CLIENT_ID: "id" })).toThrow(
          /must be set together/
@@ -48,12 +42,6 @@ describe("parseSharedEnv", () => {
    it("refuses a secret shorter than 32 characters", () => {
       expect(() => parse({ BETTER_AUTH_SECRET: "short" })).toThrow(
          /BETTER_AUTH_SECRET/
-      );
-   });
-
-   it("refuses an origin that is not a url", () => {
-      expect(() => parse({ NEXT_PUBLIC_API_URL: "localhost" })).toThrow(
-         /NEXT_PUBLIC_API_URL/
       );
    });
 

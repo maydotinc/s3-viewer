@@ -6,9 +6,7 @@ import {
 } from "@s3-viewer/types";
 import { outsideFolders } from "./folder-guard";
 import { headIfExists } from "./head";
-import { existingKeys, type S3Scope } from "./listing";
-
-const EXISTS_LIST_THRESHOLD = 50;
+import { EXISTS_LIST_THRESHOLD, existingKeys, type S3Scope } from "./listing";
 
 const headExisting = async (
    scope: S3Scope,

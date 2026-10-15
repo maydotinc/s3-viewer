@@ -110,7 +110,6 @@ export {
    addEmails,
    canContinue,
    commitInput,
-   hasInvalidChip,
    helperMessage,
    isValidEmail,
    popChip,
@@ -118,4 +117,4 @@ export {
    requireEmails,
    setInput,
 };
-export type { EmailField, Feedback };
+export type { EmailField };

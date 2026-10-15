@@ -7,19 +7,19 @@ vi.mock("@/lib/api", () => ({
       `/servers/${serverId}/buckets/${bucket}/objects`,
    cancelledError: () => new Error("cancelled"),
 }));
-import { checkUploadConflicts } from "./upload-preflight";
+import { existingKeys } from "./key-exists";
 
 const check = (keys: string[], controller = new AbortController()) =>
-   checkUploadConflicts({
-      serverId: "server-a",
-      bucketName: "backups",
+   existingKeys({
+      path: "/servers/server-a/buckets/backups/objects",
       keys,
       signal: controller.signal,
+      requireETags: true,
    });
 
 beforeEach(() => h.post.mockReset());
 
-describe("upload replacement preflight", () => {
+describe("existing keys with the ETags a replacement needs", () => {
    it("collects the original full-key ETags across response pages without granting replacement for new files", async () => {
       const keys = Array.from(
          { length: MAX_BATCH_KEYS + 1 },
@@ -47,25 +47,20 @@ describe("upload replacement preflight", () => {
       expect(Object.hasOwn(result.eTags, keys[1]!)).toBe(false);
    });
 
-   it.each([{ existing: [] }, { existing: ["folder/unknown"] }])(
-      "refuses old APIs even when no collisions were found (%j)",
-      async ({ existing }) => {
-         h.post.mockResolvedValue({ existing });
-         await expect(check(["folder/unknown"])).rejects.toThrow(
-            "Update the API"
-         );
-      }
-   );
+   it("refuses old APIs even when no collisions were found", async () => {
+      h.post.mockResolvedValue({ existing: [] });
+      await expect(check(["folder/unknown"])).rejects.toThrow("Update the API");
+   });
 
-   it.each([{}, { "folder/unknown": "" }])(
-      "refuses unresolved/existing objects without a recorded ETag (%j)",
-      async (eTags) => {
-         h.post.mockResolvedValue({ existing: ["folder/unknown"], eTags });
-         await expect(check(["folder/unknown"])).rejects.toThrow(
-            "Upload fewer files"
-         );
-      }
-   );
+   it("refuses an existing object without a recorded ETag", async () => {
+      h.post.mockResolvedValue({
+         existing: ["folder/unknown"],
+         eTags: { "folder/unknown": "" },
+      });
+      await expect(check(["folder/unknown"])).rejects.toThrow(
+         "Upload fewer files"
+      );
+   });
 
    it("does not accept inherited ETags", async () => {
       h.post.mockResolvedValue({ existing: ["constructor"], eTags: {} });

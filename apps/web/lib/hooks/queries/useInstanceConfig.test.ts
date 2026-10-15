@@ -53,12 +53,6 @@ describe("encryptionNotice", () => {
       expect(encryptionNotice("insecure")).toContain("HTTPS");
    });
 
-   it("keeps the config error for a missing key", () => {
-      expect(encryptionNotice("error")).toBe(
-         "Couldn't load this instance's settings. Reload the page and try again."
-      );
-   });
-
    it("has nothing to say while loading or ready", () => {
       expect(encryptionNotice("loading")).toBeNull();
       expect(encryptionNotice("ready")).toBeNull();

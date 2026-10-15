@@ -9,7 +9,8 @@ type QueryStatusProps = {
    title: string;
    loading?: boolean;
    loadingLabel?: string;
-   loadingClassName?: string;
+   // shape-matched placeholder shown instead of the spinner while loading
+   skeleton?: ReactNode;
    icon?: LucideIcon;
    tone?: Tone;
    onRetry?: () => void;
@@ -23,7 +24,7 @@ const QueryStatus = ({
    title,
    loading = false,
    loadingLabel = "Loading…",
-   loadingClassName = "flex-1",
+   skeleton,
    icon = CircleAlert,
    tone = "error",
    onRetry,
@@ -53,7 +54,7 @@ const QueryStatus = ({
       );
    if (loading)
       return (
-         <CenteredSpinner label={loadingLabel} className={loadingClassName} />
+         skeleton ?? <CenteredSpinner label={loadingLabel} className="flex-1" />
       );
    return children;
 };

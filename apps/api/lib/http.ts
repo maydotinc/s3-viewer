@@ -1,5 +1,5 @@
 import { logger } from "./logger";
-import { isMissingRow, isUniqueViolation } from "@s3-viewer/db/errors";
+import { isMissingRow } from "@s3-viewer/db/errors";
 import {
    GENERIC_ERROR_MESSAGE,
    OBJECT_MUTATION_PATH,
@@ -33,14 +33,10 @@ const rateLimited = (message: string): ApiHttpError =>
 const isRateLimited = (err: unknown): err is ApiHttpError =>
    err instanceof ApiHttpError && err.status === 429;
 
-type DbErrorMap = { unique?: ApiHttpError; missing?: ApiHttpError };
+type DbErrorMap = { missing: ApiHttpError };
 
-const rethrowDbError = (
-   err: unknown,
-   { unique, missing }: DbErrorMap
-): never => {
-   if (unique && isUniqueViolation(err)) throw unique;
-   if (missing && isMissingRow(err)) throw missing;
+const rethrowDbError = (err: unknown, { missing }: DbErrorMap): never => {
+   if (isMissingRow(err)) throw missing;
    throw err;
 };
 

@@ -3,7 +3,7 @@ import Field from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import QueryStatus from "@/components/query-status";
 import Reserve from "@/components/reserve";
-import StaleSignIn, { signInAgain } from "@/components/stale-sign-in";
+import StaleSignIn from "@/components/stale-sign-in";
 import { authClient, changePassword, setPassword } from "@/lib/auth";
 import { errorMessage } from "@/lib/api";
 import useApiMutation from "@/lib/hooks/mutations/useApiMutation";
@@ -16,11 +16,37 @@ import {
    passwordSchema,
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useState, type FormEvent } from "react";
 import SettingsCard, { FORM_GRID } from "./card";
 
 type Input = { current: string | null; next: string };
+
+const FieldSkeleton = ({ hint = false }: { hint?: boolean }) => (
+   <div className="flex min-w-0 flex-col gap-2">
+      <Skeleton className="h-3.5 w-28" />
+      <Skeleton className="h-9 rounded-lg pointer-coarse:h-11" />
+      {hint && (
+         <div className="flex h-5 items-center">
+            <Skeleton className="h-3 w-36" />
+         </div>
+      )}
+   </div>
+);
+
+const PasswordSkeleton = () => (
+   <div aria-busy="true" className="flex flex-col gap-4">
+      <span className="sr-only">Loading password settings</span>
+      <div className={FORM_GRID}>
+         <FieldSkeleton />
+         <FieldSkeleton hint />
+      </div>
+      <div className="flex justify-end">
+         <Skeleton className="h-9 w-44 max-w-full rounded-lg pointer-coarse:h-11" />
+      </div>
+   </div>
+);
 
 const PasswordForm = ({ hasPassword }: { hasPassword: boolean }) => {
    const [current, setCurrent] = useState("");
@@ -143,7 +169,7 @@ const PasswordCard = () => {
             <QueryStatus
                error={error}
                loading={hasPassword === undefined}
-               loadingLabel="Loading password settings"
+               skeleton={<PasswordSkeleton />}
                title="Couldn't load your password settings"
                className="py-2"
                retrying={query.isFetching}
@@ -153,11 +179,6 @@ const PasswordCard = () => {
                   <StaleSignIn
                      title="Sign in again to set a password"
                      action="adding a password"
-                     actions={
-                        <Button size="sm" onClick={signInAgain}>
-                           Sign in again
-                        </Button>
-                     }
                   />
                ) : (
                   <PasswordForm

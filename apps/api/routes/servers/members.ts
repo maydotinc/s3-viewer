@@ -1,6 +1,11 @@
 import { MEMBER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError, noContent, rethrowDbError } from "@/lib/http";
-import { assertMemberAuthority, getAuth } from "@/lib/middleware/authorize";
+import {
+   assertMemberAuthority,
+   denialScopeOf,
+   getAuth,
+   grantRefusal,
+} from "@/lib/middleware/authorize";
 import { memberRoute } from "@/lib/middleware/route";
 import { recordMany } from "@/lib/middleware/audit-record";
 import { visibleGrants, withVisibleGrants } from "@/lib/services/bucket-grants";
@@ -13,13 +18,13 @@ import {
    clampBucketAccess,
    bucketDetail,
    findMember,
+   grantsByBucket,
+   heldBucketNames,
    listMembers,
    loadBucketGrants,
-   loadGrantingActor,
    memberRole,
    removeMembership,
    replaceBucketAccess,
-   visibleBuckets,
 } from "@/lib/services/members";
 import { lockBucketScope } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
@@ -77,21 +82,23 @@ const updateRole = async (
          newRole,
       });
       const demoted = rankOf(newRole) < rankOf(targetRole);
-      const visible = await visibleBuckets(actorId, serverId, serverRole, tx);
+      const actorGrants =
+         serverRole === Role.OWNER
+            ? null
+            : await loadBucketGrants(actorId, serverId, tx);
+      const visible = actorGrants && heldBucketNames(actorGrants);
       if (bucketAccess) {
          const held = await loadBucketGrants(userId, serverId, tx);
          // the editor only ever saw grants on buckets the actor holds, so the edit is checked against those alone.
          const current = visibleGrants(visible, held);
-         // the actor's holdings are also needed on buckets the edit drops, since removing a grant takes the same authority as giving it.
-         const actor = await loadGrantingActor(
-            actorId,
-            serverId,
-            serverRole,
-            [...bucketAccess, ...current],
-            tx
-         );
          assertAccessAsShown(current, previousBucketAccess ?? [], bucketAccess);
-         assertBucketGrantChanges(actor, scope, current, bucketAccess);
+         assertBucketGrantChanges(
+            { serverRole, bucketGrants: grantsByBucket(actorGrants ?? []) },
+            scope,
+            current,
+            bucketAccess,
+            grantRefusal(denialScopeOf(res))
+         );
          assertBucketCount(held.length - current.length, bucketAccess);
       } else if (newRole === Role.ADMIN) {
          assertNotLimited(
@@ -147,6 +154,7 @@ const removeMember = async (
    const { email, revokedInvites } = await removeMembership(userId, serverId, {
       id: actorId,
       assertAuthority: (roles) => assertMemberAuthority(res, roles),
+      refuse: grantRefusal(denialScopeOf(res)),
    });
    await recordMany(res, [
       { action: "member.remove", target: email, detail: { userId } },

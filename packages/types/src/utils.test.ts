@@ -6,17 +6,9 @@ import {
    formatEmailDomains,
    joinList,
    mapLimit,
-   normalizeEmail,
 } from "./utils";
 
 const tick = () => new Promise<void>((r) => setTimeout(r, 1));
-
-describe("normalizeEmail", () => {
-   it("trims and lowercases an address", () => {
-      expect(normalizeEmail("  Ada@Example.COM ")).toBe("ada@example.com");
-      expect(normalizeEmail("ada@example.com")).toBe("ada@example.com");
-   });
-});
 
 describe("joinList", () => {
    it("joins with commas and a final and, leaving short lists alone", () => {

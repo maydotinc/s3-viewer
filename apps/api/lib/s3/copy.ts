@@ -17,6 +17,7 @@ import {
    assertDestinationAbsent,
    conditionHeaders,
    conflictAs,
+   enforcesConditions,
    uploadConflict,
    withRequestHeaders,
    writeCondition,
@@ -168,6 +169,17 @@ const destinationConditions = (
 const destinationCondition = (live: DestinationETag): WriteCondition =>
    writeCondition(live ?? undefined);
 
+const assertDestinationUnchanged = async (
+   scope: S3Scope,
+   key: string,
+   destination: DestinationETag
+): Promise<void> => {
+   if (destination === null)
+      return assertDestinationAbsent(scope, key, OBJECT_EXISTS);
+   if ((await headIfExists(scope, key))?.ETag !== destination)
+      throw copyConflictError();
+};
+
 const destinationETagFor = async (
    scope: S3Scope,
    provider: Provider,
@@ -175,8 +187,16 @@ const destinationETagFor = async (
 ): Promise<{ eTag: DestinationETag; comparable: boolean }> => {
    if (request.settings !== undefined)
       return { eTag: request.sourceETag, comparable: true };
-   if (request.destinationETag !== undefined)
+   if (request.destinationETag !== undefined) {
+      // storage that ignores if-match would overwrite whatever replaced the reviewed version.
+      if (!enforcesConditions(provider))
+         await assertDestinationUnchanged(
+            scope,
+            request.destinationKey,
+            request.destinationETag
+         );
       return { eTag: request.destinationETag, comparable: true };
+   }
    if (request.overwrite === true) {
       const head = await headIfExists(scope, request.destinationKey);
       return {
@@ -191,17 +211,6 @@ const destinationETagFor = async (
          OBJECT_EXISTS
       );
    return { eTag: null, comparable: true };
-};
-
-const assertDestinationUnchanged = async (
-   scope: S3Scope,
-   key: string,
-   destination: DestinationETag
-): Promise<void> => {
-   if (destination === null)
-      return assertDestinationAbsent(scope, key, OBJECT_EXISTS);
-   if ((await headIfExists(scope, key))?.ETag !== destination)
-      throw copyConflictError();
 };
 
 const GRANTS_UNPRESERVABLE =

@@ -26,6 +26,7 @@ const useMembers = (serverId: string) => {
       select: pageMembers,
       nextCursor: pageCursor,
       enabled: Boolean(userId && serverId),
+      refetchOnWindowFocus: true,
    });
 
    return { members, ...pages };

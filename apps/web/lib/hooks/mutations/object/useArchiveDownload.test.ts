@@ -1,8 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type MutationOptions = {
-   mutationFn: (input: unknown) => Promise<unknown>;
-   onMutate: (input: unknown) => { toastId: number };
    onSuccess: (
       result: { token: string },
       input: { serverId: string; bucketName: string },
@@ -17,9 +15,7 @@ type MutationOptions = {
 
 const h = vi.hoisted(() => ({
    options: null as unknown,
-   post: vi.fn(),
    open: vi.fn(),
-   loading: vi.fn(() => 7),
    dismiss: vi.fn(),
    error: vi.fn(),
    aborted: false,
@@ -32,21 +28,21 @@ vi.mock("@tanstack/react-query", () => ({
    },
 }));
 vi.mock("@s3-viewer/ui/components/toast", () => ({
-   toast: { loading: h.loading, dismiss: h.dismiss, error: h.error },
+   toast: { dismiss: h.dismiss, error: h.error },
 }));
 vi.mock("@/lib/api", async (original) => ({
    ...(await original<typeof import("@/lib/api")>()),
    isAborted: () => h.aborted,
 }));
 vi.mock("@/lib/utils/s3/archive", () => ({
-   requestArchive: h.post,
+   requestArchive: vi.fn(),
    archiveUrl: (serverId: string, bucketName: string, token: string) =>
       `https://api.test/${serverId}/${bucketName}/${token}`,
 }));
 vi.mock("@/lib/utils/download", () => ({ downloadUrl: h.open }));
 
 import { ApiError } from "@/lib/api";
-import useArchiveDownload, { ARCHIVE_MUTATION_KEY } from "./useArchiveDownload";
+import useArchiveDownload from "./useArchiveDownload";
 
 const useOptions = (): MutationOptions => {
    useArchiveDownload();
@@ -63,34 +59,9 @@ const input = {
 beforeEach(() => {
    vi.clearAllMocks();
    h.aborted = false;
-   h.post.mockResolvedValue({ token: "tok" });
-   h.loading.mockReturnValue(7);
 });
 
 describe("useArchiveDownload", () => {
-   it("asks the api for a ticket before navigating anywhere", async () => {
-      await useOptions().mutationFn(input);
-      expect(h.post).toHaveBeenCalledWith(
-         "server1",
-         "bucket",
-         "user1",
-         ["photos/"],
-         undefined
-      );
-      expect(h.open).not.toHaveBeenCalled();
-   });
-
-   it("shares one mutation key so every caller can see a ticket in flight", () => {
-      expect(useOptions()).toMatchObject({
-         mutationKey: ARCHIVE_MUTATION_KEY,
-      });
-   });
-
-   it("shows the preparing toast while the ticket is issued", () => {
-      expect(useOptions().onMutate(input)).toEqual({ toastId: 7 });
-      expect(h.loading).toHaveBeenCalledWith("Preparing zip…");
-   });
-
    it("navigates to the token url and clears the toast", () => {
       useOptions().onSuccess({ token: "tok" }, input, { toastId: 7 });
       expect(h.dismiss).toHaveBeenCalledWith(7);

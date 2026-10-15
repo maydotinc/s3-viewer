@@ -1,6 +1,7 @@
 import { objectsPath } from "@/lib/api";
 import type { BucketTarget } from "@/lib/types";
 import { runPrefixBatches } from "@/lib/utils/s3/batch";
+import { noKey } from "./invalidate";
 import useObjectMutation, { forgetMatching } from "./object-mutation";
 import { deleteObjects, reportDeleteResult } from "./useDeleteObjects";
 
@@ -34,6 +35,7 @@ const useDeletePrefix = () =>
       mutationFn: deletePrefix,
       onSuccess: reportDeleteResult,
       settle: forgetMatching(
+         () => noKey,
          ({ prefix }) =>
             (key) =>
                key.startsWith(prefix)

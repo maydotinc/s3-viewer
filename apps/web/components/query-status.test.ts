@@ -37,14 +37,24 @@ describe("query status", () => {
          error: null,
          loading: true,
          loadingLabel: "Loading things",
-         loadingClassName: "h-full",
          title: "Couldn't load",
       });
       expect(loading).toContain('aria-label="Loading things"');
-      expect(loading).toContain("h-full");
       expect(loading).not.toContain("Loaded");
       expect(render({ error: null, title: "Couldn't load" })).toBe(
          "<p>Loaded</p>"
       );
+   });
+
+   it("shows a given skeleton instead of the spinner", () => {
+      const html = render({
+         error: null,
+         loading: true,
+         title: "Couldn't load",
+         skeleton: createElement("div", { "aria-busy": true }, "Bones"),
+      });
+      expect(html).toContain("Bones");
+      expect(html).not.toContain('role="status"');
+      expect(html).not.toContain("Loaded");
    });
 });

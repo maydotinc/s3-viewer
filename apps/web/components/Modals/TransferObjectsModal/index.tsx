@@ -58,7 +58,7 @@ const writableBuckets = (
    server: ServerInfo | undefined,
    buckets: readonly S3Bucket[]
 ): S3Bucket[] =>
-   server?.capabilities?.upload
+   server?.capabilities.upload
       ? buckets.filter((bucket) =>
            hasPermission(
               effectiveBucketRole(server.userRole, bucket.userRole),
@@ -120,13 +120,12 @@ const TransferObjectsModal = ({
 
    const writable = writableBuckets(destServer, buckets);
    const chosen = writable.find((bucket) => bucket.name === destBucket);
-   const key = prefix.trim();
    const sameBucket = destServerId === serverId && destBucket === bucketName;
    const destReach = isBucketsLoading ? undefined : reachOf(chosen);
    const pathValidation =
       !started && !isBucketsLoading && writable.length === 0
          ? NO_WRITABLE_BUCKET
-         : validateDestination(source, key, {
+         : validateDestination(source, prefix, {
               sameBucket,
               overlaps: () =>
                  folderTransferOverlaps({
@@ -136,11 +135,11 @@ const TransferObjectsModal = ({
                     destination: {
                        serverId: destServerId,
                        bucketName: destBucket,
-                       prefix: key,
+                       prefix,
                     },
                  }),
            });
-   const validation = pathValidation ?? writeScopeError(destReach, key);
+   const validation = pathValidation ?? writeScopeError(destReach, prefix);
 
    const needsReview =
       summary?.failed.some((failure) => !failure.retryable) ?? false;
@@ -148,7 +147,7 @@ const TransferObjectsModal = ({
    const blocked = stuck || validation !== null || (!started && !chosen);
 
    const destinationKeys = (files?.objects ?? []).map((item) =>
-      destinationKey(item.key, source, key)
+      destinationKey(item.key, source, prefix)
    );
    const preflight = useTransferPreflight(
       destServerId,
@@ -157,7 +156,7 @@ const TransferObjectsModal = ({
       Boolean(files) && !blocked && !started && !transfer.isPending
    );
 
-   const suggestion = usePathSuggestion(destBucket, key, {
+   const suggestion = usePathSuggestion(destBucket, prefix, {
       scope: { userId, serverId: destServerId },
    });
 
@@ -175,7 +174,7 @@ const TransferObjectsModal = ({
          destination: {
             serverId: destServerId,
             bucketName: destBucket,
-            prefix: key,
+            prefix,
          },
          overwrite,
          signal,
@@ -323,7 +322,7 @@ const TransferObjectsModal = ({
                invalid={validation !== null}
                hint={hint}
                value={prefix}
-               suggestionBase={key}
+               suggestionBase={prefix}
                suggestion={suggestion}
                placeholder="reports/"
                disabled={transfer.isPending || started}

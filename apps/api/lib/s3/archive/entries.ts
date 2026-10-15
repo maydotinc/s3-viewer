@@ -11,7 +11,13 @@ import { logger } from "@/lib/logger";
 import { withDeadline } from "@/lib/utils/abort";
 import { headObject } from "../head";
 import { assertObjectSize, keyHash } from "../keys";
-import { listObjects, nextListToken, type S3Scope } from "../listing";
+import {
+   EXISTS_LIST_THRESHOLD,
+   existingKeys,
+   listObjects,
+   nextListToken,
+   type S3Scope,
+} from "../listing";
 import { copyRetainedString, retainedRead } from "../read-budget";
 import { budgetServerOf } from "../request-budget";
 import { releaseBufferedResponse } from "../response-collector";
@@ -102,6 +108,31 @@ const listFolderKeys = async (
          releaseBufferedResponse(page);
       }
    } while (token);
+};
+
+// a key's parent lies inside whatever grant let the key through, so listing per parent never
+// leaves a folder-limited caller's scope; a selection from one folder view shares one parent.
+const listedSizes = async (
+   scope: S3Scope,
+   files: readonly string[]
+): Promise<Map<string, number>> => {
+   const byParent = new Map<string, string[]>();
+   for (const key of files) {
+      const parent = parentOf(key);
+      const group = byParent.get(parent);
+      if (group) group.push(key);
+      else byParent.set(parent, [key]);
+   }
+   const sizes = new Map<string, number>();
+   for (const group of byParent.values()) {
+      if (group.length <= EXISTS_LIST_THRESHOLD) continue;
+      const listed = await existingKeys(scope, group);
+      for (const key of listed.existing) {
+         const size = listed.sizes[key];
+         if (size !== undefined) sizes.set(key, size);
+      }
+   }
+   return sizes;
 };
 
 const SEPARATOR = /[\\/]+/;
@@ -230,6 +261,10 @@ const collectWithin = (
             const known = knownSizes?.get(key);
             if (known !== undefined) sizes.set(key, known);
          }
+         const unsized = files.filter((key) => !sizes.has(key));
+         for (const [key, size] of await listedSizes(scope, unsized))
+            sizes.set(key, size);
+         // a key the listing did not return is headed, so a missing file still answers 404.
          for (const [key, size] of await mapLimit(
             files.filter((key) => !sizes.has(key)),
             HEAD_CONCURRENCY,
@@ -334,7 +369,6 @@ const collectArchiveEntries = async (
 
 export {
    MAX_CONCURRENT_COLLECTIONS,
-   MAX_TENANT_COLLECTIONS,
    archiveFilename,
    collectArchiveEntries,
    listingBounds,

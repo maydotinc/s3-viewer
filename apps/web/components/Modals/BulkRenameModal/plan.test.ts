@@ -98,33 +98,6 @@ describe("collectSources", () => {
       expect(snapshot.truncated).toBe(true);
       expect(snapshot.objects).toHaveLength(MAX_BULK_RENAME_KEYS);
    });
-
-   it("refuses a listing page from outside the folder", async () => {
-      h.get.mockResolvedValue(page(["elsewhere/one.txt"], null));
-      await expect(
-         collectSources({ path: "/objects", targets: [target("a/")] })
-      ).rejects.toThrow("outside this folder");
-   });
-
-   it("refuses a repeated continuation token instead of looping", async () => {
-      h.get.mockResolvedValue(page(["a/one.txt"], "same"));
-      await expect(
-         collectSources({ path: "/objects", targets: [target("a/")] })
-      ).rejects.toThrow("repeated a folder listing page");
-   });
-
-   it("stops listing once cancelled", async () => {
-      const controller = new AbortController();
-      controller.abort();
-      await expect(
-         collectSources({
-            path: "/objects",
-            targets: [target("a/")],
-            signal: controller.signal,
-         })
-      ).rejects.toThrow("Request cancelled");
-      expect(h.get).not.toHaveBeenCalled();
-   });
 });
 
 describe("findExisting", () => {

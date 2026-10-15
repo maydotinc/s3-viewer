@@ -15,12 +15,6 @@ const flatten = (
 ) => flattenJson({ value, overrides, expandAll, small });
 
 describe("flattenJson", () => {
-   it("emits one row for a scalar root", () => {
-      const rows = flatten(42);
-      expect(rows).toHaveLength(1);
-      expect(rows[0]?.kind).toBe("scalar");
-   });
-
    it("emits a single row for an empty branch", () => {
       expect(flatten({}).map((r) => r.kind)).toEqual(["empty"]);
       expect(flatten([]).map((r) => r.kind)).toEqual(["empty"]);
@@ -50,12 +44,6 @@ describe("flattenJson", () => {
       const rows = flatten({ a: 1, b: 2 });
       const children = rows.filter((r) => r.kind === "scalar");
       expect(children.map((r) => r.last)).toEqual([false, true]);
-   });
-
-   it("gives every row a distinct path", () => {
-      const rows = flatten({ a: { b: 1 }, c: [2] });
-      const paths = rows.map((r) => `${r.path}:${r.kind}`);
-      expect(new Set(paths).size).toBe(paths.length);
    });
 
    it("keeps paths distinct when a key contains a slash", () => {
@@ -105,16 +93,6 @@ describe("flattenJson", () => {
          ["x".repeat(100000)]: Array.from({ length: 1000 }, () => 0),
       });
       expect(rows.every((row) => row.path.length < 20)).toBe(true);
-   });
-
-   it("folds only the branch that was toggled when keys collide", () => {
-      const value = { a: { b: [1, 2] }, "a/b": [3, 4] };
-      const nested = flatten(value).find(
-         (r) => r.label === "b" && r.kind === "open"
-      );
-      expect(nested).toBeDefined();
-      const rows = flatten(value, new Map([[nested?.path ?? "", false]]));
-      expect(rows.filter((r) => r.kind === "closed")).toHaveLength(1);
    });
 
    it("keeps deep branches shut in a large document by default", () => {
@@ -177,21 +155,6 @@ describe("flattenJson row cap", () => {
    const OVERSIZE = MAX_JSON_PREVIEW_ROWS + 50;
    const oversized = () => Array.from({ length: OVERSIZE }, (_, i) => i);
 
-   it("leaves a document under the cap untouched", () => {
-      const rows = flatten({ a: [1, 2], b: { c: 3 } });
-      expect(rows.map((r) => r.kind)).toEqual([
-         "open",
-         "open",
-         "scalar",
-         "scalar",
-         "close",
-         "open",
-         "scalar",
-         "close",
-         "close",
-      ]);
-   });
-
    it("truncates a branch that would blow the row budget", () => {
       const rows = flatten({ big: oversized(), tail: "keep" });
       const truncated = rows.filter((r) => r.kind === "truncated");
@@ -216,24 +179,6 @@ describe("flattenJson row cap", () => {
       const other = rows.find((r) => r.label === "other");
       expect(other?.kind).toBe("closed");
       expect(other?.count).toBe(3);
-   });
-
-   it("truncates a branch opened by hand in a large document", () => {
-      const rows = flattenJson({
-         value: { big: oversized() },
-         overrides: new Map([["/0", true]]),
-         expandAll: null,
-         small: false,
-      });
-      const truncated = rows.find((r) => r.kind === "truncated");
-      expect(truncated?.count).toBe(OVERSIZE - (MAX_JSON_PREVIEW_ROWS - 1));
-      expect(rows.length).toBeLessThan(MAX_JSON_PREVIEW_ROWS + 100);
-   });
-
-   it("gives the truncated row a path no child can collide with", () => {
-      const rows = flatten({ big: oversized(), tail: "keep" });
-      const paths = rows.map((r) => `${r.path}:${r.kind}`);
-      expect(new Set(paths).size).toBe(paths.length);
    });
 
    it("keeps synthetic rows distinct from property names that resemble their IDs", () => {

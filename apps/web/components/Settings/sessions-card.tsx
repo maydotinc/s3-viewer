@@ -1,6 +1,7 @@
 import RelativeTime from "@/components/relative-time";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import QueryStatus from "@/components/query-status";
+import RefreshButton from "@/components/refresh-button";
 import { authClient } from "@/lib/auth";
 import {
    useRevokeOtherSessions,
@@ -11,6 +12,7 @@ import {
 import { formatDay } from "@/lib/utils/format";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { useState } from "react";
 import SettingsCard from "./card";
 
@@ -22,6 +24,28 @@ const ACTION_COLUMN =
 
 const ROW =
    "grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-2 text-sm @xl:flex @xl:min-h-10";
+
+const SessionsSkeleton = () => (
+   <ul
+      aria-busy="true"
+      aria-label="Loading sessions"
+      className="divide-y divide-viewerborder"
+   >
+      {Array.from({ length: 2 }, (_, index) => (
+         <li key={index} className={ROW}>
+            <span className="flex min-w-0 flex-1 items-center">
+               <Skeleton className="h-3.5 w-40 max-w-full" />
+            </span>
+            <span className="col-start-1 row-start-2 flex items-center">
+               <Skeleton className="h-3.5 w-28" />
+            </span>
+            <span className={ACTION_COLUMN}>
+               <Skeleton className="h-8 w-16 rounded-lg pointer-coarse:h-11" />
+            </span>
+         </li>
+      ))}
+   </ul>
+);
 
 type SessionRowProps = {
    session: Session;
@@ -80,20 +104,27 @@ const SessionsCard = () => {
    );
 
    const action = (
-      <Button
-         type="button"
-         variant="outline"
-         size="sm"
-         disabled={
-            isLoading ||
-            Boolean(error) ||
-            others.length === 0 ||
-            revokeOthers.isPending
-         }
-         onClick={() => setConfirming(true)}
-      >
-         Sign out everywhere else
-      </Button>
+      <div className="flex shrink-0 items-center gap-2">
+         <RefreshButton
+            size="icon-sm"
+            spinning={isFetching}
+            onClick={() => void refetch()}
+         />
+         <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={
+               isLoading ||
+               Boolean(error) ||
+               others.length === 0 ||
+               revokeOthers.isPending
+            }
+            onClick={() => setConfirming(true)}
+         >
+            Sign out everywhere else
+         </Button>
+      </div>
    );
 
    return (
@@ -102,7 +133,7 @@ const SessionsCard = () => {
             <QueryStatus
                error={error}
                loading={!sessions}
-               loadingLabel="Loading sessions"
+               skeleton={<SessionsSkeleton />}
                title="Couldn't load your sessions"
                className="py-2"
                retrying={isFetching}

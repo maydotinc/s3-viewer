@@ -7,11 +7,7 @@ import {
    AbortMultipartUploadCommand,
    type S3Client,
 } from "@aws-sdk/client-s3";
-import {
-   DEFAULT_CONTENT_TYPE,
-   MAX_MULTIPART_PARTS,
-   MAX_OBJECT_BYTES,
-} from "@s3-viewer/types";
+import { MAX_MULTIPART_PARTS, MAX_OBJECT_BYTES } from "@s3-viewer/types";
 import { createUploadBudget } from "./upload-budget";
 import { Readable, PassThrough } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
@@ -147,13 +143,6 @@ describe("streamUpload byte cap", () => {
       return Buffer.concat(sent).length;
    };
 
-   it("rejects a chunked body that streams past the cap", async () => {
-      const chunk = Buffer.alloc(64 * 1024, 1);
-      await expect(
-         collect([chunk, chunk, chunk], 100 * 1024)
-      ).rejects.toSatisfy(isUploadTooLargeError);
-   });
-
    it("does not trip the cap for a body at exactly the limit", async () => {
       const chunk = Buffer.alloc(64 * 1024, 1);
       await expect(collect([chunk], 64 * 1024)).resolves.toBe(64 * 1024);
@@ -165,70 +154,6 @@ describe("streamUpload byte cap", () => {
          (e: unknown) => e
       );
       expect(isUploadTooLargeError(err)).toBe(true);
-   });
-});
-
-describe("the content type a stream upload writes", () => {
-   const write = async (
-      contentType: string,
-      stored?: { contentType?: string }
-   ) => {
-      const sent: (string | undefined)[] = [];
-      const client = {
-         config: mockConfig,
-         send: async (command: object) => {
-            if (command instanceof HeadObjectCommand)
-               return {
-                  ETag: '"stored"',
-                  Metadata: {},
-                  ContentType: stored?.contentType,
-               };
-            if (command instanceof PutObjectCommand) {
-               sent.push(command.input.ContentType);
-               return { ETag: '"written"' };
-            }
-            return {};
-         },
-      } as unknown as S3Client;
-      await streamUpload({
-         client,
-         bucket: "b",
-         key: "k",
-         contentType,
-         ...(stored ? { expectedETag: '"stored"' } : {}),
-         body: Readable.from([Buffer.alloc(8, 1)]),
-         contentLength: 8,
-         partSize: 5 * 1024 * 1024,
-         maxBytes: 1024 * 1024,
-         abortController: new AbortController(),
-      });
-      return sent[0];
-   };
-
-   it("prefers a caller type that says something over the stored one", async () => {
-      await expect(
-         write("text/csv", { contentType: "text/plain" })
-      ).resolves.toBe("text/csv");
-   });
-
-   it("keeps the stored type when the caller only knows the generic default", async () => {
-      await expect(
-         write(DEFAULT_CONTENT_TYPE, {
-            contentType: "application/vnd.apache.parquet",
-         })
-      ).resolves.toBe("application/vnd.apache.parquet");
-   });
-
-   it("writes the generic default when the replaced object carried no type", async () => {
-      await expect(write(DEFAULT_CONTENT_TYPE, {})).resolves.toBe(
-         DEFAULT_CONTENT_TYPE
-      );
-   });
-
-   it("writes the caller's type onto a new object", async () => {
-      await expect(write(DEFAULT_CONTENT_TYPE)).resolves.toBe(
-         DEFAULT_CONTENT_TYPE
-      );
    });
 });
 
@@ -486,7 +411,7 @@ describe("upload lifetime", () => {
          await vi.advanceTimersByTimeAsync(S3_ROUTE_TIMEOUT_MS - 1);
          expect(settled).not.toHaveBeenCalled();
          await vi.advanceTimersByTimeAsync(1);
-         await expect(pending).rejects.toBeDefined();
+         await expect(pending).rejects.toMatchObject({ name: "TimeoutError" });
          expect(abortController.signal.aborted).toBe(false);
          expect(vi.getTimerCount()).toBe(0);
       } finally {

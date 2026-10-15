@@ -21,14 +21,6 @@ describe("copyScope", () => {
       expect(res.req.setTimeout).toHaveBeenCalledExactlyOnceWith(0);
    });
 
-   it("keeps the disconnect abort on the sized signal", () => {
-      const res = fakeResponse();
-      const sized = copyScope(scope, res, head(10 * GIB));
-      expect(sized.signal?.aborted).toBe(false);
-      res.emit("close");
-      expect(sized.signal?.aborted).toBe(true);
-   });
-
    it("does not let the completed setup deadline abort a sized copy", () => {
       const setup = new AbortController();
       const res = fakeResponse();

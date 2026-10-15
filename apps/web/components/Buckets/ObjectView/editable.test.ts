@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_EDIT_BYTES } from "@s3-viewer/types";
-import { extensionOf, isEditableObject } from "./editable";
+import { isEditableObject } from "./editable";
 
 describe("which objects the inline editor opens", () => {
    it.each([
@@ -35,15 +35,6 @@ describe("which objects the inline editor opens", () => {
 
    it.each([null, undefined])("refuses an unknown size: %s", (size) =>
       expect(isEditableObject("text/plain", "notes.txt", size)).toBe(false)
-   );
-
-   it.each([
-      ["notes.txt", "txt"],
-      ["a/b/report.TAR.GZ", "gz"],
-      [".env", "env"],
-      ["Makefile", ""],
-   ])("reads the extension of %s", (key, expected) =>
-      expect(extensionOf(key)).toBe(expected)
    );
 });
 

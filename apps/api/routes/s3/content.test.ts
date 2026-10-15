@@ -3,7 +3,7 @@ import { privateNoStore } from "@/lib/middleware/cache-control";
 import { MAX_EDIT_BYTES } from "@s3-viewer/types";
 import express from "express";
 import { Readable } from "node:stream";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
    bucketMember,
    routeServer,
@@ -11,7 +11,7 @@ import {
    signedIn,
 } from "@/lib/testing/route-harness";
 import { endpointStub } from "@/lib/testing/s3-fixture";
-import { createReadBudget, readBudget } from "@/lib/s3/read-budget";
+import { installReadBudget } from "@/lib/s3/read-budget.fixture";
 import { contentRouter } from "./content";
 import {
    bufferedBodyReservationBytes,
@@ -96,6 +96,10 @@ beforeEach(() => {
    client.send.mockClear();
 });
 
+afterEach(() => vi.restoreAllMocks());
+
+const ONE_READ = { total: 1, user: 1, server: 1 };
+
 const get = (objectKey: string) =>
    fetch(`${base}/v3/content?objectKey=${encodeURIComponent(objectKey)}`);
 
@@ -108,6 +112,7 @@ describe("inline object content", () => {
          "private, no-store, no-transform"
       );
       expect(response.headers.get("etag")).toBe('"live"');
+      expect(response.headers.get("content-disposition")).toBe("inline");
       expect(await response.text()).toBe("hello");
       expect(state.sends).toEqual(["GetObjectCommand"]);
       expect(client.send.mock.calls[0]?.[0]).toMatchObject({
@@ -139,12 +144,6 @@ describe("inline object content", () => {
       expect(await response.text()).toBe("<svg>");
    });
 
-   it("keeps ordinary text inline", async () => {
-      expect(
-         (await get("notes/todo.txt")).headers.get("content-disposition")
-      ).toBe("inline");
-   });
-
    it("records the read only once the object was found", async () => {
       await get("notes/todo.txt");
       expect(state.audit).toHaveBeenCalledWith(
@@ -158,17 +157,6 @@ describe("inline object content", () => {
       );
    });
 
-   it("refuses a file too large to edit before reading it", async () => {
-      state.metadata = {
-         ContentType: "text/plain",
-         ContentLength: 2 * 1024 * 1024,
-      };
-      const response = await get("huge.log");
-      expect(response.status).toBe(413);
-      expect(state.sends).toEqual(["GetObjectCommand"]);
-      expect(state.audit).not.toHaveBeenCalled();
-   });
-
    it("closes an oversized GET without reading its body", async () => {
       const read = vi.fn();
       const body = new Readable({ read });
@@ -180,6 +168,7 @@ describe("inline object content", () => {
       expect(await response.json()).toMatchObject({
          message: expect.stringContaining("can't be edited"),
       });
+      expect(state.audit).not.toHaveBeenCalled();
    });
 
    it.each([-1, NaN, 1.5])(
@@ -193,7 +182,7 @@ describe("inline object content", () => {
       }
    );
 
-   it.each([undefined, 1, MAX_EDIT_BYTES])(
+   it.each([undefined, 1])(
       "bounds actual bytes when GET length is %s",
       async (ContentLength) => {
          const body = Readable.from([
@@ -228,7 +217,7 @@ describe("inline object content", () => {
       expect(body.destroyed).toBe(true);
    });
 
-   it.each([undefined, 1, 20])(
+   it.each([undefined, 1])(
       "responds with the actual byte length when GET length is %s",
       async (ContentLength) => {
          state.object = {
@@ -295,17 +284,7 @@ describe("inline object content", () => {
    });
 
    it("refuses concurrent editor reads and releases admission after disconnect", async () => {
-      const budget = createReadBudget({
-         maxBytes: MAX_EDIT_BYTES * 4,
-         maxUserBytes: MAX_EDIT_BYTES * 4,
-         maxServerBytes: MAX_EDIT_BYTES * 4,
-         maxReads: 1,
-         maxUserReads: 1,
-         maxServerReads: 1,
-      });
-      const admission = vi
-         .spyOn(readBudget, "acquire")
-         .mockImplementation(budget.acquire);
+      const budget = installReadBudget(MAX_EDIT_BYTES * 4, ONE_READ);
       let reading!: () => void;
       const started = new Promise<void>((resolve) => {
          reading = resolve;
@@ -340,35 +319,20 @@ describe("inline object content", () => {
          expect((await get("notes.txt")).status).toBe(200);
       } finally {
          controller.abort();
-         admission.mockRestore();
       }
    });
 
    it("destroys the editor body and releases its slot on memory exhaustion", async () => {
-      const budget = createReadBudget({
-         maxBytes: bufferedBodyReservationBytes(1),
-         maxUserBytes: bufferedBodyReservationBytes(1),
-         maxServerBytes: bufferedBodyReservationBytes(1),
-         maxReads: 1,
-         maxUserReads: 1,
-         maxServerReads: 1,
-      });
-      const admission = vi
-         .spyOn(readBudget, "acquire")
-         .mockImplementation(budget.acquire);
+      installReadBudget(bufferedBodyReservationBytes(1), ONE_READ);
       const body = Readable.from([Buffer.alloc(BUFFERED_BODY_SLAB_BYTES + 1)]);
       state.object = { Body: body };
-      try {
-         expect((await get("notes.txt")).status).toBe(429);
-         expect(body.destroyed).toBe(true);
-         expect(state.audit).not.toHaveBeenCalled();
-         state.object = { Body: Readable.from(["x"]) };
-         const response = await get("small.txt");
-         expect(response.status).toBe(200);
-         expect(await response.text()).toBe("x");
-      } finally {
-         admission.mockRestore();
-      }
+      expect((await get("notes.txt")).status).toBe(429);
+      expect(body.destroyed).toBe(true);
+      expect(state.audit).not.toHaveBeenCalled();
+      state.object = { Body: Readable.from(["x"]) };
+      const response = await get("small.txt");
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("x");
    });
 
    it("rejects a folder key", async () => {

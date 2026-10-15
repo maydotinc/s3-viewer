@@ -97,10 +97,9 @@ const KeyDialog = ({
    const [value, setValue] = useState(initialValue);
    const [touched, setTouched] = useState(false);
 
-   const key = value.trim();
    const scope = useBucketScope(userId, serverId, bucketName);
-   const validation = validate(key) ?? writeScopeError(scope, key);
-   const suggestion = usePathSuggestion(bucketName, key, {
+   const validation = validate(value) ?? writeScopeError(scope, value);
+   const suggestion = usePathSuggestion(bucketName, value, {
       scope: { userId, serverId },
    });
    const error = requestError ?? (touched ? validation : null);
@@ -108,7 +107,7 @@ const KeyDialog = ({
    const submit = (event: FormEvent) => {
       event.preventDefault();
       if (isPending || submitDisabled || validation) return;
-      onSubmit(key);
+      onSubmit(value);
    };
 
    return (
@@ -128,7 +127,7 @@ const KeyDialog = ({
             invalid={Boolean(error)}
             hint={hint}
             value={value}
-            suggestionBase={key}
+            suggestionBase={value}
             suggestion={suggestion}
             autoFocus
             disabled={isPending || inputDisabled}

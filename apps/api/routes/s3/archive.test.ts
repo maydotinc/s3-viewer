@@ -1,7 +1,8 @@
 import { archiveTicketStore } from "@/lib/testing/archive-ticket-store";
-import { errorHandler } from "@/lib/http";
+import { ApiHttpError, errorHandler } from "@/lib/http";
 import { privateNoStore } from "@/lib/middleware/cache-control";
 import { UploadIdleError } from "@/lib/s3/progress-floor";
+import { ErrorCode } from "@s3-viewer/types";
 import express from "express";
 import type { Writable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -317,6 +318,18 @@ describe("downloading a zip", () => {
       expect(state.audit).toHaveBeenCalledOnce();
    });
 
+   it("keeps the ticket when the attempt cannot be recorded, so a retry works", async () => {
+      const { token } = await ticketFor();
+      state.audit.mockRejectedValueOnce(
+         new ApiHttpError(503, "Try again", ErrorCode.AUDIT_UNAVAILABLE)
+      );
+      expect((await fetch(`${path()}/${token}`)).status).toBe(503);
+      const retried = await fetch(`${path()}/${token}`);
+      expect(retried.status).toBe(200);
+      await retried.arrayBuffer();
+      expect(state.ticketStore.rows()).toHaveLength(0);
+   });
+
    it("spends the ticket after three failures before the zip starts", async () => {
       const { token } = await ticketFor();
       state.stream.mockRejectedValue(new UploadIdleError());
@@ -525,7 +538,6 @@ describe("archive ticket admission", () => {
          200, 404,
       ]);
       await Promise.all(responses.map((response) => response.arrayBuffer()));
-      expect(state.audit).toHaveBeenCalledOnce();
       expect(state.release).toHaveBeenCalledTimes(2);
    });
 });

@@ -32,7 +32,7 @@ vi.mock("./context", () => ({
 vi.mock("./overlays", () => ({ LoadingOverlay: () => null }));
 import Grid from "./grid";
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime(() => vi.restoreAllMocks());
 let nextFrame = 0;
 const frames = new Map<number, FrameRequestCallback>();
 const tick = () => {
@@ -138,10 +138,9 @@ describe("placeholder while the grid is hidden", () => {
    ])(
       "draws $shown column(s) at $width px, the ones the grid itself will keep",
       async ({ width, shown }) => {
-         const measured = measureAs(width);
+         measureAs(width);
          await mount(columns);
          expect(placeholder()!.firstElementChild!.children).toHaveLength(shown);
-         measured.mockRestore();
       }
    );
 });

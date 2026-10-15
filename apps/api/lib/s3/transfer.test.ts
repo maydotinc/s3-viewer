@@ -1,4 +1,4 @@
-import { S3Client } from "@aws-sdk/client-s3";
+import { S3Client, type HeadObjectCommandOutput } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
@@ -12,7 +12,6 @@ import {
    type FixtureRequest,
 } from "@/lib/testing/s3-fixture";
 import { closeServer, listen } from "@/lib/testing/test-server";
-import { UploadIdleError } from "./progress-floor";
 import { isUploadTooLargeError } from "./stream-upload";
 
 const streamed = vi.hoisted(() => ({ clients: [] as unknown[] }));
@@ -90,18 +89,18 @@ const run = async ({
    body = () => Readable.from([CONTENT]),
    expectedETag = ETAG,
    maxBytes = 1024 * 1024,
-   idleTimeoutMs,
    destinationAttempts,
    contentLength,
+   head,
 }: {
    destination: (r: FixtureRequest) => Promise<FixtureReply>;
    overwrite?: boolean;
    body?: () => Readable;
    expectedETag?: string | null;
    maxBytes?: number;
-   idleTimeoutMs?: number;
    destinationAttempts?: number;
    contentLength?: number;
+   head?: HeadObjectCommandOutput;
 }) => {
    const from = recording(sourceHandler(body, contentLength));
    const to = recording(destination);
@@ -122,6 +121,7 @@ const run = async ({
                bucket: "from-bucket",
                key: SOURCE_KEY,
                expectedETag,
+               ...(head && { head }),
             },
             destination: {
                client: destinationClient,
@@ -132,7 +132,6 @@ const run = async ({
             maxBytes,
             partSize: 5 * 1024 * 1024,
             abortController,
-            ...(idleTimeoutMs === undefined ? {} : { idleTimeoutMs }),
          }).catch((error: unknown) => error),
       };
    } finally {
@@ -149,8 +148,6 @@ const emptyDestination = async (
 describe("streaming an object to another server", () => {
    it.each([
       ["single part", CONTENT.length, false],
-      ["single part", CONTENT.length, true],
-      ["multipart", 5 * 1024 * 1024 + 1, false],
       ["multipart", 5 * 1024 * 1024 + 1, true],
    ])(
       "rechecks %s publication (bytes: %s; destination occupied: %s)",
@@ -210,7 +207,7 @@ describe("streaming an object to another server", () => {
       );
       expect(put.headers["content-language"]).toBe("en-GB");
       expect(put.headers["content-encoding"]).toBe("identity");
-      expect(put.headers["expires"]).toBeDefined();
+      expect(put.headers["expires"]).toBe("Wed, 21 Oct 2026 07:28:00 GMT");
       expect(put.headers["x-amz-meta-owner"]).toBe("finance");
       expect(put.headers["x-amz-website-redirect-location"]).toBe("/new-page");
    });
@@ -381,74 +378,33 @@ describe("streaming an object to another server", () => {
    });
 });
 
-describe("the read has to clear the floor rate", () => {
-   const paced = (everyMs: number, chunks: number, bytes: number): Readable => {
-      const body = new Readable({ read() {} });
-      let sent = 0;
-      const timer = setInterval(() => {
-         if (sent++ >= chunks) {
-            clearInterval(timer);
-            body.push(null);
-            return;
-         }
-         body.push(Buffer.alloc(bytes, 1));
-      }, everyMs);
-      body.on("close", () => clearInterval(timer));
-      return body;
-   };
-
-   it("gives up on a source that trickles under the floor", async () => {
-      const body = paced(10, 40, 1);
-      const { result } = await run({
-         destination: emptyDestination,
-         body: () => body,
-         idleTimeoutMs: 40,
-      });
-      body.destroy();
-      expect(result).toBeInstanceOf(UploadIdleError);
+describe("a source head the route already took", () => {
+   const head = (extra: Partial<HeadObjectCommandOutput> = {}) => ({
+      ETag: ETAG,
+      ContentLength: CONTENT.length,
+      $metadata: {},
+      ...extra,
    });
 
-   it("leaves a source reading above the floor alone", async () => {
-      const body = paced(15, 8, 8 * 1024);
-      const { result } = await run({
+   it("is not read again", async () => {
+      const { source, result } = await run({
          destination: emptyDestination,
-         body: () => body,
-         idleTimeoutMs: 40,
+         head: head(),
       });
-      expect(result).toEqual({ size: 64 * 1024, eTag: '"written"' });
+      expect(result).toMatchObject({ size: CONTENT.length });
+      expect(source.filter((r) => r.method === "HEAD")).toEqual([]);
    });
 
-   it("lets a short body end inside a window it never fills", async () => {
-      const body = new Readable({ read() {} });
-      const timer = setTimeout(() => {
-         body.push(Buffer.from("hi"));
-         body.push(null);
-      }, 20);
-      const { result } = await run({
+   it.each([
+      ["a customer-encrypted object", { SSECustomerAlgorithm: "AES256" }, 409],
+      ["an object over the cap", { ContentLength: 2 * 1024 * 1024 }, 413],
+   ])("still refuses %s", async (_name, extra, status) => {
+      const { source, result } = await run({
          destination: emptyDestination,
-         body: () => body,
-         idleTimeoutMs: 40,
+         head: head(extra),
       });
-      clearTimeout(timer);
-      expect(result).toEqual({ size: 2, eTag: '"written"' });
-   });
-
-   it("does not charge the source for a window spent under backpressure", async () => {
-      const body = new Readable({ read() {} });
-      body.push(Buffer.from("hi"));
-      body.once("resume", () => {
-         setTimeout(() => body.pause(), 5);
-         setTimeout(() => {
-            body.resume();
-            body.push(null);
-         }, 150);
-      });
-      const { result } = await run({
-         destination: emptyDestination,
-         body: () => body,
-         idleTimeoutMs: 40,
-      });
-      expect(result).toEqual({ size: 2, eTag: '"written"' });
+      expect(result).toMatchObject({ status });
+      expect(source).toEqual([]);
    });
 });
 

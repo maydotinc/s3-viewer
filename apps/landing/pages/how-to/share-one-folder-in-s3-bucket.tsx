@@ -164,9 +164,9 @@ const faqs: Faq[] = [
 export default createHowToPage({
    slug: SLUG,
    tldr: TLDR,
-   seoTitle: "Share One Folder in an S3 Bucket (Not the Whole Bucket)",
+   seoTitle: "Share One S3 Folder, Not the Whole Bucket",
    seoDescription:
-      "Give someone access to one folder in an S3 or R2 bucket, not the whole bucket: what the consoles can do, the IAM prefix policy, and an email invite limited to specific folders.",
+      "Give someone one folder in an S3 or R2 bucket, not the whole bucket: what the consoles can do, the IAM prefix policy, and a folder-scoped email invite.",
    published: "2026-10-14",
    visual: <ShareFolderIllustration />,
    steps,

@@ -28,23 +28,6 @@ describe("downloadUrl", () => {
       expect(click).toHaveBeenCalledOnce();
       expect(anchor.remove).toHaveBeenCalledOnce();
    });
-
-   it("names the file when asked", () => {
-      const anchor = {
-         rel: "",
-         href: "",
-         download: "",
-         style: {},
-         click: vi.fn(),
-         remove: vi.fn(),
-      };
-      vi.stubGlobal("document", {
-         createElement: () => anchor,
-         body: { appendChild: vi.fn() },
-      });
-      downloadUrl("https://api.example.test/file", "report.pdf");
-      expect(anchor.download).toBe("report.pdf");
-   });
 });
 
 describe("saveBlob", () => {

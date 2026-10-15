@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as React from "react";
 import type { S3MoveResult } from "@s3-viewer/types";
 import { one } from "@/lib/test/elements";
-import DeletionProtectionNotice from "@/components/Modals/deletion-protection-notice";
 import FailureList from "@/components/Modals/failure-list";
 
 type MoveBody = { objects: { key: string; newKey: string }[] };
@@ -80,7 +79,6 @@ import Modal from "./index";
 
 type View = React.ReactElement<{
    onSubmit: (destination: string) => void;
-   validate: (value: string) => string | null;
    submitLabel: string;
    requestError: string | null;
    children: unknown;
@@ -172,13 +170,6 @@ describe("moving picked objects", () => {
       );
       expect(callbacks.onClose).toHaveBeenCalledOnce();
    });
-
-   it("refuses the folder the objects are already in", () => {
-      const { validate } = render().props;
-      expect(validate("raw/")).toBe("That's the current folder.");
-      expect(validate("archive/")).toBeNull();
-      expect(validate("")).toBeNull();
-   });
 });
 
 describe("retrying after a cancel", () => {
@@ -210,15 +201,6 @@ describe("retrying after a cancel", () => {
 
 describe("renaming a folder", () => {
    const folder = { folderKey: "raw/" };
-
-   it("refuses the same or an overlapping folder", () => {
-      const { validate } = render(folder).props;
-      expect(validate("raw/")).toBe("That's the current folder.");
-      expect(validate("raw/deep/")).toBe(
-         "Source and destination folders must not overlap."
-      );
-      expect(validate("archive/")).toBeNull();
-   });
 
    it("says how far it got when a page fails", async () => {
       h.get.mockResolvedValue({
@@ -267,17 +249,12 @@ describe("room for what a move reports", () => {
          })),
       } satisfies S3MoveResult);
       await move("archive/");
-      const children = render().props.children;
       expect(
          one(
-            children,
-            (element) => element.type === DeletionProtectionNotice,
-            "notice"
-         ).props
-      ).toMatchObject({ serverId: "server", action: "move" });
-      expect(
-         one(children, (element) => element.type === FailureList, "failures")
-            .props.failures
+            render().props.children,
+            (element) => element.type === FailureList,
+            "failures"
+         ).props.failures
       ).toHaveLength(2);
    });
 });

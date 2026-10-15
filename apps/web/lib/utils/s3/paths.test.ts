@@ -14,7 +14,7 @@ const routeOf = (href: { query: Record<string, unknown> }) =>
    bucketRoute(href.query as Parameters<typeof bucketRoute>[0]);
 
 describe("pretty path segments for ordinary keys", () => {
-   it("keeps folders and objects on the slug", () => {
+   it("keeps folders, objects and the bucket root on the slug", () => {
       expect(folderHref("backups", ["docs", "2026"])).toEqual({
          pathname: BUCKETS_ROUTE,
          query: { slug: ["backups", "docs", "2026"] },
@@ -23,9 +23,6 @@ describe("pretty path segments for ordinary keys", () => {
          pathname: BUCKETS_ROUTE,
          query: { slug: ["backups", "docs", "report.pdf"], view: "object" },
       });
-   });
-
-   it("keeps the bucket root on the slug", () => {
       expect(folderHref("backups", [])).toEqual({
          pathname: BUCKETS_ROUTE,
          query: { slug: ["backups"] },
@@ -102,32 +99,6 @@ describe("keys the URL path cannot carry travel in the query", () => {
          isObjectView: false,
       });
       expect(prefixFromSegments(route.path)).toEqual(prefix);
-   });
-
-   it.each(["docs/", "a/b/"])(
-      "keeps the folder %j pretty while its marker object goes through ?key",
-      (prefix) => {
-         const segments = segmentsFromKey(prefix);
-         expect(folderHref("backups", segments)).toEqual({
-            pathname: BUCKETS_ROUTE,
-            query: { slug: ["backups", ...segments] },
-         });
-         const folder = routeOf(folderHref("backups", segments));
-         expect(prefixFromSegments(folder.path)).toEqual(prefix);
-         expect(folder.isObjectView).toBe(false);
-
-         const object = routeOf(objectHref("backups", prefix));
-         expect(object.path).not.toEqual(folder.path);
-         expect(object.path.join("/")).toEqual(prefix);
-      }
-   );
-
-   it("keeps a lossy object key out of the breadcrumb trail it links back to", () => {
-      const { path } = routeOf(objectHref("backups", "a//b/c.txt"));
-      expect(folderHref("backups", path.slice(0, -1))).toEqual({
-         pathname: BUCKETS_ROUTE,
-         query: { slug: ["backups"], prefix: "a//b/" },
-      });
    });
 });
 

@@ -1,5 +1,10 @@
 import { mountRuntime } from "@/lib/test/runtime";
-import { Provider, Role, type ServerInfo } from "@s3-viewer/types";
+import {
+   Provider,
+   Role,
+   type SentInvite,
+   type ServerInfo,
+} from "@s3-viewer/types";
 import { createElement, type ReactNode } from "react";
 import { afterEach, vi, type Mock } from "vitest";
 
@@ -18,6 +23,23 @@ const passthroughDialog = () => ({
    DialogTitle: passthrough,
 });
 
+const checkboxButton = () => ({
+   Checkbox: (props: {
+      id: string;
+      checked: boolean;
+      disabled?: boolean;
+      onCheckedChange: (checked: boolean) => void;
+   }) =>
+      createElement("button", {
+         id: props.id,
+         type: "button",
+         role: "checkbox",
+         "aria-checked": props.checked,
+         disabled: props.disabled,
+         onClick: () => props.onCheckedChange(!props.checked),
+      }),
+});
+
 type ToastKind = "success" | "error" | "warning" | "info";
 
 const toastMock = (spies: Partial<Record<ToastKind, Mock>> = {}) => ({
@@ -34,8 +56,28 @@ const serverInfo = (overrides: Partial<ServerInfo> = {}): ServerInfo => ({
    name: "Storage",
    provider: Provider.S3,
    userRole: Role.OWNER,
+   capabilities: {
+      upload: true,
+      replace: true,
+      rename: true,
+      delete: true,
+      deleteProtection: "checked",
+      notice: null,
+   },
+   canCreateBucket: true,
    audit: { enabled: false, canView: false, canManage: false },
    ...overrides,
+});
+
+const sentInvite = (email: string, emailed = true): SentInvite => ({
+   id: email,
+   email,
+   emailed,
+   role: Role.VIEWER,
+   expiresAt: "2099-01-01T00:00:00Z",
+   server: { id: "server", name: "Storage" },
+   invitedBy: { name: "Me", email: "me@example.com" },
+   bucketAccess: [],
 });
 
 type Match = "exact" | "prefix" | "includes";
@@ -65,6 +107,8 @@ const mountedRuntime = (after?: () => void) => {
       await runtime?.unmount();
       runtime?.queryClient.clear();
       runtime = undefined;
+      // mountRuntime stubs the act flag, and tests stub their own globals beside it
+      vi.unstubAllGlobals();
       after?.();
    });
    return {
@@ -81,10 +125,32 @@ const mountedRuntime = (after?: () => void) => {
    };
 };
 
+// React tracks the value on the instance setter, so only the prototype setter lets onChange see a change
+const typeInto = (
+   field: HTMLInputElement | HTMLTextAreaElement,
+   value: string
+) => {
+   const prototype =
+      field instanceof HTMLTextAreaElement
+         ? HTMLTextAreaElement.prototype
+         : HTMLInputElement.prototype;
+   Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(field, value);
+   field.dispatchEvent(new Event("input", { bubbles: true }));
+};
+
+const submitForm = (container: ParentNode) =>
+   container
+      .querySelector("form")!
+      .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+
 export {
    buttonByText,
+   checkboxButton,
    mountedRuntime,
    passthroughDialog,
+   sentInvite,
    serverInfo,
+   submitForm,
    toastMock,
+   typeInto,
 };

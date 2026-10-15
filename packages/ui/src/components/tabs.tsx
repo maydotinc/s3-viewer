@@ -88,7 +88,7 @@ function TabButton({
          {count !== undefined && (
             <span
                className={cn(
-                  "min-w-[1.5ch] text-center text-xs tabular-nums",
+                  "min-w-[2ch] text-center text-xs tabular-nums",
                   active ? "text-viewertext" : "text-viewerlighttext"
                )}
             >

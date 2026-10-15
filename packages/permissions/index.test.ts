@@ -77,7 +77,7 @@ describe("member management", () => {
    });
 });
 
-describe("clamping", () => {
+describe("rolesAbove", () => {
    it("lists the roles that outrank a role", () => {
       expect(rolesAbove(Role.VIEWER)).toEqual([
          Role.EDITOR,

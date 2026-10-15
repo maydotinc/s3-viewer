@@ -5,7 +5,6 @@ const spawnSync = vi.hoisted(() => vi.fn(() => ({ status: 0 })));
 vi.mock("node:child_process", () => ({ spawnSync }));
 const {
    composeFile,
-   conflictMessage,
    ensureDevInfra,
    parseProfiles,
    portConflicts,
@@ -45,13 +44,13 @@ describe("compose profiles", () => {
 });
 
 describe("postgres reachability", () => {
-   it("waits on a bracketed IPv6 host", async () => {
+   it("waits on a bracketed IPv6 host", async (ctx) => {
       const server = createServer();
       const listening = await new Promise((resolve) => {
          server.once("error", () => resolve(false));
          server.listen(0, "::1", () => resolve(true));
       });
-      if (!listening) return;
+      if (!listening) ctx.skip("::1 is unavailable on this host");
       try {
          const { port } = server.address();
          await expect(
@@ -88,16 +87,6 @@ describe("dev port conflicts", () => {
       } finally {
          server.close();
       }
-   });
-
-   it("explains how to free Postgres's port", () => {
-      const message = conflictMessage({
-         service: "postgres",
-         label: "Postgres",
-         ports: [5432],
-      });
-      expect(message).toMatch(/Port 5432 is already in use/);
-      expect(message).toMatch(/pnpm run setup/);
    });
 
    it("stops before docker compose up when a port is taken", async () => {

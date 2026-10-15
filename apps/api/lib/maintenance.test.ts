@@ -8,7 +8,7 @@ const h = vi.hoisted(() => ({
    pruneBatch: vi.fn(),
    lockRaw: vi.fn(),
    transaction: vi.fn(),
-   findServers: vi.fn(),
+   expiredServers: vi.fn(),
    sweepRateLimits: vi.fn(),
    writeAudit: vi.fn(),
    error: vi.fn(),
@@ -40,10 +40,14 @@ vi.mock("./audit/writer", () => ({ writeAudit: h.writeAudit }));
 vi.mock("@s3-viewer/db", () => ({
    prisma: {
       $executeRaw: h.executeRaw,
-      $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) =>
-         String(strings[0]).includes("WITH deleted")
-            ? h.pruneBatch(strings, ...values)
-            : h.queryRaw(strings, ...values),
+      $queryRaw: (strings: TemplateStringsArray, ...values: unknown[]) => {
+         const head = String(strings[0]);
+         if (head.includes("WITH deleted"))
+            return h.pruneBatch(strings, ...values);
+         if (head.includes("LATERAL"))
+            return h.expiredServers(strings, ...values);
+         return h.queryRaw(strings, ...values);
+      },
       $transaction: (
          work: (tx: unknown) => Promise<unknown>,
          options: unknown
@@ -51,7 +55,6 @@ vi.mock("@s3-viewer/db", () => ({
          h.transaction(options);
          return work({ $queryRaw: h.lockRaw });
       },
-      server: { findMany: h.findServers },
    },
 }));
 vi.mock("@s3-viewer/db/rate-limit", () => ({
@@ -66,6 +69,7 @@ const { BOOT_DELAY_MS, BOOT_JITTER_MS, startMaintenance } = await import(
 const NOW = new Date("2026-09-07T12:00:00.000Z");
 const cutoff = (days: number) =>
    new Date(NOW.getTime() - days * DAY_MS).toISOString();
+const SERVER7 = { id: "server7", seq: 900 };
 
 const sqlOf = (call: unknown[]): Prisma.Sql => {
    const [strings, ...values] = call as [TemplateStringsArray, ...unknown[]];
@@ -103,12 +107,6 @@ const pruned = () =>
       return { serverId, seq };
    });
 
-const cutoffs = () =>
-   callsMatching(h.queryRaw, 'SELECT "seq"').map((call) => {
-      const [serverId, at] = sqlOf(call).values;
-      return { serverId, cutoff: at };
-   });
-
 const deletesFrom = (table: string) =>
    callsMatching(h.executeRaw, `DELETE FROM "${table}"`);
 
@@ -123,113 +121,71 @@ beforeEach(() => {
    h.sweepRateLimits.mockResolvedValue(0);
    h.executeRaw.mockResolvedValue(0);
    h.pruneBatch.mockReset().mockResolvedValue([{ count: 0 }]);
-   h.queryRaw.mockImplementation((strings: TemplateStringsArray) =>
-      Promise.resolve(
-         String(strings[0]).includes("RECURSIVE") ? [] : [{ seq: 900 }]
-      )
-   );
+   h.queryRaw.mockResolvedValue([]);
    h.lockRaw.mockResolvedValue([{ locked: true }]);
-   h.findServers.mockResolvedValue([]);
+   h.expiredServers.mockResolvedValue([]);
 });
 
 describe("audit log prune", () => {
-   it("prunes each server by its own retention, or the instance default, in full batches until one comes up short", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-         { id: "server90", auditRetentionDays: 90 },
-         { id: "serverDefault", auditRetentionDays: 0 },
+   it("prunes each server through its newest expired row, in full batches until one comes up short", async () => {
+      h.expiredServers.mockResolvedValue([
+         SERVER7,
+         { id: "server90", seq: 800 },
+         { id: "serverDefault", seq: 700 },
       ]);
       deleting({ audit_log: [5000, 5000, 120, 3, 40] });
       await sweepOnce();
 
-      expect(cutoffs()).toEqual([
-         { serverId: "server7", cutoff: cutoff(7) },
-         { serverId: "server90", cutoff: cutoff(90) },
-         { serverId: "serverDefault", cutoff: cutoff(30) },
-      ]);
       expect(pruned()).toEqual([
          { serverId: "server7", seq: 900 },
          { serverId: "server7", seq: 900 },
          { serverId: "server7", seq: 900 },
-         { serverId: "server90", seq: 900 },
-         { serverId: "serverDefault", seq: 900 },
+         { serverId: "server90", seq: 800 },
+         { serverId: "serverDefault", seq: 700 },
       ]);
       expect(sweepLog()).toMatchObject({ auditRows: 10_163, rateLimitRows: 0 });
    });
 
-   it("reads the cutoff seq once per server, not once per batch", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
-      deleting({ audit_log: [5000, 1] });
+   it("finds every server's newest expired row in one query, not one per server", async () => {
+      h.expiredServers.mockResolvedValue([SERVER7, { id: "server8", seq: 4 }]);
+      deleting({ audit_log: [5000, 1, 2] });
       await sweepOnce();
 
-      expect(cutoffs()).toHaveLength(1);
-      expect(textOf(h.queryRaw.mock.calls[0] ?? [])).toBe(
-         'SELECT "seq" FROM "audit_log" WHERE "serverId" = $1 AND "createdAt" < $2::timestamp ORDER BY "createdAt" DESC, "seq" DESC LIMIT 1'
-      );
-      expect(textOf(h.executeRaw.mock.calls[0] ?? [])).not.toContain(
-         "SELECT COALESCE"
-      );
-      expect(pruned()).toHaveLength(2);
+      expect(h.expiredServers).toHaveBeenCalledOnce();
+      expect(h.queryRaw).toHaveBeenCalledOnce();
+      expect(textOf(h.queryRaw.mock.calls[0] ?? [])).toContain("RECURSIVE");
+      expect(pruned()).toHaveLength(3);
    });
 
-   it("deletes nothing for a server whose oldest rows are all inside the cutoff", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
-      h.queryRaw.mockResolvedValue([]);
+   it("deletes nothing when no server has a row past its cutoff", async () => {
       await sweepOnce();
 
-      expect(pruned()).toEqual([]);
+      expect(h.pruneBatch).not.toHaveBeenCalled();
       expect(sweepLog()).toMatchObject({ auditRows: 0, rateLimitRows: 0 });
    });
 
-   it("keeps a server's rows forever when neither it nor the instance sets retention", async () => {
-      h.retentionDays = 0;
-      h.findServers.mockResolvedValue([
-         { id: "serverDefault", auditRetentionDays: 0 },
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
-      deleting({ audit_log: [12] });
-      h.sweepRateLimits.mockResolvedValue(7);
-      await sweepOnce();
-
-      expect(cutoffs()).toEqual([{ serverId: "server7", cutoff: cutoff(7) }]);
-      expect(pruned()).toEqual([{ serverId: "server7", seq: 900 }]);
-      expect(h.findServers.mock.calls[0]?.[0]).toMatchObject({
-         where: { auditRetentionDays: { gt: 0 } },
-         take: 500,
-      });
-      expect(sweepLog()).toMatchObject({ auditRows: 12, rateLimitRows: 7 });
-   });
-
-   it("pages the server list instead of loading every row of it", async () => {
+   it("pages the servers instead of loading every row of them", async () => {
       const page = (from: number, size: number) =>
          Array.from({ length: size }, (_, i) => ({
             id: `server${String(from + i).padStart(4, "0")}`,
-            auditRetentionDays: 0,
+            seq: 1,
          }));
-      h.retentionDays = 0;
-      h.findServers
+      h.expiredServers
          .mockResolvedValueOnce(page(0, 500))
          .mockResolvedValueOnce(page(500, 3));
       await sweepOnce();
 
-      expect(h.findServers).toHaveBeenCalledTimes(2);
-      expect(h.findServers.mock.calls[0]?.[0]).toMatchObject({
-         orderBy: { id: "asc" },
-         take: 500,
-      });
-      expect(h.findServers.mock.calls[0]?.[0].cursor).toBeUndefined();
-      expect(h.findServers.mock.calls[1]?.[0]).toMatchObject({
-         cursor: { id: "server0499" },
-         skip: 1,
-      });
+      expect(h.expiredServers).toHaveBeenCalledTimes(2);
+      const [first, second] = h.expiredServers.mock.calls.map(
+         (call) => sqlOf(call).values
+      );
+      expect(first?.at(3)).toBe("");
+      expect(second?.at(3)).toBe("server0499");
+      expect(first?.at(-1)).toBe(500);
    });
 
    it("logs a failing phase instead of throwing, and still runs the phases after it", async () => {
-      h.findServers.mockRejectedValue(new Error("database is starting up"));
+      h.expiredServers.mockRejectedValue(new Error("database is starting up"));
       deleting({ session: [4] });
       h.sweepRateLimits.mockResolvedValue(7);
       await expect(sweepOnce()).resolves.toBeUndefined();
@@ -274,9 +230,7 @@ describe("audit log prune", () => {
 
 describe("pruned watermark", () => {
    it("commits each prefix deletion and its monotonic watermark in one statement", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
+      h.expiredServers.mockResolvedValue([SERVER7]);
       deleting({ audit_log: [5000, 12] });
       await sweepOnce();
 
@@ -294,19 +248,8 @@ describe("pruned watermark", () => {
       expect(sweepLog()).toMatchObject({ auditRows: 5012 });
    });
 
-   it("does not advance the watermark when there are no expired rows", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
-      h.queryRaw.mockResolvedValue([]);
-      await sweepOnce();
-      expect(h.pruneBatch).not.toHaveBeenCalled();
-   });
-
    it("keeps the first batch's watermark committed when the next batch fails", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
+      h.expiredServers.mockResolvedValue([SERVER7]);
       const committed: string[] = [];
       h.pruneBatch
          .mockImplementationOnce(async (...call: unknown[]) => {
@@ -327,38 +270,40 @@ describe("pruned watermark", () => {
 });
 
 describe("retention floor", () => {
-   it("raises a shorter retention, per server or instance-wide, to the floor", async () => {
+   const retention = () => {
+      const sql = sqlOf(h.expiredServers.mock.calls[0] ?? []);
+      return {
+         text: textOf(h.expiredServers.mock.calls[0] ?? []),
+         values: sql.values,
+      };
+   };
+
+   it("raises a server's retention, or the instance default it falls back to, to the floor", async () => {
       h.minRetentionDays = 90;
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-         { id: "server365", auditRetentionDays: 365 },
-         { id: "serverDefault", auditRetentionDays: 0 },
-      ]);
       await sweepOnce();
 
-      expect(cutoffs()).toEqual([
-         { serverId: "server7", cutoff: cutoff(90) },
-         { serverId: "server365", cutoff: cutoff(365) },
-         { serverId: "serverDefault", cutoff: cutoff(90) },
-      ]);
+      const { text, values } = retention();
+      expect(text).toContain(
+         'make_interval( days => GREATEST( COALESCE(NULLIF(s."auditRetentionDays", 0), $2::int), $3::int ) )'
+      );
+      expect(values.slice(0, 3)).toEqual([NOW.toISOString(), 30, 90]);
    });
 
    it("still keeps everything when no retention is set at all", async () => {
-      h.minRetentionDays = 90;
       h.retentionDays = 0;
-      h.findServers.mockResolvedValue([
-         { id: "serverDefault", auditRetentionDays: 0 },
-      ]);
       await sweepOnce();
-      expect(cutoffs()).toEqual([]);
+
+      const { text, values } = retention();
+      expect(text).toContain(
+         'AND COALESCE(NULLIF(s."auditRetentionDays", 0), $5::int) > 0'
+      );
+      expect(values[4]).toBe(0);
    });
 });
 
 describe("prune record", () => {
    it("records what a prune removed, through the newest expired row", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
+      h.expiredServers.mockResolvedValue([SERVER7]);
       deleting({ audit_log: [5000, 12] });
       await sweepOnce();
 
@@ -374,19 +319,14 @@ describe("prune record", () => {
    });
 
    it("records nothing when no row was removed", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
+      h.expiredServers.mockResolvedValue([SERVER7]);
       deleting({ audit_log: [0] });
       await sweepOnce();
       expect(h.writeAudit).not.toHaveBeenCalled();
    });
 
    it("logs a prune it could not record and carries on with the next server", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-         { id: "server8", auditRetentionDays: 8 },
-      ]);
+      h.expiredServers.mockResolvedValue([SERVER7, { id: "server8", seq: 4 }]);
       deleting({ audit_log: [3, 4] });
       h.writeAudit.mockRejectedValueOnce(new Error("database is down"));
       await sweepOnce();
@@ -405,9 +345,7 @@ describe("prune record", () => {
 
 describe("sweep lock", () => {
    it("takes the same advisory lock once per phase, each on its own pinned connection", async () => {
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
+      h.expiredServers.mockResolvedValue([SERVER7]);
       await sweepOnce();
 
       expect(h.lockRaw).toHaveBeenCalledTimes(9);
@@ -454,12 +392,10 @@ describe("sweep lock", () => {
 
    it("leaves the sweep to whichever replica holds the lock", async () => {
       h.lockRaw.mockResolvedValue([{ locked: false }]);
-      h.findServers.mockResolvedValue([
-         { id: "server7", auditRetentionDays: 7 },
-      ]);
+      h.expiredServers.mockResolvedValue([SERVER7]);
       await sweepOnce();
 
-      expect(h.findServers).not.toHaveBeenCalled();
+      expect(h.expiredServers).not.toHaveBeenCalled();
       expect(h.sweepRateLimits).not.toHaveBeenCalled();
       expect(h.executeRaw).not.toHaveBeenCalled();
       expect(h.info).not.toHaveBeenCalled();
@@ -472,13 +408,7 @@ describe("sweep lock", () => {
 
 describe("orphaned audit rows", () => {
    const orphans = (...serverIds: string[]) =>
-      h.queryRaw.mockImplementation((strings: TemplateStringsArray) =>
-         Promise.resolve(
-            String(strings[0]).includes("RECURSIVE")
-               ? serverIds.map((serverId) => ({ serverId }))
-               : [{ seq: 900 }]
-         )
-      );
+      h.queryRaw.mockResolvedValue(serverIds.map((serverId) => ({ serverId })));
 
    it("clears the log of a server that is gone, in bounded batches", async () => {
       orphans("goneA", "goneB");

@@ -37,7 +37,6 @@ const BucketFilter = ({
    return (
       <FilterInput
          label="Filter buckets"
-         className="sm:w-72 sm:shrink-0"
          shortcut={gridReady}
          disabled={!gridReady}
          placeholder="Filter buckets…"

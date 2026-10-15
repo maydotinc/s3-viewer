@@ -14,14 +14,14 @@ const steps: HowToStep[] = [
       title: "In S3 Viewer: tick the checkboxes, then Delete",
       body: (
          <>
-            Each row in the file list has a checkbox. The{" "}
-            <strong>Delete</strong> button in the toolbar is disabled until you
-            tick something, then shows the count — <strong>Delete (12)</strong>.
-            S3 Viewer sends batches of up to 1,000 keys, checking each file
-            against the one you reviewed, on every connected provider. If some
-            keys fail, the result tells you which. Confirmed failures remain
-            available for retry; uncertain results require refresh and review
-            and are never automatically replayed.
+            Each row in the file list has a checkbox. The trash button in the
+            toolbar is disabled until you tick something; its tooltip then shows
+            the count — <strong>Delete 12 selected</strong>. S3 Viewer sends
+            batches of up to 1,000 keys, checking each file against the one you
+            reviewed, on every connected provider. If some keys fail, the result
+            tells you which. Confirmed failures remain available for retry;
+            uncertain results require refresh and review and are never
+            automatically replayed.
          </>
       ),
    },

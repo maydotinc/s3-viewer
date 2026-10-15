@@ -93,7 +93,6 @@ const OLD = {
    secretKey: "old-secret",
 };
 
-// the incoming envelope is the only one that opens as `next`.
 const opening = (next: typeof OLD) =>
    state.decrypt.mockImplementation((blob: string) =>
       blob === "encrypted-b" ? next : OLD

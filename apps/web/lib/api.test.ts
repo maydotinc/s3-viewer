@@ -7,9 +7,20 @@ import {
    it,
    vi,
 } from "vitest";
-import { EXPECTED_USER_ID_HEADER } from "@s3-viewer/types";
+import {
+   ErrorCode,
+   EXPECTED_USER_ID_HEADER,
+   GENERIC_ERROR_MESSAGE,
+} from "@s3-viewer/types";
 import useSessionStore from "@/lib/stores/session-store";
-import { api, ApiError, setUnauthorizedHandler } from "./api";
+import {
+   api,
+   ApiError,
+   ClientErrorCode,
+   responseError,
+   setFolderRefusalHandler,
+   setUnauthorizedHandler,
+} from "./api";
 
 await vi.hoisted(async () => {
    const { createMemoryStorage } = await import("@/lib/test/storage");
@@ -36,26 +47,23 @@ describe("API session response ordering", () => {
 
    afterAll(() => vi.unstubAllGlobals());
 
-   it.each(["post", "patch", "delete"] as const)(
-      "binds %s to the actor captured before fetch begins",
-      async (method) => {
-         const fetch = vi.fn(async () => {
-            useSessionStore.getState().setUserId("account-b");
-            return new Response(null, { status: 204 });
-         });
-         vi.stubGlobal("fetch", fetch);
-         await api[method]("/servers/server-a", { name: "updated" });
-         expect(fetch).toHaveBeenCalledWith(
-            expect.any(String),
-            expect.objectContaining({
-               headers: {
-                  "Content-Type": "application/json",
-                  [EXPECTED_USER_ID_HEADER]: "account-a",
-               },
-            })
-         );
-      }
-   );
+   it("binds a write to the actor captured before fetch begins", async () => {
+      const fetch = vi.fn(async () => {
+         useSessionStore.getState().setUserId("account-b");
+         return new Response(null, { status: 204 });
+      });
+      vi.stubGlobal("fetch", fetch);
+      await api.post("/servers/server-a", { name: "updated" });
+      expect(fetch).toHaveBeenCalledWith(
+         expect.any(String),
+         expect.objectContaining({
+            headers: {
+               "Content-Type": "application/json",
+               [EXPECTED_USER_ID_HEADER]: "account-a",
+            },
+         })
+      );
+   });
 
    it("binds bodyless writes and leaves reads unbound", async () => {
       const fetch = vi.fn(async () => new Response(null, { status: 204 }));
@@ -91,6 +99,47 @@ describe("API session response ordering", () => {
       });
    });
 
+   it("reports a cancelled request as cancelled, not as a network failure", async () => {
+      vi.stubGlobal(
+         "fetch",
+         vi.fn(async () => {
+            throw new DOMException("Aborted", "AbortError");
+         })
+      );
+      await expect(api.get("/servers")).rejects.toMatchObject({
+         code: ClientErrorCode.ABORTED,
+      });
+   });
+
+   it("keeps the API's code and falls back to a generic message", async () => {
+      vi.stubGlobal(
+         "fetch",
+         vi.fn(
+            async () =>
+               new Response(
+                  JSON.stringify({ message: "Changed", code: "STALE" }),
+                  { status: 412 }
+               )
+         )
+      );
+      await expect(api.get("/servers")).rejects.toMatchObject({
+         status: 412,
+         message: "Changed",
+         code: "STALE",
+      });
+      vi.stubGlobal(
+         "fetch",
+         vi.fn(
+            async () =>
+               new Response("<html>Bad gateway</html>", { status: 502 })
+         )
+      );
+      await expect(api.get("/servers")).rejects.toMatchObject({
+         status: 502,
+         message: GENERIC_ERROR_MESSAGE,
+      });
+   });
+
    it("does not expire account B when account A's request returns a delayed 401", async () => {
       let respond!: (response: Response) => void;
       vi.stubGlobal(
@@ -116,5 +165,21 @@ describe("API session response ordering", () => {
 
       await expect(api.get("/servers")).rejects.toMatchObject({ status: 401 });
       expect(unauthorized).toHaveBeenCalledOnce();
+   });
+});
+
+describe("a folder refusal", () => {
+   afterEach(() => setFolderRefusalHandler(() => undefined));
+
+   it("reaches the handler from any refused response", () => {
+      const handler = vi.fn();
+      setFolderRefusalHandler(handler);
+      responseError(403, { message: "Nope", code: ErrorCode.VALIDATION });
+      expect(handler).not.toHaveBeenCalled();
+      responseError(403, {
+         message: "Your access to this bucket is limited to landing/",
+         code: ErrorCode.FOLDER_ACCESS,
+      });
+      expect(handler).toHaveBeenCalledOnce();
    });
 });

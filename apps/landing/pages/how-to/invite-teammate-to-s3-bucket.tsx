@@ -93,7 +93,7 @@ const faqs: Faq[] = [
    {
       question: "How do I remove a teammate from a bucket?",
       answer:
-         "Remove them in the members dialog. They lose access to that server on their next request — no AWS keys to rotate, no policies to edit, no other teammates affected. A download link they already opened keeps working for up to 15 minutes.",
+         "Remove them under Settings, Members. They lose access to that server on their next request — no AWS keys to rotate, no policies to edit, no other teammates affected. A download link they already opened keeps working for up to 15 minutes.",
    },
    {
       question: "Can a teammate have different access on different buckets?",

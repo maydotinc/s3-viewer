@@ -1,14 +1,11 @@
 import Callout from "@/components/callout";
 import { GridErrorState } from "@/components/DataGrid/overlays";
 import { RetryButton, type RetryProps } from "@/components/status-message";
-import {
-   DOT_SEGMENTS,
-   accessNotice,
-   folderAccessAt,
-} from "@/lib/utils/folder-access";
+import { accessNotice, folderAccessAt } from "@/lib/utils/folder-access";
 import { visibleText } from "@/lib/utils/format";
 import { folderHref, segmentsFromKey } from "@/lib/utils/s3/paths";
-import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { DOT_SEGMENTS_MESSAGE } from "@s3-viewer/types";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Folder, FolderLock } from "lucide-react";
 import Link from "next/link";
@@ -29,7 +26,10 @@ const FolderLinks = ({
             <Link
                href={folderHref(bucketName, segmentsFromKey(folder))}
                title={visibleText(folder)}
-               className="flex max-w-full items-center gap-1.5 rounded-md border border-viewerborder bg-viewerwhite px-2 py-1 text-xs text-viewerblack outline-none transition-colors hover:text-viewerblue focus-visible:border-viewerblue"
+               className={cn(
+                  "flex max-w-full items-center gap-1.5 rounded-md border border-viewerborder bg-viewerwhite px-2 py-1 text-xs text-viewerblack outline-none transition-colors hover:text-viewerblue",
+                  FOCUS_RING
+               )}
             >
                <Folder aria-hidden="true" className="size-3.5 shrink-0" />
                <span className="min-w-0 truncate">{visibleText(folder)}</span>
@@ -41,11 +41,11 @@ const FolderLinks = ({
 
 const FolderAccessNotice = () => {
    const { bucketName, prefix, reach, awaitingReach } = useBucketContext();
-   if (awaitingReach)
-      return (
-         <Skeleton className="h-24 shrink-0 rounded-none border-b border-viewerborder" />
-      );
-   if (!reach?.folders || folderAccessAt(reach, prefix) !== "leading")
+   if (
+      awaitingReach ||
+      !reach?.folders ||
+      folderAccessAt(reach, prefix) !== "leading"
+   )
       return null;
    const { title, detail, folders } = accessNotice(reach.folders, prefix);
    return (
@@ -90,7 +90,7 @@ const DottedPath = ({ target = "folder" }: { target?: "folder" | "file" }) => (
       icon={FolderLock}
       tone="neutral"
       title={`This ${target} can't be opened`}
-      detail={DOT_SEGMENTS}
+      detail={DOT_SEGMENTS_MESSAGE}
    />
 );
 

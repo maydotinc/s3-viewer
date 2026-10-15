@@ -1,17 +1,17 @@
+import { GITHUB_URL, SITE_PATHS } from "@s3-viewer/types/constants";
+
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 if (!siteUrl) throw new Error("NEXT_PUBLIC_SITE_URL is not set");
 
 export const SITE_URL = new URL(siteUrl).origin;
 
-export const GITHUB_URL = "https://github.com/maydotinc/s3-viewer";
-export const GITHUB_ISSUES_URL = `${GITHUB_URL}/issues`;
+export { GITHUB_ISSUES_URL, GITHUB_URL } from "@s3-viewer/types/constants";
 export const LICENSE_URL = `${GITHUB_URL}/blob/main/LICENSE`;
 export const CONTACT_EMAIL = "info@may.inc";
 
-export const APP_PATH = "/dashboard";
+export const APP_PATH = SITE_PATHS.dashboard;
 
-// May Inc. is the company behind S3 Viewer. These values mirror the entity
-// data published on may.inc so both sites describe the same organization.
+// mirrors the entity data published on may.inc so both sites describe the same organization.
 export const MAY_NAME = "May Inc.";
 export const MAY_LEGAL_NAME = "May Software Inc.";
 export const MAY_URL = "https://may.inc";

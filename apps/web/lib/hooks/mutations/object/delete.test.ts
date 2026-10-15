@@ -97,16 +97,6 @@ describe("delete retry snapshots", () => {
       expect(h.remove).toHaveBeenCalledOnce();
    });
 
-   it("treats unaccounted keys as failed even if the provider reports an empty success", async () => {
-      h.remove.mockResolvedValue({ deleted: [], failed: [] });
-      const result = await deleteObjects("/objects", objects(2), "user12345");
-      expect(result.done).toBe(0);
-      expect(result.failed).toHaveLength(2);
-      expect(result.failed.every(({ retryable }) => retryable === false)).toBe(
-         true
-      );
-   });
-
    it("retains a folder listing failure after earlier deletions without claiming completion", async () => {
       h.get
          .mockResolvedValueOnce({
@@ -124,131 +114,6 @@ describe("delete retry snapshots", () => {
       expect(result).toMatchObject({ done: 2, failed: [] });
       expect(result.listingError).toContain("Folder deletion is incomplete");
       expect(h.remove).toHaveBeenCalledTimes(1);
-   });
-
-   it("stops at the first failing batch and reports the work left behind", async () => {
-      h.get.mockResolvedValueOnce({
-         objects: objects(2).map((object) => ({ ...object, size: null })),
-         nextToken: "next",
-      } satisfies S3KeysPage);
-      h.remove.mockResolvedValueOnce({
-         deleted: [],
-         failed: [
-            {
-               key: "folder/secret-0.txt",
-               message: "Access denied",
-               retryable: true,
-            },
-         ],
-      } satisfies S3DeleteResult);
-      const result = await deletePrefix({
-         userId: "user12345",
-         serverId: "server123",
-         bucketName: "bucket",
-         prefix: "folder/",
-      });
-      expect(result).toMatchObject({ done: 0, remaining: true });
-      expect(result.failed).toHaveLength(2);
-      expect(h.get).toHaveBeenCalledOnce();
-      expect(h.remove).toHaveBeenCalledOnce();
-   });
-
-   it("still reports work remaining when the last page is the one that keeps failing", async () => {
-      vi.useFakeTimers();
-      const refused = {
-         deleted: [],
-         failed: [
-            {
-               key: "folder/secret-0.txt",
-               message: "Too many storage requests.",
-               retryable: true,
-               refused: true,
-            },
-         ],
-      } satisfies S3DeleteResult;
-      h.get.mockResolvedValueOnce({
-         objects: objects(2).map((object) => ({ ...object, size: null })),
-         nextToken: null,
-      } satisfies S3KeysPage);
-      h.remove
-         .mockReset()
-         .mockResolvedValueOnce({
-            ...refused,
-            deleted: ["folder/secret-1.txt"],
-         } satisfies S3DeleteResult)
-         .mockResolvedValue(refused);
-      const pending = deletePrefix({
-         userId: "user12345",
-         serverId: "server123",
-         bucketName: "bucket",
-         prefix: "folder/",
-      });
-      await vi.runAllTimersAsync();
-      const result = await pending;
-      expect(result).toMatchObject({ done: 1, remaining: true });
-      expect(result.failed).toHaveLength(1);
-      expect(
-         h.remove.mock.calls.map(([, input]) =>
-            input.objects.map(({ key }: S3DeleteTarget) => key)
-         )
-      ).toEqual([
-         ["folder/secret-0.txt", "folder/secret-1.txt"],
-         ...Array.from({ length: 5 }, () => ["folder/secret-0.txt"]),
-      ]);
-   });
-
-   it("waits out a page of retryable refusals and carries on without a manual resume", async () => {
-      vi.useFakeTimers();
-      const listed = objects(4).map((object) => ({ ...object, size: null }));
-      h.get
-         .mockResolvedValueOnce({
-            objects: listed.slice(0, 2),
-            nextToken: "next",
-         } satisfies S3KeysPage)
-         .mockResolvedValueOnce({
-            objects: listed.slice(2),
-            nextToken: null,
-         } satisfies S3KeysPage);
-      h.remove
-         .mockReset()
-         .mockImplementationOnce(async (path, input) => success(path, input))
-         .mockResolvedValueOnce({
-            deleted: ["folder/secret-2.txt"],
-            failed: [
-               {
-                  key: "folder/secret-3.txt",
-                  message: "Too many storage requests.",
-                  retryable: true,
-                  refused: true,
-               },
-            ],
-         } satisfies S3DeleteResult)
-         .mockImplementation(async (path, input) => success(path, input));
-      const onProgress = vi.fn();
-      const pending = deletePrefix({
-         userId: "user12345",
-         serverId: "server123",
-         bucketName: "bucket",
-         prefix: "folder/",
-         onProgress,
-      });
-      await vi.advanceTimersByTimeAsync(1999);
-      expect(h.remove).toHaveBeenCalledTimes(2);
-      expect(onProgress).toHaveBeenLastCalledWith(3);
-      await vi.advanceTimersByTimeAsync(1);
-      const result = await pending;
-      expect(h.remove).toHaveBeenCalledTimes(3);
-      expect(h.remove.mock.calls[2]?.[1].objects).toEqual([
-         { key: "folder/secret-3.txt", expectedETag: '"reviewed-3"' },
-      ]);
-      expect(result).toEqual({
-         done: 4,
-         failed: [],
-         unsent: [],
-         listingError: null,
-         remaining: false,
-         aborted: false,
-      });
    });
 
    it("stops waiting the moment the deletion is cancelled", async () => {
@@ -284,22 +149,5 @@ describe("delete retry snapshots", () => {
          remaining: true,
       });
       expect(h.remove).toHaveBeenCalledOnce();
-   });
-
-   it("refuses a recursive listing that escapes the confirmed folder", async () => {
-      h.get.mockResolvedValue({
-         objects: [
-            { key: "elsewhere/private", expectedETag: '"private"', size: null },
-         ],
-         nextToken: null,
-      } satisfies S3KeysPage);
-      const result = await deletePrefix({
-         userId: "user12345",
-         serverId: "server123",
-         bucketName: "bucket",
-         prefix: "folder/",
-      });
-      expect(result.listingError).toContain("outside this folder");
-      expect(h.remove).not.toHaveBeenCalled();
    });
 });

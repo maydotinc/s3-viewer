@@ -3,23 +3,16 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { ChevronLeft } from "lucide-react";
-import type { ReactNode } from "react";
 
 type BackHeaderProps = {
    // null while the title is still loading; the header keeps its height so nothing below it shifts
    title: string | null;
    description: string;
    onBack: () => void;
-   actions?: ReactNode;
 };
 
-const BackHeader = ({
-   title,
-   description,
-   onBack,
-   actions,
-}: BackHeaderProps) => (
-   <PageHeader actions={actions}>
+const BackHeader = ({ title, description, onBack }: BackHeaderProps) => (
+   <PageHeader>
       <div className="flex min-w-0 items-start gap-3">
          <SimpleTooltip label="Back" shortcut="Esc">
             <Button

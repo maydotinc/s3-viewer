@@ -173,4 +173,4 @@ export {
    isPublicConfig,
    signUpPolicyState,
 };
-export type { EncryptionState };
+export type { EmailState, EncryptionState };

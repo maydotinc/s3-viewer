@@ -6,8 +6,7 @@ import {
    ChevronRight,
    ChevronsUpDown,
    Folder,
-   Plus,
-   Server,
+   ServerOff,
 } from "lucide-react";
 import { ReactNode } from "react";
 import { FadePanel } from "./fade-panel";
@@ -115,24 +114,15 @@ export const ConnectServerFigure = () => {
                      className="items-center text-center"
                   >
                      <span className="grid size-12 place-items-center rounded-xl bg-viewergray">
-                        <Server className="size-6 text-viewerblue" />
+                        <ServerOff className="size-6 text-viewerblue" />
                      </span>
                      <p className="mt-3 text-base font-semibold text-viewerblack">
-                        Connect a server to get started
+                        No server selected
                      </p>
                      <p className="mt-1 text-sm text-viewertext">
-                        Works with Amazon S3, Cloudflare R2 and anything
-                        S3-compatible.
+                        Connect a server or pick one from the sidebar to see its
+                        buckets.
                      </p>
-                     <Button
-                        type="button"
-                        tabIndex={-1}
-                        onClick={next}
-                        className="mt-4"
-                     >
-                        <Plus />
-                        Connect server
-                     </Button>
                   </Layer>
 
                   <Layer active={step === 1}>

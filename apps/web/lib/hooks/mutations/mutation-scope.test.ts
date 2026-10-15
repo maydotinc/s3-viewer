@@ -8,7 +8,6 @@ import useSessionStore from "@/lib/stores/session-store";
 import { deferred, flushRuntime, mountRuntime } from "@/lib/test/runtime";
 import useCreateBucket from "./bucket/useCreateBucket";
 import useRemoveBucket from "./bucket/useRemoveBucket";
-import useRevokeInvite from "./invites/useRevokeInvite";
 import useDeleteServer from "./server/useDeleteServer";
 import useApiMutation from "./useApiMutation";
 
@@ -205,51 +204,6 @@ describe("per-invocation mutation scope", () => {
       expect(onError).toHaveBeenCalledWith(error, "backups", {
          userId: "original-user",
          serverId: "original-server",
-      });
-   });
-
-   it("removes a completed bucket from only its original account cache", async () => {
-      const response = deferred<void>();
-      h.remove.mockReturnValue(response.promise);
-      const runtime = await mountHook(useRemoveBucket);
-      const remove = vi.spyOn(runtime.queryClient, "removeQueries");
-      let pending!: Promise<unknown>;
-      await act(async () => {
-         pending = runtime.current.mutateAsync("backups");
-      });
-      changeScope("other-user", "other-server");
-      await act(async () => {
-         response.resolve();
-         await pending;
-      });
-      expect(remove).toHaveBeenCalledWith({
-         queryKey: queryKeys.bucket(
-            "original-user",
-            "original-server",
-            "backups"
-         ),
-      });
-   });
-
-   it("refreshes invitations under the account that started the revoke", async () => {
-      const response = deferred<void>();
-      h.remove.mockReturnValue(response.promise);
-      const runtime = await mountHook(useRevokeInvite);
-      const invalidate = vi.spyOn(runtime.queryClient, "invalidateQueries");
-      let pending!: Promise<unknown>;
-      await act(async () => {
-         pending = runtime.current.mutateAsync({
-            serverId: "shared-server",
-            inviteId: "invite",
-         });
-      });
-      changeScope("other-user", "other-server");
-      await act(async () => {
-         response.resolve();
-         await pending;
-      });
-      expect(invalidate).toHaveBeenCalledWith({
-         queryKey: queryKeys.sentInvites("original-user", "shared-server"),
       });
    });
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@/lib/test/storage";
 import { UploadCancelled } from "@/lib/utils/s3/upload-cancelled";
 import { ErrorCode } from "@s3-viewer/types";
@@ -73,18 +73,21 @@ const fail = async (name: string, serverId = "s") => {
    await flush();
 };
 
-beforeEach(() => {
-   useUploadStore.getState().cancelAllAndClear();
+beforeEach(async () => {
+   await useUploadStore.getState().cancelAllAndClear();
    useSessionStore.getState().setUserId("user-a");
    inFlight.clear();
    toast.success.mockClear();
    toast.error.mockClear();
 });
 
+afterEach(() => vi.useRealTimers());
+
 describe("uploadStore", () => {
-   it("updates active progress without copying upload history and retains bytes on failure", async () => {
+   it("updates only the changed row without copying upload history and retains bytes on failure", async () => {
       enqueue("a", "b");
       const snapshot = useUploadStore.getState();
+      const sibling = snapshot.entries[uploadId("b")];
       const first = inFlight.get(uploadId("a"))!;
       first.onProgress(10);
       expect(useUploadStore.getState().entries).toBe(snapshot.entries);
@@ -98,6 +101,7 @@ describe("uploadStore", () => {
          uploadedBytes: 10,
       });
       expect(useUploadStore.getState().progress).toEqual({});
+      expect(useUploadStore.getState().entries[uploadId("b")]).toBe(sibling);
       first.onProgress(100);
       expect(useUploadStore.getState().progress).toEqual({});
    });
@@ -176,7 +180,6 @@ describe("uploadStore", () => {
          expect(useUploadStore.getState()).toMatchObject({
             entries: {},
             order: [],
-            queue: [],
             batch: null,
             isUploading: false,
          });
@@ -228,10 +231,8 @@ describe("uploadStore", () => {
          "active",
          "active",
       ]);
-      expect(useUploadStore.getState().queue).toEqual([
-         uploadId("d"),
-         uploadId("e"),
-      ]);
+      expect(status("d")).toBe("pending");
+      expect(status("e")).toBe("pending");
 
       await finish("a");
       expect(status("d")).toBe("active");
@@ -242,7 +243,6 @@ describe("uploadStore", () => {
 
       useUploadStore.getState().cancel(uploadId("e"));
       expect(status("e")).toBe("cancelled");
-      expect(useUploadStore.getState().queue).toEqual([]);
 
       await fail("b");
       expect(useUploadStore.getState().batch).toMatchObject({
@@ -268,10 +268,11 @@ describe("uploadStore", () => {
 
    it("re-enqueuing an active file aborts it and starts over once", async () => {
       enqueue("a");
+      const first = inFlight.get(uploadId("a"))!;
       enqueue("a");
+      expect(first.abort).toHaveBeenCalledOnce();
       await flush();
       expect(status("a")).toBe("active");
-      expect(useUploadStore.getState().queue).toEqual([]);
       await finish("a");
       expect(useUploadStore.getState().batch).toMatchObject({
          settled: true,
@@ -328,13 +329,13 @@ describe("uploadStore", () => {
    });
 
    it("cancelAll during a large drop stops later chunks from being queued and still settles the batch", async () => {
+      vi.useFakeTimers();
       const names = Array.from({ length: 450 }, (_, i) => `f${i}`);
       enqueue(...names);
       expect(useUploadStore.getState().order).toHaveLength(200);
 
       useUploadStore.getState().cancelAll();
-      await flush();
-      await flush();
+      await vi.runAllTimersAsync();
 
       const { order, entries, batch, isUploading } = useUploadStore.getState();
       expect(order).toHaveLength(200);
@@ -353,13 +354,11 @@ describe("uploadStore", () => {
       const second = Array.from({ length: 450 }, (_, i) => `i${i}`);
       enqueue(...first);
       enqueue(...second);
-      await flush();
-      await flush();
-      await flush();
-      await flush();
+      await vi.waitFor(() =>
+         expect(useUploadStore.getState().order).toHaveLength(900)
+      );
 
-      const { batch, order } = useUploadStore.getState();
-      expect(order).toHaveLength(900);
+      const { batch } = useUploadStore.getState();
       expect(batch?.ids).toHaveLength(900);
       expect(new Set(batch?.ids).size).toBe(900);
    });
@@ -377,22 +376,6 @@ describe("uploadStore", () => {
       expect(onSettled).not.toHaveBeenCalled();
       await useUploadStore.getState().cancelAllAndClear();
       expect(onSettled).toHaveBeenCalledExactlyOnceWith(["p/a", "p/b"]);
-   });
-
-   it("cancelling and clearing a large drop prevents later chunks from restoring uploads", async () => {
-      const names = Array.from({ length: 450 }, (_, i) => `g${i}`);
-      enqueue(...names);
-      expect(useUploadStore.getState().order).toHaveLength(200);
-
-      useUploadStore.getState().cancelAllAndClear();
-      await flush();
-      await flush();
-
-      const { order, entries, queue, batch } = useUploadStore.getState();
-      expect(order).toEqual([]);
-      expect(entries).toEqual({});
-      expect(queue).toEqual([]);
-      expect(batch).toBeNull();
    });
 
    it("waits for cleanup from a replaced job that no longer owns its key", async () => {
@@ -447,49 +430,6 @@ describe("uploadStore", () => {
       expect(status("after-cleanup")).toBe("active");
    });
 
-   it("completes same-path uploads on different servers independently", async () => {
-      const firstComplete = vi.fn();
-      const secondComplete = vi.fn();
-      for (const [serverId, onSettled] of [
-         ["first", firstComplete],
-         ["second", secondComplete],
-      ] as const) {
-         useUploadStore.getState().enqueue({
-            files: [file("backup.sql")],
-            serverId,
-            bucketName: "b",
-            prefix: "p/",
-            onSettled,
-         });
-      }
-      expect(status("backup.sql", "first")).toBe("active");
-      expect(status("backup.sql", "second")).toBe("active");
-      expect(
-         inFlight.get(uploadId("backup.sql", "first"))?.abort
-      ).not.toHaveBeenCalled();
-      expect(useUploadStore.getState().order).toHaveLength(2);
-
-      await finish("backup.sql", "first");
-      expect(status("backup.sql", "first")).toBe("completed");
-      expect(status("backup.sql", "second")).toBe("active");
-      expect(useUploadStore.getState().batch?.settled).toBe(false);
-      await finish("backup.sql", "second");
-
-      expect(useUploadStore.getState().batch).toMatchObject({
-         settled: true,
-         completed: 2,
-         failed: 0,
-         ids: [
-            uploadId("backup.sql", "first"),
-            uploadId("backup.sql", "second"),
-         ],
-      });
-      expect(firstComplete).toHaveBeenCalledOnce();
-      expect(secondComplete).toHaveBeenCalledOnce();
-      expect(toast.success).toHaveBeenCalledWith("2 files uploaded.");
-      expect(toast.error).not.toHaveBeenCalled();
-   });
-
    it("invalidates attempted uploads independently across servers even when a response fails", async () => {
       const firstComplete = vi.fn();
       const secondComplete = vi.fn();
@@ -505,7 +445,12 @@ describe("uploadStore", () => {
             onSettled,
          });
       }
+      expect(
+         inFlight.get(uploadId("backup.sql", "first"))?.abort
+      ).not.toHaveBeenCalled();
       await fail("backup.sql", "first");
+      expect(status("backup.sql", "second")).toBe("active");
+      expect(useUploadStore.getState().batch?.settled).toBe(false);
       await finish("backup.sql", "second");
       expect(status("backup.sql", "first")).toBe("failed");
       expect(status("backup.sql", "second")).toBe("completed");

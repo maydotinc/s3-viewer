@@ -1,7 +1,5 @@
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
-import { ErrorCode } from "@s3-viewer/types";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { responseError, setFolderRefusalHandler } from "./api";
+import { describe, expect, it, vi } from "vitest";
 import { queryKeys } from "./query-keys";
 import { refreshFolderScopes } from "./query-client";
 
@@ -22,24 +20,7 @@ const watch = (client: QueryClient, queryKey: readonly unknown[]) => {
    return { queryFn, stop };
 };
 
-afterEach(() => setFolderRefusalHandler(() => undefined));
-
 describe("a folder refusal", () => {
-   it("reaches the handler from any refused response", () => {
-      const handler = vi.fn();
-      setFolderRefusalHandler(handler);
-      responseError(403, { message: "Nope", code: ErrorCode.VALIDATION });
-      expect(handler).not.toHaveBeenCalled();
-      const error = responseError(403, {
-         message: "Your access to this bucket is limited to landing/",
-         code: ErrorCode.FOLDER_ACCESS,
-      });
-      expect(handler).toHaveBeenCalledOnce();
-      expect(error.message).toBe(
-         "Your access to this bucket is limited to landing/"
-      );
-   });
-
    it("reloads the bucket lists once for a burst of refusals", async () => {
       const client = new QueryClient();
       const buckets = watch(client, queryKeys.buckets("user", "server"));

@@ -118,25 +118,22 @@ describe("request body deadlines on real HTTP connections", () => {
       }
    );
 
-   it.each([429, 401])(
-      "closes unread bodies after an early %s response",
-      async (status) => {
-         const port = await serve((app) => {
-            app.use((_req, res) => {
-               res.status(status).json({ message: "Refused" });
-            });
+   it("closes unread bodies after an early refusal", async () => {
+      const port = await serve((app) => {
+         app.use((_req, res) => {
+            res.status(429).json({ message: "Refused" });
          });
-         const client = await open(port);
-         client.socket.write(
-            headers("PUT", "/servers/a/buckets/b/objects/v3/upload")
-         );
-         drip(client.socket, " ");
-         const response = await client.closed;
-         expect(response).toContain(`HTTP/1.1 ${status}`);
-         expect(response).toContain("Refused");
-         expect(response).not.toContain("408");
-      }
-   );
+      });
+      const client = await open(port);
+      client.socket.write(
+         headers("PUT", "/servers/a/buckets/b/objects/v3/upload")
+      );
+      drip(client.socket, " ");
+      const response = await client.closed;
+      expect(response).toContain("HTTP/1.1 429");
+      expect(response).toContain("Refused");
+      expect(response).not.toContain("408");
+   });
 
    it("closes unread bodies when CORS answers a preflight", async () => {
       const port = await serve((app) => {

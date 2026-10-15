@@ -35,7 +35,7 @@ vi.mock("@s3-viewer/ui/components/dropdown-menu", () => {
    };
 });
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const mount = async (eTag: string | null, metadataPending: boolean) => {
    await view.mount(
       createElement(ObjectHeader, {

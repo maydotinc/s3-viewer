@@ -17,7 +17,7 @@ const decodeListedKey = (value: string): string => {
 const decodeOptionalKey = (value: string | undefined): string | undefined =>
    value === undefined ? undefined : decodeListedKey(value);
 
-// eslint-disable-next-line no-control-regex
+// eslint-disable-next-line no-control-regex -- control characters are what this pattern matches
 const NEEDS_INDIVIDUAL_DELETE = /[\u0000-\u001f￾￿]/u;
 
 const requiresIndividualDelete = (key: string): boolean =>
@@ -68,7 +68,7 @@ const encodeRfc5987 = (value: string): string =>
       (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
    );
 
-// eslint-disable-next-line no-control-regex
+// eslint-disable-next-line no-control-regex -- control characters are what this pattern strips
 const UNSAFE_FILENAME_CHARS = /["\\\u0000-\u001f\u007f]/g;
 const NON_ASCII = /[^ -~]/g;
 

@@ -48,7 +48,8 @@ const toMetadata = (head: HeadObjectCommandOutput): S3ObjectMetadata => ({
    eTag: head.ETag ?? null,
 });
 
-// contentEncoding stays visible because the preview must know whether the body is compressed.
+// viewers get none of the settings only someone who can change the object needs; contentEncoding
+// stays visible because the preview must know whether the body is compressed.
 const VIEWER_REDACTIONS = {
    cacheControl: null,
    contentDisposition: null,
@@ -60,7 +61,6 @@ const VIEWER_REDACTIONS = {
    versionId: null,
 } satisfies Partial<S3ObjectSettings>;
 
-// user metadata, the KMS key ARN and the version id are for those who can change the object.
 const toSettings = (
    head: HeadObjectCommandOutput,
    bucketRole: Role | null

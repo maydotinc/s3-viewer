@@ -5,6 +5,11 @@ import * as React from "react";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 
+const DIALOG_OVERLAY = "fixed inset-0 z-50 bg-viewerblack/40";
+
+const DIALOG_CONTENT =
+   "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite shadow-lg outline-none";
+
 function Dialog({
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
@@ -25,7 +30,7 @@ function DialogOverlay({
       <DialogPrimitive.Overlay
          data-slot="dialog-overlay"
          data-backdrop=""
-         className={cn("fixed inset-0 z-50 bg-viewerblack/40", className)}
+         className={cn(DIALOG_OVERLAY, className)}
          {...props}
       />
    );
@@ -44,10 +49,7 @@ function DialogContent({
          <DialogOverlay />
          <DialogPrimitive.Content
             data-slot="dialog-content"
-            className={cn(
-               "fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 flex-col gap-0 overflow-hidden rounded-xl border border-viewerborder bg-viewerwhite shadow-lg outline-none",
-               className
-            )}
+            className={cn(DIALOG_CONTENT, className)}
             {...props}
          >
             {children}
@@ -56,7 +58,7 @@ function DialogContent({
                   data-slot="dialog-close"
                   aria-label="Close"
                   className={cn(
-                     "absolute top-4 right-4 flex size-8 cursor-pointer items-center justify-center rounded-md text-viewertext transition-colors outline-none not-disabled:hover:bg-viewergray not-disabled:hover:text-viewerblack [&_svg]:size-4 [&_svg]:shrink-0",
+                     "absolute top-4 right-4 flex size-8 cursor-pointer items-center justify-center rounded-md pointer-coarse:top-2.5 pointer-coarse:right-2.5 pointer-coarse:size-11 text-viewertext transition-colors outline-none not-disabled:hover:bg-viewergray not-disabled:hover:text-viewerblack [&_svg]:size-4 [&_svg]:shrink-0",
                      FOCUS_RING
                   )}
                >
@@ -73,7 +75,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
       <div
          data-slot="dialog-header"
          className={cn(
-            "flex max-h-[min(35dvh,16rem)] min-w-0 shrink-0 flex-col gap-1 overflow-y-auto px-4 pt-5 pr-12 pb-4 [overflow-wrap:anywhere] [scrollbar-gutter:stable] sm:px-6 sm:pr-12",
+            "flex max-h-[min(35dvh,16rem)] min-w-0 shrink-0 flex-col gap-1 overflow-y-auto px-4 pt-5 pr-12 pb-4 [overflow-wrap:anywhere] [scrollbar-gutter:stable] sm:px-6 sm:pr-12 pointer-coarse:pr-14",
             className
          )}
          {...props}
@@ -137,6 +139,8 @@ function DialogDescription({
 }
 
 export {
+   DIALOG_CONTENT,
+   DIALOG_OVERLAY,
    Dialog,
    DialogBody,
    DialogContent,

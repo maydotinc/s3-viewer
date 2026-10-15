@@ -66,6 +66,10 @@ let base: string;
 routeServer(
    (app) => {
       app.use(express.json({ limit: "1mb" }));
+      app.use((req, _res, next) => {
+         req.headers["sec-fetch-site"] ??= "same-origin";
+         next();
+      });
       app.use(signedIn(() => ({ id: state.actor })));
       app.use("/servers/:serverId/buckets/:bucketName/objects", settingsRouter);
       app.use(errorHandler);
@@ -171,6 +175,14 @@ describe("reading object settings", () => {
          target: "reports/q3.csv",
          detail: { size: 42, contentType: "text/csv" },
       });
+   });
+
+   it("refuses a cross-site read before it can write an audit row", async () => {
+      const response = await fetch(`${base}?objectKey=report.json`, {
+         headers: { "sec-fetch-site": "cross-site" },
+      });
+      expect(response.status).toBe(403);
+      expectNoStorage();
    });
 
    it("records nothing when the object is missing", async () => {

@@ -214,7 +214,6 @@ const checkAccess = (servers: readonly ServerCheck[]): AccessCheckResult => {
 };
 
 export {
-   CHOOSE_BUCKET,
    INITIAL_WIZARD_STATE,
    canContinueAccess,
    checkAccess,
@@ -223,4 +222,4 @@ export {
    serverAccessProblem,
    wizardReducer,
 };
-export type { ServerAccess, WizardAction, WizardState };
+export type { ServerAccess, WizardState };

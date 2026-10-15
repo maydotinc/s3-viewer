@@ -4,12 +4,8 @@ import SessionManager from "@/components/Session/session-manager";
 import useSessionStore from "@/lib/stores/session-store";
 import { queryKeys } from "@/lib/query-keys";
 import { deferred, flushRuntime, mountRuntime } from "@/lib/test/runtime";
-import {
-   Provider,
-   Role,
-   type ServerInfo,
-   type ServerPage,
-} from "@s3-viewer/types";
+import { serverInfo } from "@/components/test-helpers";
+import { Role, type ServerInfo, type ServerPage } from "@s3-viewer/types";
 import { act, createElement, Fragment, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import useServers from "./useServers";
@@ -39,13 +35,12 @@ vi.mock("@/lib/api", async (original) => ({
    api: { get: vi.fn() },
 }));
 
-const server = (id: string): ServerInfo => ({
-   id,
-   name: id,
-   userRole: Role.OWNER,
-   provider: Provider.S3,
-   audit: { enabled: false, canView: false, canManage: true },
-});
+const server = (id: string): ServerInfo =>
+   serverInfo({
+      id,
+      name: id,
+      audit: { enabled: false, canView: false, canManage: true },
+   });
 const page = (ids: string[], nextCursor: string | null): ServerPage => ({
    servers: ids.map(server),
    nextCursor,
@@ -59,7 +54,7 @@ const PageProbe = () => {
    pageResult = useServerPage({
       serverId: "linked",
       canOpen: (server) => server.userRole === Role.OWNER,
-      pathFor: (id) => `/share/${id}`,
+      pathFor: (id) => `/audit/${id}`,
    });
    return createElement("output", null, pageResult.server?.name ?? "pending");
 };
@@ -89,6 +84,10 @@ const settle = async () => {
    await flushRuntime();
 };
 const get = vi.mocked(api.get);
+const expectNoLaterPage = () =>
+   expect(get.mock.calls.filter(([path]) => path.includes("cursor="))).toEqual(
+      []
+   );
 
 beforeEach(() => {
    useSessionStore.persist.setOptions({
@@ -138,9 +137,7 @@ describe("selected server and on-demand membership pages", () => {
       await act(async () => first.resolve(page(["first"], "later")));
       await settle();
       expect(result.servers.map(({ id }) => id)).toEqual(["first", "selected"]);
-      expect(get.mock.calls.every(([path]) => !path.includes("cursor="))).toBe(
-         true
-      );
+      expectNoLaterPage();
    });
 
    it("fetches later pages only on demand and retains selection and loaded entries after a failed page", async () => {
@@ -149,9 +146,7 @@ describe("selected server and on-demand membership pages", () => {
       await settle();
       expect(result.hasNextPage).toBe(true);
       expect(result.isLoading).toBe(false);
-      expect(get.mock.calls.every(([path]) => !path.includes("cursor="))).toBe(
-         true
-      );
+      expectNoLaterPage();
       get.mockImplementationOnce(async () => later.promise);
       let fetchPage!: Promise<unknown>;
       await act(async () => {
@@ -228,14 +223,16 @@ describe("selected server and on-demand membership pages", () => {
          if (path.endsWith("/buckets")) return { buckets: [] };
          throw new ApiError(404, "Server not found");
       });
+      const reads = () =>
+         get.mock.calls.filter(([path]) => path === "/servers/selected").length;
       await mount();
       await settle();
       await settle();
       expect(useSessionStore.getState().serverId).toBe("");
       expect(result.servers).toEqual([]);
-      expect(
-         get.mock.calls.filter(([path]) => path === "/servers/selected").length
-      ).toBeLessThanOrEqual(2);
+      const settledReads = reads();
+      await settle();
+      expect(reads()).toBe(settledReads);
    });
 
    it("resolves a directly linked server without loading membership pages and waits for a subsequent server switch", async () => {
@@ -252,7 +249,7 @@ describe("selected server and on-demand membership pages", () => {
       expect(h.replace).not.toHaveBeenCalled();
       await act(async () => next.resolve({ server: server("next") }));
       await settle();
-      expect(h.replace).toHaveBeenCalledWith("/share/next");
+      expect(h.replace).toHaveBeenCalledWith("/audit/next");
    });
 
    it("keeps the selected server's fresh role instead of its stale page copy", async () => {
@@ -287,9 +284,7 @@ describe("selected server and on-demand membership pages", () => {
       expect(get.mock.calls.some(([path]) => path === "/servers/outside")).toBe(
          true
       );
-      expect(get.mock.calls.every(([path]) => !path.includes("cursor="))).toBe(
-         true
-      );
+      expectNoLaterPage();
    });
 
    it("isolates cached data from an account change and waits for the matching session", async () => {
@@ -317,9 +312,9 @@ describe("selected server and on-demand membership pages", () => {
       h.pending = true;
       await mount();
       await settle();
-      expect(get.mock.calls.every(([path]) => path.endsWith("/buckets"))).toBe(
-         true
-      );
+      expect(
+         get.mock.calls.filter(([path]) => !path.endsWith("/buckets"))
+      ).toEqual([]);
       h.pending = false;
       await act(async () => rerender());
       await settle();

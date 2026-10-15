@@ -54,7 +54,7 @@ const faqs: Faq[] = [
    {
       question: "What happens when someone leaves the team?",
       answer:
-         "Remove them in the members dialog. They lose access to that server on their next request, and you don't have to rotate any AWS or R2 access keys — because they never had any. A download link they already opened keeps working for up to 15 minutes.",
+         "Remove them under Settings, Members. They lose access to that server on their next request, and you don't have to rotate any AWS or R2 access keys — because they never had any. A download link they already opened keeps working for up to 15 minutes.",
    },
    {
       question: "How does this compare to IAM Identity Center or per-user IAM?",

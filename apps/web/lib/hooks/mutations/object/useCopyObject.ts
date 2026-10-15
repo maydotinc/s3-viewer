@@ -2,7 +2,6 @@ import type { S3ObjectUploaded } from "@s3-viewer/types";
 import type { KeyChangeInput } from "@/lib/types";
 import useObjectMutation, {
    forgetTouched,
-   keyChangeTouched,
    postKeyChange,
 } from "./object-mutation";
 
@@ -12,7 +11,7 @@ const useCopyObject = () =>
          S3ObjectUploaded,
          KeyChangeInput & { expectedDestinationETag?: string }
       >("copy"),
-      settle: forgetTouched(keyChangeTouched),
+      settle: forgetTouched(({ newObjectKey }) => [newObjectKey]),
    });
 
 export default useCopyObject;

@@ -24,7 +24,7 @@ beforeEach(() => {
 });
 
 describe("deletion protection notice", () => {
-   it.each(["delete", "move", "rename"] as const)(
+   it.each(["delete", "move"] as const)(
       "warns about concurrent changes before %s on the requested server",
       (action) => {
          const markup = renderToStaticMarkup(

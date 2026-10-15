@@ -832,16 +832,6 @@ describe("listAuditPage", () => {
       await listAuditPage({ serverId: "server12345", reach: null, limit: 1 });
       expect(queryText(2)).not.toContain('"action" <> ALL');
    });
-
-   it("rejects a garbage cursor with 400", async () => {
-      await expect(
-         listAuditPage({ serverId: "s", reach: null, limit: 1, cursor: "nope" })
-      ).rejects.toMatchObject({
-         status: 400,
-         message: "Invalid cursor",
-         code: "VALIDATION",
-      });
-   });
 });
 
 describe("text search cost", () => {

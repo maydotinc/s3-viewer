@@ -1,7 +1,7 @@
 import { CLEANUP_TIMEOUT_MS } from "@/lib/constants";
 import { PassThrough, Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_CONTENT_TYPE, Provider } from "@s3-viewer/types";
+import { Provider } from "@s3-viewer/types";
 import {
    AWS_ENDPOINT,
    MINIO_ENDPOINT,
@@ -960,94 +960,6 @@ describe("opening a multipart upload", () => {
       }
    });
 
-   it("keeps the caller's type when the replaced object carried none", async () => {
-      const f = fixture(async (request) =>
-         isInitiate(request)
-            ? initiated("u1")
-            : head({ etag: '"before"', "cache-control": "max-age=99" })
-      );
-      try {
-         await createUpload(f.scope, Provider.Other, {
-            serverId: SERVER,
-            key: "videos/a.mp4",
-            contentType: "video/mp4",
-            partSize: 1024,
-            partCount: 1,
-            expectedETag: '"before"',
-         });
-         const initiate = f.requests.find(isInitiate);
-         expect(initiate?.headers["content-type"]).toBe("video/mp4");
-         expect(initiate?.headers["cache-control"]).toBe("max-age=99");
-      } finally {
-         f.client.destroy();
-      }
-   });
-
-   it("keeps the replaced object's type when the caller only knows the generic default", async () => {
-      const f = fixture(async (request) =>
-         isInitiate(request)
-            ? initiated("u1")
-            : head({
-                 etag: '"before"',
-                 "content-type": "application/vnd.apache.parquet",
-              })
-      );
-      try {
-         await createUpload(f.scope, Provider.Other, {
-            serverId: SERVER,
-            key: "data/a.parquet",
-            contentType: DEFAULT_CONTENT_TYPE,
-            partSize: 1024,
-            partCount: 1,
-            expectedETag: '"before"',
-         });
-         expect(f.requests.find(isInitiate)?.headers["content-type"]).toBe(
-            "application/vnd.apache.parquet"
-         );
-      } finally {
-         f.client.destroy();
-      }
-   });
-
-   it("keeps the generic default when the replaced object carried no type", async () => {
-      const f = fixture(async (request) =>
-         isInitiate(request) ? initiated("u1") : head({ etag: '"before"' })
-      );
-      try {
-         await createUpload(f.scope, Provider.Other, {
-            serverId: SERVER,
-            key: "data/a.parquet",
-            contentType: DEFAULT_CONTENT_TYPE,
-            partSize: 1024,
-            partCount: 1,
-            expectedETag: '"before"',
-         });
-         expect(f.requests.find(isInitiate)?.headers["content-type"]).toBe(
-            DEFAULT_CONTENT_TYPE
-         );
-      } finally {
-         f.client.destroy();
-      }
-   });
-
-   it("carries the generic default onto a new object", async () => {
-      const f = fixture(async () => initiated("u1"), AWS_ENDPOINT);
-      try {
-         await createUpload(f.scope, Provider.S3, {
-            serverId: SERVER,
-            key: "data/a.parquet",
-            contentType: DEFAULT_CONTENT_TYPE,
-            partSize: 1024,
-            partCount: 1,
-         });
-         expect(f.requests.find(isInitiate)?.headers["content-type"]).toBe(
-            DEFAULT_CONTENT_TYPE
-         );
-      } finally {
-         f.client.destroy();
-      }
-   });
-
    it("reports a destination that changed under the replacement as a conflict", async () => {
       const f = fixture(async () => error(412, "PreconditionFailed"));
       try {
@@ -1771,50 +1683,6 @@ describe("streaming one part", () => {
             })
          ).rejects.toBeInstanceOf(UploadIdleError);
       } finally {
-         body.destroy();
-         f.client.destroy();
-      }
-   });
-
-   it("leaves a part arriving above the floor alone", async () => {
-      const body = paced(15, 8, 1024);
-      const f = fixture(async () => partReply, AWS_ENDPOINT);
-      try {
-         expect(
-            await streamPart(f.scope, {
-               key: "videos/a.mp4",
-               uploadId: "u1",
-               partNumber: 1,
-               body,
-               contentLength: 8 * 1024,
-               abortController: new AbortController(),
-               idleTimeoutMs: 40,
-            })
-         ).toMatchObject({ eTag: '"p1"' });
-      } finally {
-         body.destroy();
-         f.client.destroy();
-      }
-   });
-
-   it("lets a short part end inside a window it never fills", async () => {
-      const body = new PassThrough();
-      const timer = setTimeout(() => body.end("hi"), 20);
-      const f = fixture(async () => partReply, AWS_ENDPOINT);
-      try {
-         expect(
-            await streamPart(f.scope, {
-               key: "videos/a.mp4",
-               uploadId: "u1",
-               partNumber: 1,
-               body,
-               contentLength: 2,
-               abortController: new AbortController(),
-               idleTimeoutMs: 40,
-            })
-         ).toMatchObject({ eTag: '"p1"' });
-      } finally {
-         clearTimeout(timer);
          body.destroy();
          f.client.destroy();
       }

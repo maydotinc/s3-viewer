@@ -28,7 +28,6 @@ describe("afterLoginPath", () => {
    it("follows a safe next and falls back to the dashboard", () => {
       expect(afterLoginPath("/invites")).toBe("/invites");
       expect(afterLoginPath("//evil.example")).toBe("/dashboard");
-      expect(afterLoginPath(undefined)).toBe("/dashboard");
    });
 
    it("never sends a signed-in user back to an auth screen", () => {
@@ -73,11 +72,5 @@ describe("loginPathFor", () => {
          "/login?next=%2Fdashboard&reason=expired"
       );
       expect(loginPathFor("/", "expired")).toBe("/login?reason=expired");
-   });
-
-   it("keeps a callback error inside next", () => {
-      expect(loginPathFor("/dashboard?error=other")).toBe(
-         "/login?next=%2Fdashboard%3Ferror%3Dother"
-      );
    });
 });

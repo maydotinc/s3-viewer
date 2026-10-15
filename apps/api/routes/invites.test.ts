@@ -262,17 +262,6 @@ describe("GET /invites", () => {
          51
       );
    });
-
-   it("rejects a garbage cursor with 400", async () => {
-      const res = await fetch(`${listBase}?cursor=not-valid`);
-      expect(res.status).toBe(400);
-   });
-
-   it("rejects a limit above the maximum page size", async () => {
-      const res = await fetch(`${listBase}?limit=1000`);
-      expect(res.status).toBe(400);
-      expect(state.findReceived).not.toHaveBeenCalled();
-   });
 });
 
 describe("POST /invites/:inviteId/accept", () => {

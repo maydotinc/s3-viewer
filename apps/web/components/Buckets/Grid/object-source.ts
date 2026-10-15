@@ -26,6 +26,7 @@ type ObjectSourceParams = ListingScope & {
    getGridApi: () => GridApi | undefined;
    onError: (error: unknown) => void;
    onFirstPage?: (keys: string[]) => void;
+   onReloaded?: () => void;
    firstBlock?: PrefetchedBlock | null;
 };
 
@@ -140,10 +141,17 @@ const createObjectDatasource = ({
    getGridApi,
    onError,
    onFirstPage,
+   onReloaded,
    firstBlock,
 }: ObjectSourceParams): ObjectDatasource => {
    const scope = { serverId, bucketName, prefix };
    let listing = freshListing(firstBlock);
+
+   const settleReload = (target: Listing) => {
+      if (!target.reloaded) return;
+      target.reloaded = false;
+      onReloaded?.();
+   };
 
    const readRows = async (
       target: Listing,
@@ -219,24 +227,32 @@ const createObjectDatasource = ({
             else gridApi.hideOverlay();
          }
          if (target.reloaded && cacheSettled(gridApi)) {
-            target.reloaded = false;
             deselectVanished(gridApi);
+            settleReload(target);
          }
       } catch (error) {
          // AG Grid frees its loader slot only through this callback, even for destroyed blocks.
          params.failCallback();
-         if (!target.controller.signal.aborted) onError(error);
+         if (target.controller.signal.aborted) return;
+         onError(error);
+         settleReload(target);
       }
    };
 
    return {
       getRows,
-      destroy: () => listing.controller.abort(),
+      destroy: () => {
+         listing.controller.abort();
+         settleReload(listing);
+      },
       reload: () => {
          listing.controller.abort();
          listing = freshListing(null, true);
          const gridApi = getGridApi();
-         if (!gridApi || gridApi.isDestroyed()) return;
+         if (!gridApi || gridApi.isDestroyed()) {
+            settleReload(listing);
+            return;
+         }
          // the listing may have grown past the end the grid already found.
          if (gridApi.isLastRowIndexKnown())
             gridApi.setRowCount(gridApi.getInfiniteRowCount() ?? 0, false);

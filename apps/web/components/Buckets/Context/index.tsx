@@ -2,11 +2,13 @@ import useFileDropGuard from "@/components/Buckets/useFileDropGuard";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { authClient } from "@/lib/auth";
+import { queryKeys } from "@/lib/query-keys";
 import { useServerId } from "@/lib/stores/session-scope";
 import { useUserId } from "@/lib/stores/session-store";
 import { reachOf, type KnownReach } from "@/lib/utils/folder-access";
 import { prefixFromSegments } from "@/lib/utils/s3/paths";
-import { Role, type S3Bucket } from "@s3-viewer/types";
+import { Role } from "@s3-viewer/types";
+import { useQueryClient } from "@tanstack/react-query";
 import {
    createContext,
    useCallback,
@@ -19,7 +21,6 @@ import {
 
 type BucketContextValue = {
    bucketName: string;
-   bucket: S3Bucket | null;
    reach: KnownReach;
    awaitingReach: boolean;
    path: string[];
@@ -31,6 +32,7 @@ type BucketContextValue = {
    refresh: () => void;
    reloadListing: () => void;
    registerRefresh: (handler: (() => void) | null) => void;
+   setListingReloading: (reloading: boolean) => void;
 };
 
 type BucketFilterContextValue = {
@@ -55,6 +57,7 @@ const BucketProvider = ({
    children,
 }: BucketProviderProps) => {
    const { data: session } = authClient.useSession();
+   const queryClient = useQueryClient();
    const userId = useUserId();
    const serverId = useServerId();
    const { servers, currentServer, isLoading: isServersLoading } = useServers();
@@ -81,13 +84,17 @@ const BucketProvider = ({
       []
    );
    const refreshHandler = useRef<(() => void) | null>(null);
+   const [listingReloading, setListingReloading] = useState(false);
    useFileDropGuard();
 
    const reloadListing = useCallback(() => refreshHandler.current?.(), []);
    const refresh = useCallback(() => {
       void refetchBuckets();
+      void queryClient.invalidateQueries({
+         queryKey: queryKeys.serverInfo(userId, serverId),
+      });
       reloadListing();
-   }, [refetchBuckets, reloadListing]);
+   }, [refetchBuckets, reloadListing, queryClient, userId, serverId]);
    const registerRefresh = useCallback((handler: (() => void) | null) => {
       refreshHandler.current = handler;
    }, []);
@@ -95,14 +102,14 @@ const BucketProvider = ({
    const value = useMemo<BucketContextValue>(
       () => ({
          bucketName,
-         bucket: currentBucket ?? null,
          reach: isLoading ? undefined : reachOf(currentBucket),
          awaitingReach: isLoading && !isOwner,
          path,
          prefix,
          isLoading,
          bucketsError,
-         isRefreshing: isBucketsFetching && !isBucketsLoading,
+         isRefreshing:
+            (isBucketsFetching && !isBucketsLoading) || listingReloading,
          notFound:
             !isLoading &&
             !bucketsError &&
@@ -111,6 +118,7 @@ const BucketProvider = ({
          refresh,
          reloadListing,
          registerRefresh,
+         setListingReloading,
       }),
       [
          bucketName,
@@ -122,6 +130,7 @@ const BucketProvider = ({
          bucketsError,
          isBucketsFetching,
          isBucketsLoading,
+         listingReloading,
          refresh,
          reloadListing,
          registerRefresh,

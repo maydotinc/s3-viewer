@@ -1,9 +1,6 @@
 import Field from "@/components/form-field";
 import QueryStatus from "@/components/query-status";
-import StaleSignIn, {
-   isSessionStale,
-   signInAgain,
-} from "@/components/stale-sign-in";
+import StaleSignIn, { isSessionStale } from "@/components/stale-sign-in";
 import { FORM_GRID } from "@/components/Settings/card";
 import useUpdateAuditSettings from "@/lib/hooks/mutations/server/useUpdateAuditSettings";
 import useAuditSettings from "@/lib/hooks/queries/server/useAuditSettings";
@@ -216,11 +213,6 @@ const SettingsForm = ({ serverId, saved, isOwner }: FormProps) => {
             <StaleSignIn
                title="Sign in again to change these settings"
                action="changing audit log settings"
-               actions={
-                  <Button size="sm" type="button" onClick={signInAgain}>
-                     Sign in again
-                  </Button>
-               }
             />
          )}
          <div className="flex justify-end">

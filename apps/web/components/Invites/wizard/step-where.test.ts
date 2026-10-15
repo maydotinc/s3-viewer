@@ -50,8 +50,9 @@ const mount = async (props: Partial<Parameters<typeof StepWhere>[0]> = {}) => {
 describe("the server step", () => {
    it("lists each manageable server with its role", async () => {
       const container = await mount();
-      expect(container.textContent).toContain("Owned storage");
-      expect(container.textContent).toContain("Admin storage");
+      expect(
+         [...container.querySelectorAll("li")].map((item) => item.textContent)
+      ).toEqual(["Owned storageOwner", "Admin storageAdmin"]);
       expect(container.querySelectorAll("[role=checkbox]")).toHaveLength(2);
    });
 

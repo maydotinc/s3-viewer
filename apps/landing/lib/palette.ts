@@ -4,7 +4,7 @@ export const BRAND_COLORS = {
    darkBlue: { token: "viewerdarkblue", hex: "#253977" },
    black: { token: "viewerblack", hex: "#0E121B" },
    text: { token: "viewertext", hex: "#525866" },
-   light: { token: "viewerlighttext", hex: "#6D778A" },
+   light: { token: "viewerlighttext", hex: "#636C7E" },
    border: { token: "viewerborder", hex: "#E1E4EA" },
    gray: { token: "viewergray", hex: "#F7F7F7" },
    white: { token: "viewerwhite", hex: "#FFFFFF" },

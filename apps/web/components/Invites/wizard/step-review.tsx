@@ -1,5 +1,6 @@
 import InlineAlert from "@/components/inline-alert";
 import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
+import type { EmailState } from "@/lib/hooks/queries/useInstanceConfig";
 import { folderList, grantLabel } from "@/lib/utils/folder-access";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import { Role, type ServerInfo } from "@s3-viewer/types";
@@ -10,8 +11,6 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import { memo, useId } from "react";
 import type { GrantRow } from "../bucket-grants";
 import type { ServerAccess } from "./wizard-state";
-
-type EmailState = "loading" | "disabled" | "enabled";
 
 type ReviewServer = { server: ServerInfo; access: ServerAccess };
 
@@ -225,4 +224,3 @@ const StepReview = ({
 );
 
 export default StepReview;
-export type { EmailState, ReviewServer };

@@ -14,6 +14,10 @@ const useCreateBucket = () =>
       refreshes: ({ scope }) => [
          queryKeys.buckets(scope.userId, scope.serverId),
       ],
+      invalidates: ({ scope }) => [
+         queryKeys.members(scope.userId, scope.serverId),
+         queryKeys.sentInvites(scope.userId, scope.serverId),
+      ],
    });
 
 export default useCreateBucket;

@@ -60,3 +60,4 @@ const click = (element: Element): void =>
    (element.props.onClick as () => void)();
 
 export { button, click, one, text };
+export type { Element };

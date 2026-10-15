@@ -10,7 +10,7 @@ export const ILLUSTRATION_LABELS = {
    iamReadOnly:
       "A read-only IAM policy for one bucket next to the S3 Viewer connect form, where keys that cannot list buckets name the bucket they can read.",
    invite:
-      "Inviting dana@acme.com to the media-archive bucket as an Editor, with no IAM user or access keys and one-click revoke.",
+      "The Review step of Invite people, sending dana@acme.com an Editor invite to the media-archive bucket, with no IAM user or access keys.",
    permissions:
       "Roles assigned per folder prefix in the media-archive bucket, next to the IAM bucket policy condition that scopes access to a prefix.",
    rename:
@@ -20,7 +20,7 @@ export const ILLUSTRATION_LABELS = {
    shareFolder:
       "The Access step of an invite limiting the media-archive bucket to the landing/ folder, next to what the invited Viewer sees: only that folder, with the rest of the bucket neither listed nor openable.",
    shareLink:
-      "Copying a 15-minute, read-only presigned link to q3-report.pdf that the recipient can open without an account.",
+      "Choosing Copy link from the row menu of q3-report.pdf, which copies a 15-minute presigned URL the recipient can open without an account.",
    sideBySide:
       "AWS S3 and Cloudflare R2 buckets shown side by side, one credential per provider and one click apart.",
    switchBuckets:

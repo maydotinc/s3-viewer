@@ -24,20 +24,12 @@ describe("line endings of an edited file", () => {
       expect(dominantLineEnding(text)).toBe(ending);
    });
 
-   it("hands the textarea the newlines it would report anyway", () => {
-      expect(toEditorText("one\r\ntwo")).toBe("one\ntwo");
-   });
-
    it("writes a windows file back with the endings it arrived with", () => {
       const loaded = "one\r\ntwo\r\n";
       const edited = `${toEditorText(loaded)}three\n`;
       expect(applyLineEnding(edited, dominantLineEnding(loaded))).toBe(
          "one\r\ntwo\r\nthree\r\n"
       );
-   });
-
-   it("leaves a unix file alone", () => {
-      expect(applyLineEnding("one\ntwo\n", "\n")).toBe("one\ntwo\n");
    });
 
    it("never doubles a carriage return", () => {

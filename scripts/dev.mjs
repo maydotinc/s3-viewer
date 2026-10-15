@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
+import os from "node:os";
 import { runPrisma } from "./db.mjs";
 import { registerDevProcess } from "./dev-processes.mjs";
 import {
@@ -87,6 +88,6 @@ const child = spawn(
 for (const signal of ["SIGINT", "SIGTERM"]) {
    process.on(signal, () => child.kill(signal));
 }
-child.on("exit", (code) => {
-   process.exit(code ?? 0);
+child.on("exit", (code, signal) => {
+   process.exit(code ?? (signal ? 128 + os.constants.signals[signal] : 1));
 });

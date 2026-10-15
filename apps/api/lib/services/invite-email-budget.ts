@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
-import { hitRateLimit, undoRateLimitHit } from "@s3-viewer/db/rate-limit";
+import {
+   memoryWindowCounter,
+   sharedWindowCounter,
+   type WindowCounter,
+} from "@s3-viewer/db/rate-limit";
 import {
    DAY_MS,
    INVITE_EMAIL_COOLDOWN_MS,
@@ -11,50 +15,12 @@ import {
    describeError,
 } from "@s3-viewer/types";
 
-type Counter = {
-   hit: (key: string, windowMs: number) => Promise<number>;
-   undo: (key: string) => Promise<void>;
-};
-
 // the servers whose budget was spent; a server whose own rules were used up is left out.
 type Reservation = { servers: string[]; release: () => Promise<void> };
 
 const MAX_MEMORY_KEYS = 10_000;
 
-const memoryCounter = (): Counter => {
-   const windows = new Map<string, { hits: number; resetAt: number }>();
-   const evict = (now: number) => {
-      for (const [key, window] of windows)
-         if (window.resetAt <= now) windows.delete(key);
-      for (const oldest of windows.keys()) {
-         if (windows.size <= MAX_MEMORY_KEYS) break;
-         windows.delete(oldest);
-      }
-   };
-   return {
-      hit: async (key, windowMs) => {
-         const now = Date.now();
-         const live = windows.get(key);
-         const window =
-            live && live.resetAt > now
-               ? { hits: live.hits + 1, resetAt: live.resetAt }
-               : { hits: 1, resetAt: now + windowMs };
-         windows.delete(key);
-         windows.set(key, window);
-         if (windows.size > MAX_MEMORY_KEYS) evict(now);
-         return window.hits;
-      },
-      undo: async (key) => {
-         const window = windows.get(key);
-         if (window && window.hits > 0) window.hits--;
-      },
-   };
-};
-
-const sharedCounter: Counter = {
-   hit: async (key, windowMs) => (await hitRateLimit(key, windowMs)).hits,
-   undo: undoRateLimitHit,
-};
+const memoryCounter = (): WindowCounter => memoryWindowCounter(MAX_MEMORY_KEYS);
 
 // hashed so the shared rate_limit table never holds invitee addresses.
 const mailboxKey = (email: string): string =>
@@ -90,7 +56,7 @@ const serverRules = (serverId: string, mailbox: string): Rule[] => [
 // one email to one mailbox: the recipient's daily budget is spent once however many servers it
 // lists, each server's budgets once; nothing stays spent when no email will go out.
 const inviteEmailBudget =
-   (counter: () => Counter) =>
+   (counter: () => WindowCounter) =>
    async (serverIds: string[], email: string): Promise<Reservation | null> => {
       const store = counter();
       const mailbox = mailboxKey(email);
@@ -147,8 +113,7 @@ const inviteEmailBudget =
 const memory = memoryCounter();
 
 const reserveInviteEmails = inviteEmailBudget(() =>
-   env.RATE_LIMIT_STORE === "postgres" ? sharedCounter : memory
+   env.RATE_LIMIT_STORE === "postgres" ? sharedWindowCounter : memory
 );
 
 export { inviteEmailBudget, memoryCounter, reserveInviteEmails };
-export type { Reservation as InviteEmailReservation };

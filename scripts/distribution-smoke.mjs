@@ -44,7 +44,7 @@ function run(
       let output = "";
       child.stdout?.on("data", (chunk) => (output += chunk));
       child.once("error", reject);
-      child.once("exit", (code, signal) => {
+      child.once("close", (code, signal) => {
          if (code === 0) resolve(output.trim());
          else
             reject(
@@ -59,6 +59,26 @@ function run(
 
 const compose = (args, options) =>
    run("docker", [...composeArgs, ...args], options);
+// memoized so an interrupt during the run's own teardown does not start a second one.
+let tearingDown;
+const teardown = () =>
+   (tearingDown ??= compose([
+      "down",
+      "--volumes",
+      "--remove-orphans",
+      "--rmi",
+      "local",
+   ]).catch((error) => console.error(`Teardown failed: ${error.message}`)));
+// an interrupted run would otherwise leave its containers, volumes and images behind.
+for (const [signal, code] of [
+   ["SIGINT", 130],
+   ["SIGTERM", 143],
+]) {
+   process.once(
+      signal,
+      () => void teardown().finally(() => process.exit(code))
+   );
+}
 const address = async (service, port) =>
    `http://${await compose(["port", service, String(port)], { capture: true })}`;
 const apiNode = (code, input) =>
@@ -175,13 +195,7 @@ console.log('Persisted auth, encryption, and audit secrets verified after restar
       throw error;
    } finally {
       // a failed teardown must not replace the error that ended the run.
-      await compose([
-         "down",
-         "--volumes",
-         "--remove-orphans",
-         "--rmi",
-         "local",
-      ]).catch((error) => console.error(`Teardown failed: ${error.message}`));
+      await teardown();
    }
 }
 

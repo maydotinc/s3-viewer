@@ -126,7 +126,6 @@ const unemailedAddresses = (outcomes: readonly InviteOutcome[]): string[] => [
 export {
    STEP_LABELS,
    STEP_TITLES,
-   WHO_DESCRIPTION,
    accessStatus,
    alreadyMembersText,
    contextLine,

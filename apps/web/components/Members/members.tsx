@@ -88,7 +88,7 @@ const MemberRow = ({
 
    return (
       <TableRow className="h-16">
-         <TableCell className="md:px-6">
+         <TableCell className="@min-[40rem]:px-6">
             <div className="flex min-w-0 items-center gap-3">
                <Avatar name={member.name} />
                <div className="flex min-w-0 flex-col">
@@ -112,7 +112,10 @@ const MemberRow = ({
          </TableCell>
          <TableCell
             data-label="Role"
-            className={cn(STACKED_LABEL, "max-md:flex! max-md:items-center")}
+            className={cn(
+               STACKED_LABEL,
+               "@max-[40rem]:flex! @max-[40rem]:items-center"
+            )}
          >
             {manageable ? (
                <RoleSelect
@@ -137,7 +140,10 @@ const MemberRow = ({
          </TableCell>
          <TableCell
             data-label="Access"
-            className={cn(STACKED_LABEL, "max-md:flex! max-md:items-center")}
+            className={cn(
+               STACKED_LABEL,
+               "@max-[40rem]:flex! @max-[40rem]:items-center"
+            )}
          >
             <div className="flex min-w-0 items-center gap-2">
                <div className="flex min-w-0 flex-col">
@@ -212,7 +218,7 @@ const Members = ({
          <Table className={STACKED_TABLE} aria-busy={loading || undefined}>
             <TableHeader>
                <TableRow>
-                  <TableHead className="md:px-6">Member</TableHead>
+                  <TableHead className="@min-[40rem]:px-6">Member</TableHead>
                   <TableHead className="w-44">Role</TableHead>
                   <TableHead className="w-56">Bucket access</TableHead>
                   <TableHead className="w-16">
@@ -224,7 +230,7 @@ const Members = ({
                {loading ? (
                   <TableSkeletonRows
                      columns={Array.from({ length: COLUMNS }, () => ({}))}
-                     rowClassName="h-16 [&>td:first-child]:md:px-6"
+                     rowClassName="h-16 [&>td:first-child]:@min-[40rem]:px-6"
                   />
                ) : members.length === 0 ? (
                   <EmptyRow colSpan={COLUMNS} icon={Users}>

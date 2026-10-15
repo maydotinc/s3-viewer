@@ -33,6 +33,7 @@ const state = vi.hoisted(() => ({
    role: "VIEWER" as DbRole | null,
    targetRole: "EDITOR" as DbRole,
    grant: "VIEWER" as DbRole | null,
+   folders: undefined as string[] | undefined,
    allowed: ["photos"],
    level: "ALL" as "ALL" | "CHANGES",
    writeAudit: vi.fn(),
@@ -66,6 +67,7 @@ vi.mock("@s3-viewer/db", () => ({
                     ? state.allowed.map((bucketName) => ({
                          bucketName,
                          role: state.grant as DbRole,
+                         folders: state.folders,
                       }))
                     : [],
                  auditViewRole: "ADMIN",
@@ -178,6 +180,7 @@ beforeEach(() => {
    state.role = "VIEWER";
    state.targetRole = "EDITOR";
    state.grant = "VIEWER";
+   state.folders = undefined;
    state.allowed = ["photos"];
    state.level = "ALL";
    state.writeAudit.mockReset().mockResolvedValue(undefined);
@@ -331,7 +334,7 @@ describe("refused attempts", () => {
       );
    });
 
-   it("records the same refusal once per five minutes, whichever bucket it names", async () => {
+   it("records the same refusal once per five minutes, whichever unheld bucket it names", async () => {
       expect((await call("", "DELETE")).status).toBe(403);
       expect((await call("", "DELETE")).status).toBe(403);
       expect(state.writeAudit).toHaveBeenCalledTimes(1);
@@ -351,6 +354,23 @@ describe("refused attempts", () => {
       state.role = "VIEWER";
       expect((await call("", "DELETE")).status).toBe(403);
       expect(state.writeAudit).toHaveBeenCalledTimes(3);
+   });
+
+   it("does not let a guessed bucket stand in for a folder probe on a held one", async () => {
+      state.role = "ADMIN";
+      state.grant = "ADMIN";
+      state.folders = ["docs/"];
+      expect((await call("/buckets/guessed", "DELETE")).status).toBe(404);
+      expect((await call("/buckets/photos", "DELETE")).status).toBe(403);
+      expect(state.writeAudit).toHaveBeenCalledTimes(2);
+      expect(state.writeAudit).toHaveBeenLastCalledWith(
+         expect.objectContaining({
+            entry: expect.objectContaining({
+               bucket: "photos",
+               detail: { permission: "DELETE_BUCKET", reason: "folder" },
+            }),
+         })
+      );
    });
 
    it("still answers the member when the record cannot be written", async () => {

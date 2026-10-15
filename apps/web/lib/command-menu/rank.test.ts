@@ -1,7 +1,7 @@
 import { Folder } from "lucide-react";
 import { describe, expect, it } from "vitest";
 import { flatten, rankCommands } from "./rank";
-import type { CommandGroup, CommandItem } from "./types";
+import { GROUP_LIMITS, type CommandGroup, type CommandItem } from "./types";
 
 const item = (
    id: string,
@@ -105,7 +105,7 @@ describe("group limits", () => {
          item(`bucket:${index}`, "Buckets", `bucket-${index}`)
       );
       const groups = rankCommands(many, "bucket", []);
-      expect(groups[0]?.items).toHaveLength(6);
+      expect(groups[0]?.items).toHaveLength(GROUP_LIMITS.Buckets ?? 0);
    });
 
    it("leaves uncapped groups whole", () => {

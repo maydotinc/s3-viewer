@@ -1,4 +1,5 @@
 import { TABLE_PANEL, TableError } from "@/components/Layout/table-states";
+import RefreshButton from "@/components/refresh-button";
 import { useSentInvites } from "@/lib/hooks/queries/server/useInvites";
 import useMembers from "@/lib/hooks/queries/server/useMembers";
 import {
@@ -19,9 +20,8 @@ const NO_INVITES: ServerInvite[] = [];
 type Tab = "members" | "invites";
 
 type MembersTabsProps = {
-   // empty until a server is selected; both lists stay skeletons until then
    serverId: string;
-   // null while the server loads; both lists fetch in parallel and stay skeletons until then
+   // null until the server loads: rows need the viewer's role, so both lists stay skeletons
    myRole: Role | null;
    buckets: S3Bucket[];
    isBucketsLoading: boolean;
@@ -48,6 +48,13 @@ const MembersTabs = ({
          : members.members.length;
    const inviteCount =
       pending || invites.isLoading || invites.error ? null : inviteList.length;
+   const refreshing =
+      (members.isFetching && !members.isFetchingNextPage) || invites.isFetching;
+   const refresh = () => {
+      if (!serverId) return;
+      void members.refetch();
+      void invites.refetch();
+   };
 
    const panel =
       tab === "members" ? (
@@ -96,26 +103,33 @@ const MembersTabs = ({
 
    return (
       <div className="flex min-w-0 flex-col gap-4">
-         <TabList>
-            <TabButton
-               id="members-tab-members"
-               aria-controls="members-tabpanel"
-               active={tab === "members"}
-               count={completeMemberCount}
-               onClick={() => setTab("members")}
-            >
-               Members
-            </TabButton>
-            <TabButton
-               id="members-tab-invites"
-               aria-controls="members-tabpanel"
-               active={tab === "invites"}
-               count={inviteCount}
-               onClick={() => setTab("invites")}
-            >
-               Pending invites
-            </TabButton>
-         </TabList>
+         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+            <TabList>
+               <TabButton
+                  id="members-tab-members"
+                  aria-controls="members-tabpanel"
+                  active={tab === "members"}
+                  count={completeMemberCount}
+                  onClick={() => setTab("members")}
+               >
+                  Members
+               </TabButton>
+               <TabButton
+                  id="members-tab-invites"
+                  aria-controls="members-tabpanel"
+                  active={tab === "invites"}
+                  count={inviteCount}
+                  onClick={() => setTab("invites")}
+               >
+                  Pending invites
+               </TabButton>
+            </TabList>
+            <RefreshButton
+               spinning={refreshing}
+               disabled={!serverId}
+               onClick={refresh}
+            />
+         </div>
          <section
             id="members-tabpanel"
             role="tabpanel"

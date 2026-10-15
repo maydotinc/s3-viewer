@@ -327,7 +327,7 @@ type Outcome = {
    context: { newSession?: unknown; returned?: unknown };
 };
 
-// sign-up no longer opens a session, and a correct password on an unverified
+// sign-up opens no session, and a correct password on an unverified
 // account is a success that must not spend the owner's failure budget.
 const succeeded = ({ path, context }: Outcome): boolean =>
    Boolean(context.newSession) ||

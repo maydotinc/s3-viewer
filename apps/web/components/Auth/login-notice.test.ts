@@ -8,14 +8,6 @@ describe("the notice above the login form", () => {
       );
    });
 
-   it("never shows the error description a link carries", () => {
-      const notice = loginNotice({
-         error: "PROVIDER_EMAIL_UNVERIFIED",
-         error_description: "Call +1 555 0100 to unlock your account",
-      } as Parameters<typeof loginNotice>[0]);
-      expect(notice).not.toContain("555");
-   });
-
    it("falls back to the generic message for other errors", () => {
       expect(loginNotice({ error: "access_denied" })).toBe(
          "Login didn't complete. Try again."

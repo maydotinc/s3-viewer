@@ -10,7 +10,6 @@ const h = vi.hoisted(() => ({
 vi.mock("@s3-viewer/ui/components/toast", () => ({
    toast: { success: h.success, error: h.error },
 }));
-vi.mock("@/lib/api", () => ({ errorMessage: String }));
 
 beforeEach(() => {
    vi.clearAllMocks();
@@ -47,7 +46,7 @@ describe("copying text to the clipboard", () => {
       ).resolves.toBe(false);
       expect(h.success).not.toHaveBeenCalled();
       expect(h.error).toHaveBeenCalledExactlyOnceWith("Couldn't copy", {
-         description: "Error: Denied",
+         description: "Denied",
       });
    });
 });

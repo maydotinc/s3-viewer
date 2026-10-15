@@ -1,22 +1,16 @@
 import { env } from "@/lib/env";
 import { BASE64_PATTERN } from "./audit-chain-key";
 import {
-   CREDENTIAL_AES_KEY_BYTES,
    CREDENTIAL_ENVELOPE_VERSION,
-   CREDENTIAL_GCM_IV_BYTES,
    serverCredentialsSchema,
-   type CredentialEnvelope,
    type ServerCredentials,
 } from "@s3-viewer/types";
 import {
    constants,
-   createCipheriv,
    createDecipheriv,
    createPrivateKey,
    createPublicKey,
    privateDecrypt,
-   publicEncrypt,
-   randomBytes,
    type KeyObject,
 } from "node:crypto";
 import { z } from "zod";
@@ -71,7 +65,6 @@ const encryptionPublicKey = (): string => {
 };
 
 const fromBase64 = (value: string): Buffer => Buffer.from(value, "base64");
-const toBase64 = (value: Buffer): string => value.toString("base64");
 
 const parseEnvelope = (blob: string): Envelope =>
    envelopeSchema.parse(JSON.parse(fromBase64(blob).toString("utf8")));
@@ -108,32 +101,4 @@ const decryptCredentials = (
    return serverCredentialsSchema.parse(JSON.parse(plain.toString("utf8")));
 };
 
-const encryptCredentials = (
-   credentials: ServerCredentials,
-   boundTo: string
-): string => {
-   const aesKey = randomBytes(CREDENTIAL_AES_KEY_BYTES);
-   const iv = randomBytes(CREDENTIAL_GCM_IV_BYTES);
-   const cipher = createCipheriv("aes-256-gcm", aesKey, iv);
-   cipher.setAAD(Buffer.from(boundTo, "utf8"));
-   const ct = Buffer.concat([
-      cipher.update(JSON.stringify(credentials), "utf8"),
-      cipher.final(),
-      cipher.getAuthTag(),
-   ]);
-   const k = publicEncrypt(oaep(loadPublicKey()), aesKey);
-   const envelope: CredentialEnvelope = {
-      v: CREDENTIAL_ENVELOPE_VERSION,
-      k: toBase64(k),
-      iv: toBase64(iv),
-      ct: toBase64(ct),
-   };
-   return Buffer.from(JSON.stringify(envelope), "utf8").toString("base64");
-};
-
-export {
-   assertPrivateKey,
-   decryptCredentials,
-   encryptCredentials,
-   encryptionPublicKey,
-};
+export { assertPrivateKey, decryptCredentials, encryptionPublicKey };

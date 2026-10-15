@@ -81,6 +81,7 @@ describe("refreshing pending invites the API may have revoked", () => {
       expect(invalidated("backups")).toEqual([
          queryKeys.buckets("me", "server"),
          ...SENT_INVITES,
+         queryKeys.members("me", "server"),
       ]);
    });
 });
@@ -175,11 +176,6 @@ describe("accepting an invite", () => {
          queryKeys.servers("me"),
          queryKeys.server("me", "joined"),
       ]);
-      for (const key of [
-         queryKeys.buckets("me", "joined"),
-         queryKeys.members("me", "joined"),
-      ])
-         expect(key.slice(0, 4)).toEqual(queryKeys.server("me", "joined"));
    });
 
    it("shows why an invite couldn't be accepted", () => {

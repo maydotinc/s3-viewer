@@ -21,6 +21,7 @@ import {
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import {
    ArrowRightLeft,
@@ -39,8 +40,7 @@ import { useRouter } from "next/router";
 import { useRef, useState } from "react";
 import ServerLogo from "./server-logo";
 
-const TRIGGER =
-   "flex h-12 w-full cursor-pointer items-center gap-2.5 rounded-lg border border-viewerborder bg-viewerwhite px-3 text-left outline-none transition-colors duration-150 hover:bg-viewergray";
+const TRIGGER = `flex h-12 w-full cursor-pointer items-center gap-2.5 rounded-lg border border-viewerborder bg-viewerwhite px-3 text-left outline-none transition-colors duration-150 hover:bg-viewergray ${FOCUS_RING}`;
 
 const ServerSelect = () => {
    const { open: openModal } = useModalActions();

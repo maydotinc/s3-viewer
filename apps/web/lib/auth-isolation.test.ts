@@ -48,7 +48,6 @@ const resumable = (userId: string, objectKey: string) => {
          lastModified: 1,
          expectedETag: null,
          savedAt: Date.now(),
-         digestStorage: "chunks",
       },
    };
 };

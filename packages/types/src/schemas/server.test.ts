@@ -51,6 +51,15 @@ describe("audit text search", () => {
    });
 });
 
+describe("audit bucket filter", () => {
+   it("accepts every bucket name the app can open, up to 255 characters", () => {
+      const accepts = (bucket: string): boolean =>
+         auditQuerySchema.safeParse({ serverId: "server01", bucket }).success;
+      expect(accepts("b".repeat(255))).toBe(true);
+      expect(accepts("b".repeat(256))).toBe(false);
+   });
+});
+
 describe("role validation boundaries", () => {
    it.each(Object.values(Role))("preserves the role subsets for %s", (role) => {
       expect(grantableRoleSchema.safeParse(role).success).toBe(

@@ -67,7 +67,7 @@ const BucketHeader = () => {
    if (isLoading || isPending) {
       return (
          <div className="flex min-w-0 items-center gap-2" aria-busy="true">
-            <Skeleton className="size-8 shrink-0 rounded-lg" />
+            <Skeleton className="size-8 shrink-0 rounded-lg pointer-coarse:size-11" />
             <Skeleton className="h-4 w-48 max-w-full min-w-0" />
          </div>
       );

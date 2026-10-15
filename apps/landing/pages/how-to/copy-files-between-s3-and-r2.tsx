@@ -18,9 +18,10 @@ const steps: HowToStep[] = [
             folder&apos;s ⋮ menu (or select several rows and use the selection
             toolbar) and choose <strong>Copy to another bucket…</strong>. Pick
             the destination server, its bucket, and a destination prefix,
-            optionally check <strong>Replace existing</strong>, and run it. A
-            folder is relisted and copied object by object with progress, and
-            the transfer is resumable and cancellable like a folder move.
+            optionally check{" "}
+            <strong>Replace objects that already exist there</strong>, and run
+            it. A folder is relisted and copied object by object with progress,
+            and the transfer is resumable and cancellable like a folder move.
          </>
       ),
    },

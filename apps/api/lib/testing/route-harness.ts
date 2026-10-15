@@ -70,7 +70,6 @@ const scopeQueryRaw =
       throw new Error("unexpected raw query in these tests");
    };
 
-// a member holding `role` on every listed bucket of a bucket-restricted server.
 const bucketMember = (role: DbRole | null, buckets: string[] = ["backups"]) =>
    role
       ? {

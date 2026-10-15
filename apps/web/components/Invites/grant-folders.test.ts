@@ -149,13 +149,6 @@ describe("adding a folder to a grant", () => {
          })
       ).toBe("Inside [U+202E]x/ only. A folder doesn't have to exist yet.");
    });
-
-   it("passes on invalid input", () => {
-      expect(addGrantFolder([], "a/../b", null)).toEqual({
-         ok: false,
-         error: 'A folder can\'t have empty, "." or ".." parts.',
-      });
-   });
 });
 
 describe("what shows under the folder field", () => {

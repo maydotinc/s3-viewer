@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mountedRuntime } from "@/components/test-helpers";
+import { mountedRuntime, typeInto } from "@/components/test-helpers";
 import { LIST_INPUT_DEBOUNCE_MS } from "@/lib/constants";
 
 const h = vi.hoisted(() => ({
@@ -30,10 +30,8 @@ const input = async () => {
    await view.mount(createElement(PrefixSearch));
    return view.current.container.querySelector("input")!;
 };
-const setValue = Object.getOwnPropertyDescriptor(
-   HTMLInputElement.prototype,
-   "value"
-)!.set!;
+const type = (field: HTMLInputElement, value: string) =>
+   act(async () => typeInto(field, value));
 
 beforeEach(() => {
    h.gridReady = true;
@@ -57,11 +55,7 @@ describe("prefix filter availability", () => {
 
 describe("filter suggestions", () => {
    it("reads completions from the grid's own listing instead of listing the prefix again", async () => {
-      const field = await input();
-      await act(async () => {
-         setValue.call(field, "rep");
-         field.dispatchEvent(new Event("input", { bubbles: true }));
-      });
+      await type(await input(), "rep");
       expect(h.suggest).toHaveBeenLastCalledWith("bucket", "logs/rep", {
          cacheOnly: true,
       });
@@ -69,13 +63,6 @@ describe("filter suggestions", () => {
 });
 
 describe("filter requests", () => {
-   const type = async (field: HTMLInputElement, value: string) => {
-      await act(async () => {
-         setValue.call(field, value);
-         field.dispatchEvent(new Event("input", { bubbles: true }));
-      });
-   };
-
    it("waits out the debounce and a second character before listing", async () => {
       vi.useFakeTimers();
       try {

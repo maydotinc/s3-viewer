@@ -1,11 +1,9 @@
 import {
-   Btn,
    C,
    Card,
    Chip,
    Cursor,
    Fade,
-   Field,
    Glide,
    HR,
    Icon,
@@ -17,6 +15,25 @@ import {
 } from "../shared";
 import { ILLUSTRATION_LABELS } from "../labels";
 import { Crumb } from "./parts";
+
+const MENU_ITEMS = [
+   { label: "Download", icon: "download" },
+   { label: "Copy link", icon: "link" },
+   { label: "Rename", icon: "pencil" },
+] as const;
+
+const Toast = () => (
+   <g transform="translate(248 280)">
+      <rect width={208} height={52} rx={8} fill={C.blue} />
+      <Icon name="check" x={12} y={10} color={C.white} sw={1.8} />
+      <Txt x={36} y={23} weight={600} fill={C.white}>
+         Link copied
+      </Txt>
+      <Txt x={36} y={40} size={9.5} fill={C.white} mono opacity={0.75}>
+         …pdf?X-Amz-Expires=900&amp;…
+      </Txt>
+   </g>
+);
 
 export const ShareLinkIllustration = () => (
    <IllustrationFrame label={ILLUSTRATION_LABELS.shareLink}>
@@ -62,64 +79,33 @@ export const ShareLinkIllustration = () => (
                menu
             />
          </Card>
-         <Card x={248} y={92} w={200} h={144}>
-            <Txt x={16} y={26} weight={600} fill={C.black}>
-               Share q3-report.pdf
-            </Txt>
-            <Field x={16} y={40} w={168}>
-               <Txt x={10} y={18} size={10.5} fill={C.text} mono>
-                  s3v.app/l/8f2a…q3
+         <Card x={248} y={96} w={168} h={128}>
+            {MENU_ITEMS.map(({ label, icon }, index) => (
+               <g key={label} transform={`translate(0 ${6 + index * 28})`}>
+                  {icon === "link" && (
+                     <rect x={4} width={160} height={28} rx={5} fill={C.gray} />
+                  )}
+                  <Icon name={icon} x={12} y={7} size={14} color={C.text} />
+                  <Txt x={34} y={18} size={11} fill={C.black}>
+                     {label}
+                  </Txt>
+               </g>
+            ))}
+            <HR x={0} y={94} w={168} />
+            <g transform="translate(0 94)">
+               <Icon name="trash" x={12} y={9} size={14} color={C.red} />
+               <Txt x={34} y={20} size={11} fill={C.red}>
+                  Delete
                </Txt>
-               <Icon
-                  name="copy"
-                  x={144}
-                  y={7}
-                  size={14}
-                  color={C.light}
-                  sw={1.3}
-               />
-            </Field>
-            <Icon
-               name="clock"
-               x={16}
-               y={80}
-               size={13}
-               color={C.light}
-               sw={1.3}
-            />
-            <Txt x={34} y={91} size={11} fill={C.light}>
-               Expires in 15 min · read only
-            </Txt>
-            <Btn x={16} y={104} w={92} label="Copy link" icon="link" />
+            </g>
          </Card>
-         <Cursor x={346} y={212} />
+         <Cursor x={330} y={140} />
          <Chip x={24} y={252} w={96} label="Presigned URL" mono size={10} />
          <Chip x={128} y={252} w={112} label="No account needed" />
          <Txt x={24} y={296} size={10.5} fill={C.light}>
             For ongoing access, send an email invite.
          </Txt>
-         <Motion
-            still={
-               <g transform="translate(272 288)">
-                  <rect width={176} height={36} rx={8} fill={C.blue} />
-                  <Icon name="check" x={12} y={10} color={C.white} sw={1.8} />
-                  <Txt x={36} y={23} weight={600} fill={C.white}>
-                     Link copied
-                  </Txt>
-                  <Txt
-                     x={162}
-                     y={23}
-                     size={11}
-                     fill={C.white}
-                     mono
-                     anchor="end"
-                     opacity={0.75}
-                  >
-                     14:59
-                  </Txt>
-               </g>
-            }
-         >
+         <Motion still={<Toast />}>
             <g>
                <Glide
                   values="0 10;0 0;0 0;0 10"
@@ -127,24 +113,7 @@ export const ShareLinkIllustration = () => (
                   dur="5s"
                />
                <Fade values="0;1;1;0" keyTimes="0;.12;.88;1" dur="5s" />
-               <g transform="translate(272 288)">
-                  <rect width={176} height={36} rx={8} fill={C.blue} />
-                  <Icon name="check" x={12} y={10} color={C.white} sw={1.8} />
-                  <Txt x={36} y={23} weight={600} fill={C.white}>
-                     Link copied
-                  </Txt>
-                  <Txt
-                     x={162}
-                     y={23}
-                     size={11}
-                     fill={C.white}
-                     mono
-                     anchor="end"
-                     opacity={0.75}
-                  >
-                     14:59
-                  </Txt>
-               </g>
+               <Toast />
             </g>
          </Motion>
       </SVGRoot>

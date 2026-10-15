@@ -70,7 +70,7 @@ const faqs: Faq[] = [
       question:
          "Is there a limit on how many providers or buckets I can connect?",
       answer:
-         "No. Add as many servers and as many buckets as you need. The self-hosted build has no limits at all.",
+         "Each account can own up to 20 servers, with as many buckets under each as the credentials reach.",
    },
 ];
 

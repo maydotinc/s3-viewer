@@ -1,4 +1,6 @@
 import {
+   ApiError,
+   ClientErrorCode,
    apiUrl,
    handleUnauthorized,
    networkError,
@@ -17,6 +19,13 @@ const uploadTimeoutMs = (size: number) =>
    Math.max(
       MIN_UPLOAD_TIMEOUT_MS,
       Math.ceil((size / MIN_UPLOAD_THROUGHPUT_BYTES_PER_SEC) * 1000)
+   );
+
+const outcomeUnknown = () =>
+   new ApiError(
+      0,
+      "Upload result unknown. Refresh the folder and review the file before uploading again.",
+      ClientErrorCode.UPLOAD_OUTCOME_UNKNOWN
    );
 
 const retryAfter = new WeakMap<object, number>();
@@ -128,5 +137,5 @@ const putBytes = <T>({
    return { done, abort };
 };
 
-export { objectUploadUrl, putBytes, retryAfterMs };
+export { objectUploadUrl, outcomeUnknown, putBytes, retryAfterMs };
 export type { TransportHandle, UploadParams };

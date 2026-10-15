@@ -7,6 +7,7 @@ import {
    type Column,
 } from "@/components/invite-table";
 import { ConfirmButton } from "@/components/Modals/confirm-button";
+import RefreshButton from "@/components/refresh-button";
 import useAcceptInvite from "@/lib/hooks/mutations/invites/useAcceptInvite";
 import useRejectInvite from "@/lib/hooks/mutations/invites/useRejectInvite";
 import { useReceivedInvites } from "@/lib/hooks/queries/server/useInvites";
@@ -74,6 +75,14 @@ const ReceivedInvites = () => {
                </Link>
                .
             </>
+         }
+         action={
+            <RefreshButton
+               size="icon-sm"
+               spinning={query.isFetching && !query.isFetchingNextPage}
+               disabled={!userId}
+               onClick={() => void query.refetch()}
+            />
          }
          pending={!userId}
          query={query}

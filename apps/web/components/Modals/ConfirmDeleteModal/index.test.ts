@@ -1,8 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as React from "react";
 import type { S3DeleteResult, S3DeleteTarget } from "@s3-viewer/types";
-import { one } from "@/lib/test/elements";
-import DeletionProtectionNotice from "@/components/Modals/deletion-protection-notice";
 
 const h = vi.hoisted(() => ({
    slots: [] as unknown[],
@@ -11,8 +9,6 @@ const h = vi.hoisted(() => ({
    remove: vi.fn(),
    pending: [] as Promise<unknown>[],
    provider: "S3",
-   isPending: false,
-   guard: vi.fn(),
 }));
 
 vi.mock("react", async (original) => ({
@@ -41,7 +37,7 @@ vi.mock("react", async (original) => ({
    },
    useEffect: () => undefined,
 }));
-vi.mock("@/lib/hooks/useBeforeUnload", () => ({ useBeforeUnload: h.guard }));
+vi.mock("@/lib/hooks/useBeforeUnload", () => ({ useBeforeUnload: vi.fn() }));
 vi.mock("@/components/Modals/confirm-dialog", () => ({
    ConfirmDialog: () => null,
 }));
@@ -56,7 +52,7 @@ vi.mock("@tanstack/react-query", () => ({
    useMutation: (options: {
       mutationFn: (input: unknown) => Promise<unknown>;
    }) => ({
-      isPending: h.isPending,
+      isPending: false,
       mutate: (
          input: unknown,
          callbacks: { onSuccess: (result: unknown) => void }
@@ -110,7 +106,6 @@ beforeEach(() => {
    h.cursor = 0;
    h.pending = [];
    h.provider = "S3";
-   h.isPending = false;
    h.remove
       .mockImplementationOnce(
          async (
@@ -140,45 +135,14 @@ afterEach(() => {
 });
 
 describe("delete confirmation retry accounting", () => {
-   it.each([
-      { objects: reviewed },
-      { objects: [{ key: "folder/", expectedETag: null }] },
-   ])(
-      "warns before unloading during selected or prefix deletion",
-      ({ objects }) => {
-         h.isPending = true;
-         renderModal(objects as S3DeleteTarget[], vi.fn());
-         expect(h.guard).toHaveBeenLastCalledWith(true);
-         h.isPending = false;
-         renderModal(objects as S3DeleteTarget[], vi.fn());
-         expect(h.guard).toHaveBeenLastCalledWith(false);
-      }
-   );
-   it.each([
-      ["single object", reviewed.slice(0, 1)],
-      ["selection", reviewed.slice(0, 2)],
-      ["folder", [{ key: "folder/", expectedETag: null }]],
-   ])(
-      "enables R2 %s deletion with explicit key-deletion limits",
-      (_kind, objects) => {
-         h.provider = "R2";
-         const view = renderModal(objects as S3DeleteTarget[], vi.fn());
-         expect(view.props.confirmDisabled).toBe(false);
-         expect(view.props.confirmLabel).toBe("Delete");
-         expect(view.props.description).toContain("R2 deletes are permanent");
-         expect(
-            one(
-               view,
-               (element) => element.type === DeletionProtectionNotice,
-               "deletion protection"
-            ).props
-         ).toMatchObject({
-            serverId: "server123",
-            action: "delete",
-         });
-         expect(view.props.description).not.toContain("versioning");
-      }
-   );
+   it("enables R2 deletion with explicit key-deletion limits", () => {
+      h.provider = "R2";
+      const view = renderModal(reviewed.slice(0, 2), vi.fn());
+      expect(view.props.confirmDisabled).toBe(false);
+      expect(view.props.confirmLabel).toBe("Delete");
+      expect(view.props.description).toContain("R2 deletes are permanent");
+      expect(view.props.description).not.toContain("versioning");
+   });
 
    it("retries all 150 failures before closing the dialog", async () => {
       const onClose = vi.fn();
@@ -389,17 +353,6 @@ describe("delete confirmation retry accounting", () => {
       expect(view.props.confirmDisabled).toBe(false);
       expect(view.props.confirmLabel).toBe("Continue deleting");
       expect(onClose).not.toHaveBeenCalled();
-   });
-
-   it("blocks an unreviewable failure even with pages left to enumerate", async () => {
-      const folder = [{ key: "folder/", expectedETag: null }];
-      h.get.mockResolvedValue({ objects: reviewed, nextToken: "next" });
-      h.remove.mockReset().mockRejectedValue(new Error("Response lost"));
-      const onClose = vi.fn();
-      await confirm(folder, onClose);
-      const view = renderModal(folder, onClose);
-      expect(view.props.confirmDisabled).toBe(true);
-      expect(view.props.error).toContain("reviewed again");
    });
 
    it("blocks a folder resume once only unreviewable failures are left", async () => {

@@ -127,9 +127,8 @@ it("aborts a persisted multipart upload before invalidating the outgoing session
       expect(uploads.getState().entries).toEqual({});
       expect(session.getState().userId).toBe("outgoing-user");
       await vi.waitFor(() => expect(aborted).toHaveBeenCalledOnce());
-      expect(
-         parts.slice(1).every(({ abort }) => abort.mock.calls.length === 1)
-      ).toBe(true);
+      for (const { abort } of parts.slice(1))
+         expect(abort).toHaveBeenCalledOnce();
       expect(aborted).toHaveBeenCalledWith({
          userId: "outgoing-user",
          headers: expect.objectContaining({

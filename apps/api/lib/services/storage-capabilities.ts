@@ -9,7 +9,7 @@ const B2_NOTICE =
 
 const storageCapabilities = (
    provider: Provider,
-   endpoint?: string
+   endpoint: string
 ): StorageCapabilities => ({
    upload: true,
    replace: true,
@@ -17,7 +17,7 @@ const storageCapabilities = (
    delete: true,
    deleteProtection: provider === Provider.S3 ? "conditional" : "checked",
    notice:
-      provider === Provider.Other && endpoint && backblazeRegion(endpoint)
+      provider === Provider.Other && backblazeRegion(endpoint)
          ? B2_NOTICE
          : null,
 });

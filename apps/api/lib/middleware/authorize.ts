@@ -6,7 +6,7 @@ import type { CredentialSnapshot } from "@/lib/s3/client-cache";
 import { guardFolders, type FolderGrant } from "@/lib/s3/folder-guard";
 import { input } from "./validate";
 import { grantFoldersOf } from "@/lib/services/bucket-grants";
-import { memberRole } from "@/lib/services/members";
+import { memberRole, type GrantRefusal } from "@/lib/services/members";
 import {
    auditScopeOf,
    auditSettingsOf,
@@ -26,6 +26,7 @@ import {
    isAtLeast,
 } from "@s3-viewer/permissions";
 import {
+   DOT_SEGMENTS_MESSAGE,
    ErrorCode,
    Role,
    hasDotSegment,
@@ -83,16 +84,35 @@ const denied = (
    scope: DenialScope,
    permission: string,
    reason: DenialReason,
-   bucket: string | null = null
+   bucket: string | null = null,
+   code?: ErrorCode
 ): AccessDenied =>
-   new AccessDenied(status, message, {
-      ...scope,
-      entry: {
-         action: "access.denied",
-         bucket,
-         detail: { permission, reason },
+   new AccessDenied(
+      status,
+      message,
+      {
+         ...scope,
+         entry: {
+            action: "access.denied",
+            bucket,
+            detail: { permission, reason },
+         },
       },
-   });
+      code
+   );
+
+const grantRefusal =
+   (scope: DenialScope): GrantRefusal =>
+   (message, reason, bucket, code) =>
+      denied(
+         403,
+         message,
+         scope,
+         Permission.MANAGE_MEMBERS,
+         reason,
+         bucket,
+         code
+      );
 
 const requireUser = (req: Request): SessionUser => {
    const user = req.user;
@@ -141,8 +161,6 @@ const lockedPermission = async (
 };
 
 const NAMED_FOLDERS = 3;
-const DOT_SEGMENTS =
-   "Paths with . or .. segments can only be opened by the server owner.";
 
 const limitedTo = (folders: readonly string[]): string => {
    if (folders.length === 1) {
@@ -164,7 +182,7 @@ const folderDenial = (
 ): AccessDenied =>
    new AccessDenied(
       403,
-      reason === "path" ? DOT_SEGMENTS : limitedTo(auth.folders ?? []),
+      reason === "path" ? DOT_SEGMENTS_MESSAGE : limitedTo(auth.folders ?? []),
       {
          ...denialScope(auth),
          entry: {
@@ -522,9 +540,11 @@ export {
    authorizeAudit,
    authorizeBucket,
    authorizeServer,
+   denialScopeOf,
    denied,
    getAuditContext,
    getAuth,
+   grantRefusal,
    guardedGrant,
    lockedPermission,
    refuse,

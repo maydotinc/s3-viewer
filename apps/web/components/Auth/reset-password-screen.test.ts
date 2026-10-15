@@ -1,7 +1,8 @@
 // @vitest-environment happy-dom
 import { act, createElement, type ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushRuntime, mountRuntime } from "@/lib/test/runtime";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mountedRuntime, submitForm } from "@/components/test-helpers";
+import { flushRuntime } from "@/lib/test/runtime";
 import ResetPasswordScreen from "./reset-password-screen";
 
 const h = vi.hoisted(() => ({
@@ -32,7 +33,8 @@ vi.mock("./password-input", () => ({
    },
 }));
 
-const mounted: Awaited<ReturnType<typeof mountRuntime>>[] = [];
+const view = mountedRuntime();
+const mount = () => view.mount(createElement(ResetPasswordScreen));
 
 beforeEach(() => {
    h.resetPassword.mockReset();
@@ -42,14 +44,9 @@ beforeEach(() => {
    h.query = { token: "reset-token-from-email" };
 });
 
-afterEach(async () => {
-   while (mounted.length) await mounted.pop()!.unmount();
-});
-
 describe("reset password link", () => {
    it("drops the token from the address bar but still uses it", async () => {
-      const runtime = await mountRuntime(createElement(ResetPasswordScreen));
-      mounted.push(runtime);
+      const { container } = await mount();
       await flushRuntime();
       expect(h.replace).toHaveBeenCalledWith("/reset-password", undefined, {
          shallow: true,
@@ -60,11 +57,7 @@ describe("reset password link", () => {
          h.onPassword({ target: { value: "a-brand-new-password-2026" } })
       );
       await act(async () => {
-         runtime.container
-            .querySelector("form")!
-            .dispatchEvent(
-               new Event("submit", { bubbles: true, cancelable: true })
-            );
+         submitForm(container);
       });
       expect(h.resetPassword).toHaveBeenCalledWith(
          "reset-token-from-email",
@@ -74,11 +67,10 @@ describe("reset password link", () => {
 
    it("shows the broken-link screen and leaves the url alone without a token", async () => {
       h.query = {};
-      const runtime = await mountRuntime(createElement(ResetPasswordScreen));
-      mounted.push(runtime);
+      const { container } = await mount();
       await flushRuntime();
       expect(h.replace).not.toHaveBeenCalled();
-      expect(runtime.container.querySelector("h1")?.textContent).toBe(
+      expect(container.querySelector("h1")?.textContent).toBe(
          "This link doesn't work"
       );
    });

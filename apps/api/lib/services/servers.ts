@@ -6,7 +6,6 @@ import {
 } from "@/lib/cursor";
 import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { ApiHttpError } from "@/lib/http";
-import { storageCapabilities } from "./storage-capabilities";
 import { detectProvider } from "@/lib/utils/detect-provider";
 import { assertPublicEndpoint } from "@/lib/utils/endpoint";
 import { decryptCredentials } from "@/lib/utils/encryption";
@@ -71,8 +70,8 @@ type ServerRow = AuditSettingsRow & {
    id: string;
    name: string;
    provider: $Enums.Provider;
-   capabilities?: Prisma.JsonValue;
-   restrictedBuckets?: boolean;
+   capabilities: Prisma.JsonValue;
+   restrictedBuckets: boolean;
 };
 
 const UNREADABLE_CAPABILITIES: StorageCapabilities = {
@@ -94,14 +93,10 @@ const storedCapabilities = z.object({
    notice: z.string().nullable(),
 }) satisfies z.ZodType<StorageCapabilities>;
 
-// capabilities are stored whenever credentials are written, so a custom endpoint without them is unreadable rather than re-probed.
+// capabilities are stored whenever credentials are written, so a row without them is unreadable rather than re-probed.
 const capabilitiesOf = (row: ServerRow): StorageCapabilities => {
    const stored = storedCapabilities.safeParse(row.capabilities);
-   if (stored.success) return stored.data;
-   const provider = Provider[row.provider];
-   return provider === Provider.Other
-      ? UNREADABLE_CAPABILITIES
-      : storageCapabilities(provider);
+   return stored.success ? stored.data : UNREADABLE_CAPABILITIES;
 };
 
 const toServerInfo = (row: ServerRow, userRole: Role): ServerInfo => ({

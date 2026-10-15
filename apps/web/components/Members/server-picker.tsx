@@ -25,7 +25,10 @@ const ServerPicker = ({
    loading,
    onChange,
 }: ServerPickerProps) => {
-   if (loading) return <Skeleton className={`h-9 rounded-lg ${WIDTH}`} />;
+   if (loading)
+      return (
+         <Skeleton className={`h-9 rounded-lg pointer-coarse:h-11 ${WIDTH}`} />
+      );
    return (
       <Select value={selected?.id ?? ""} onValueChange={onChange}>
          <SelectTrigger aria-label="Server" className={WIDTH}>

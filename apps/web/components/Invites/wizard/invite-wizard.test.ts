@@ -3,6 +3,7 @@ import {
    buttonByText,
    mountedRuntime,
    serverInfo,
+   typeInto,
 } from "@/components/test-helpers";
 import { flushRuntime } from "@/lib/test/runtime";
 import {
@@ -76,22 +77,9 @@ vi.mock("./step-access", () => ({
 vi.mock("@/components/Layout/Sidebar/Servers/server-logo", () => ({
    default: () => null,
 }));
-vi.mock("@s3-viewer/ui/components/checkbox", () => ({
-   Checkbox: (props: {
-      id: string;
-      checked: boolean;
-      disabled?: boolean;
-      onCheckedChange: (checked: boolean) => void;
-   }) =>
-      createElement("button", {
-         id: props.id,
-         type: "button",
-         role: "checkbox",
-         "aria-checked": props.checked,
-         disabled: props.disabled,
-         onClick: () => props.onCheckedChange(!props.checked),
-      }),
-}));
+vi.mock("@s3-viewer/ui/components/checkbox", async () =>
+   (await import("@/components/test-helpers")).checkboxButton()
+);
 vi.mock("next/router", () => ({
    useRouter: () => ({ isReady: true, query: h.query }),
 }));
@@ -114,10 +102,6 @@ const bucket = (name: string): S3Bucket => ({
 });
 
 const view = mountedRuntime();
-const setValue = Object.getOwnPropertyDescriptor(
-   HTMLInputElement.prototype,
-   "value"
-)!.set!;
 
 const mount = async () => {
    await view.mount(createElement(InviteWizard));
@@ -136,10 +120,7 @@ const sendButton = () =>
    buttonByText(view.current.container, "Save", "prefix")!;
 const addEmail = async (email: string) => {
    const input = view.current.container.querySelector("input")!;
-   await act(async () => {
-      setValue.call(input, email);
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-   });
+   await act(async () => typeInto(input, email));
    await act(async () => {
       input.dispatchEvent(
          new KeyboardEvent("keydown", {

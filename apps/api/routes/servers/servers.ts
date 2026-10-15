@@ -45,9 +45,6 @@ import { Router, type Request, type Response } from "express";
 
 const serverCrudRouter: Router = Router();
 
-const duplicateName = () =>
-   new ApiHttpError(409, "A server with that name already exists");
-
 const listServers = async (
    req: Request,
    res: Response,
@@ -68,53 +65,46 @@ const createServer = async (
       encryptedCredentials,
       user.id
    );
-   const server = await prisma
-      .$transaction(async (tx) => {
-         await xactLock(tx, LOCK_NAMESPACE.SERVER_CREATE, user.id);
-         const owned = await tx.server.count({ where: { ownerId: user.id } });
-         if (owned >= MAX_SERVERS_PER_USER) {
-            const contact = env.SUPPORT_EMAIL
-               ? ` Contact ${env.SUPPORT_EMAIL} for a higher limit.`
-               : "";
-            throw new ApiHttpError(
-               409,
-               `You can create at most ${MAX_SERVERS_PER_USER} servers. Delete one to add another.${contact}`
-            );
-         }
-         const created = await tx.server.create({
-            data: {
-               name: serverName,
-               provider,
-               credentials: encryptedCredentials,
-               allowedBuckets: bucketNames ?? [],
-               restrictedBuckets: (bucketNames?.length ?? 0) > 0,
-               ownerId: user.id,
-               serverAccess: { create: { userId: user.id, role: Role.OWNER } },
-               capabilities: storageCapabilities(
-                  provider,
-                  credentials.endpoint
-               ),
-            },
-            select: serverInfoSelect,
-         });
-         await appendAuditWithin(
-            tx,
-            {
-               serverId: created.id,
-               actor: { id: user.id, email: user.email },
-            },
-            [
-               {
-                  action: "server.create",
-                  detail: { name: serverName, provider },
-               },
-            ]
+   const server = await prisma.$transaction(async (tx) => {
+      await xactLock(tx, LOCK_NAMESPACE.SERVER_CREATE, user.id);
+      const owned = await tx.server.count({ where: { ownerId: user.id } });
+      if (owned >= MAX_SERVERS_PER_USER) {
+         const contact = env.SUPPORT_EMAIL
+            ? ` Contact ${env.SUPPORT_EMAIL} for a higher limit.`
+            : "";
+         throw new ApiHttpError(
+            409,
+            `You can create at most ${MAX_SERVERS_PER_USER} servers. Delete one to add another.${contact}`
          );
-         return created;
-      })
-      .catch((err: unknown) =>
-         rethrowDbError(err, { unique: duplicateName() })
+      }
+      const created = await tx.server.create({
+         data: {
+            name: serverName,
+            provider,
+            credentials: encryptedCredentials,
+            allowedBuckets: bucketNames ?? [],
+            restrictedBuckets: (bucketNames?.length ?? 0) > 0,
+            ownerId: user.id,
+            serverAccess: { create: { userId: user.id, role: Role.OWNER } },
+            capabilities: storageCapabilities(provider, credentials.endpoint),
+         },
+         select: serverInfoSelect,
+      });
+      await appendAuditWithin(
+         tx,
+         {
+            serverId: created.id,
+            actor: { id: user.id, email: user.email },
+         },
+         [
+            {
+               action: "server.create",
+               detail: { name: serverName, provider },
+            },
+         ]
       );
+      return created;
+   });
    res.status(201).json({ server: toServerInfo(server, Role.OWNER) });
 };
 
@@ -149,7 +139,6 @@ const renameServer = async (
       })
       .catch((err: unknown) =>
          rethrowDbError(err, {
-            unique: duplicateName(),
             missing: new ApiHttpError(404, SERVER_NOT_FOUND),
          })
       );

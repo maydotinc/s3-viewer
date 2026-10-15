@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MAX_BATCH_KEYS, Provider, Role } from "@s3-viewer/types";
+import { MAX_BATCH_KEYS, Role } from "@s3-viewer/types";
 import { useCreateObjectCommands } from "./useObjectCommands";
 import { downloadFromStorage } from "@/lib/utils/download";
 import { getDownloadUrl } from "@/lib/utils/s3/presign";
 
 const h = vi.hoisted(() => ({
-   provider: "S3",
    role: "EDITOR",
    capable: true,
    rename: vi.fn(),
@@ -49,7 +48,6 @@ vi.mock("@/lib/contexts/modal-context", () => ({
 vi.mock("@/lib/hooks/queries/server/useCurrentServer", () => ({
    default: () => ({
       currentServer: {
-         provider: h.provider,
          capabilities: {
             upload: h.capable,
             replace: h.capable,
@@ -97,146 +95,135 @@ beforeEach(() => {
    h.preparing = false;
 });
 
-describe.each([Provider.S3, Provider.R2, Provider.Other])(
-   "object commands on %s",
-   (provider) => {
-      it("offers every mutation an editor is allowed to run", () => {
-         h.provider = provider;
-         h.role = Role.EDITOR;
-         const commands = useCreateObjectCommands("backups");
-         expect(commands.can).toEqual({
-            download: true,
-            rename: true,
-            upload: true,
-            delete: true,
-         });
-         const opened = expect.objectContaining({
+describe("object commands", () => {
+   it("offers every mutation an editor is allowed to run", () => {
+      h.role = Role.EDITOR;
+      const commands = useCreateObjectCommands("backups");
+      expect(commands.can).toEqual({
+         download: true,
+         rename: true,
+         upload: true,
+         delete: true,
+      });
+      const opened = expect.objectContaining({
+         serverId: "connected-server",
+         bucketName: "backups",
+      });
+      commands.rename("old.txt", '"reviewed"');
+      expect(h.rename).toHaveBeenCalledWith(opened);
+      commands.copy("old.txt", '"reviewed"');
+      expect(h.copy).toHaveBeenCalledWith(opened);
+      commands.createFolder("reports/");
+      expect(h.createFolder).toHaveBeenCalledWith(opened);
+      commands.moveMany({ folderKey: "reports/" });
+      expect(h.move).toHaveBeenCalledWith(opened);
+      commands.transfer({ folderKey: "reports/" });
+      expect(h.transfer).toHaveBeenCalledWith(opened);
+      commands.bulkRename({ folderKey: "reports/" });
+      expect(h.bulkRename).toHaveBeenCalledWith(opened);
+      commands.incompleteUploads("reports/");
+      expect(h.uploads).toHaveBeenCalledWith(opened);
+      commands.downloadZip(["reports/"]);
+      expect(h.archive).toHaveBeenCalledWith(
+         expect.objectContaining({
+            userId: "user-1",
             serverId: "connected-server",
             bucketName: "backups",
-         });
-         commands.rename("old.txt", '"reviewed"');
-         expect(h.rename).toHaveBeenCalledWith(opened);
-         commands.copy("old.txt", '"reviewed"');
-         expect(h.copy).toHaveBeenCalledWith(opened);
-         commands.createFolder("reports/");
-         expect(h.createFolder).toHaveBeenCalledWith(opened);
-         commands.moveMany({ folderKey: "reports/" });
-         expect(h.move).toHaveBeenCalledWith(opened);
-         commands.transfer({ folderKey: "reports/" });
-         expect(h.transfer).toHaveBeenCalledWith(opened);
-         commands.bulkRename({ folderKey: "reports/" });
-         expect(h.bulkRename).toHaveBeenCalledWith(opened);
-         commands.incompleteUploads("reports/");
-         expect(h.uploads).toHaveBeenCalledWith(opened);
-         commands.downloadZip(["reports/"]);
-         expect(h.archive).toHaveBeenCalledWith(
-            expect.objectContaining({
-               userId: "user-1",
-               serverId: "connected-server",
-               bucketName: "backups",
-               objectKeys: ["reports/"],
-            })
-         );
-         commands.editSettings("old.txt", '"reviewed"');
-         expect(h.settings).toHaveBeenCalledWith(opened);
-         commands.remove([{ key: "old.txt", expectedETag: '"reviewed"' }]);
-         expect(h.remove).toHaveBeenCalledWith(opened);
-      });
+            objectKeys: ["reports/"],
+         })
+      );
+      commands.editSettings("old.txt", '"reviewed"');
+      expect(h.settings).toHaveBeenCalledWith(opened);
+      commands.remove([{ key: "old.txt", expectedETag: '"reviewed"' }]);
+      expect(h.remove).toHaveBeenCalledWith(opened);
+   });
 
-      it("follows the provider's capabilities when storage cannot mutate", () => {
-         h.provider = provider;
+   it("follows the provider's capabilities when storage cannot mutate", () => {
+      h.role = Role.EDITOR;
+      h.capable = false;
+      const commands = useCreateObjectCommands("backups");
+      expect(commands.can).toEqual({
+         download: true,
+         rename: false,
+         upload: false,
+         delete: false,
+      });
+      commands.rename("old.txt", '"reviewed"');
+      commands.copy("old.txt", '"reviewed"');
+      commands.createFolder("reports/");
+      commands.moveMany({ folderKey: "reports/" });
+      commands.editSettings("old.txt", '"reviewed"');
+      commands.bulkRename({ folderKey: "reports/" });
+      commands.incompleteUploads("reports/");
+      commands.remove([{ key: "old.txt", expectedETag: '"reviewed"' }]);
+      expect(h.bulkRename).not.toHaveBeenCalled();
+      expect(h.uploads).not.toHaveBeenCalled();
+      expect(h.rename).not.toHaveBeenCalled();
+      expect(h.copy).not.toHaveBeenCalled();
+      expect(h.createFolder).not.toHaveBeenCalled();
+      expect(h.move).not.toHaveBeenCalled();
+      expect(h.settings).not.toHaveBeenCalled();
+      expect(h.remove).not.toHaveBeenCalled();
+
+      commands.transfer({ folderKey: "reports/" });
+      expect(h.transfer).toHaveBeenCalled();
+      commands.downloadZip(["reports/"]);
+      expect(h.archive).toHaveBeenCalled();
+   });
+
+   it("preserves viewer restrictions", () => {
+      h.role = Role.VIEWER;
+      expect(useCreateObjectCommands("backups").can).toEqual({
+         download: true,
+         rename: false,
+         upload: false,
+         delete: false,
+      });
+      useCreateObjectCommands("backups").rename("old.txt", '"reviewed"');
+      useCreateObjectCommands("backups").copy("old.txt", '"reviewed"');
+      useCreateObjectCommands("backups").editSettings("old.txt", '"reviewed"');
+      useCreateObjectCommands("backups").bulkRename({
+         folderKey: "reports/",
+      });
+      useCreateObjectCommands("backups").incompleteUploads("reports/");
+      useCreateObjectCommands("backups").downloadZip(["a.txt"]);
+      expect(h.bulkRename).not.toHaveBeenCalled();
+      expect(h.uploads).not.toHaveBeenCalled();
+      expect(h.archive).toHaveBeenCalled();
+      useCreateObjectCommands("backups").remove([
+         { key: "old.txt", expectedETag: '"reviewed"' },
+      ]);
+      expect(h.rename).not.toHaveBeenCalled();
+      expect(h.copy).not.toHaveBeenCalled();
+      expect(h.settings).not.toHaveBeenCalled();
+      expect(h.remove).not.toHaveBeenCalled();
+   });
+
+   it.each([null, "*", '"*"', 'W/"old"', ""])(
+      "does not rewrite an object without a valid observed ETag: %s",
+      (expectedETag) => {
          h.role = Role.EDITOR;
-         h.capable = false;
-         const commands = useCreateObjectCommands("backups");
-         expect(commands.can).toEqual({
-            download: true,
-            rename: false,
-            upload: false,
-            delete: false,
-         });
-         commands.rename("old.txt", '"reviewed"');
-         commands.copy("old.txt", '"reviewed"');
-         commands.createFolder("reports/");
-         commands.moveMany({ folderKey: "reports/" });
-         commands.editSettings("old.txt", '"reviewed"');
-         commands.bulkRename({ folderKey: "reports/" });
-         commands.incompleteUploads("reports/");
-         commands.remove([{ key: "old.txt", expectedETag: '"reviewed"' }]);
-         expect(h.bulkRename).not.toHaveBeenCalled();
-         expect(h.uploads).not.toHaveBeenCalled();
-         expect(h.rename).not.toHaveBeenCalled();
-         expect(h.copy).not.toHaveBeenCalled();
-         expect(h.createFolder).not.toHaveBeenCalled();
-         expect(h.move).not.toHaveBeenCalled();
-         expect(h.settings).not.toHaveBeenCalled();
-         expect(h.remove).not.toHaveBeenCalled();
-
-         commands.transfer({ folderKey: "reports/" });
-         expect(h.transfer).toHaveBeenCalled();
-         commands.downloadZip(["reports/"]);
-         expect(h.archive).toHaveBeenCalled();
-      });
-
-      it("preserves viewer restrictions regardless of storage provider", () => {
-         h.provider = provider;
-         h.role = Role.VIEWER;
-         expect(useCreateObjectCommands("backups").can).toEqual({
-            download: true,
-            rename: false,
-            upload: false,
-            delete: false,
-         });
-         useCreateObjectCommands("backups").rename("old.txt", '"reviewed"');
-         useCreateObjectCommands("backups").copy("old.txt", '"reviewed"');
+         useCreateObjectCommands("backups").rename("old.txt", expectedETag);
+         useCreateObjectCommands("backups").copy("old.txt", expectedETag);
          useCreateObjectCommands("backups").editSettings(
             "old.txt",
-            '"reviewed"'
+            expectedETag
          );
-         useCreateObjectCommands("backups").bulkRename({
-            folderKey: "reports/",
-         });
-         useCreateObjectCommands("backups").incompleteUploads("reports/");
-         useCreateObjectCommands("backups").downloadZip([]);
-         expect(h.bulkRename).not.toHaveBeenCalled();
-         expect(h.uploads).not.toHaveBeenCalled();
-         expect(h.archive).not.toHaveBeenCalled();
-         useCreateObjectCommands("backups").remove([
-            { key: "old.txt", expectedETag: '"reviewed"' },
-         ]);
          expect(h.rename).not.toHaveBeenCalled();
          expect(h.copy).not.toHaveBeenCalled();
          expect(h.settings).not.toHaveBeenCalled();
-         expect(h.remove).not.toHaveBeenCalled();
-      });
-
-      it.each([null, "*", '"*"', 'W/"old"', ""])(
-         "does not rewrite an object without a valid observed ETag: %s",
-         (expectedETag) => {
-            h.provider = provider;
-            h.role = Role.EDITOR;
-            useCreateObjectCommands("backups").rename("old.txt", expectedETag);
-            useCreateObjectCommands("backups").copy("old.txt", expectedETag);
-            useCreateObjectCommands("backups").editSettings(
-               "old.txt",
-               expectedETag
-            );
-            expect(h.rename).not.toHaveBeenCalled();
-            expect(h.copy).not.toHaveBeenCalled();
-            expect(h.settings).not.toHaveBeenCalled();
-            expect(h.error).toHaveBeenCalledWith(
-               expect.stringContaining("Refresh and review")
-            );
-         }
-      );
-   }
-);
+         expect(h.error).toHaveBeenCalledWith(
+            expect.stringContaining("Refresh and review")
+         );
+      }
+   );
+});
 
 describe("zipping a selection", () => {
    const keys = (total: number) =>
       Array.from({ length: total }, (_unused, index) => `photos/${index}.jpg`);
 
    beforeEach(() => {
-      h.provider = Provider.S3;
       h.role = Role.EDITOR;
    });
 
@@ -317,18 +304,10 @@ describe("after an object mutation settles", () => {
       expect(h.refreshBuckets).not.toHaveBeenCalled();
       expect(done).toHaveBeenCalledOnce();
    });
-
-   it("gives the move dialog the listing reload for each moved batch", () => {
-      h.role = Role.EDITOR;
-      useCreateObjectCommands("backups").moveMany({ folderKey: "reports/" });
-      expect(h.move.mock.calls[0]![0]).toMatchObject({ onMoved: h.refresh });
-      expect(h.refreshBuckets).not.toHaveBeenCalled();
-   });
 });
 
 describe("moving objects", () => {
    it("reloads the listing once for a clean move and passes the destination on", () => {
-      h.provider = Provider.S3;
       h.role = Role.EDITOR;
       const onSuccess = vi.fn();
       useCreateObjectCommands("backups").moveMany(

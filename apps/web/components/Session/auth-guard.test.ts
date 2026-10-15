@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { createElement } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mountedRuntime } from "@/components/test-helpers";
 import { flushRuntime } from "@/lib/test/runtime";
 
@@ -54,7 +54,6 @@ beforeEach(() => {
    h.query = {};
    h.session = { data: null, isPending: true, error: null };
 });
-afterEach(() => vi.clearAllMocks());
 
 describe("auth screens", () => {
    it("render at once, before the session request has answered", async () => {

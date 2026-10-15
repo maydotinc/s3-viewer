@@ -50,14 +50,18 @@ const steps: HowToStep[] = [
       title: "Ongoing: invite them to the server",
       body: (
          <>
-            Open the server&apos;s bucket list and click <strong>Share</strong>{" "}
-            to open the members dialog. Type the recipient&apos;s email and
-            choose <strong>Viewer</strong> (browse and download),{" "}
-            <strong>Editor</strong> (also upload, rename, delete and create
-            buckets where supported) or <strong>Admin</strong> (also manage
-            members, rename the server and remove buckets). They sign in with
-            the code and sign-in link we email them — or with GitHub, if it is
-            enabled — and see the buckets on that server.
+            Click <strong>Invite</strong> above the server&apos;s bucket list,
+            or go to <strong>Settings, Members</strong> and choose{" "}
+            <strong>Invite people</strong>. The wizard walks through{" "}
+            <strong>Who</strong> (their email), <strong>Where</strong> (the
+            server), <strong>Access</strong> (<strong>Viewer</strong> to browse
+            and download, <strong>Editor</strong> to also upload, rename, delete
+            and create buckets where supported, or <strong>Admin</strong> to
+            also manage members, rename the server and remove buckets) and{" "}
+            <strong>Review</strong>. The invite email has a{" "}
+            <strong>View invitation</strong> button; they sign in with email and
+            password — or with GitHub, if it is enabled — and accept it under{" "}
+            <strong>Settings, Invitations</strong>.
          </>
       ),
    },
@@ -75,9 +79,9 @@ const steps: HowToStep[] = [
       title: "Revoke when done",
       body: (
          <>
-            Remove them from the members dialog. They stop being able to reach
-            the server on their next request — no IAM key rotation needed,
-            because no IAM user was ever minted for them.
+            Remove them under <strong>Settings, Members</strong>. They stop
+            being able to reach the server on their next request — no IAM key
+            rotation needed, because no IAM user was ever minted for them.
          </>
       ),
    },

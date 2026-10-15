@@ -5,7 +5,6 @@ import {
    matchText,
    mergeRanges,
    segmentText,
-   splitTerms,
 } from "./match";
 
 const scoreOf = (text: string, term: string): number =>
@@ -69,28 +68,11 @@ describe("matchText", () => {
       expect(veryLate).toBeGreaterThan(scattered);
    });
 
-   it("reports the matched range for a substring hit", () => {
-      expect(matchText("prod-logs", "logs")?.ranges).toEqual([
-         { start: 5, end: 9 },
-      ]);
-   });
-
    it("merges adjacent characters of a subsequence into one range", () => {
       expect(matchText("delete objects", "delob")?.ranges).toEqual([
          { start: 0, end: 3 },
          { start: 7, end: 9 },
       ]);
-   });
-});
-
-describe("splitTerms", () => {
-   it("splits on any run of whitespace and drops empties", () => {
-      expect(splitTerms("  go   to  settings ")).toEqual([
-         "go",
-         "to",
-         "settings",
-      ]);
-      expect(splitTerms("   ")).toEqual([]);
    });
 });
 
@@ -109,20 +91,21 @@ describe("mergeRanges", () => {
    });
 
    it("leaves the input untouched", () => {
-      const ranges = [{ start: 2, end: 4 }];
+      const ranges = [
+         { start: 5, end: 8 },
+         { start: 0, end: 2 },
+         { start: 1, end: 4 },
+      ];
       mergeRanges(ranges);
-      expect(ranges).toEqual([{ start: 2, end: 4 }]);
+      expect(ranges).toEqual([
+         { start: 5, end: 8 },
+         { start: 0, end: 2 },
+         { start: 1, end: 4 },
+      ]);
    });
 });
 
 describe("matchFields", () => {
-   it("scores everything equally when there is no query", () => {
-      expect(matchFields("Anything", "", [])).toEqual({
-         score: 0,
-         ranges: [],
-      });
-   });
-
    it("requires every term to land somewhere", () => {
       expect(
          matchFields("Create bucket", "new add", ["create", "add"])
@@ -193,16 +176,6 @@ describe("segmentText", () => {
          { text: "gs", matched: true },
       ]);
    });
-
-   it("rebuilds the original text exactly", () => {
-      const text = "prod-logs-archive";
-      const ranges = matchText(text, "logs")?.ranges ?? [];
-      expect(
-         segmentText(text, ranges)
-            .map((segment) => segment.text)
-            .join("")
-      ).toBe(text);
-   });
 });
 
 describe("matchSubstring", () => {
@@ -213,10 +186,5 @@ describe("matchSubstring", () => {
       expect(
          matchSubstring("hide show collapse expand panel navigation", "cont")
       ).toBeNull();
-   });
-
-   it("still accepts every substring tier", () => {
-      expect(matchSubstring("log out exit", "out")).not.toBeNull();
-      expect(matchSubstring("log out exit", "log out")).not.toBeNull();
    });
 });

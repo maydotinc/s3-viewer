@@ -23,7 +23,9 @@ type MultipartSession = BucketTarget & {
    savedAt: number;
    partDigests?: Record<number, PartDigest>;
 };
-type StoredSession = MultipartSession & { digestStorage?: "chunks" };
+type ResumedSession = MultipartSession & {
+   partDigests: Record<number, PartDigest>;
+};
 
 const sessionKey = ({
    serverId,
@@ -48,8 +50,8 @@ const store = (): Storage | null => {
    }
 };
 
-const isSession = (value: unknown): value is StoredSession => {
-   const session = value as Partial<StoredSession> | null;
+const isSession = (value: unknown): value is MultipartSession => {
+   const session = value as Partial<MultipartSession> | null;
    return (
       typeof session === "object" &&
       session !== null &&
@@ -68,13 +70,13 @@ const isSession = (value: unknown): value is StoredSession => {
    );
 };
 
-const readSessions = (storage: Storage): Record<string, StoredSession> => {
+const readSessions = (storage: Storage): Record<string, MultipartSession> => {
    const raw = storage.getItem(STORAGE_KEY);
    if (!raw) return {};
    const parsed = JSON.parse(raw) as Record<string, unknown>;
    return Object.fromEntries(
-      Object.entries(parsed).filter((entry): entry is [string, StoredSession] =>
-         isSession(entry[1])
+      Object.entries(parsed).filter(
+         (entry): entry is [string, MultipartSession] => isSession(entry[1])
       )
    );
 };
@@ -90,7 +92,7 @@ const removeDigests = (storage: Storage, session: MultipartSession): void => {
 
 const writeSessions = (
    storage: Storage,
-   sessions: Record<string, StoredSession>
+   sessions: Record<string, MultipartSession>
 ): void => {
    const fresh = Date.now() - SESSION_TTL_MS;
    const entries = Object.entries(sessions);
@@ -160,10 +162,7 @@ const rememberSessionUnlocked = (session: MultipartSession): boolean => {
          else storage.removeItem(digestKey(session, chunk));
       }
       const { partDigests: _digests, ...metadata } = session;
-      writeSessions(storage, {
-         ...sessions,
-         [key]: { ...metadata, digestStorage: "chunks" },
-      });
+      writeSessions(storage, { ...sessions, [key]: metadata });
       catalogSaved = true;
       if (
          previous &&
@@ -195,7 +194,6 @@ const writePartDigest = (
          saved.userId !== session.userId
       )
          return true;
-      if (saved.digestStorage !== "chunks") return false;
       const chunk = chunkOf(partNumber);
       const values = readChunk(storage, session, chunk);
       if (digest) values[partNumber] = digest;
@@ -264,7 +262,7 @@ const resumableSessionUnlocked = ({
    target,
    file,
    expectedETag,
-}: ResumeCandidate): MultipartSession | null => {
+}: ResumeCandidate): ResumedSession | null => {
    try {
       const storage = store();
       if (!storage) return null;
@@ -283,15 +281,6 @@ const resumableSessionUnlocked = ({
          session.expectedETag !== expectedETag
       )
          return null;
-      if (session.digestStorage !== "chunks") {
-         if (
-            session.partDigests &&
-            typeof session.partDigests === "object" &&
-            !Array.isArray(session.partDigests)
-         )
-            rememberSessionUnlocked(session);
-         return session;
-      }
       const partDigests: Record<number, PartDigest> = {};
       for (let chunk = 0; chunk < chunkCount(session); chunk++)
          Object.assign(partDigests, readChunk(storage, session, chunk));
@@ -301,7 +290,7 @@ const resumableSessionUnlocked = ({
    }
 };
 
-const dropSessions = (drop: (session: StoredSession) => boolean): void => {
+const dropSessions = (drop: (session: MultipartSession) => boolean): void => {
    try {
       const storage = store();
       if (!storage) return;
@@ -359,7 +348,7 @@ const forgetSession = (
 
 const resumableSession = (
    candidate: ResumeCandidate
-): Promise<MultipartSession | null> =>
+): Promise<ResumedSession | null> =>
    withMultipartStorageLock(null, () => resumableSessionUnlocked(candidate));
 
 useSessionStore.subscribe((state, previous) => {

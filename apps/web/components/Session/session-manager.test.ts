@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import useSessionStore from "@/lib/stores/session-store";
-import { mountRuntime } from "@/lib/test/runtime";
+import { mountedRuntime } from "@/components/test-helpers";
 import { act, createElement, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,10 +34,6 @@ const Harness = () => {
    return createElement(SessionManager);
 };
 
-let runtime: Awaited<ReturnType<typeof mountRuntime>> | undefined;
-const mount = async () => {
-   runtime = await mountRuntime(createElement(Harness));
-};
 const serverId = () => useSessionStore.getState().serverId;
 
 beforeEach(() => {
@@ -57,68 +53,51 @@ beforeEach(() => {
       serverListError: null,
    };
 });
-afterEach(async () => {
-   await runtime?.unmount();
-   runtime = undefined;
-   useSessionStore.getState().clearSession();
-});
+afterEach(() => useSessionStore.getState().clearSession());
+// registered after the cleanup above so the manager unmounts before the session clears
+const view = mountedRuntime();
+const mount = () => view.mount(createElement(Harness));
 
 describe("session server reconciliation", () => {
    it.each([
-      { page: "first", servers: [], next: "" },
-      { page: "later", servers: [{ id: "first" }], next: "first" },
+      {
+         blocker: "a first-page error",
+         pending: { serverListError: new Error("Listing failed") },
+         servers: [],
+         next: "",
+      },
+      {
+         blocker: "a later-page error",
+         pending: { serverListError: new Error("Listing failed") },
+         servers: [{ id: "first" }],
+         next: "first",
+      },
+      {
+         blocker: "the first page loading",
+         pending: { isServerListLoading: true },
+         servers: [{ id: "first" }],
+         next: "first",
+      },
    ])(
-      "preserves selection after a $page-page error until recovery",
-      async (test) => {
+      "keeps a removed selection through $blocker until it clears",
+      async ({ pending, servers, next }) => {
          h.result = {
             ...h.result,
-            servers: test.servers,
-            serverListError: new Error("Listing failed"),
+            ...pending,
+            servers,
+            isCurrentServerMissing: true,
          };
          await mount();
          expect(serverId()).toBe("selected");
          h.result = {
             ...h.result,
             serverListError: null,
-            isCurrentServerMissing: true,
+            isServerListLoading: false,
          };
          await rerender();
-         expect(serverId()).toBe(test.next);
+         expect(serverId()).toBe(next);
       }
    );
-
-   it("waits for an available first page before reconciling confirmed removal", async () => {
-      h.result = {
-         ...h.result,
-         servers: [{ id: "first" }],
-         isServerListLoading: true,
-      };
-      await mount();
-      expect(serverId()).toBe("selected");
-      h.result = {
-         ...h.result,
-         isServerListLoading: false,
-         isCurrentServerMissing: true,
-      };
-      await rerender();
-      expect(serverId()).toBe("first");
-   });
-
-   it("retains a selection found on a later successful page", async () => {
-      h.result = {
-         ...h.result,
-         servers: [{ id: "first" }],
-         isServerListLoading: true,
-      };
-      await mount();
-      h.result = {
-         ...h.result,
-         servers: [{ id: "first" }, { id: "selected" }],
-         isServerListLoading: false,
-      };
-      await rerender();
-      expect(serverId()).toBe("selected");
-   });
 
    it.each([null, "another-user"])(
       "does not reconcile a list outside the current user scope: %s",

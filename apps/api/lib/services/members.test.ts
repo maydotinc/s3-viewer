@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
-import { Role } from "@s3-viewer/types";
+import { AuditLevel, Role } from "@s3-viewer/types";
 import { ApiHttpError } from "@/lib/http";
+import { grantRefusal } from "@/lib/middleware/authorize";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { bucketGrantJson, bucketGrantsLateral } from "./bucket-grants";
 import {
@@ -52,6 +53,12 @@ vi.mock("@/lib/utils/encryption", () => ({
    decryptCredentials: () => ({}),
 }));
 
+const refuse = grantRefusal({
+   serverId: "server12345",
+   actorId: "actor12345",
+   audit: { enabled: true, level: AuditLevel.ALL },
+});
+
 const scope = { restrictedBuckets: true, allowedBuckets: ["photos", "logs"] };
 const openScope = { restrictedBuckets: false, allowedBuckets: [] };
 
@@ -71,63 +78,120 @@ const actor = (
 describe("assertBucketGrants", () => {
    it("lets an owner grant anything", () => {
       expect(() =>
-         assertBucketGrants(actor(Role.OWNER), scope, [
-            { bucketName: "photos", role: Role.EDITOR, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.OWNER),
+            scope,
+            [{ bucketName: "photos", role: Role.EDITOR, folders: null }],
+            refuse
+         )
       ).not.toThrow();
    });
 
    it("refuses an admin granting a bucket they hold nothing on", () => {
       expect(() =>
-         assertBucketGrants(actor(Role.ADMIN), scope, [
-            { bucketName: "photos", role: Role.EDITOR, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.ADMIN),
+            scope,
+            [{ bucketName: "photos", role: Role.EDITOR, folders: null }],
+            refuse
+         )
       ).toThrow(/don't have Editor access to photos/);
    });
 
    it("refuses an admin granting above what they hold on that bucket", () => {
       expect(() =>
-         assertBucketGrants(actor(Role.ADMIN, { photos: Role.VIEWER }), scope, [
-            { bucketName: "photos", role: Role.EDITOR, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.ADMIN, { photos: Role.VIEWER }),
+            scope,
+            [{ bucketName: "photos", role: Role.EDITOR, folders: null }],
+            refuse
+         )
       ).toThrow(/don't have Editor access to photos/);
+   });
+
+   it("audits a refused grant, naming only a bucket the actor holds", () => {
+      const denialOf = (held: Record<string, Role>) => {
+         try {
+            assertBucketGrants(
+               actor(Role.ADMIN, held),
+               openScope,
+               [{ bucketName: "photos", role: Role.EDITOR, folders: null }],
+               refuse
+            );
+         } catch (error) {
+            return (error as { denial?: unknown }).denial;
+         }
+      };
+      const entry = (bucket: string | null) =>
+         expect.objectContaining({
+            entry: {
+               action: "access.denied",
+               bucket,
+               detail: { permission: "MANAGE_MEMBERS", reason: "member" },
+            },
+         });
+      expect(denialOf({})).toEqual(entry(null));
+      expect(denialOf({ photos: Role.VIEWER })).toEqual(entry("photos"));
    });
 
    it("lets an admin pass on a bucket role they hold", () => {
       expect(() =>
-         assertBucketGrants(actor(Role.ADMIN, { photos: Role.EDITOR }), scope, [
-            { bucketName: "photos", role: Role.EDITOR, folders: null },
-            { bucketName: "photos", role: Role.VIEWER, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.ADMIN, { photos: Role.EDITOR }),
+            scope,
+            [
+               { bucketName: "photos", role: Role.EDITOR, folders: null },
+               { bucketName: "photos", role: Role.VIEWER, folders: null },
+            ],
+            refuse
+         )
       ).toThrow(/Duplicate bucket/);
       expect(() =>
-         assertBucketGrants(actor(Role.ADMIN, { photos: Role.EDITOR }), scope, [
-            { bucketName: "photos", role: Role.VIEWER, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.ADMIN, { photos: Role.EDITOR }),
+            scope,
+            [{ bucketName: "photos", role: Role.VIEWER, folders: null }],
+            refuse
+         )
       ).not.toThrow();
    });
 
    it("still checks the grant is a role the actor may assign at all", () => {
       expect(() =>
-         assertBucketGrants(actor(Role.ADMIN, { photos: Role.ADMIN }), scope, [
-            { bucketName: "photos", role: Role.ADMIN, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.ADMIN, { photos: Role.ADMIN }),
+            scope,
+            [{ bucketName: "photos", role: Role.ADMIN, folders: null }],
+            refuse
+         )
       ).toThrow(/can't grant Admin/);
    });
 
    it("rejects buckets outside a restricted server's allowlist", () => {
       expect(() =>
-         assertBucketGrants(actor(Role.OWNER), scope, [
-            { bucketName: "company-payroll", role: Role.VIEWER, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.OWNER),
+            scope,
+            [
+               {
+                  bucketName: "company-payroll",
+                  role: Role.VIEWER,
+                  folders: null,
+               },
+            ],
+            refuse
+         )
       ).toThrow(/Unknown bucket/);
    });
 
    it("holds an admin to their own grants even on an unrestricted server", () => {
       expect(() =>
-         assertBucketGrants(actor(Role.ADMIN), openScope, [
-            { bucketName: "anything", role: Role.VIEWER, folders: null },
-         ])
+         assertBucketGrants(
+            actor(Role.ADMIN),
+            openScope,
+            [{ bucketName: "anything", role: Role.VIEWER, folders: null }],
+            refuse
+         )
       ).toThrow(/don't have Viewer access to anything/);
    });
 });
@@ -150,10 +214,16 @@ describe("assertBucketGrantChanges", () => {
 
    it("keeps an unchanged grant the actor could not make themselves", () => {
       expect(() =>
-         assertBucketGrantChanges(actor(Role.ADMIN), scope, current, [
-            { bucketName: "photos", role: Role.EDITOR, folders: null },
-            { bucketName: "logs", role: Role.VIEWER, folders: null },
-         ])
+         assertBucketGrantChanges(
+            actor(Role.ADMIN),
+            scope,
+            current,
+            [
+               { bucketName: "photos", role: Role.EDITOR, folders: null },
+               { bucketName: "logs", role: Role.VIEWER, folders: null },
+            ],
+            refuse
+         )
       ).not.toThrow();
    });
 
@@ -170,7 +240,8 @@ describe("assertBucketGrantChanges", () => {
                   allowedFolders: [],
                },
             ],
-            [{ bucketName: "photos", role: Role.VIEWER, folders: null }]
+            [{ bucketName: "photos", role: Role.VIEWER, folders: null }],
+            refuse
          )
       ).toThrow(expect.objectContaining({ status: 403 }));
    });
@@ -190,16 +261,27 @@ describe("assertBucketGrantChanges", () => {
             actor(Role.ADMIN),
             scope,
             protectedGrant,
-            protectedGrant
+            protectedGrant,
+            refuse
          )
       ).not.toThrow();
       expect(() =>
-         assertBucketGrantChanges(actor(Role.OWNER), scope, protectedGrant, [
-            { bucketName: "photos", role: Role.VIEWER, folders: null },
-         ])
+         assertBucketGrantChanges(
+            actor(Role.OWNER),
+            scope,
+            protectedGrant,
+            [{ bucketName: "photos", role: Role.VIEWER, folders: null }],
+            refuse
+         )
       ).not.toThrow();
       expect(() =>
-         assertBucketGrantChanges(actor(Role.OWNER), scope, protectedGrant, [])
+         assertBucketGrantChanges(
+            actor(Role.OWNER),
+            scope,
+            protectedGrant,
+            [],
+            refuse
+         )
       ).not.toThrow();
    });
 
@@ -219,7 +301,8 @@ describe("assertBucketGrantChanges", () => {
             [
                { bucketName: "photos", role: Role.EDITOR, folders: null },
                { bucketName: "logs", role: Role.EDITOR, folders: null },
-            ]
+            ],
+            refuse
          )
       ).toThrow(/don't have Editor access to logs/);
    });
@@ -233,7 +316,8 @@ describe("assertBucketGrantChanges", () => {
             [
                { bucketName: "photos", role: Role.VIEWER, folders: null },
                { bucketName: "logs", role: Role.VIEWER, folders: null },
-            ]
+            ],
+            refuse
          )
       ).not.toThrow();
       expect(() =>
@@ -248,7 +332,8 @@ describe("assertBucketGrantChanges", () => {
                   allowedFolders: [],
                },
             ],
-            [{ bucketName: "photos", role: Role.EDITOR, folders: null }]
+            [{ bucketName: "photos", role: Role.EDITOR, folders: null }],
+            refuse
          )
       ).toThrow(/don't have Editor access to photos/);
    });
@@ -266,7 +351,8 @@ describe("assertBucketGrantChanges", () => {
                   allowedFolders: [],
                },
             ],
-            []
+            [],
+            refuse
          )
       ).toThrow(/can't change Admin access to photos/);
       expect(() =>
@@ -274,14 +360,15 @@ describe("assertBucketGrantChanges", () => {
             actor(Role.ADMIN, { photos: Role.EDITOR, logs: Role.VIEWER }),
             scope,
             current,
-            []
+            [],
+            refuse
          )
       ).not.toThrow();
    });
 
    it("refuses removing a grant on a bucket the actor holds nothing on", () => {
       expect(() =>
-         assertBucketGrantChanges(actor(Role.ADMIN), scope, current, [])
+         assertBucketGrantChanges(actor(Role.ADMIN), scope, current, [], refuse)
       ).toThrow(
          expect.objectContaining({
             status: 403,
@@ -296,7 +383,8 @@ describe("assertBucketGrantChanges", () => {
             actor(Role.ADMIN, { photos: Role.VIEWER, logs: Role.VIEWER }),
             scope,
             current,
-            []
+            [],
+            refuse
          )
       ).toThrow(/can't change Editor access to photos/);
    });
@@ -320,16 +408,20 @@ describe("assertBucketGrantChanges", () => {
                   allowedFolders: ["b/"],
                },
             ],
-            []
+            [],
+            refuse
          )
       ).toThrow(/can't change Viewer access to photos/);
    });
 
    it("answers an admin without a grant the same whether or not the bucket is listed", () => {
       const ask = (bucketName: string) => () =>
-         assertBucketGrants(actor(Role.ADMIN), scope, [
-            { bucketName, role: Role.EDITOR, folders: null },
-         ]);
+         assertBucketGrants(
+            actor(Role.ADMIN),
+            scope,
+            [{ bucketName, role: Role.EDITOR, folders: null }],
+            refuse
+         );
       expect(ask("photos")).toThrow(
          expect.objectContaining({
             status: 403,
@@ -365,18 +457,25 @@ describe("assertBucketGrantChanges", () => {
                   role: Role.VIEWER,
                   folders: null,
                },
-            ]
+            ],
+            refuse
          )
       ).toThrow(/Unknown bucket/);
    });
 
    it("still rejects duplicates when one copy is unchanged", () => {
       expect(() =>
-         assertBucketGrantChanges(actor(Role.OWNER), scope, current, [
-            { bucketName: "photos", role: Role.EDITOR, folders: null },
-            { bucketName: "photos", role: Role.VIEWER, folders: null },
-            { bucketName: "logs", role: Role.VIEWER, folders: null },
-         ])
+         assertBucketGrantChanges(
+            actor(Role.OWNER),
+            scope,
+            current,
+            [
+               { bucketName: "photos", role: Role.EDITOR, folders: null },
+               { bucketName: "photos", role: Role.VIEWER, folders: null },
+               { bucketName: "logs", role: Role.VIEWER, folders: null },
+            ],
+            refuse
+         )
       ).toThrow(/Duplicate bucket/);
    });
 });
@@ -571,17 +670,6 @@ describe("listMembers", () => {
       await listMembers("server12345", undefined, 5, OWNER_VIEWER);
       expect(h.viewerGrants).not.toHaveBeenCalled();
    });
-
-   it("rejects a garbage cursor with 400", async () => {
-      await expect(
-         listMembers("server12345", "nope", 5, OWNER_VIEWER)
-      ).rejects.toMatchObject({
-         status: 400,
-         message: "Invalid cursor",
-         code: "VALIDATION",
-      });
-      expect(h.keyset).not.toHaveBeenCalled();
-   });
 });
 
 describe("clampBucketAccess", () => {
@@ -729,6 +817,7 @@ describe("removeMembership", () => {
       const assertAuthority = vi.fn();
       const { email } = await removeMembership("target1234", "server12345", {
          id: "actor12345",
+         refuse,
          assertAuthority,
       });
 
@@ -749,6 +838,7 @@ describe("removeMembership", () => {
       await expect(
          removeMembership("target1234", "server12345", {
             id: "actor12345",
+            refuse,
             assertAuthority,
          })
       ).rejects.toMatchObject({ status: 403 });
@@ -762,6 +852,7 @@ describe("removeMembership", () => {
       await expect(
          removeMembership("target1234", "server12345", {
             id: "actor12345",
+            refuse,
             assertAuthority: vi.fn(),
          })
       ).rejects.toMatchObject({ status: 404 });
@@ -773,6 +864,7 @@ describe("removeMembership", () => {
       await expect(
          removeMembership("target1234", "server12345", {
             id: "actor12345",
+            refuse,
             assertAuthority: () => {
                throw new ApiHttpError(403, "You can't manage that member");
             },
@@ -791,6 +883,7 @@ describe("removeMembership", () => {
       await expect(
          removeMembership("actor12345", "server12345", {
             id: "actor12345",
+            refuse,
             assertAuthority,
          })
       ).rejects.toMatchObject({ status: 403 });
@@ -818,6 +911,7 @@ describe("removeMembership", () => {
       await expect(
          removeMembership("target1234", "server12345", {
             id: "actor12345",
+            refuse,
             assertAuthority: vi.fn(),
          })
       ).rejects.toMatchObject({
@@ -840,6 +934,7 @@ describe("removeMembership", () => {
       await expect(
          removeMembership("target1234", "server12345", {
             id: "actor12345",
+            refuse,
             assertAuthority: vi.fn(),
          })
       ).rejects.toMatchObject({
@@ -857,6 +952,7 @@ describe("removeMembership", () => {
       await expect(
          removeMembership("target1234", "server12345", {
             id: "actor12345",
+            refuse,
             assertAuthority: vi.fn(),
          })
       ).resolves.toMatchObject({ email: "target@example.com" });
@@ -868,6 +964,7 @@ describe("removeMembership", () => {
       h.findGrants.mockResolvedValue([grantRow("photos", Role.ADMIN)]);
       await removeMembership("target1234", "server12345", {
          id: "actor12345",
+         refuse,
          assertAuthority: vi.fn(),
       });
       expect(h.findGrants).toHaveBeenCalledOnce();

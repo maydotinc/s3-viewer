@@ -7,6 +7,7 @@ import type { SessionUser } from "@/lib/middleware/auth";
 import {
    AccessDenied,
    denied,
+   grantRefusal,
    type DenialScope,
 } from "@/lib/middleware/authorize";
 import { recordManyFor } from "@/lib/middleware/audit-record";
@@ -258,7 +259,7 @@ const saveTarget = (
          memberEmails(serverId, emails, tx),
          loadGrantingActor(actor.id, serverId, currentRole, bucketAccess, tx),
       ]);
-      assertBucketGrants(granting, server, bucketAccess);
+      assertBucketGrants(granting, server, bucketAccess, grantRefusal(scope));
       const pending = emails.filter((e) => !alreadyMembers.includes(e));
       await assertCanReplaceInvites(pending, currentRole, scope, tx);
       await assertUnderPendingCap(tx, serverId, pending);

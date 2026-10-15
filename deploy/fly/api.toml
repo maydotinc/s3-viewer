@@ -1,5 +1,7 @@
 app = "your-s3-viewer-api"
 primary_region = "iad"
+# shutdown drains for 5s, then flushes pending audits for up to 3s; Fly's 5s default cuts that short.
+kill_timeout = "10s"
 
 [build]
    dockerfile = "apps/api/Dockerfile"

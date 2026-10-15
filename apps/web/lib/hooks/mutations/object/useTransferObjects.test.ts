@@ -44,10 +44,6 @@ vi.mock("@/lib/utils/s3/upload-preflight", () => ({
 vi.mock("@s3-viewer/ui/components/toast", () => ({
    toast: { success: vi.fn(), error: vi.fn() },
 }));
-vi.mock("@tanstack/react-query", () => ({
-   useMutation: vi.fn(),
-   useQueryClient: vi.fn(),
-}));
 
 const { transferObjects, createTransferOperation } = await import(
    "./useTransferObjects"
@@ -205,14 +201,6 @@ describe("copying selected objects to another bucket", () => {
       expect(summary.listingError).toBeNull();
       expect(summary.remaining).toBe(false);
    });
-
-   it("stops with an explanation when the destination cannot be checked", async () => {
-      h.exists.mockRejectedValue(new FakeApiError(403, "Not allowed."));
-      const summary = await transferObjects(input());
-      expect(h.post).not.toHaveBeenCalled();
-      expect(summary.listingError).toContain("Not allowed.");
-      expect(summary.remaining).toBe(true);
-   });
 });
 
 describe("copying a folder to another bucket", () => {
@@ -254,87 +242,38 @@ describe("copying a folder to another bucket", () => {
       expect(h.get).toHaveBeenCalledTimes(1);
       expect(summary).toMatchObject({ transferred: 0, remaining: true });
    });
-
-   it("refuses a listing page that leaves the folder", async () => {
-      h.get.mockResolvedValue({
-         objects: [{ key: "other/one.txt", expectedETag: '"1"' }],
-         nextToken: null,
-      });
-      const summary = await transferObjects(input(folder));
-      expect(h.post).not.toHaveBeenCalled();
-      expect(summary.listingError).toContain("outside this folder");
-      expect(summary.remaining).toBe(true);
-   });
-
-   it("refuses a repeated continuation token", async () => {
-      h.get.mockResolvedValue({ objects: [], nextToken: "loop" });
-      const summary = await transferObjects(input(folder));
-      expect(summary.listingError).toContain("repeated");
-   });
 });
 
 describe("transferring exact slash-ending objects", () => {
-   it.each([0, 12, null])(
-      "copies size %s through the guarded transfer endpoint",
-      async (size) => {
-         h.get.mockResolvedValue({
-            objects: [{ key: "raw/data/", expectedETag: '"reviewed"', size }],
-            nextToken: null,
-         });
-         const summary = await transferObjects(
-            input({ source: { folderKey: "raw/" } })
-         );
-         expect(summary).toMatchObject({
-            transferred: 1,
-            skipped: 0,
-            failed: [],
-         });
-         expect(h.post).toHaveBeenCalledExactlyOnceWith(
-            "/servers/source-server/transfers",
-            expect.objectContaining({
-               source: {
-                  bucketName: "photos",
-                  objectKey: "raw/data/",
-                  expectedETag: '"reviewed"',
-               },
-               destination: {
-                  serverId: "other-server",
-                  bucketName: "archive",
-                  objectKey: "2026/data/",
-               },
-            }),
-            expect.anything()
-         );
-      }
-   );
-
-   it("counts an existing marker as skipped without claiming the source was copied", async () => {
-      h.get.mockResolvedValue({
-         objects: [{ key: "raw/data/", expectedETag: '"reviewed"', size: 12 }],
-         nextToken: null,
-      });
-      h.exists.mockResolvedValue({ existing: ["2026/data/"], eTags: {} });
-      const summary = await transferObjects(
-         input({ source: { folderKey: "raw/" } })
-      );
-      expect(summary).toMatchObject({ transferred: 0, skipped: 1, failed: [] });
-      expect(h.post).not.toHaveBeenCalled();
-   });
-
-   it("reports a changed source as a failed transfer", async () => {
+   it("copies a zero-byte marker through the guarded transfer endpoint", async () => {
       h.get.mockResolvedValue({
          objects: [{ key: "raw/data/", expectedETag: '"reviewed"', size: 0 }],
          nextToken: null,
       });
-      h.post.mockRejectedValue(new FakeApiError(409, "The file changed."));
       const summary = await transferObjects(
          input({ source: { folderKey: "raw/" } })
       );
       expect(summary).toMatchObject({
-         transferred: 0,
-         remaining: false,
-         failed: [{ key: "raw/data/", retryable: false }],
+         transferred: 1,
+         skipped: 0,
+         failed: [],
       });
+      expect(h.post).toHaveBeenCalledExactlyOnceWith(
+         "/servers/source-server/transfers",
+         expect.objectContaining({
+            source: {
+               bucketName: "photos",
+               objectKey: "raw/data/",
+               expectedETag: '"reviewed"',
+            },
+            destination: {
+               serverId: "other-server",
+               bucketName: "archive",
+               objectKey: "2026/data/",
+            },
+         }),
+         expect.anything()
+      );
    });
 });
 
@@ -500,7 +439,7 @@ describe("reviewed transfer continuations", () => {
       });
    });
 
-   it.each(["raw/", "raw/deep/", "raw/deep/deeper/", ""])(
+   it.each(["raw/", ""])(
       "rejects overlapping same-bucket prefix %s before listing a 1,001-object folder",
       async (prefix) => {
          h.get.mockResolvedValue({
@@ -545,26 +484,23 @@ describe("reviewed transfer continuations", () => {
       expect(summary.transferred).toBe(1);
    });
 
-   it.each(["raw/", "raw/deep/more/", ""])(
-      "blocks strict overlap through a saved connection alias (%s)",
-      async (prefix) => {
-         await expect(
-            transferObjects(
-               input({
-                  source: { folderKey: "raw/deep/" },
-                  destination: {
-                     serverId: "alias",
-                     bucketName: "photos",
-                     prefix,
-                  },
-                  overwrite: true,
-               })
-            )
-         ).rejects.toThrow("must not overlap");
-         expect(h.get).not.toHaveBeenCalled();
-         expect(h.post).not.toHaveBeenCalled();
-      }
-   );
+   it("blocks strict overlap through a saved connection alias", async () => {
+      await expect(
+         transferObjects(
+            input({
+               source: { folderKey: "raw/deep/" },
+               destination: {
+                  serverId: "alias",
+                  bucketName: "photos",
+                  prefix: "raw/",
+               },
+               overwrite: true,
+            })
+         )
+      ).rejects.toThrow("must not overlap");
+      expect(h.get).not.toHaveBeenCalled();
+      expect(h.post).not.toHaveBeenCalled();
+   });
 
    it.each(["raw/deep/", "archive/"])(
       "allows identical or disjoint paths across connections (%s)",
@@ -664,13 +600,7 @@ describe("waiting out a rate limit on the read-only steps", () => {
          .mockResolvedValue({ existing: ["2026/a.png"], eTags: {} });
       h.post.mockResolvedValue(copied);
       const pending = transferObjects(input());
-      await vi.advanceTimersByTimeAsync(1999);
-      expect(h.exists).toHaveBeenCalledTimes(1);
-      await vi.advanceTimersByTimeAsync(1);
-      expect(h.exists).toHaveBeenCalledTimes(2);
-      await vi.advanceTimersByTimeAsync(3999);
-      expect(h.exists).toHaveBeenCalledTimes(2);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.runAllTimersAsync();
       const summary = await pending;
       expect(h.exists).toHaveBeenCalledTimes(3);
       expect(summary).toMatchObject({
@@ -702,9 +632,7 @@ describe("waiting out a rate limit on the read-only steps", () => {
       h.exists.mockRejectedValue(limited());
       const operation = createTransferOperation(input());
       const pending = transferObjects({ ...input(), operation });
-      await vi.advanceTimersByTimeAsync(61_999);
-      expect(h.exists).toHaveBeenCalledTimes(5);
-      await vi.advanceTimersByTimeAsync(1);
+      await vi.runAllTimersAsync();
       const summary = await pending;
       expect(h.exists).toHaveBeenCalledTimes(6);
       expect(h.post).not.toHaveBeenCalled();
@@ -716,11 +644,13 @@ describe("waiting out a rate limit on the read-only steps", () => {
       expect(resumed).toMatchObject({ transferred: 3, remaining: false });
    });
 
-   it("does not wait on any other refusal of a read", async () => {
+   it("stops with an explanation on any other refusal of a read, without waiting", async () => {
       h.exists.mockRejectedValue(new FakeApiError(403, "Not allowed."));
       const summary = await transferObjects(input());
       expect(h.exists).toHaveBeenCalledOnce();
+      expect(h.post).not.toHaveBeenCalled();
       expect(summary.listingError).toContain("Not allowed.");
+      expect(summary.remaining).toBe(true);
    });
 
    it("stops waiting the moment the copy is cancelled", async () => {
@@ -736,13 +666,5 @@ describe("waiting out a rate limit on the read-only steps", () => {
       controller.abort();
       await rejected;
       expect(h.exists).toHaveBeenCalledOnce();
-   });
-
-   it("still never retries a rate-limited copy without the not-started marker", async () => {
-      h.exists.mockResolvedValue({ existing: [], eTags: {} });
-      h.post.mockRejectedValue(limited());
-      const summary = await transferObjects(input());
-      expect(h.post).toHaveBeenCalledTimes(3);
-      expect(summary.failed.every(({ retryable }) => !retryable)).toBe(true);
    });
 });

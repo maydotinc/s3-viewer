@@ -6,6 +6,7 @@ import {
 import { formatCount } from "@/lib/utils/format";
 import type { BucketAccessEntry } from "@s3-viewer/types";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 
 const MAX_LISTED = 8;
 
@@ -41,7 +42,7 @@ const FolderLimitNote = ({
       >
          <span
             tabIndex={0}
-            className="line-clamp-2 min-w-0 rounded-sm text-xs break-words whitespace-normal text-viewerlighttext outline-none focus-visible:text-viewerblack"
+            className={`line-clamp-2 min-w-0 rounded-sm text-xs break-words whitespace-normal text-viewerlighttext outline-none ${FOCUS_RING}`}
          >
             {note}
          </span>

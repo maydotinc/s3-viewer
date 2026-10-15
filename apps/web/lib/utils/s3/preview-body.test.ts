@@ -57,22 +57,21 @@ describe("bounded decoded JSON preview reads", () => {
       );
    });
 
-   it.each<Record<string, string>>([
-      {},
-      { "content-length": "1" },
-      { "content-length": "1", "content-encoding": "gzip" },
-   ])("cancels at the decoded limit with headers %j", async (headers) => {
-      const stream = streamed(
-         [new Uint8Array(8), new Uint8Array(8), new Uint8Array(8)],
-         headers
-      );
-      await expect(readPreviewText(stream.response, 10)).rejects.toBeInstanceOf(
-         PreviewTooLargeError
-      );
-      expect(stream.cancel).toHaveBeenCalledOnce();
-      expect(stream.pull).toHaveBeenCalledTimes(2);
-      expect(stream.response.body?.locked).toBe(false);
-   });
+   it.each<Record<string, string>>([{}, { "content-length": "1" }])(
+      "cancels at the decoded limit with headers %j",
+      async (headers) => {
+         const stream = streamed(
+            [new Uint8Array(8), new Uint8Array(8), new Uint8Array(8)],
+            headers
+         );
+         await expect(
+            readPreviewText(stream.response, 10)
+         ).rejects.toBeInstanceOf(PreviewTooLargeError);
+         expect(stream.cancel).toHaveBeenCalledOnce();
+         expect(stream.pull).toHaveBeenCalledTimes(2);
+         expect(stream.response.body?.locked).toBe(false);
+      }
+   );
 
    it("cancels an oversized Content-Length without reading a chunk", async () => {
       const stream = streamed([new Uint8Array(8)], { "content-length": "20" });

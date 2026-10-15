@@ -20,9 +20,8 @@ type ServerInfo = {
    name: string;
    userRole: Role;
    provider: Provider;
-   /** missing capabilities must disable mutations for older clients. */
-   capabilities?: StorageCapabilities;
-   canCreateBucket?: boolean;
+   capabilities: StorageCapabilities;
+   canCreateBucket: boolean;
    audit: AuditAccess;
 };
 

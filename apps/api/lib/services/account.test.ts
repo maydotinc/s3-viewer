@@ -48,7 +48,9 @@ const membership = (serverId: string, sent: string[], auditEnabled = true) => ({
 
 beforeEach(() => {
    vi.clearAllMocks();
-   h.ownedServers.mockResolvedValue([{ id: "owned-1" }]);
+   h.ownedServers.mockResolvedValue([
+      { id: "owned-1", name: "Media", auditEnabled: true, auditLevel: "ALL" },
+   ]);
    h.memberships.mockResolvedValue([]);
    h.deleteInvites.mockResolvedValue({ count: 0 });
    h.writeAudits.mockResolvedValue(undefined);
@@ -56,7 +58,7 @@ beforeEach(() => {
 });
 
 describe("account deletion", () => {
-   it("records the departure and the invites it cancels on each server the user did not own, only once the account is gone", async () => {
+   it("records each owned server's deletion, and the departure and the invites it cancels on each server the user did not own, only once the account is gone", async () => {
       h.memberships.mockResolvedValue([
          membership("joined-1", ["a@example.com", "b@example.com"]),
          membership("joined-2", [], false),
@@ -86,6 +88,17 @@ describe("account deletion", () => {
       await accountDeletionHooks.afterDelete(user);
       const actor = { id: "leaver", email: "leaver@example.com" };
       expect(h.writeAudits.mock.calls.map((call) => call[0])).toEqual([
+         {
+            serverId: "owned-1",
+            actor,
+            audit: { enabled: true, level: AuditLevel.ALL },
+            entries: [
+               {
+                  action: "server.delete",
+                  detail: { name: "Media", reason: "account_deleted" },
+               },
+            ],
+         },
          {
             serverId: "joined-1",
             actor,
@@ -130,7 +143,7 @@ describe("account deletion", () => {
 
       await accountDeletionHooks.afterDelete(user);
       await accountDeletionHooks.afterDelete(user);
-      expect(h.writeAudits).toHaveBeenCalledOnce();
+      expect(h.writeAudits).toHaveBeenCalledTimes(2);
    });
 
    it("finishes the deletion when the audit rows cannot be written", async () => {

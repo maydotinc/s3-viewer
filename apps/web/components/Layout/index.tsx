@@ -1,9 +1,12 @@
 import { SITE_PATHS } from "@s3-viewer/types";
 import { useSidebar } from "@s3-viewer/ui/components/sidebar";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 import ViewerBanner from "@/components/Layout/Banner/banner";
 import { useServerId } from "@/lib/stores/session-scope";
+import useUploadStore from "@/lib/stores/upload-store/upload-store";
 import { ViewerSidebar } from "./sidebar";
 import UploadProgressSheet from "./upload-progress";
 
@@ -20,6 +23,7 @@ const ViewerLayout = ({
    const prevServerId = useRef<string | null>(null);
    const mainRef = useRef<HTMLElement>(null);
    const { openMobile } = useSidebar();
+   const uploadsShown = useUploadStore((state) => state.order.length > 0);
    const { push } = useRouter();
 
    useEffect(() => {
@@ -44,7 +48,10 @@ const ViewerLayout = ({
                event.preventDefault();
                mainRef.current?.focus();
             }}
-            className="fixed left-3 top-3 z-50 -translate-y-24 rounded-lg border border-viewerborder bg-viewerwhite px-3 py-2 text-sm font-medium text-viewerblack shadow-md outline-none focus-visible:translate-y-0 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-viewerblue"
+            className={cn(
+               "fixed left-3 top-3 z-50 -translate-y-24 rounded-lg border border-viewerborder bg-viewerwhite px-3 py-2 text-sm font-medium text-viewerblack shadow-md outline-none focus-visible:translate-y-0",
+               FOCUS_RING
+            )}
          >
             Skip to content
          </a>
@@ -55,7 +62,11 @@ const ViewerLayout = ({
                ref={mainRef}
                id="main-content"
                tabIndex={-1}
-               className="flex min-w-0 flex-1 flex-col overflow-hidden outline-none"
+               className={cn(
+                  "flex min-w-0 flex-1 flex-col overflow-hidden outline-none",
+                  // the upload sheet docks over the bottom of the page below md
+                  uploadsShown && "max-md:pb-14"
+               )}
             >
                {children}
             </main>

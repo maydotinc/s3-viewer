@@ -17,4 +17,4 @@ const getDownloadUrl = (
       `${objectsPath(serverId, bucketName, "/download-url")}${qs({ objectKey })}`
    );
 
-export { PRESIGN_EXPIRY_MS, PRESIGN_STALE_MS, getDownloadUrl };
+export { PRESIGN_STALE_MS, getDownloadUrl };

@@ -1,30 +1,29 @@
 import { PassThrough } from "node:stream";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { STORAGE_FLOOR_BYTES_PER_SECOND } from "@/lib/constants";
 import {
-   STORAGE_FLOOR_BYTES_PER_SECOND,
-   UPLOAD_FLOOR_BYTES_PER_SECOND,
-   uploadMemoryFor,
-} from "@/lib/constants";
-import {
-   floorBytesFor,
    progressFloor,
-   SlotExpiredError,
    stallMsFor,
    StorageStalledError,
    UploadIdleError,
 } from "./progress-floor";
 
-const settle = (ms: number) =>
-   new Promise((resolve) => setTimeout(resolve, ms));
+beforeEach(() => {
+   vi.useFakeTimers();
+});
+
+afterEach(() => {
+   vi.useRealTimers();
+});
 
 describe("progressFloor", () => {
    it("times nothing until it is opened", async () => {
       const abortController = new AbortController();
       const floor = progressFloor({ abortController, windowMs: 10 });
-      await settle(30);
+      await vi.advanceTimersByTimeAsync(30);
       expect(abortController.signal.aborted).toBe(false);
       floor.open();
-      await settle(30);
+      await vi.advanceTimersByTimeAsync(30);
       expect(abortController.signal.reason).toBeInstanceOf(UploadIdleError);
       floor.stop();
    });
@@ -35,10 +34,10 @@ describe("progressFloor", () => {
       floor.open();
       floor.add(3);
       floor.add(3);
-      await settle(25);
+      await vi.advanceTimersByTimeAsync(25);
       expect(abortController.signal.aborted).toBe(false);
       floor.add(3);
-      await settle(25);
+      await vi.advanceTimersByTimeAsync(25);
       expect(abortController.signal.reason).toBeInstanceOf(UploadIdleError);
       floor.stop();
    });
@@ -48,9 +47,9 @@ describe("progressFloor", () => {
       const floor = progressFloor({ abortController, windowMs: 20 });
       floor.open();
       floor.add(1);
-      await settle(25);
+      await vi.advanceTimersByTimeAsync(25);
       expect(abortController.signal.aborted).toBe(false);
-      await settle(25);
+      await vi.advanceTimersByTimeAsync(25);
       expect(abortController.signal.reason).toBeInstanceOf(UploadIdleError);
       floor.stop();
    });
@@ -60,15 +59,15 @@ describe("progressFloor", () => {
       const body = new PassThrough();
       const floor = progressFloor({ abortController, windowMs: 20, body });
       floor.open();
-      await settle(30);
+      await vi.advanceTimersByTimeAsync(30);
       expect(abortController.signal.aborted).toBe(false);
       body.resume();
       body.pause();
-      await settle(30);
+      await vi.advanceTimersByTimeAsync(30);
       expect(abortController.signal.aborted).toBe(false);
       body.resume();
       body.end();
-      await settle(30);
+      await vi.advanceTimersByTimeAsync(30);
       expect(abortController.signal.aborted).toBe(false);
       floor.stop();
    });
@@ -91,12 +90,12 @@ describe("a storage stall behind a paused or finished body", () => {
    it("gives up on storage that leaves the body paused past the stall limit", async () => {
       const { abortController, body, floor } = stalling(60);
       body.resume();
-      await settle(90);
+      await vi.advanceTimersByTimeAsync(90);
       expect(abortController.signal.aborted).toBe(false);
       body.pause();
-      await settle(10);
+      await vi.advanceTimersByTimeAsync(10);
       expect(abortController.signal.aborted).toBe(false);
-      await settle(80);
+      await vi.advanceTimersByTimeAsync(80);
       expect(abortController.signal.reason).toBeInstanceOf(StorageStalledError);
       floor.stop();
    });
@@ -104,12 +103,12 @@ describe("a storage stall behind a paused or finished body", () => {
    it("gives each pause its own limit once storage reads again", async () => {
       const { abortController, body, floor } = stalling(80);
       body.resume();
-      await settle(1);
+      await vi.advanceTimersByTimeAsync(1);
       for (let pause = 0; pause < 4; pause++) {
          body.pause();
-         await settle(30);
+         await vi.advanceTimersByTimeAsync(30);
          body.resume();
-         await settle(1);
+         await vi.advanceTimersByTimeAsync(1);
       }
       expect(abortController.signal.aborted).toBe(false);
       floor.stop();
@@ -119,10 +118,10 @@ describe("a storage stall behind a paused or finished body", () => {
       const { abortController, body, floor } = stalling(40);
       body.resume();
       body.pause();
-      await settle(25);
+      await vi.advanceTimersByTimeAsync(25);
       body.emit("pause");
       body.emit("resume");
-      await settle(25);
+      await vi.advanceTimersByTimeAsync(25);
       expect(abortController.signal.reason).toBeInstanceOf(StorageStalledError);
       floor.stop();
    });
@@ -131,9 +130,9 @@ describe("a storage stall behind a paused or finished body", () => {
       const { abortController, body, floor } = stalling(1000, 60);
       body.resume();
       body.end();
-      await settle(10);
+      await vi.advanceTimersByTimeAsync(10);
       expect(abortController.signal.aborted).toBe(false);
-      await settle(80);
+      await vi.advanceTimersByTimeAsync(80);
       expect(abortController.signal.reason).toBeInstanceOf(StorageStalledError);
       floor.stop();
    });
@@ -146,9 +145,9 @@ describe("a storage stall behind a paused or finished body", () => {
       const ended = stalling(1000, 15);
       ended.body.resume();
       ended.body.end();
-      await settle(5);
+      await vi.advanceTimersByTimeAsync(5);
       ended.floor.stop();
-      await settle(30);
+      await vi.advanceTimersByTimeAsync(30);
       expect(paused.abortController.signal.aborted).toBe(false);
       expect(ended.abortController.signal.aborted).toBe(false);
    });
@@ -157,35 +156,16 @@ describe("a storage stall behind a paused or finished body", () => {
       const { abortController, body, floor } = stalling(2 ** 40);
       body.resume();
       body.pause();
-      await settle(20);
+      await vi.advanceTimersByTimeAsync(20);
       expect(abortController.signal.aborted).toBe(false);
       floor.stop();
    });
 
    it("allows the buffered parts to drain at the storage floor rate plus one idle window", () => {
       const partSize = 5 * 1024 * 1024;
-      expect(stallMsFor(120_000, partSize)).toBe(
-         120_000 +
-            (uploadMemoryFor(partSize) / STORAGE_FLOOR_BYTES_PER_SECOND) * 1000
-      );
       expect(stallMsFor(120_000, partSize)).toBeGreaterThan(
          120_000 + ((2 * partSize) / STORAGE_FLOOR_BYTES_PER_SECOND) * 1000
       );
-   });
-
-   it("holds clients to a tighter floor than storage backpressure", () => {
-      expect(floorBytesFor(120_000)).toBe(120 * UPLOAD_FLOOR_BYTES_PER_SECOND);
-      expect(UPLOAD_FLOOR_BYTES_PER_SECOND).toBe(128 * 1024);
-      expect(STORAGE_FLOOR_BYTES_PER_SECOND).toBeLessThan(
-         UPLOAD_FLOOR_BYTES_PER_SECOND
-      );
-   });
-
-   it("reports an expired slot as an idle upload with its own message", () => {
-      const error = new SlotExpiredError();
-      expect(error).toBeInstanceOf(UploadIdleError);
-      expect(error.message).toMatch(/took too long/);
-      expect(new UploadIdleError().message).toMatch(/stopped receiving/);
    });
 });
 
@@ -218,10 +198,7 @@ describe("storage byte rate behind a body that keeps pausing", () => {
       return abortController;
    };
 
-   afterEach(() => vi.useRealTimers());
-
    it("aborts storage that accepts one chunk per interval below the floor", async () => {
-      vi.useFakeTimers();
       const belowFloor =
          (STORAGE_FLOOR_BYTES_PER_SECOND * WINDOW_MS) / 1000 / 8;
       const { signal } = await drip(belowFloor, 8);
@@ -229,20 +206,17 @@ describe("storage byte rate behind a body that keeps pausing", () => {
    });
 
    it("lets storage that accepts the floor rate keep going", async () => {
-      vi.useFakeTimers();
       const atFloor = (STORAGE_FLOOR_BYTES_PER_SECOND * WINDOW_MS) / 1000;
       const { signal } = await drip(atFloor, 12);
       expect(signal.aborted).toBe(false);
    });
 
    it("waits for a full span before judging the rate", async () => {
-      vi.useFakeTimers();
       const { signal } = await drip(1, SPAN_MS / WINDOW_MS - 1);
       expect(signal.aborted).toBe(false);
    });
 
    it("leaves a body that was never paused to the client floor", async () => {
-      vi.useFakeTimers();
       const abortController = new AbortController();
       const body = new PassThrough();
       const floor = progressFloor({
@@ -263,7 +237,6 @@ describe("storage byte rate behind a body that keeps pausing", () => {
    });
 
    it("stops measuring once the body has ended", async () => {
-      vi.useFakeTimers();
       const abortController = new AbortController();
       const body = new PassThrough();
       const floor = progressFloor({

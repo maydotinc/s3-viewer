@@ -1,6 +1,7 @@
 import Callout from "@/components/callout";
 import Field from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
+import Reserve from "@/components/reserve";
 import EmailField from "./email-field";
 import GithubIcon from "./github-icon";
 import PasswordInput from "./password-input";
@@ -222,8 +223,13 @@ const SignInForm = ({
                >
                   {SUBMIT_LABEL[mode]}
                </Button>
-               {githubEnabled(config) && (
-                  <>
+               {(config === undefined || githubEnabled(config)) && (
+                  // the config is missing from the page when the API was down at render time; holding the space keeps the centred card from moving once it arrives
+                  <Reserve
+                     as="div"
+                     show={githubEnabled(config)}
+                     className="flex flex-col gap-4"
+                  >
                      <Divider />
                      <Button
                         type="button"
@@ -237,7 +243,7 @@ const SignInForm = ({
                         <GithubIcon className="size-5" />
                         Continue with GitHub
                      </Button>
-                  </>
+                  </Reserve>
                )}
             </div>
          </form>

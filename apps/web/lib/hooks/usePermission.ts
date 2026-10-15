@@ -37,10 +37,7 @@ const usePermission = (
 };
 
 const canCreateBucketOn = (server: ServerInfo | null | undefined): boolean =>
-   server
-      ? (server.canCreateBucket ??
-        hasPermission(server.userRole, Permission.CREATE_BUCKET))
-      : false;
+   server?.canCreateBucket ?? false;
 
 const useCanCreateBucket = (): boolean =>
    canCreateBucketOn(useCurrentServer().currentServer);

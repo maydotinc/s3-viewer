@@ -7,9 +7,10 @@ const db = vi.hoisted(() => ({
    store: "memory" as "memory" | "postgres",
 }));
 
-vi.mock("@s3-viewer/db/rate-limit", () => ({
-   hitRateLimit: db.hit,
-   undoRateLimitHit: db.undo,
+vi.mock("@s3-viewer/db", () => ({ prisma: {} }));
+vi.mock("@s3-viewer/db/rate-limit", async (importOriginal) => ({
+   ...(await importOriginal<typeof import("@s3-viewer/db/rate-limit")>()),
+   sharedWindowCounter: { hit: db.hit, undo: db.undo },
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -140,7 +141,7 @@ describe("the shared store", () => {
    const keys = () => db.hit.mock.calls.map(([key]) => String(key));
 
    it("keys counters by a hash of the canonical mailbox, never the address", async () => {
-      db.hit.mockResolvedValue({ hits: 1, resetAt: new Date() });
+      db.hit.mockResolvedValue(1);
       expect(
          await reserveInviteEmails([SERVER], "Victim+a@Gmail.com")
       ).not.toBe(null);
@@ -155,7 +156,7 @@ describe("the shared store", () => {
    });
 
    it("hits the recipient counter once and each server's counters once", async () => {
-      db.hit.mockResolvedValue({ hits: 1, resetAt: new Date() });
+      db.hit.mockResolvedValue(1);
       await reserveInviteEmails([SERVER, OTHER], "one@example.com");
       expect(
          keys().filter((key) => key.startsWith("invite-mail:to:"))
@@ -165,17 +166,16 @@ describe("the shared store", () => {
    });
 
    it("undoes the hits it took when the recipient budget is spent", async () => {
-      db.hit.mockResolvedValueOnce({ hits: 4, resetAt: new Date() });
+      db.hit.mockResolvedValueOnce(4);
       expect(await reserveInviteEmails([SERVER], "one@example.com")).toBeNull();
       expect(db.hit).toHaveBeenCalledTimes(1);
       expect(db.undo.mock.calls.map(([key]) => key)).toEqual(keys());
    });
 
    it("undoes only the refused server's hits and keeps the rest", async () => {
-      db.hit.mockImplementation(async (key: string) => ({
-         hits: key.includes(`again:${SERVER}:`) ? 2 : 1,
-         resetAt: new Date(),
-      }));
+      db.hit.mockImplementation(async (key: string) =>
+         key.includes(`again:${SERVER}:`) ? 2 : 1
+      );
       const reservation = await reserveInviteEmails(
          [SERVER, OTHER],
          "one@example.com"

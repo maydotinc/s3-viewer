@@ -119,8 +119,6 @@ const expectOrganizationAndFounder = (g: Graph) => {
       copyrightHolder: { "@id": ORGANIZATION_ID },
    });
 
-   // the product and the site belong to May Inc. only bylined articles name
-   // a person as author; everything else is attributed to the organization.
    g["@graph"].forEach((node) => {
       if (node["@type"] === "TechArticle") return;
       ["author", "creator", "publisher", "maintainer"].forEach((key) => {

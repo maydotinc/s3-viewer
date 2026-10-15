@@ -243,7 +243,7 @@ export async function portConflicts(needed, running) {
    return conflicts;
 }
 
-export function conflictMessage({ service, label, ports }) {
+function conflictMessage({ service, label, ports }) {
    const which =
       ports.length === 1
          ? `Port ${String(ports[0])} is`

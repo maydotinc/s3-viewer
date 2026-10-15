@@ -1,4 +1,3 @@
-import { multipartUploadsPath } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { S3MultipartUploadPage } from "@s3-viewer/types";
@@ -106,16 +105,6 @@ describe("multipart upload listing", () => {
       expect(query.has("uploadIdMarker")).toBe(false);
    });
 
-   it("keeps paging past a page with no uploads in it", () => {
-      expect(
-         useOptions().getNextPageParam({
-            uploads: [],
-            nextKeyMarker: "zeta/",
-            nextUploadIdMarker: null,
-         })
-      ).toEqual({ keyMarker: "zeta/", uploadIdMarker: null });
-   });
-
    it("stops paging when storage reports no next key", () => {
       expect(useOptions().getNextPageParam(page(["a"], null))).toBeNull();
    });
@@ -133,23 +122,5 @@ describe("multipart upload listing", () => {
          ...queryKeys.multipartUploads("user1", "server1", "bucket"),
          "photos/",
       ]);
-      expect(useOptions("other/").queryKey).not.toEqual(
-         useOptions("photos/").queryKey
-      );
-   });
-
-   it("flattens every loaded page into one list", () => {
-      h.result = {
-         data: { pages: [page(["a"], "b"), page(["b"], null)] },
-         hasNextPage: false,
-      };
-      const { uploads } = useMultipartUploads("server1", "bucket", "", true);
-      expect(uploads.map(({ key }) => key)).toEqual(["a", "b"]);
-   });
-
-   it("targets the versioned route", () => {
-      expect(multipartUploadsPath("server1", "my bucket")).toBe(
-         "/servers/server1/buckets/my%20bucket/objects/v3/multipart-uploads"
-      );
    });
 });

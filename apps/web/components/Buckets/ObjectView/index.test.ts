@@ -99,7 +99,6 @@ describe("metadata for objects without a browser link", () => {
       ).toMatchObject({
          eTag: '"reviewed"',
          metadataPending: false,
-         canEdit: false,
       });
       expect(
          one(tree, (node) => node.type === "details", "details").props
@@ -112,17 +111,13 @@ describe("metadata for objects without a browser link", () => {
          one(render(), (node) => node.type === "header", "header").props
       ).toMatchObject({ eTag: null, metadataPending: true });
    });
-   it("keeps delete-by-key available when the metadata request failed", () => {
-      h.available = false;
-      h.error = new Error("Storage unavailable");
-      expect(
-         one(render(), (node) => node.type === "header", "header").props
-      ).toMatchObject({ eTag: null, metadataPending: false });
-   });
-   it("shows metadata errors rather than an indefinitely pending disabled preview", () => {
+   it("keeps delete-by-key available and shows the error when the metadata request failed", () => {
       h.available = false;
       h.error = new Error("Storage unavailable");
       const tree = render();
+      expect(
+         one(tree, (node) => node.type === "header", "header").props
+      ).toMatchObject({ eTag: null, metadataPending: false });
       expect(
          one(tree, (node) => node.type === "details", "details").props
       ).toMatchObject({
@@ -166,6 +161,9 @@ describe("combined object metadata", () => {
          details: h.metadata,
          isLoading: false,
       });
+      expect(
+         one(tree, (node) => node.type === "header", "header").props
+      ).toMatchObject({ canEdit: true });
    });
    it("still enables standalone metadata for unsupported browser keys", () => {
       render();

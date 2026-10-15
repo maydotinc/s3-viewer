@@ -44,4 +44,4 @@ const isEditableObject = (
    );
 };
 
-export { extensionOf, isEditableObject };
+export { isEditableObject };

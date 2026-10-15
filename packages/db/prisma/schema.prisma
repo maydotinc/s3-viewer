@@ -100,7 +100,7 @@ model Server {
   bucketAccess       BucketAccess[]
   pendingInvitations PendingInvitation[]
 
-  @@unique([ownerId, name])
+  @@index([ownerId])
   @@index([name, id])
   @@map("server")
 }

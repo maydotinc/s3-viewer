@@ -1,5 +1,6 @@
 import { record } from "@/lib/middleware/audit-record";
 import { getAuth } from "@/lib/middleware/authorize";
+import { strictOriginCheck } from "@/lib/middleware/origin";
 import { bucketRoute, byObjectKey } from "@/lib/middleware/route";
 import { copyObject, type CopySettings } from "@/lib/s3/copy";
 import { headObject, toSettings } from "@/lib/s3/head";
@@ -38,6 +39,7 @@ const settingsAttributes = ({
 
 settingsRouter.get(
    SETTINGS_PATH,
+   strictOriginCheck,
    ...bucketRoute(
       Permission.DOWNLOAD_OBJECT,
       objectSettingsQuerySchema,

@@ -17,6 +17,9 @@ const isDotSegment = (segment: string | undefined): boolean =>
 const hasDotSegment = (path: string): boolean =>
    path.split(/[\\/]/).some(isDotSegment);
 
+const DOT_SEGMENTS_MESSAGE =
+   "Paths with . or .. segments can only be opened by the server owner.";
+
 const normalizeFolders = (folders: readonly string[]): string[] => {
    const unique = [...new Set(folders)].sort();
    return unique.filter(
@@ -76,6 +79,7 @@ const foldersLeadingToScope = (
 type ScopedGrant = { role: Role; folders: FolderScope };
 
 export {
+   DOT_SEGMENTS_MESSAGE,
    MAX_GRANT_FOLDERS,
    canLimitToFolders,
    folderScopeCovers,

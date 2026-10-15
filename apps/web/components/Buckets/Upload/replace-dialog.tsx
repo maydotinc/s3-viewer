@@ -61,7 +61,7 @@ const ReplaceDialog = ({
                      ? "Replace existing file?"
                      : "Replace existing files?"}
                </DialogTitle>
-               <DialogDescription className="break-all">
+               <DialogDescription>
                   {summary} {advice}
                   {inFlight}
                </DialogDescription>

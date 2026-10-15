@@ -1,4 +1,8 @@
-import { GetObjectCommand, type S3Client } from "@aws-sdk/client-s3";
+import {
+   GetObjectCommand,
+   type HeadObjectCommandOutput,
+   type S3Client,
+} from "@aws-sdk/client-s3";
 import { DEFAULT_CONTENT_TYPE } from "@s3-viewer/types";
 import type { Readable } from "node:stream";
 import {
@@ -36,7 +40,11 @@ const DESTINATION_CHANGED =
 type TransferEndpoint = { client: S3Client; bucket: string; key: string };
 
 type TransferParams = {
-   source: TransferEndpoint & { expectedETag: string | null };
+   // a head the caller already took for the reviewed source spares a second round trip.
+   source: TransferEndpoint & {
+      expectedETag: string | null;
+      head?: HeadObjectCommandOutput;
+   };
    destination: TransferEndpoint;
    overwrite: boolean;
    maxBytes: number;
@@ -71,11 +79,13 @@ const transferObject = async ({
       signal,
       S3_ROUTE_TIMEOUT_MS,
       async (deadline) => {
-         const head = await headReviewed(
-            { ...source, signal: deadline },
-            sourceInput.key,
-            sourceInput.expectedETag
-         );
+         const head =
+            sourceInput.head ??
+            (await headReviewed(
+               { ...source, signal: deadline },
+               sourceInput.key,
+               sourceInput.expectedETag
+            ));
          if (head.SSECustomerAlgorithm)
             throw new ApiHttpError(
                409,

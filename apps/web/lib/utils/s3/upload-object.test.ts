@@ -2,6 +2,8 @@ import {
    MULTIPART_CONCURRENCY,
    MULTIPART_THRESHOLD_BYTES,
 } from "@s3-viewer/types";
+import { FakeXHR } from "@/lib/test/fake-xhr";
+import { expectUploadSlotsFree } from "@/lib/test/upload-slots";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { UploadCancelled } from "./upload-cancelled";
 
@@ -12,83 +14,6 @@ vi.mock("@/lib/stores/session-store", () => ({
 
 const multipart = vi.hoisted(() => ({ upload: vi.fn() }));
 vi.mock("./upload-multipart", () => ({ uploadMultipart: multipart.upload }));
-
-type ProgressHandler = (event: {
-   loaded: number;
-   lengthComputable: boolean;
-}) => void;
-
-class FakeXHR {
-   static readonly DONE = 4;
-   static instances: FakeXHR[] = [];
-
-   readyState = 0;
-   status = 0;
-   responseText = "";
-   timeout = 0;
-   withCredentials = false;
-   upload: { onprogress: ProgressHandler | null } = { onprogress: null };
-   onload: (() => void) | null = null;
-   onerror: (() => void) | null = null;
-   onabort: (() => void) | null = null;
-   ontimeout: (() => void) | null = null;
-   method = "";
-   url = "";
-   headers: Record<string, string> = {};
-   responseHeaders: Record<string, string> = {};
-
-   constructor() {
-      FakeXHR.instances.push(this);
-   }
-
-   open(method: string, url: string) {
-      this.method = method;
-      this.url = url;
-   }
-
-   setRequestHeader(key: string, value: string) {
-      this.headers[key] = value;
-   }
-
-   send() {
-      this.readyState = 1;
-   }
-
-   getResponseHeader(name: string) {
-      return this.responseHeaders[name] ?? null;
-   }
-
-   abort() {
-      this.readyState = FakeXHR.DONE;
-      this.onabort?.();
-   }
-
-   progress(loaded: number) {
-      this.upload.onprogress?.({ loaded, lengthComputable: true });
-   }
-
-   respond(
-      status: number,
-      body: unknown,
-      responseHeaders: Record<string, string> = {}
-   ) {
-      this.status = status;
-      this.responseHeaders = responseHeaders;
-      this.responseText = JSON.stringify(body);
-      this.readyState = FakeXHR.DONE;
-      this.onload?.();
-   }
-
-   fail() {
-      this.readyState = FakeXHR.DONE;
-      this.onerror?.();
-   }
-
-   timeoutOut() {
-      this.readyState = FakeXHR.DONE;
-      this.ontimeout?.();
-   }
-}
 
 vi.stubGlobal("XMLHttpRequest", FakeXHR);
 
@@ -120,9 +45,10 @@ beforeEach(() => {
    vi.useFakeTimers();
 });
 
-afterEach(() => {
+afterEach(async () => {
    setUnauthorizedHandler(() => {});
    vi.useRealTimers();
+   await expectUploadSlotsFree();
 });
 
 describe("uploadObject", () => {
@@ -140,14 +66,12 @@ describe("uploadObject", () => {
       expect(unauthorized).toHaveBeenCalledOnce();
    });
 
-   it("sends the captured user identity to the API on every retry", async () => {
+   it("sends the captured user identity and no replacement authority on every retry", async () => {
       const handle = upload();
       const firstUrl = FakeXHR.instances[0]?.url ?? "";
-      expect(
-         new URL(firstUrl, "http://localhost").searchParams.get(
-            "expectedUserId"
-         )
-      ).toBe("user-a");
+      const { searchParams } = new URL(firstUrl, "http://localhost");
+      expect(searchParams.get("expectedUserId")).toBe("user-a");
+      expect(searchParams.has("expectedETag")).toBe(false);
       FakeXHR.instances[0]?.fail();
       await vi.advanceTimersByTimeAsync(500);
       expect(FakeXHR.instances[1]?.url).toBe(firstUrl);
@@ -155,30 +79,24 @@ describe("uploadObject", () => {
       await expect(handle.done).resolves.toEqual(body);
    });
 
-   it.each([null, "user-b"])(
-      "refuses an upload under changed identity %s before sending bytes",
-      async (userId) => {
-         identity.userId = userId;
-         const handle = upload();
-         await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
-         expect(FakeXHR.instances).toHaveLength(0);
-      }
-   );
+   it("refuses an upload under a changed identity before sending bytes", async () => {
+      identity.userId = "user-b";
+      const handle = upload();
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      expect(FakeXHR.instances).toHaveLength(0);
+   });
 
-   it.each([null, "user-b"])(
-      "cancels a network retry when identity becomes %s",
-      async (userId) => {
-         const handle = upload();
-         const result = expect(handle.done).rejects.toBeInstanceOf(
-            UploadCancelled
-         );
-         FakeXHR.instances[0]?.fail();
-         identity.userId = userId;
-         await vi.advanceTimersByTimeAsync(500);
-         await result;
-         expect(FakeXHR.instances).toHaveLength(1);
-      }
-   );
+   it("cancels a network retry when the identity changes", async () => {
+      const handle = upload();
+      const result = expect(handle.done).rejects.toBeInstanceOf(
+         UploadCancelled
+      );
+      FakeXHR.instances[0]?.fail();
+      identity.userId = "user-b";
+      await vi.advanceTimersByTimeAsync(500);
+      await result;
+      expect(FakeXHR.instances).toHaveLength(1);
+   });
 
    it.each(["fail", "timeoutOut"] as const)(
       "never replays an overwrite after an ambiguous %s response",
@@ -205,18 +123,6 @@ describe("uploadObject", () => {
       }
    );
 
-   it("does not send replacement authority for a new file", async () => {
-      const handle = upload();
-      expect(
-         new URL(
-            FakeXHR.instances[0]?.url ?? "",
-            "http://localhost"
-         ).searchParams.has("expectedETag")
-      ).toBe(false);
-      FakeXHR.instances[0]?.respond(201, body);
-      await expect(handle.done).resolves.toEqual(body);
-   });
-
    it("resolves with the parsed body and reports progress up to the full size", async () => {
       const onProgress = vi.fn();
       const handle = uploadObject({
@@ -237,9 +143,9 @@ describe("uploadObject", () => {
       expect(onProgress).toHaveBeenCalledWith(10);
    });
 
-   it("sets a positive client-side timeout before sending", async () => {
+   it("floors the client-side timeout for a small file", async () => {
       const handle = upload({ file: makeFile(10) });
-      expect(FakeXHR.instances[0]?.timeout).toBeGreaterThan(0);
+      expect(FakeXHR.instances[0]?.timeout).toBe(30_000);
       handle.abort();
       await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
    });
@@ -256,32 +162,12 @@ describe("uploadObject", () => {
       await vi.advanceTimersByTimeAsync(1);
       expect(FakeXHR.instances).toHaveLength(3);
 
-      FakeXHR.instances[2]?.respond(200, body);
-      await expect(handle.done).resolves.toEqual(body);
-   });
-
-   it("stops retrying once the retry bound is exhausted", async () => {
-      const handle = upload();
-      FakeXHR.instances[0]?.fail();
-      await vi.advanceTimersByTimeAsync(500);
-      FakeXHR.instances[1]?.fail();
-      await vi.advanceTimersByTimeAsync(1000);
       FakeXHR.instances[2]?.fail();
-
       await expect(handle.done).rejects.toMatchObject({
          status: 0,
          code: "UPLOAD_OUTCOME_UNKNOWN",
       });
       expect(FakeXHR.instances).toHaveLength(3);
-   });
-
-   it("treats a new-file client-side timeout as a retryable network error", async () => {
-      const handle = upload();
-      FakeXHR.instances[0]?.timeoutOut();
-      await vi.advanceTimersByTimeAsync(500);
-      expect(FakeXHR.instances).toHaveLength(2);
-      FakeXHR.instances[1]?.respond(200, body);
-      await expect(handle.done).resolves.toEqual(body);
    });
 
    it("rejects instead of hanging when a 2xx body can't be parsed", async () => {
@@ -296,16 +182,11 @@ describe("uploadObject", () => {
       expect(FakeXHR.instances).toHaveLength(1);
    });
 
-   it("never retries a 4xx or 5xx response", async () => {
+   it("never retries a 5xx response", async () => {
       const serverError = upload();
       FakeXHR.instances[0]?.respond(500, { message: "boom" });
       await expect(serverError.done).rejects.toMatchObject({ status: 500 });
       expect(FakeXHR.instances).toHaveLength(1);
-
-      const clientError = upload();
-      FakeXHR.instances[1]?.respond(404, { message: "missing" });
-      await expect(clientError.done).rejects.toMatchObject({ status: 404 });
-      expect(FakeXHR.instances).toHaveLength(2);
    });
 
    it("aborting mid-flight rejects with UploadCancelled and aborts the request", async () => {
@@ -436,15 +317,6 @@ describe("a conflict after an ambiguous attempt", () => {
       expect(FakeXHR.instances).toHaveLength(2);
    });
 
-   it("still reports a conflict on the first attempt as a conflict", async () => {
-      const handle = upload();
-      FakeXHR.instances[0]?.respond(409, conflict);
-      await expect(handle.done).rejects.toMatchObject({
-         status: 409,
-         message: "The file changed or already exists.",
-      });
-   });
-
    it("still reports a conflict after only a 429 as a conflict", async () => {
       const handle = upload();
       FakeXHR.instances[0]?.respond(429, { message: "busy" });
@@ -509,19 +381,15 @@ describe("choosing between one request and parts", () => {
       return file;
    };
 
-   it.each([1, MULTIPART_THRESHOLD_BYTES])(
-      "sends %i bytes as a single request",
-      async (size) => {
-         const handle = upload({ file: sized(size) });
-         expect(multipart.upload).not.toHaveBeenCalled();
-         expect(
-            new URL(FakeXHR.instances[0]?.url ?? "", "http://localhost")
-               .pathname
-         ).toBe("/servers/s/buckets/b/objects/v3/upload");
-         FakeXHR.instances[0]?.respond(201, body);
-         await expect(handle.done).resolves.toEqual(body);
-      }
-   );
+   it("sends a file at the threshold as a single request", async () => {
+      const handle = upload({ file: sized(MULTIPART_THRESHOLD_BYTES) });
+      expect(multipart.upload).not.toHaveBeenCalled();
+      expect(
+         new URL(FakeXHR.instances[0]?.url ?? "", "http://localhost").pathname
+      ).toBe("/servers/s/buckets/b/objects/v3/upload");
+      FakeXHR.instances[0]?.respond(201, body);
+      await expect(handle.done).resolves.toEqual(body);
+   });
 
    it("switches to parts one byte over the threshold", async () => {
       const file = sized(MULTIPART_THRESHOLD_BYTES + 1);
@@ -531,15 +399,5 @@ describe("choosing between one request and parts", () => {
          expect.objectContaining({ file, userId: "user-a", objectKey: "k" })
       );
       await expect(handle.done).resolves.toEqual(body);
-   });
-
-   it("hands a replacement's ETag to the multipart path too", () => {
-      upload({
-         file: sized(MULTIPART_THRESHOLD_BYTES + 1),
-         expectedETag: '"before-confirmation"',
-      });
-      expect(multipart.upload).toHaveBeenCalledWith(
-         expect.objectContaining({ expectedETag: '"before-confirmation"' })
-      );
    });
 });

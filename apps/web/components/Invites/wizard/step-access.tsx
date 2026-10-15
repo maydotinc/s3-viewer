@@ -13,7 +13,6 @@ type StepAccessProps = {
    expanded: string | null;
    submitted: boolean;
    focusRequest: number;
-   disabled?: boolean;
    onAccessChange: (
       serverId: string,
       fallback: ServerAccess,
@@ -38,7 +37,6 @@ const StepAccess = ({
    expanded,
    submitted,
    focusRequest,
-   disabled,
    onAccessChange,
    onExpand,
    onRemove,
@@ -63,7 +61,6 @@ const StepAccess = ({
                   single={single}
                   submitted={submitted}
                   focusRequest={isOpen ? focusRequest : 0}
-                  disabled={disabled}
                   onAccessChange={onAccessChange}
                   onExpand={onExpand}
                   onRemove={onRemove}
@@ -75,4 +72,3 @@ const StepAccess = ({
 };
 
 export default StepAccess;
-export { defaultExpanded };

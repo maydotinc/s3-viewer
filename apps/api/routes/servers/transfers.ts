@@ -52,24 +52,32 @@ const authorizeTransfer: RequestHandler = asyncHandler(
       const user = requireUser(req);
       const scope = input<TransferObjectInput>(res);
       const { serverId, source, destination } = scope;
-      const sourceAuth = await authorizeBucket(
-         user.id,
-         serverId,
-         source.bucketName,
-         Permission.DOWNLOAD_OBJECT
-      );
+      // settled in order, so a source refusal is still the one answered and recorded.
+      const [sourceResult, destinationResult] = await Promise.allSettled([
+         authorizeBucket(
+            user.id,
+            serverId,
+            source.bucketName,
+            Permission.DOWNLOAD_OBJECT
+         ),
+         authorizeBucket(
+            user.id,
+            destination.serverId,
+            destination.bucketName,
+            Permission.UPLOAD_OBJECT
+         ),
+      ]);
+      if (sourceResult.status === "rejected") throw sourceResult.reason;
+      const sourceAuth = sourceResult.value;
       assertInFolders(
          sourceAuth,
          source.bucketName,
          Permission.DOWNLOAD_OBJECT,
          [source.objectKey]
       );
-      const destinationAuth = await authorizeBucket(
-         user.id,
-         destination.serverId,
-         destination.bucketName,
-         Permission.UPLOAD_OBJECT
-      );
+      if (destinationResult.status === "rejected")
+         throw destinationResult.reason;
+      const destinationAuth = destinationResult.value;
       assertInFolders(
          destinationAuth,
          destination.bucketName,
@@ -147,11 +155,12 @@ const streamAcrossServers = async (
       source.bucketName,
       signal
    );
-   const { ContentLength } = await headReviewed(
+   const head = await headReviewed(
       { client: sourceClient, bucket: source.bucketName, signal },
       source.objectKey,
       source.expectedETag
    );
+   const { ContentLength } = head;
    const partSize = partSizeFor(ContentLength, env.UPLOAD_PART_BYTES);
    const maxBytes = streamedUploadCap(partSize);
    if ((ContentLength ?? 0) > maxBytes)
@@ -173,6 +182,7 @@ const streamAcrossServers = async (
                bucket: source.bucketName,
                key: source.objectKey,
                expectedETag: source.expectedETag,
+               head,
             },
             destination: {
                client: destinationClient,

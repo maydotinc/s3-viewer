@@ -5,6 +5,8 @@ import {
    buttonByText,
    mountedRuntime,
    serverInfo,
+   submitForm,
+   typeInto,
 } from "@/components/test-helpers";
 import { deferred, flushRuntime } from "@/lib/test/runtime";
 import { ApiError } from "@/lib/api";
@@ -33,26 +35,17 @@ vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
 vi.mock("@/lib/utils/encryption", () => ({ encryptCredentials: h.encrypt }));
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user1" }));
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 const type = async (id: string, value: string) =>
-   act(async () => {
-      const field = view.current.container.querySelector<HTMLInputElement>(
-         `#update-credentials-${id}`
-      )!;
-      Object.getOwnPropertyDescriptor(
-         HTMLInputElement.prototype,
-         "value"
-      )!.set!.call(field, value);
-      field.dispatchEvent(new Event("input", { bubbles: true }));
-   });
-const submit = async () =>
    act(async () =>
-      view.current.container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         )
+      typeInto(
+         view.current.container.querySelector<HTMLInputElement>(
+            `#update-credentials-${id}`
+         )!,
+         value
+      )
    );
+const submit = async () => act(async () => submitForm(view.current.container));
 const save = () =>
    view.current.container.querySelector<HTMLButtonElement>(
       "button[type=submit]"

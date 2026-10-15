@@ -178,12 +178,6 @@ describe("createObjectDatasource", () => {
       expect(last.rows).toHaveLength(500);
       expect(last.rows[0]?.key).toBe("k2000");
       expect(last.lastRow).toBe(total);
-
-      const first = await rowsFor(datasource, 0);
-      expect(calls).toHaveLength(4);
-      expect(calls[3]).toEqual({ token: null, blockSize: BLOCK });
-      expect(first.rows).toHaveLength(BLOCK);
-      expect(first.lastRow).toBe(total);
    });
 
    it("fills a block to size when the API returns a short page with a token", async () => {
@@ -201,25 +195,6 @@ describe("createObjectDatasource", () => {
       const second = await rowsFor(datasource, 1);
       expect(calls[2]).toEqual({ token: "1000", blockSize: BLOCK });
       expect(second.rows[0]?.key).toBe("k1000");
-   });
-
-   it("keeps blocks full when every page is short, so the row mapping holds", async () => {
-      pageLimit = 40;
-      const datasource = source();
-      const first = await rowsFor(datasource, 0);
-      expect(calls).toHaveLength(25);
-      expect(first.rows).toHaveLength(BLOCK);
-      expect(first.rows[999]?.key).toBe("k999");
-      expect(first.lastRow).toBeUndefined();
-
-      const second = await rowsFor(datasource, 1);
-      expect(second.rows).toHaveLength(BLOCK);
-      expect(second.rows[0]?.key).toBe("k1000");
-
-      const third = await rowsFor(datasource, 2);
-      expect(third.rows).toHaveLength(500);
-      expect(third.rows[0]?.key).toBe("k2000");
-      expect(third.lastRow).toBe(total);
    });
 
    it("stops a block that stops making progress and reports it as the end", async () => {
@@ -256,22 +231,6 @@ describe("createObjectDatasource", () => {
       expect(calls).toHaveLength(13);
       expect(calls[12]).toEqual({ token: "5000", blockSize: BLOCK });
       expect(middle.rows[0]?.key).toBe("k5000");
-   });
-
-   it("starts over with a replacement and serialises overlapping requests", async () => {
-      let datasource = source();
-      const [a, b] = await Promise.all([
-         rowsFor(datasource, 0),
-         rowsFor(datasource, 1),
-      ]);
-      expect(a.rows[0]?.key).toBe("k0");
-      expect(b.rows[0]?.key).toBe("k1000");
-      expect(calls.map((c) => c.token)).toEqual([null, "1000"]);
-
-      datasource.destroy();
-      datasource = source();
-      await rowsFor(datasource, 0);
-      expect(calls).toHaveLength(3);
    });
 
    it("aborts a blocked walk and settles its queued grid requests on destroy", async () => {

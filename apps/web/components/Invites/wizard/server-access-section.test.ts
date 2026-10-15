@@ -109,15 +109,14 @@ describe("a server's access section", () => {
 
    it("collapses into a header button that reports its state", async () => {
       const onExpand = vi.fn();
+      h.picker = undefined;
       const container = await mount({ expanded: false, onExpand });
       const header = container.querySelector<HTMLButtonElement>(
          "button[aria-expanded]"
       )!;
       expect(header.getAttribute("aria-expanded")).toBe("false");
-      expect(h.picker).toBeDefined();
-      h.picker = undefined;
+      expect(h.picker).toBeUndefined();
       await act(async () => header.click());
       expect(onExpand).toHaveBeenCalledWith("one");
-      expect(h.picker).toBeUndefined();
    });
 });

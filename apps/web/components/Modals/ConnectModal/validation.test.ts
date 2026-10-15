@@ -1,7 +1,12 @@
 // @vitest-environment happy-dom
 import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mountedRuntime, serverInfo } from "@/components/test-helpers";
+import {
+   mountedRuntime,
+   serverInfo,
+   submitForm,
+   typeInto,
+} from "@/components/test-helpers";
 import { deferred, flushRuntime } from "@/lib/test/runtime";
 import UpdateCredentialsModal from "../UpdateCredentialsModal";
 import ConnectModal from "./index";
@@ -45,27 +50,15 @@ vi.mock("@s3-viewer/ui/components/dialog", async () =>
    (await import("@/components/test-helpers")).passthroughDialog()
 );
 
-const view = mountedRuntime(() => vi.unstubAllGlobals());
+const view = mountedRuntime();
 let prefix = "connect";
 const input = (id: string) =>
    view.current.container.querySelector<HTMLInputElement>(`#${id}`)!;
 const type = (id: string, value: string) =>
-   act(async () => {
-      Object.getOwnPropertyDescriptor(
-         HTMLInputElement.prototype,
-         "value"
-      )!.set!.call(input(id), value);
-      input(id).dispatchEvent(new Event("input", { bubbles: true }));
-   });
+   act(async () => typeInto(input(id), value));
 const change = (key: string, value: string) => type(`${prefix}-${key}`, value);
 const submit = async () => {
-   await act(async () =>
-      view.current.container
-         .querySelector("form")!
-         .dispatchEvent(
-            new Event("submit", { bubbles: true, cancelable: true })
-         )
-   );
+   await act(async () => submitForm(view.current.container));
    await flushRuntime();
    await flushRuntime();
 };

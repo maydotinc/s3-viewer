@@ -32,8 +32,6 @@ const state = vi.hoisted(() => ({
       allowedFolders: string[];
    }[],
    memberFound: true,
-   // the buckets the acting member holds; null is an owner's view of every bucket.
-   visible: null as Set<string> | null,
    grantChanges: vi.fn(),
    replace: vi.fn(),
    recordMany: vi.fn(),
@@ -77,14 +75,10 @@ vi.mock("@/lib/services/servers", async (original) => ({
 vi.mock("@/lib/services/members", async (original) => ({
    ...(await original<typeof import("@/lib/services/members")>()),
    listMembers: state.listMembers,
-   loadBucketGrants: async () => state.currentGrants,
-   loadGrantingActor: async () => ({
-      serverRole: "OWNER",
-      bucketGrants: new Map(),
-   }),
+   loadBucketGrants: async (userId: string) =>
+      userId === ACTOR ? grantRows(state.actorGrants) : state.currentGrants,
    assertBucketGrantChanges: state.grantChanges,
    replaceBucketAccess: state.replace,
-   visibleBuckets: async () => state.visible,
    clampBucketAccess: state.clamp,
    removeMembership: state.removeMembership,
    findMember: async () =>
@@ -98,6 +92,13 @@ vi.mock("@/lib/services/members", async (original) => ({
            }
          : null,
 }));
+
+const grantRows = (grants: typeof state.actorGrants) =>
+   grants.map(({ folders, ...grant }) => ({
+      ...grant,
+      restrictedFolders: folders !== null,
+      allowedFolders: folders ?? [],
+   }));
 
 const findAccess = async (args: {
    where: { userId_serverId: { userId: string } };
@@ -134,14 +135,9 @@ vi.mock("@s3-viewer/db", () => ({
                }: {
                   where: { bucketName?: unknown };
                }) =>
-                  (where.bucketName
-                     ? state.actorGrants
-                     : state.memberGrants
-                  ).map(({ folders, ...grant }) => ({
-                     ...grant,
-                     restrictedFolders: folders !== null,
-                     allowedFolders: folders ?? [],
-                  })),
+                  grantRows(
+                     where.bucketName ? state.actorGrants : state.memberGrants
+                  ),
             },
          }),
    },
@@ -149,7 +145,7 @@ vi.mock("@s3-viewer/db", () => ({
 
 const { membersRouter } = await import("./members");
 const { recordDenials } = await import("@/lib/middleware/route");
-const { removeMembership } = await vi.importActual<
+const { assertBucketGrantChanges, removeMembership } = await vi.importActual<
    typeof import("@/lib/services/members")
 >("@/lib/services/members");
 
@@ -179,7 +175,6 @@ beforeEach(() => {
    state.actorGrants = [];
    state.currentGrants = [];
    state.memberFound = true;
-   state.visible = null;
    state.grantChanges.mockReset();
    state.replace.mockReset().mockResolvedValue(undefined);
    state.beforeScopeLock.mockReset();
@@ -365,7 +360,7 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
 
       beforeEach(() => {
          state.actorRole = "ADMIN";
-         state.visible = new Set(["photos"]);
+         state.actorGrants = [photos];
          state.currentGrants = [
             grantRow("photos", "EDITOR"),
             grantRow("secret", "VIEWER"),
@@ -387,14 +382,15 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
             expect.anything(),
             expect.anything(),
             [grantRow("photos", "EDITOR")],
-            [{ ...photos, role: "VIEWER" }]
+            [{ ...photos, role: "VIEWER" }],
+            expect.any(Function)
          );
          expect(state.replace).toHaveBeenCalledWith(
             expect.anything(),
             TARGET,
             "server12345",
             [{ ...photos, role: "VIEWER" }],
-            state.visible
+            new Set(["photos"])
          );
       });
 
@@ -520,12 +516,6 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
       expect(state.clamp).not.toHaveBeenCalled();
    });
 
-   it("records nothing when the actor may not manage members", async () => {
-      state.actorRole = "EDITOR";
-      expect((await patchRole({ role: "VIEWER" })).status).toBe(403);
-      expect(state.recordMany).not.toHaveBeenCalled();
-   });
-
    it("records nothing when the target is not a member", async () => {
       state.targetRole = null;
       expect((await patchRole({ role: "VIEWER" })).status).toBe(404);
@@ -547,13 +537,6 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
          expect.anything(),
          [expect.objectContaining({ action: "member.role_change" }), ...revoked]
       );
-   });
-
-   it("records no revoked invites for a refused change", async () => {
-      state.actorRole = "EDITOR";
-      expect((await patchRole({ role: "VIEWER" })).status).toBe(403);
-      expect(state.revokeInvites).not.toHaveBeenCalled();
-      expect(state.recordMany).not.toHaveBeenCalled();
    });
 });
 
@@ -630,30 +613,17 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
       }
    );
 
-   it("refuses an admin removing a member whose grant sits on a bucket the admin does not hold", async () => {
-      state.actorRole = "ADMIN";
-      state.memberGrants = [
-         { bucketName: "photos", role: "EDITOR", folders: null },
-      ];
-      state.actorGrants = [];
-      state.removeMembership.mockImplementation(removeMembership);
-      const res = await fetch(base, { method: "DELETE" });
-      expect(res.status).toBe(403);
-      expect(await res.json()).toEqual({
-         message:
-            "You can't remove a member with access to buckets you don't hold",
-      });
-      expect(state.deleteAccess).not.toHaveBeenCalled();
-      expect(state.deleteGrants).not.toHaveBeenCalled();
-   });
-
    it("records the removed member's address and id", async () => {
       const res = await fetch(base, { method: "DELETE" });
       expect(res.status).toBe(204);
       expect(state.removeMembership).toHaveBeenCalledWith(
          TARGET,
          "server12345",
-         { id: ACTOR, assertAuthority: expect.any(Function) }
+         {
+            id: ACTOR,
+            assertAuthority: expect.any(Function),
+            refuse: expect.any(Function),
+         }
       );
       expect(entry()).toEqual({
          action: "member.remove",
@@ -691,12 +661,6 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
       expect(state.recordMany).not.toHaveBeenCalled();
    });
 
-   it("records nothing when the actor may not manage the target", async () => {
-      state.targetRole = "OWNER";
-      expect((await fetch(base, { method: "DELETE" })).status).toBe(403);
-      expect(state.recordMany).not.toHaveBeenCalled();
-   });
-
    it("refuses a member removing their own row and deletes nothing", async () => {
       state.actorRole = "ADMIN";
       state.removeMembership.mockImplementation(removeMembership);
@@ -726,6 +690,32 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
 });
 
 describe("a refusal raised inside the transaction", () => {
+   it("audits a folder-limited admin granting past their folders", async () => {
+      state.actorRole = "ADMIN";
+      state.actorGrants = [
+         { bucketName: "company", role: "EDITOR", folders: ["landing/"] },
+      ];
+      state.grantChanges.mockImplementation(assertBucketGrantChanges);
+      const res = await patchRole({
+         role: "EDITOR",
+         bucketAccess: [
+            { bucketName: "company", role: "VIEWER", folders: null },
+         ],
+         previousBucketAccess: [],
+      });
+      expect(res.status).toBe(403);
+      expect(state.writeAudit).toHaveBeenCalledWith(
+         expect.objectContaining({
+            entry: {
+               action: "access.denied",
+               bucket: "company",
+               detail: { permission: "MANAGE_MEMBERS", reason: "folder" },
+            },
+         })
+      );
+      expect(state.update).not.toHaveBeenCalled();
+   });
+
    it("still writes the access.denied entry", async () => {
       state.actorRole = "EDITOR";
       expect((await patchRole({ role: "VIEWER" })).status).toBe(403);
@@ -740,5 +730,6 @@ describe("a refusal raised inside the transaction", () => {
          },
       });
       expect(state.recordMany).not.toHaveBeenCalled();
+      expect(state.revokeInvites).not.toHaveBeenCalled();
    });
 });

@@ -20,7 +20,6 @@ import { copyObject, MIN_COPY_PART_BYTES } from "./copy";
 import { existingKeys, listKeysPage, listPage } from "./listing";
 import {
    createReadBudget,
-   readBudget,
    retainedRead,
    withReadResponse,
    withReadUser,
@@ -152,8 +151,7 @@ describe("buffered storage read budget", () => {
 
 describe("retainedRead", () => {
    it("keeps what a read retained until the response ends", async () => {
-      const budget = createReadBudget(limits);
-      vi.spyOn(readBudget, "acquire").mockImplementation(budget.acquire);
+      const budget = installReadBudget(16);
       const res = fakeResponse();
       const result = await withReadResponse("a", res, () =>
          retainedRead("one", async (reservation) => {
@@ -170,8 +168,7 @@ describe("retainedRead", () => {
    });
 
    it("releases the reservation when the read fails", async () => {
-      const budget = createReadBudget(limits);
-      vi.spyOn(readBudget, "acquire").mockImplementation(budget.acquire);
+      const budget = installReadBudget(16);
       const res = fakeResponse();
       await expect(
          withReadResponse("a", res, () =>
@@ -445,6 +442,7 @@ describe("SDK buffered response admission", () => {
          expect(result).toEqual({
             existing: [key],
             eTags: { [key]: etag },
+            sizes: {},
             unresolved: [],
          });
       } finally {

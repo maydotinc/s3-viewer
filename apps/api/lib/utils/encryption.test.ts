@@ -12,11 +12,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import { encryptCredentials } from "../../../web/lib/utils/encryption";
 import { getS3ClientFromCredentials } from "@/lib/s3/client-cache";
 import { presignedUrl } from "@/lib/s3/presign";
-import {
-   decryptCredentials,
-   encryptCredentials as sealOnServer,
-   encryptionPublicKey,
-} from "./encryption";
+import { decryptCredentials, encryptionPublicKey } from "./encryption";
 
 const state = vi.hoisted(() => ({ privateKey: "" }));
 vi.mock("@/lib/env", () => ({
@@ -39,9 +35,14 @@ const credentials = {
 };
 
 // the v1 wire format sealed nothing to the account; it is refused outright, never read.
-const unboundEnvelope = (): string => {
+const unboundEnvelope = async (): Promise<string> => {
+   const sealed = await encryptCredentials(
+      credentials,
+      encryptionPublicKey(),
+      USER
+   );
    const envelope = JSON.parse(
-      Buffer.from(sealOnServer(credentials, USER), "base64").toString("utf8")
+      Buffer.from(sealed, "base64").toString("utf8")
    ) as CredentialEnvelope;
    return Buffer.from(JSON.stringify({ ...envelope, v: 1 })).toString("base64");
 };
@@ -181,66 +182,8 @@ describe("account-bound envelopes", () => {
       expect(() => decryptCredentials(encrypted, OTHER_USER)).toThrow();
    });
 
-   it("refuses an envelope of any other version", () => {
-      expect(() => decryptCredentials(unboundEnvelope(), USER)).toThrow();
-   });
-
-   it("seals on the server in the same shape the browser produces", () => {
-      const encrypted = sealOnServer(credentials, USER);
-      expect(encryptedCredentialsSchema.safeParse(encrypted).success).toBe(
-         true
-      );
-      expect(decryptCredentials(encrypted, USER)).toEqual(credentials);
-      expect(() => decryptCredentials(encrypted, OTHER_USER)).toThrow();
-   });
-
-   it("decrypts a server envelope with WebCrypto using the existing wire format", async () => {
-      const encrypted = sealOnServer(credentials, USER);
-      const envelope: CredentialEnvelope = JSON.parse(
-         Buffer.from(encrypted, "base64").toString("utf8")
-      );
-      const bytes = (value: string) =>
-         new Uint8Array(Buffer.from(value, "base64"));
-      expect(envelope.v).toBe(2);
-      expect(bytes(envelope.iv)).toHaveLength(12);
-
-      const privateKey = await crypto.subtle.importKey(
-         "pkcs8",
-         bytes(
-            state.privateKey
-               .replace(/-----[A-Z ]+-----/g, "")
-               .replace(/\s/g, "")
-         ),
-         { name: "RSA-OAEP", hash: "SHA-256" },
-         false,
-         ["decrypt"]
-      );
-      const rawKey = await crypto.subtle.decrypt(
-         { name: "RSA-OAEP" },
-         privateKey,
-         bytes(envelope.k)
-      );
-      expect(rawKey.byteLength).toBe(32);
-      const aesKey = await crypto.subtle.importKey(
-         "raw",
-         rawKey,
-         "AES-GCM",
-         false,
-         ["decrypt"]
-      );
-      const decryptFor = (userId: string) =>
-         crypto.subtle.decrypt(
-            {
-               name: "AES-GCM",
-               iv: bytes(envelope.iv),
-               additionalData: new TextEncoder().encode(userId),
-            },
-            aesKey,
-            bytes(envelope.ct)
-         );
-      expect(
-         JSON.parse(new TextDecoder().decode(await decryptFor(USER)))
-      ).toEqual(credentials);
-      await expect(decryptFor(OTHER_USER)).rejects.toThrow();
+   it("refuses an envelope of any other version", async () => {
+      const unbound = await unboundEnvelope();
+      expect(() => decryptCredentials(unbound, USER)).toThrow();
    });
 });

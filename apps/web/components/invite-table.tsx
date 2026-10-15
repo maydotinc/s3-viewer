@@ -49,7 +49,7 @@ const InviteTable = ({
       aria-busy={loading || undefined}
       className={cn(
          STACKED_TABLE,
-         "md:[&_tr>*:first-child]:pl-6 md:[&_tr>*:last-child]:pr-6"
+         "@min-[40rem]:[&_tr>*:first-child]:pl-6 @min-[40rem]:[&_tr>*:last-child]:pr-6"
       )}
    >
       <TableHeader>

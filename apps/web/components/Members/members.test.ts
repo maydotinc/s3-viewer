@@ -1,10 +1,9 @@
 // @vitest-environment happy-dom
-import { buttonByText } from "@/components/test-helpers";
-import { mountRuntime } from "@/lib/test/runtime";
+import { buttonByText, mountedRuntime } from "@/components/test-helpers";
 import { Role, type ServerUser } from "@s3-viewer/types";
 import { act, createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ remove: vi.fn() }));
 
@@ -104,28 +103,23 @@ describe("the members table", () => {
 });
 
 describe("removing a member", () => {
-   let runtime: Awaited<ReturnType<typeof mountRuntime>>;
+   const view = mountedRuntime();
    const dialog = () =>
-      runtime.container.querySelector<HTMLElement>("[role=dialog]");
+      view.current.container.querySelector<HTMLElement>("[role=dialog]");
    const click = (button: HTMLButtonElement | null | undefined) =>
       act(async () => button!.click());
-   const button = (text: string) => buttonByText(runtime.container, text);
+   const button = (text: string) => buttonByText(view.current.container, text);
 
    beforeEach(async () => {
       vi.clearAllMocks();
-      runtime = await mountRuntime(
+      await view.mount(
          createElement(Members, props({ members: [member("a", Role.EDITOR)] }))
       );
       await click(
-         runtime.container.querySelector<HTMLButtonElement>(
+         view.current.container.querySelector<HTMLButtonElement>(
             'button[aria-label="Remove Person a"]'
          )
       );
-   });
-   afterEach(async () => {
-      await runtime.unmount();
-      runtime.queryClient.clear();
-      vi.unstubAllGlobals();
    });
 
    it("asks first instead of removing on the first click", () => {

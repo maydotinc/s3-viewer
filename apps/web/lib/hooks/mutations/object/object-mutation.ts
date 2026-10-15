@@ -5,7 +5,7 @@ import {
    useQueryClient,
    type QueryClient,
 } from "@tanstack/react-query";
-import { forgetKeys, forgetObjects } from "./invalidate";
+import { forgetKeys, forgetObjects, type KeyMatch } from "./invalidate";
 
 type Settle<TInput> = (input: TInput, queryClient: QueryClient) => void;
 
@@ -30,7 +30,8 @@ const useObjectMutation = <TInput extends BucketTarget, TData>({
 
 const forgetTouched =
    <TInput extends BucketTarget>(
-      touched: (input: TInput) => readonly string[]
+      touched: (input: TInput) => readonly string[],
+      removed?: (input: TInput) => readonly string[]
    ): Settle<TInput> =>
    (input, queryClient) =>
       forgetKeys(
@@ -38,12 +39,14 @@ const forgetTouched =
          input.userId,
          input.serverId,
          input.bucketName,
-         touched(input)
+         touched(input),
+         removed?.(input)
       );
 
 const forgetMatching =
    <TInput extends BucketTarget>(
-      matches: (input: TInput) => (objectKey: string) => boolean
+      matches: (input: TInput) => KeyMatch,
+      removed?: (input: TInput) => KeyMatch
    ): Settle<TInput> =>
    (input, queryClient) =>
       forgetObjects(
@@ -51,7 +54,8 @@ const forgetMatching =
          input.userId,
          input.serverId,
          input.bucketName,
-         matches(input)
+         matches(input),
+         removed?.(input)
       );
 
 const sendObjectMutation = <TResult>(
@@ -77,16 +81,5 @@ const postKeyChange =
          body
       );
 
-const keyChangeTouched = ({ objectKey, newObjectKey }: KeyChangeInput) => [
-   objectKey,
-   newObjectKey,
-];
-
 export default useObjectMutation;
-export {
-   forgetMatching,
-   forgetTouched,
-   keyChangeTouched,
-   postKeyChange,
-   sendObjectMutation,
-};
+export { forgetMatching, forgetTouched, postKeyChange, sendObjectMutation };

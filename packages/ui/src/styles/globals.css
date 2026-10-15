@@ -10,7 +10,7 @@
    --color-viewergray: #f7f7f7;
    --color-viewertext: #525866;
    --color-viewerblack: #0e121b;
-   --color-viewerlighttext: #6d778a;
+   --color-viewerlighttext: #636c7e;
    --color-viewertextred: #fb3748;
    --color-viewerbgred: #feebec;
 
@@ -93,7 +93,6 @@ html:has([data-backdrop]) body {
       @apply text-[12px] leading-[18px] font-medium text-viewerlighttext;
    }
 
-   /* github's markdown rendering on the app's palette */
    .markdown-body {
       font-size: 16px;
       line-height: 1.5;

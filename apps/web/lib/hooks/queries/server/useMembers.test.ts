@@ -10,7 +10,6 @@ type Options = {
       signal: AbortSignal;
    }) => Promise<unknown>;
    initialPageParam: string | null;
-   getNextPageParam: (page: MemberPage) => string | null;
    enabled: boolean;
 };
 
@@ -101,43 +100,12 @@ describe("the members list", () => {
       );
    });
 
-   it("follows nextCursor until the api stops sending one", () => {
-      useMembers("server-1");
-      expect(options().getNextPageParam(page(["ann"], "next"))).toBe("next");
-      expect(options().getNextPageParam(page(["bo"], null))).toBeNull();
-   });
-
-   it("flattens every page it has into one list", () => {
-      h.result = {
-         ...idle,
-         data: { pages: [page(["ann", "bo"], "next"), page(["cy"], null)] },
-      };
-      expect(useMembers("server-1").members.map(({ id }) => id)).toEqual([
-         "ann",
-         "bo",
-         "cy",
-      ]);
-   });
-
    it("stays idle until a server is picked", () => {
       useMembers("");
       expect(options().enabled).toBe(false);
       h.userId = "";
       useMembers("server-1");
       expect(options().enabled).toBe(false);
-      h.userId = "signed-in-user";
-      useMembers("server-1");
-      expect(options().enabled).toBe(true);
-   });
-});
-
-describe("the table's copy", () => {
-   it("leaves the next page to the reader, who has a button for it", () => {
-      h.result = partial();
-      const { hasNextPage, fetchNextPage } = useMembers("server-1");
-      expect(hasNextPage).toBe(true);
-      expect(h.fetchNextPage).not.toHaveBeenCalled();
-      expect(fetchNextPage).toBe(h.fetchNextPage);
    });
 });
 

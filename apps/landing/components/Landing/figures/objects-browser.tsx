@@ -4,10 +4,11 @@ import {
    ArrowLeft,
    ChevronDown,
    EllipsisVertical,
-   Plus,
+   FolderPlus,
    RefreshCw,
    Search,
-   UserPlus,
+   Trash2,
+   Upload,
 } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { useToday } from "@/lib/hooks/use-today";
@@ -137,22 +138,13 @@ export const ObjectsBrowserFigure = () => {
                   <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-viewerlighttext" />
                   <input
                      tabIndex={-1}
-                     aria-label="Search objects"
-                     placeholder="Search..."
+                     aria-label="Filter by prefix"
+                     placeholder="Filter by prefix…"
                      value={query}
                      onChange={(e) => setQuery(e.target.value)}
                      className="h-9 w-full rounded-lg border border-viewerborder bg-viewerwhite pr-3 pl-9 text-sm text-viewerblack outline-none placeholder:text-viewerlighttext focus-visible:border-viewerblue pointer-coarse:pointer-events-none"
                   />
                </label>
-               <Button
-                  variant="outline"
-                  type="button"
-                  tabIndex={-1}
-                  className={WIDE_ONLY}
-               >
-                  Rows (100)
-                  <ChevronDown />
-               </Button>
                <span
                   className={cn(
                      "px-2 text-sm text-viewertext tabular-nums",
@@ -167,6 +159,21 @@ export const ObjectsBrowserFigure = () => {
                      variant="outline"
                      type="button"
                      tabIndex={-1}
+                     className={WIDE_ONLY}
+                  >
+                     <FolderPlus />
+                     New folder
+                  </Button>
+                  <Button variant="outline" type="button" tabIndex={-1}>
+                     <Upload />
+                     Upload
+                     <ChevronDown />
+                  </Button>
+                  <Button
+                     variant="outline"
+                     size="icon"
+                     type="button"
+                     tabIndex={-1}
                      onClick={() => setSpin((n) => n + 1)}
                      className={WIDE_ONLY}
                   >
@@ -175,20 +182,15 @@ export const ObjectsBrowserFigure = () => {
                            spin > 0 && "animate-spin motion-reduce:animate-none"
                         )}
                      />
-                     Refresh
                   </Button>
                   <Button
-                     variant="outline"
+                     variant="destructive"
+                     size="icon"
                      type="button"
                      tabIndex={-1}
-                     className={WIDE_ONLY}
+                     disabled={visibleSelected.length === 0}
                   >
-                     <UserPlus />
-                     Invite
-                  </Button>
-                  <Button type="button" tabIndex={-1}>
-                     <Plus />
-                     New
+                     <Trash2 />
                   </Button>
                </div>
             </div>

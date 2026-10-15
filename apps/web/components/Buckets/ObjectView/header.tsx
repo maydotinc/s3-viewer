@@ -172,17 +172,6 @@ const ObjectHeader = ({
                )}
             </>
          )}
-         <Reserve show={canEdit} className="inline-flex">
-            <Button
-               variant="outline"
-               className={COMPACT_BUTTON}
-               disabled={!canEdit}
-               onClick={onEdit}
-            >
-               <PenLine aria-hidden="true" />
-               <span className={COMPACT_LABEL}>Edit</span>
-            </Button>
-         </Reserve>
          {secondary.map(
             ({ label, icon: Icon, destructive, disabled, onSelect }) => (
                <Button
@@ -211,11 +200,23 @@ const ObjectHeader = ({
                      </Button>
                   </DropdownMenuTrigger>
                </SimpleTooltip>
-               <DropdownMenuContent align="end" className="w-44">
+               <DropdownMenuContent align="end" className="w-56">
                   <ActionMenuItems actions={secondary} />
                </DropdownMenuContent>
             </DropdownMenu>
          )}
+         {/* last so the reserved slot is invisible trailing space when the file can't be edited */}
+         <Reserve show={canEdit} className="inline-flex">
+            <Button
+               variant="outline"
+               className={COMPACT_BUTTON}
+               disabled={!canEdit}
+               onClick={onEdit}
+            >
+               <PenLine aria-hidden="true" />
+               <span className={COMPACT_LABEL}>Edit</span>
+            </Button>
+         </Reserve>
       </>
    );
 

@@ -1,5 +1,6 @@
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import {
+   DOT_SEGMENTS_MESSAGE,
    Role,
    hasDotSegment,
    isInFolderScope,
@@ -22,9 +23,6 @@ type FolderAccess =
    | "leading"
    | "outside"
    | "dotted";
-
-const DOT_SEGMENTS =
-   "Paths with . or .. segments can only be opened by the server owner.";
 
 const reachOf = (bucket: S3Bucket | null | undefined): KnownReach => {
    if (!bucket) return undefined;
@@ -69,7 +67,7 @@ const folderList = (folders: readonly string[]): string =>
 // unknown reach passes: the API still refuses, and blocking while buckets load is worse.
 const writeScopeError = (reach: KnownReach, key: string): string | null => {
    const access = folderAccessAt(reach, key);
-   if (access === "dotted") return DOT_SEGMENTS;
+   if (access === "dotted") return DOT_SEGMENTS_MESSAGE;
    if (access === "leading" || access === "outside")
       return `You can only write inside ${folderList(limitedFolders(reach) ?? [])} in this bucket.`;
    return null;
@@ -77,7 +75,7 @@ const writeScopeError = (reach: KnownReach, key: string): string | null => {
 
 const writeBlockReason = (reach: KnownReach, prefix: string): string | null => {
    const access = folderAccessAt(reach, prefix);
-   if (access === "dotted") return DOT_SEGMENTS;
+   if (access === "dotted") return DOT_SEGMENTS_MESSAGE;
    if (access !== "leading" && access !== "outside") return null;
    const scope = limitedFolders(reach) ?? [];
    const reachable = foldersUnder(scope, prefix);
@@ -86,7 +84,7 @@ const writeBlockReason = (reach: KnownReach, prefix: string): string | null => {
 
 const rowBlockReason = (reach: KnownReach, key: string): string | null => {
    const access = folderAccessAt(reach, key);
-   if (access === "dotted") return DOT_SEGMENTS;
+   if (access === "dotted") return DOT_SEGMENTS_MESSAGE;
    if (access !== "leading" && access !== "outside") return null;
    const under = foldersUnder(limitedFolders(reach) ?? [], key);
    if (under.length === 0) return "This isn't shared with you.";
@@ -149,11 +147,9 @@ const limitedGrantsNote = (
 };
 
 export {
-   DOT_SEGMENTS,
    accessNotice,
    canActOnFolder,
    canListPrefix,
-   canWriteAt,
    folderAccessAt,
    folderList,
    grantLabel,

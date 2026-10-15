@@ -40,7 +40,7 @@ const faqs: Faq[] = [
       question:
          "How do I share an S3 file with someone who doesn't have an AWS account?",
       answer:
-         "Two ways. Quickest: open the ⋮ menu on the file in S3 Viewer and choose Copy link — a presigned URL good for 15 minutes, which works in any browser. Best for ongoing access: invite them by email from the Share dialog. They sign in to S3 Viewer in a browser, see only the buckets you shared, and never touch AWS, IAM, or the CLI.",
+         "Two ways. Quickest: open the ⋮ menu on the file in S3 Viewer and choose Copy link — a presigned URL good for 15 minutes, which works in any browser. Best for ongoing access: invite them by email with the Invite button (Settings, Members). They sign in to S3 Viewer in a browser, see only the buckets you shared, and never touch AWS, IAM, or the CLI.",
    },
    {
       question: "Is an email invite better than a presigned URL?",

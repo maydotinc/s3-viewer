@@ -88,7 +88,7 @@ describe("validate", () => {
       for (const [baseUrl, path, contentType] of [
          ["", `${OBJECTS}/v3/upload`, "text/csv"],
          [OBJECTS, "/v3/upload", "application/json"],
-         [OBJECTS, "/v3/multipart-uploads/parts", "application/octet-stream"],
+         [OBJECTS, "/v3/multipart-uploads/parts", "text/plain"],
       ]) {
          const { res, next } = run({
             method: "PUT",
@@ -96,22 +96,6 @@ describe("validate", () => {
             path,
             contentType,
             query: { name: "from-query" },
-            params: { serverId: "a" },
-         });
-         expect(next).toHaveBeenCalledOnce();
-         expect(input<Input>(res).name).toBe("from-query");
-      }
-   });
-
-   it("reads a part's query whatever its content type, so the route can refuse the type itself", () => {
-      for (const contentType of ["application/json", "text/plain", undefined]) {
-         const { res, next } = run({
-            method: "PUT",
-            baseUrl: OBJECTS,
-            path: "/v3/multipart-uploads/parts",
-            contentType,
-            query: { name: "from-query" },
-            body: { name: "from-body" },
             params: { serverId: "a" },
          });
          expect(next).toHaveBeenCalledOnce();

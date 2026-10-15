@@ -2,13 +2,14 @@ import Callout from "@/components/callout";
 import BackHeader from "@/components/Layout/back-header";
 import { Page } from "@/components/Layout/page";
 import ServerPageStatus from "@/components/Layout/server-page-status";
+import { TABLE_PANEL } from "@/components/Layout/table-states";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import { useServerPage } from "@/lib/hooks/useServerPage";
 import { auditPath } from "@/lib/server-paths";
 import { PRODUCT_NAME, type ServerInfo } from "@s3-viewer/types";
 import { TabButton, TabList } from "@s3-viewer/ui/components/tabs";
 import { useState } from "react";
-import Activity from "./activity";
+import Activity, { ActivitySkeleton, ToolbarSkeleton } from "./activity";
 import Settings from "./settings";
 
 const canOpenAudit = (server: ServerInfo) =>
@@ -78,10 +79,11 @@ const Audit = ({ serverId }: { serverId: string }) => {
    );
    const { isBucketsLoading } = useBuckets();
 
-   if (isLoading || !serverId || !server || !allowed)
+   const loading = isLoading || !serverId;
+
+   if (!loading && (!server || !allowed))
       return (
          <ServerPageStatus
-            loading={isLoading || !serverId}
             denied={
                server && "You don't have access to this server's audit log."
             }
@@ -102,10 +104,23 @@ const Audit = ({ serverId }: { serverId: string }) => {
                provider&apos;s console or other tools never appear here.
             </p>
          </Callout>
-         <AuditTabs
-            server={server}
-            bucketsLoading={!bucketsAdopted || isBucketsLoading}
-         />
+         {loading || !server ? (
+            <div
+               className="flex min-h-0 min-w-0 flex-1 flex-col gap-4"
+               aria-busy="true"
+            >
+               <ToolbarSkeleton />
+               <div className={TABLE_PANEL}>
+                  <ActivitySkeleton />
+               </div>
+            </div>
+         ) : (
+            <AuditTabs
+               key={server.id}
+               server={server}
+               bucketsLoading={!bucketsAdopted || isBucketsLoading}
+            />
+         )}
       </Page>
    );
 };

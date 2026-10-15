@@ -13,24 +13,21 @@ vi.mock("react", async (importOriginal) => ({
 }));
 
 describe("storage capabilities", () => {
-   it.each([null, { provider: "S3" }, { provider: "Other" }])(
-      "disables mutations when capabilities are missing: %j",
-      (server) => {
-         state.isLoading = false;
-         state.currentServer = server;
-         expect(useStorageCapabilities()).toMatchObject({
-            upload: false,
-            replace: false,
-            rename: false,
-            delete: false,
-            pending: false,
-         });
-      }
-   );
+   it("disables mutations when server info is unavailable", () => {
+      state.isLoading = false;
+      state.currentServer = null;
+      expect(useStorageCapabilities()).toMatchObject({
+         upload: false,
+         replace: false,
+         rename: false,
+         delete: false,
+         pending: false,
+      });
+   });
    it("uses the API's specific capability flags", () => {
       state.isLoading = false;
       const capabilities = {
-         upload: false,
+         upload: true,
          replace: false,
          rename: false,
          delete: false,

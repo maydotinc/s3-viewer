@@ -1,32 +1,25 @@
 // @vitest-environment happy-dom
-import { buttonByText, serverInfo } from "@/components/test-helpers";
-import { mountRuntime } from "@/lib/test/runtime";
-import { Role, type InviteOutcome, type SentInvite } from "@s3-viewer/types";
+import {
+   buttonByText,
+   mountedRuntime,
+   sentInvite as invite,
+   serverInfo,
+} from "@/components/test-helpers";
+import type { InviteOutcome } from "@s3-viewer/types";
 import { act, createElement } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import SendResult from "./send-result";
 
 vi.mock("@/components/Layout/Sidebar/Servers/server-logo", () => ({
    default: () => null,
 }));
 
-const invite = (email: string, emailed = true): SentInvite => ({
-   id: email,
-   email,
-   emailed,
-   role: Role.VIEWER,
-   expiresAt: "2099-01-01T00:00:00Z",
-   server: { id: "a", name: "Backups" },
-   invitedBy: { name: "Me", email: "me@example.com" },
-   bucketAccess: [],
-});
-
 const servers = [
    serverInfo({ id: "a", name: "Backups" }),
    serverInfo({ id: "b", name: "Media" }),
 ];
 
-let runtime: Awaited<ReturnType<typeof mountRuntime>>;
+const view = mountedRuntime();
 const onRetry = vi.fn();
 
 const render = async (
@@ -34,7 +27,7 @@ const render = async (
    retrying: string | null = null,
    notified = true
 ) => {
-   runtime = await mountRuntime(
+   await view.mount(
       createElement(SendResult, {
          outcomes,
          servers,
@@ -43,14 +36,8 @@ const render = async (
          onRetry,
       })
    );
-   return runtime.container;
+   return view.current.container;
 };
-
-afterEach(async () => {
-   await runtime.unmount();
-   runtime.queryClient.clear();
-   vi.unstubAllGlobals();
-});
 
 describe("mixed outcomes", () => {
    it("tells each server's story in its own row", async () => {

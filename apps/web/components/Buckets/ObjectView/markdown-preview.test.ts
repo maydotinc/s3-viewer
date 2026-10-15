@@ -22,10 +22,7 @@ const preview = {
    versionId: null,
    contentEncoding: null,
 } as S3ObjectPreview;
-const view = mountedRuntime(() => {
-   vi.restoreAllMocks();
-   vi.unstubAllGlobals();
-});
+const view = mountedRuntime(() => vi.restoreAllMocks());
 const mount = () =>
    view.mount(
       createElement(MarkdownPreview, {
@@ -177,14 +174,5 @@ describe("markdown preview", () => {
       );
       expect(article().querySelectorAll("img")).toHaveLength(3);
       expect(article().textContent).not.toContain("not loaded");
-   });
-
-   it("copies the original text", async () => {
-      const writeText = vi
-         .spyOn(navigator.clipboard, "writeText")
-         .mockResolvedValue();
-      await mount();
-      await act(async () => buttonByText(container(), "Copy")!.click());
-      expect(writeText).toHaveBeenCalledWith(h.text);
    });
 });

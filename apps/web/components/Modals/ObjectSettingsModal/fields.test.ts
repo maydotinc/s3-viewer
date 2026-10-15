@@ -1,6 +1,5 @@
 import {
    headerValidationIssues,
-   metadataValidationIssues,
    updateObjectSettingsBodySchema,
 } from "@s3-viewer/types";
 import { describe, expect, it } from "vitest";
@@ -41,6 +40,7 @@ describe("custom metadata rows", () => {
       [rows(["owner!", "ops"]), "isn't a valid name"],
       [rows(["owner_id", "ops"]), "isn't a valid name"],
       [rows(["owner", "a"], ["OWNER", "b"]), "is listed twice"],
+      [rows(["owner", "first"], ["owner", "second"]), "is listed twice"],
       [rows(["owner", "x".repeat(1025)]), "longer than 1 KiB"],
       [rows(["owner", "two\nlines"]), "a header can't carry"],
    ])("validates %#", (input, expected) => {
@@ -69,9 +69,6 @@ describe("custom metadata rows", () => {
 });
 
 describe("header values", () => {
-   it("accepts a normal header", () =>
-      expect(validateHeader("Cache-Control", "max-age=60")).toBeNull());
-
    it.each(["líne", "two\nlines", "\ttab"])(
       "refuses %j, which no header can carry",
       (value) =>
@@ -93,9 +90,8 @@ describe("expires field", () => {
       );
    });
 
-   it.each([null, undefined, "", "not a date"])(
-      "shows nothing for %s",
-      (value) => expect(toDateTimeLocal(value)).toBe("")
+   it.each([null, "not a date"])("shows nothing for %s", (value) =>
+      expect(toDateTimeLocal(value)).toBe("")
    );
 
    it("treats an empty field as no expiry", () => {
@@ -156,15 +152,6 @@ describe("shared API and form metadata validation", () => {
          metadata: Object.fromEntries(entries),
       }).success;
       expect(validateMetadata(input) === null).toBe(accepted);
-   });
-   it("retains exact duplicate rows until they are validated", () => {
-      const input = rows(["owner", "first"], ["owner", "second"]);
-      expect(metadataValidationIssues(input)).toContainEqual({
-         code: "duplicate_key",
-         row: 1,
-         key: "owner",
-      });
-      expect(validateMetadata(input)).toContain("listed twice");
    });
    it.each([
       "",

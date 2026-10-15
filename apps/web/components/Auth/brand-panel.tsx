@@ -134,7 +134,7 @@ const Row = ({ row }: { row: MockRow }) => (
 );
 
 const BrowserMock = () => (
-   <div className="relative w-[520px] shrink-0 rounded-xl lg:max-xl:[zoom:0.8] border border-white/15 bg-viewerwhite shadow-[0_32px_80px_-32px_rgba(0,0,0,0.7)]">
+   <div className="relative w-[520px] shrink-0 rounded-xl lg:max-xl:[zoom:0.8] border border-viewerwhite/15 bg-viewerwhite shadow-[0_32px_80px_-32px_rgba(0,0,0,0.7)]">
       <div className="flex h-14 items-center gap-3 border-b border-viewerborder px-4">
          <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-viewerblack">
             <Folder className="size-4 shrink-0 text-viewerblue" />
@@ -201,7 +201,7 @@ const BrandPanel = () => (
                <path
                   d="M32 0H0V32"
                   fill="none"
-                  stroke="#ffffff"
+                  stroke="var(--color-viewerwhite)"
                   strokeWidth="1"
                />
             </pattern>
@@ -211,7 +211,7 @@ const BrandPanel = () => (
 
       <div className="relative flex w-full max-w-[520px] flex-col items-center gap-14">
          <BrowserMock />
-         <p className="text-balance text-center text-lg font-medium leading-7 text-white/90">
+         <p className="text-balance text-center text-lg font-medium leading-7 text-viewerwhite/90">
             Browse, upload and share files in any S3-compatible bucket.
          </p>
       </div>

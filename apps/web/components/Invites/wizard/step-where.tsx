@@ -20,7 +20,6 @@ type StepWhereProps = {
    selected: ReadonlySet<string>;
    loading: boolean;
    pages: LoadMoreQuery;
-   disabled?: boolean;
    onToggle: (serverId: string, checked: boolean) => void;
    onSelectAll: (serverIds: readonly string[]) => void;
 };
@@ -33,13 +32,11 @@ const ServerRow = memo(function ServerRow({
    id,
    server,
    checked,
-   disabled,
    onToggle,
 }: {
    id: string;
    server: ServerInfo;
    checked: boolean;
-   disabled?: boolean;
    onToggle: (serverId: string, checked: boolean) => void;
 }) {
    return (
@@ -51,7 +48,6 @@ const ServerRow = memo(function ServerRow({
             <Checkbox
                id={id}
                checked={checked}
-               disabled={disabled}
                onCheckedChange={(next) => onToggle(server.id, next === true)}
             />
             <ServerLogo provider={server.provider} />
@@ -73,7 +69,6 @@ const StepWhere = ({
    selected,
    loading,
    pages,
-   disabled,
    onToggle,
    onSelectAll,
 }: StepWhereProps) => {
@@ -94,7 +89,7 @@ const StepWhere = ({
                variant="link"
                size="sm"
                className={cn("h-auto px-0", !canToggleAll && "invisible")}
-               disabled={disabled || !canToggleAll}
+               disabled={!canToggleAll}
                aria-hidden={!canToggleAll || undefined}
                tabIndex={canToggleAll ? undefined : -1}
                onClick={() =>
@@ -158,7 +153,6 @@ const StepWhere = ({
                      id={`${rowId}-${server.id}`}
                      server={server}
                      checked={selected.has(server.id)}
-                     disabled={disabled}
                      onToggle={onToggle}
                   />
                ))
@@ -168,13 +162,7 @@ const StepWhere = ({
             Only servers where you&apos;re an Owner or Admin are listed.
          </p>
          <div className="flex min-h-8 items-center">
-            {!failed && (
-               <ListPagination
-                  {...pages}
-                  label="Load more servers"
-                  disabled={disabled}
-               />
-            )}
+            {!failed && <ListPagination {...pages} label="Load more servers" />}
          </div>
       </div>
    );

@@ -4,12 +4,16 @@ import { useModalActions } from "@/lib/contexts/modal-context";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
 import { useCanCreateBucket, usePermission } from "@/lib/hooks/usePermission";
+import { queryKeys } from "@/lib/query-keys";
 import { invitePeoplePath } from "@/lib/server-paths";
 import { useShortcut } from "@/lib/shortcuts";
+import { useServerId } from "@/lib/stores/session-scope";
+import { useUserId } from "@/lib/stores/session-store";
 import { focusToolbarFilter } from "@/lib/utils/dom";
 import { Permission } from "@s3-viewer/permissions";
 import { Button } from "@s3-viewer/ui/components/button";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
+import { useQueryClient } from "@tanstack/react-query";
 import { Plus, UserRoundPlus } from "lucide-react";
 import Link from "next/link";
 import { useRef } from "react";
@@ -18,9 +22,21 @@ const BucketActions = () => {
    const { open } = useModalActions();
    const { currentServer, isLoading: pending } = useCurrentServer();
    const { refetch, isFetching } = useBuckets();
+   const queryClient = useQueryClient();
+   const userId = useUserId();
+   const serverId = useServerId();
    const canShare = usePermission(Permission.MANAGE_MEMBERS);
    const canCreate = useCanCreateBucket();
    const actionsRef = useRef<HTMLDivElement>(null);
+
+   // the role and provider chips and the Invite/Create bucket actions come from server info
+   const refresh = () => {
+      if (!serverId) return;
+      void refetch();
+      void queryClient.invalidateQueries({
+         queryKey: queryKeys.serverInfo(userId, serverId),
+      });
+   };
 
    useShortcut({
       keys: "/",
@@ -33,7 +49,7 @@ const BucketActions = () => {
       keys: "r",
       label: "Refresh buckets",
       group: "Buckets",
-      handler: () => void refetch(),
+      handler: refresh,
    });
 
    useShortcut({
@@ -54,7 +70,8 @@ const BucketActions = () => {
             <Button
                variant="outline"
                className="max-sm:w-9 max-sm:px-0"
-               onClick={() => void refetch()}
+               disabled={!serverId}
+               onClick={refresh}
             >
                <RefreshIcon spinning={isFetching} />
                <span className="max-sm:sr-only">Refresh</span>

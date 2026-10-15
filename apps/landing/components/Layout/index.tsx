@@ -25,5 +25,3 @@ const Layout = ({ children }: { children: ReactNode }) => {
 };
 
 export const withLayout = (page: ReactElement) => <Layout>{page}</Layout>;
-
-export default Layout;

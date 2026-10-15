@@ -7,7 +7,7 @@ const colors = {
    border: "#e1e4ea",
    heading: "#0e121b",
    body: "#525866",
-   muted: "#6d778a",
+   muted: "#636c7e",
    brand: "#3658c1",
    onBrand: "#ffffff",
 };

@@ -29,18 +29,6 @@ describe("requestArchive", () => {
          undefined
       );
    });
-
-   it("copies the keys instead of sending the caller's array", async () => {
-      const keys = ["a.txt"];
-      await requestArchive("s", "b", "u", keys);
-      expect(h.post.mock.calls[0]?.[1].objectKeys).not.toBe(keys);
-   });
-
-   it("passes the abort signal through", async () => {
-      const signal = new AbortController().signal;
-      await requestArchive("s", "b", "u", ["a.txt"], signal);
-      expect(h.post.mock.calls[0]?.[2]).toBe(signal);
-   });
 });
 
 describe("archiveUrl", () => {

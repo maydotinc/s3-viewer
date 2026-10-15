@@ -13,7 +13,7 @@ const SECTIONS = [
    { href: SITE_PATHS.settingsInvites, label: "Invitations", icon: MailOpen },
 ] as const;
 
-// nested pages such as /settings/invites/new highlight their section
+// nested pages such as /settings/members/invite highlight their section
 const isActive = (pathname: string, href: string) =>
    pathname === href || pathname.startsWith(`${href}/`);
 
@@ -23,7 +23,7 @@ const SettingsShell = ({ children }: { children: ReactNode }) => {
    return (
       <Page className="pt-10">
          <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
-            <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:sticky lg:top-0 lg:w-40">
+            <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:sticky lg:top-10 lg:w-40">
                <PageTitle>Settings</PageTitle>
                <nav
                   aria-label="Settings"

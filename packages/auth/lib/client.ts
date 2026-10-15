@@ -184,9 +184,7 @@ const makeAuthClient = ({
    const hasPassword = async (): Promise<boolean> => {
       const { data, error } = await authClient.listAccounts();
       if (error) throw new Error(authErrorMessage(error));
-      return (data ?? []).some(
-         (account) => account.providerId === PASSWORD_PROVIDER
-      );
+      return data.some((account) => account.providerId === PASSWORD_PROVIDER);
    };
 
    const signInWithGithub = (
@@ -232,6 +230,4 @@ export {
    INVALID_EMAIL_MESSAGE,
    INVALID_NAME_MESSAGE,
    SHARED_SERVERS_CODE,
-   SIGN_UPS_BY_INVITE,
-   SIGN_UPS_CLOSED,
 } from "./errors";

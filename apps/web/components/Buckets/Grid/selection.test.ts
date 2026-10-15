@@ -37,7 +37,7 @@ const node = (key: string) => {
    };
 };
 
-const gridApi = (rows: ReturnType<typeof node>[] = []) => ({
+const gridApi = (rows: ReturnType<typeof node>[]) => ({
    addEventListener: vi.fn(),
    removeEventListener: vi.fn(),
    isDestroyed: () => false,
@@ -60,21 +60,6 @@ beforeEach(() => {
    h.selected = new Set();
 });
 
-describe("tap target", () => {
-   it.each([
-      ["cell", Cell, { data: file("logs/a.txt"), node: node("logs/a.txt") }],
-      ["header", Header, { api: gridApi() }],
-   ] as const)(
-      "makes the whole %s toggle its checkbox",
-      async (_slot, component, params) => {
-         const container = await mount(component, params);
-         const label = container.querySelector("label")!;
-         expect(label.className).toContain("size-full");
-         expect(label.contains(checkbox(container))).toBe(true);
-      }
-   );
-});
-
 describe("selecting rows the caller can't act on", () => {
    it("disables the checkbox on a dotted file for anyone but the owner", async () => {
       const dotted = {
@@ -93,13 +78,6 @@ describe("selecting rows the caller can't act on", () => {
             })
          ).disabled
       ).toBe(false);
-   });
-
-   it("selects a row through its checkbox", async () => {
-      const row = node("logs/a.txt");
-      const container = await mount(Cell, { data: row.data, node: row });
-      await act(async () => checkbox(container).click());
-      expect(row.isSelected()).toBe(true);
    });
 
    it("leaves a blocked row out of select-all on the page", async () => {

@@ -13,6 +13,7 @@ import {
    PRODUCT_NAME,
    SITE_PATHS,
 } from "@s3-viewer/types";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -72,7 +73,7 @@ const AuthLayout = ({ children }: AuthLayoutProps) => (
             <a
                href={`${publicEnv.siteOrigin}/`}
                aria-label={`${PRODUCT_NAME} home`}
-               className="inline-flex rounded-sm border border-transparent outline-none focus-visible:border-viewerblue"
+               className={`inline-flex rounded-sm outline-none ${FOCUS_RING}`}
             >
                <Image
                   src="/icons/viewer.svg"
