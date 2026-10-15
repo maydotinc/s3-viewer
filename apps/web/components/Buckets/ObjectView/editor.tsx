@@ -1,4 +1,3 @@
-import CenteredSpinner from "@/components/centered-spinner";
 import { ApiError, errorMessage } from "@/lib/api";
 import useSaveObjectContent from "@/lib/hooks/mutations/object/useSaveObjectContent";
 import useObjectContent from "@/lib/hooks/queries/s3/useObjectContent";
@@ -8,7 +7,9 @@ import useSessionStore, { useUserId } from "@/lib/stores/session-store";
 import { visibleText } from "@/lib/utils/format";
 import { observedETagSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import { Save, X } from "lucide-react";
 import {
    useCallback,
@@ -40,6 +41,34 @@ const UNSAVED_MESSAGE =
    "This file has unsaved changes. Leave without saving them?";
 const CONFLICT_MESSAGE =
    "Changed since you opened it. Reload to see the latest version.";
+
+const LINE_WIDTHS = ["w-48", "w-72", "w-56", "w-0", "w-80", "w-64", "w-40"];
+
+// lines past the pane's height are clipped, the way the textarea clips them
+const EditorSkeleton = () => (
+   <div aria-busy="true" className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="flex w-12 shrink-0 flex-col items-end border-r border-viewerborder bg-viewergray py-3 pr-2">
+         {Array.from({ length: 40 }, (_, line) => (
+            <div key={line} className="flex h-5 shrink-0 items-center">
+               <Skeleton className="h-3 w-2 rounded-sm bg-viewerborder" />
+            </div>
+         ))}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col p-3">
+         {Array.from({ length: 40 }, (_, line) => (
+            <div key={line} className="flex h-5 shrink-0 items-center">
+               <Skeleton
+                  className={cn(
+                     "h-3 max-w-full",
+                     LINE_WIDTHS[line % LINE_WIDTHS.length]
+                  )}
+               />
+            </div>
+         ))}
+      </div>
+      <span className="sr-only">Loading file</span>
+   </div>
+);
 
 const ObjectEditor = ({
    bucketName,
@@ -219,7 +248,7 @@ const ObjectEditor = ({
             </div>
          </div>
          {content.isPending ? (
-            <CenteredSpinner size="lg" label="Loading file" />
+            <EditorSkeleton />
          ) : content.error ? (
             <div className="flex flex-1 items-center justify-center p-6">
                <p className="text-sm text-viewertext">

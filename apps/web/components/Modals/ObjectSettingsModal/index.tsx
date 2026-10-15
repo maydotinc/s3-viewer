@@ -1,5 +1,4 @@
-import CenteredSpinner from "@/components/centered-spinner";
-import Field from "@/components/form-field";
+import Field, { FieldSkeleton } from "@/components/form-field";
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
@@ -10,6 +9,7 @@ import { visibleText } from "@/lib/utils/format";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { Plus, X } from "lucide-react";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
@@ -60,6 +60,44 @@ const NO_HEADERS: HeaderValues = {
    contentLanguage: "",
    contentEncoding: "",
 };
+
+const MetadataHeading = ({
+   disabled,
+   onAdd,
+}: {
+   disabled: boolean;
+   onAdd?: () => void;
+}) => (
+   <div className="flex items-center justify-between gap-2">
+      <Label>Custom metadata</Label>
+      <Button
+         type="button"
+         variant="outline"
+         size="sm"
+         disabled={disabled}
+         onClick={onAdd}
+      >
+         <Plus aria-hidden="true" />
+         Add
+      </Button>
+   </div>
+);
+
+// sized for an object without custom metadata, the usual case
+const SettingsSkeleton = () => (
+   <>
+      {Array.from({ length: HEADER_FIELDS.length + 2 }, (_, index) => (
+         <FieldSkeleton key={index} className="gap-1.5" />
+      ))}
+      <div className="flex flex-col gap-2">
+         <MetadataHeading disabled />
+         <div className="flex h-4 items-center">
+            <Skeleton className="h-3 w-52" />
+         </div>
+      </div>
+      <span className="sr-only">Loading settings</span>
+   </>
+);
 
 const ObjectSettingsModal = ({
    onClose,
@@ -166,7 +204,7 @@ const ObjectSettingsModal = ({
          bodyClassName="flex flex-col gap-4"
       >
          {settings.isPending ? (
-            <CenteredSpinner label="Loading settings" className="min-h-60" />
+            <SettingsSkeleton />
          ) : settings.error || !loaded ? (
             <FormError>
                {settings.error
@@ -229,24 +267,15 @@ const ObjectSettingsModal = ({
                   />
                </Field>
                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                     <Label>Custom metadata</Label>
-                     <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={update.isPending}
-                        onClick={() =>
-                           setRows((previous) => [
-                              ...previous,
-                              { id: nextRowId.current++, key: "", value: "" },
-                           ])
-                        }
-                     >
-                        <Plus aria-hidden="true" />
-                        Add
-                     </Button>
-                  </div>
+                  <MetadataHeading
+                     disabled={update.isPending}
+                     onAdd={() =>
+                        setRows((previous) => [
+                           ...previous,
+                           { id: nextRowId.current++, key: "", value: "" },
+                        ])
+                     }
+                  />
                   {rows.length === 0 && (
                      <p className="text-xs text-viewertext">
                         No custom metadata on this object.

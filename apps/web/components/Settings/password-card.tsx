@@ -1,5 +1,5 @@
 import PasswordInput from "@/components/Auth/password-input";
-import Field from "@/components/form-field";
+import Field, { FieldSkeleton } from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import QueryStatus from "@/components/query-status";
 import Reserve from "@/components/reserve";
@@ -22,18 +22,6 @@ import { useState, type FormEvent } from "react";
 import SettingsCard, { FORM_GRID } from "./card";
 
 type Input = { current: string | null; next: string };
-
-const FieldSkeleton = ({ hint = false }: { hint?: boolean }) => (
-   <div className="flex min-w-0 flex-col gap-2">
-      <Skeleton className="h-3.5 w-28" />
-      <Skeleton className="h-9 rounded-lg pointer-coarse:h-11" />
-      {hint && (
-         <div className="flex h-5 items-center">
-            <Skeleton className="h-3 w-36" />
-         </div>
-      )}
-   </div>
-);
 
 const PasswordSkeleton = () => (
    <div aria-busy="true" className="flex flex-col gap-4">

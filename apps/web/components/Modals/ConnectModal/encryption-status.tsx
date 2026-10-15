@@ -3,13 +3,14 @@ import useInstanceConfig, {
    encryptionNotice,
    type EncryptionState,
 } from "@/lib/hooks/queries/useInstanceConfig";
-import { Spinner } from "@s3-viewer/ui/components/spinner";
 import { CircleAlert, ShieldAlert } from "lucide-react";
 
-const EncryptionStatus = ({ state }: { state: EncryptionState }) => {
+const EncryptionStatus = ({
+   state,
+}: {
+   state: Exclude<EncryptionState, "loading">;
+}) => {
    const config = useInstanceConfig();
-   if (state === "loading")
-      return <Spinner label="Loading instance settings" />;
    const notice = encryptionNotice(state);
    if (!notice) return null;
    return state === "insecure" ? (

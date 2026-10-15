@@ -93,7 +93,8 @@ const Line = ({
       <div
          className={cn(
             "flex h-11 shrink-0 items-center border-b border-viewerborder",
-            header && "bg-viewergray/60"
+            // AG Grid draws the header border below its 44px header row, rows include theirs
+            header && "box-content bg-viewergray/60"
          )}
       >
          {columns.map((column, index) => (

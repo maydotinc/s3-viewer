@@ -40,11 +40,11 @@ const ServerInfo = () => {
       return (
          <>
             <Skeleton
-               className={`h-9 rounded-lg ${PROVIDER_WIDTH}`}
+               className={cn("h-9 max-w-full rounded-lg", PROVIDER_WIDTH)}
                aria-busy="true"
             />
             <Skeleton
-               className={`h-9 rounded-lg ${ROLE_WIDTH}`}
+               className={cn("h-9 max-w-full rounded-lg", ROLE_WIDTH)}
                aria-busy="true"
             />
          </>

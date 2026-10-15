@@ -1,6 +1,7 @@
 import { CellBar } from "@/components/DataGrid/skeleton";
 import QueryStatus from "@/components/query-status";
 import { formatBytes, formatDate } from "@/lib/utils/format";
+import { cn } from "@s3-viewer/ui/lib/utils";
 import type { S3ObjectMetadata, S3ObjectSettings } from "@s3-viewer/types";
 import { CircleAlert, Lock } from "lucide-react";
 
@@ -50,13 +51,31 @@ const SKELETON_ROWS: [label: string, value: string][] = [
    ["w-10", "w-full"],
 ];
 
-const SkeletonRow = ({ label, value }: { label: string; value: string }) => (
+// a quoted MD5 ETag wraps once in the narrow value column, which is only wide enough for one line between sm and lg
+const ETAG_WRAP = "sm:max-lg:hidden";
+
+const SkeletonRow = ({
+   label,
+   value,
+   wraps = false,
+}: {
+   label: string;
+   value: string;
+   wraps?: boolean;
+}) => (
    <div className="contents">
       <div className="flex h-5 items-center">
          <CellBar className={label} />
       </div>
-      <div className="flex h-5 items-center">
-         <CellBar className={value} />
+      <div className="flex flex-col">
+         <div className="flex h-5 items-center">
+            <CellBar className={value} />
+         </div>
+         {wraps && (
+            <div className={cn("flex h-5 items-center", ETAG_WRAP)}>
+               <CellBar className="w-1/3" />
+            </div>
+         )}
       </div>
    </div>
 );
@@ -119,7 +138,12 @@ const ObjectDetails = ({
                ) : (
                   <div className={DETAIL_LIST} aria-hidden="true">
                      {SKELETON_ROWS.map(([label, value], index) => (
-                        <SkeletonRow key={index} label={label} value={value} />
+                        <SkeletonRow
+                           key={index}
+                           label={label}
+                           value={value}
+                           wraps={index === SKELETON_ROWS.length - 1}
+                        />
                      ))}
                   </div>
                )}

@@ -1,6 +1,7 @@
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import {
    CredentialsFields,
+   CredentialsFieldsSkeleton,
    EMPTY_CREDENTIALS,
    withoutSecrets,
    type CredentialFields,
@@ -83,7 +84,12 @@ const UpdateCredentialsModal = ({
          submitLabel="Save"
          submitDisabled={keyState !== "ready"}
       >
-         {keyState === "ready" ? (
+         {keyState === "loading" ? (
+            <>
+               <CredentialsFieldsSkeleton />
+               <span className="sr-only">Loading instance settings</span>
+            </>
+         ) : keyState === "ready" ? (
             <>
                <CredentialsFields
                   fields={fields}

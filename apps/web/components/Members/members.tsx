@@ -60,6 +60,8 @@ type MembersProps = Omit<MemberRowProps, "member" | "isMe" | "myRole"> & {
 
 const COLUMNS = 4;
 
+const SKELETON_COLUMNS = [{ avatar: true }, {}, {}, {}] as const;
+
 const MemberRow = ({
    serverId,
    myRole,
@@ -229,7 +231,7 @@ const Members = ({
             <TableBody>
                {loading ? (
                   <TableSkeletonRows
-                     columns={Array.from({ length: COLUMNS }, () => ({}))}
+                     columns={SKELETON_COLUMNS}
                      rowClassName="h-16 [&>td:first-child]:@min-[40rem]:px-6"
                   />
                ) : members.length === 0 ? (

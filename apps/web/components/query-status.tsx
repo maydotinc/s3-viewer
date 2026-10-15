@@ -1,16 +1,16 @@
-import CenteredSpinner from "@/components/centered-spinner";
 import type { Tone } from "@/components/icon-tile";
 import StatusMessage, { RetryButton } from "@/components/status-message";
 import { CircleAlert, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-type QueryStatusProps = {
+// a loading state always brings its own shape-matched skeleton, so a card inside a mounted shell never spins
+type LoadingProps =
+   | { loading?: undefined; skeleton?: undefined }
+   | { loading: boolean; skeleton: ReactNode };
+
+type QueryStatusProps = LoadingProps & {
    error: { message: string } | string | null | undefined;
    title: string;
-   loading?: boolean;
-   loadingLabel?: string;
-   // shape-matched placeholder shown instead of the spinner while loading
-   skeleton?: ReactNode;
    icon?: LucideIcon;
    tone?: Tone;
    onRetry?: () => void;
@@ -23,7 +23,6 @@ const QueryStatus = ({
    error,
    title,
    loading = false,
-   loadingLabel = "Loading…",
    skeleton,
    icon = CircleAlert,
    tone = "error",
@@ -52,11 +51,7 @@ const QueryStatus = ({
             {typeof error === "string" ? error : error.message}
          </StatusMessage>
       );
-   if (loading)
-      return (
-         skeleton ?? <CenteredSpinner label={loadingLabel} className="flex-1" />
-      );
-   return children;
+   return loading ? skeleton : children;
 };
 
 export default QueryStatus;

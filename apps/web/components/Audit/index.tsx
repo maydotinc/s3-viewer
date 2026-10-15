@@ -17,6 +17,35 @@ const canOpenAudit = (server: ServerInfo) =>
 
 type Tab = "activity" | "settings";
 
+const TAB_LABELS: Record<Tab, string> = {
+   activity: "Activity",
+   settings: "Settings",
+};
+
+// without onSelect it stands in for the tabs while the server loads
+const AuditTabList = ({
+   tab,
+   onSelect,
+}: {
+   tab: Tab;
+   onSelect?: (tab: Tab) => void;
+}) => (
+   <TabList>
+      {(Object.keys(TAB_LABELS) as Tab[]).map((id) => (
+         <TabButton
+            key={id}
+            id={`audit-tab-${id}`}
+            aria-controls={onSelect && "audit-tabpanel"}
+            active={tab === id}
+            disabled={!onSelect}
+            onClick={() => onSelect?.(id)}
+         >
+            {TAB_LABELS[id]}
+         </TabButton>
+      ))}
+   </TabList>
+);
+
 const AuditTabs = ({
    server,
    bucketsLoading,
@@ -43,24 +72,7 @@ const AuditTabs = ({
 
    return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-         <TabList>
-            <TabButton
-               id="audit-tab-activity"
-               aria-controls="audit-tabpanel"
-               active={tab === "activity"}
-               onClick={() => setTab("activity")}
-            >
-               Activity
-            </TabButton>
-            <TabButton
-               id="audit-tab-settings"
-               aria-controls="audit-tabpanel"
-               active={tab === "settings"}
-               onClick={() => setTab("settings")}
-            >
-               Settings
-            </TabButton>
-         </TabList>
+         <AuditTabList tab={tab} onSelect={setTab} />
          <section
             id="audit-tabpanel"
             role="tabpanel"
@@ -109,6 +121,8 @@ const Audit = ({ serverId }: { serverId: string }) => {
                className="flex min-h-0 min-w-0 flex-1 flex-col gap-4"
                aria-busy="true"
             >
+               {/* owners always get both tabs, and they are the usual readers of the log */}
+               <AuditTabList tab="activity" />
                <ToolbarSkeleton />
                <div className={TABLE_PANEL}>
                   <ActivitySkeleton />

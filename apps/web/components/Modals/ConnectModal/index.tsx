@@ -1,4 +1,4 @@
-import Field from "@/components/form-field";
+import Field, { FieldSkeleton } from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import { ModalShell } from "@/components/Modals/modal-shell";
 import { errorMessage } from "@/lib/api";
@@ -28,6 +28,7 @@ import { Check, X } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
    CredentialsFields,
+   CredentialsFieldsSkeleton,
    EMPTY_CREDENTIALS,
    withoutSecrets,
    type CredentialFields,
@@ -239,9 +240,20 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       >
          {keyState !== "ready" ? (
             <>
-               <DialogBody className="flex min-h-80 items-center justify-center pb-6">
-                  <EncryptionStatus state={keyState} />
-               </DialogBody>
+               {keyState === "loading" ? (
+                  <DialogBody
+                     aria-busy="true"
+                     className="flex flex-1 flex-col gap-4"
+                  >
+                     <FieldSkeleton className="gap-1.5" />
+                     <CredentialsFieldsSkeleton />
+                     <span className="sr-only">Loading instance settings</span>
+                  </DialogBody>
+               ) : (
+                  <DialogBody className="flex min-h-80 items-center justify-center pb-6">
+                     <EncryptionStatus state={keyState} />
+                  </DialogBody>
+               )}
                <DialogFooter>
                   <Button type="button" disabled>
                      Continue

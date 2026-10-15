@@ -1,8 +1,8 @@
-import CenteredSpinner from "@/components/centered-spinner";
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
 import RefreshIcon from "@/components/refresh-icon";
+import TableSkeletonRows from "@/components/table-skeleton";
 import { errorMessage, isAborted } from "@/lib/api";
 import useAbortMultipartUploads, {
    pairId,
@@ -28,12 +28,47 @@ import {
    TableHeader,
    TableRow,
 } from "@s3-viewer/ui/components/table";
-import { useState } from "react";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import { useState, type ReactNode } from "react";
 
 type IncompleteUploadsModalProps = ModalProps<"incompleteUploads">;
 
 const CANCELLED =
    "Cancelled. Some uploads may already be aborted — refresh to see what is left.";
+
+const UploadsTable = ({
+   className,
+   children,
+}: {
+   className?: string;
+   children: ReactNode;
+}) => (
+   <div
+      className={cn(
+         "max-h-96 min-h-0 overflow-auto rounded-md border border-viewerborder [scrollbar-gutter:stable]",
+         className
+      )}
+   >
+      <Table>
+         <TableHeader>
+            <TableRow>
+               <TableHead className="w-10" />
+               <TableHead>Key</TableHead>
+               <TableHead className="w-44">Started</TableHead>
+               <TableHead className="w-28">Age</TableHead>
+            </TableRow>
+         </TableHeader>
+         <TableBody>{children}</TableBody>
+      </Table>
+   </div>
+);
+
+const SKELETON_COLUMNS = [
+   { checkbox: true },
+   {},
+   {},
+   { align: "left" },
+] as const;
 
 const IncompleteUploadsModal = ({
    onClose,
@@ -195,10 +230,13 @@ const IncompleteUploadsModal = ({
          </div>
          <FormError>{notice}</FormError>
          {isLoading ? (
-            <CenteredSpinner
-               label="Loading incomplete uploads"
-               className="min-h-32"
-            />
+            // clipped to the empty state's min-h-32, since most buckets have none
+            <div aria-busy="true">
+               <UploadsTable className="h-32 overflow-hidden">
+                  <TableSkeletonRows columns={SKELETON_COLUMNS} rows={2} />
+               </UploadsTable>
+               <span className="sr-only">Loading incomplete uploads</span>
+            </div>
          ) : uploads.length === 0 ? (
             <p className="flex min-h-32 items-center justify-center break-words text-center text-sm text-viewertext">
                {hasNextPage
@@ -206,55 +244,41 @@ const IncompleteUploadsModal = ({
                   : `No incomplete uploads ${scope}.`}
             </p>
          ) : (
-            <div className="max-h-96 min-h-0 overflow-auto rounded-md border border-viewerborder [scrollbar-gutter:stable]">
-               <Table>
-                  <TableHeader>
-                     <TableRow>
-                        <TableHead className="w-10" />
-                        <TableHead>Key</TableHead>
-                        <TableHead className="w-44">Started</TableHead>
-                        <TableHead className="w-28">Age</TableHead>
+            <UploadsTable>
+               {uploads.map((upload) => {
+                  const id = pairId(upload);
+                  const message = failures.get(id);
+                  return (
+                     <TableRow
+                        key={id}
+                        data-state={chosen.has(id) ? "selected" : undefined}
+                     >
+                        <TableCell>
+                           <Checkbox
+                              checked={chosen.has(id)}
+                              disabled={busy}
+                              aria-label={`Select ${visibleText(upload.key)}`}
+                              onCheckedChange={() => toggle(upload)}
+                           />
+                        </TableCell>
+                        <TableCell className="break-all whitespace-normal">
+                           {visibleText(upload.key)}
+                           {message && (
+                              <span className="block text-xs text-viewertextred">
+                                 {message}
+                              </span>
+                           )}
+                        </TableCell>
+                        <TableCell className="text-viewertext">
+                           {formatDate(upload.initiated)}
+                        </TableCell>
+                        <TableCell className="text-viewertext">
+                           {formatRelativeDay(upload.initiated)}
+                        </TableCell>
                      </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                     {uploads.map((upload) => {
-                        const id = pairId(upload);
-                        const message = failures.get(id);
-                        return (
-                           <TableRow
-                              key={id}
-                              data-state={
-                                 chosen.has(id) ? "selected" : undefined
-                              }
-                           >
-                              <TableCell>
-                                 <Checkbox
-                                    checked={chosen.has(id)}
-                                    disabled={busy}
-                                    aria-label={`Select ${visibleText(upload.key)}`}
-                                    onCheckedChange={() => toggle(upload)}
-                                 />
-                              </TableCell>
-                              <TableCell className="break-all whitespace-normal">
-                                 {visibleText(upload.key)}
-                                 {message && (
-                                    <span className="block text-xs text-viewertextred">
-                                       {message}
-                                    </span>
-                                 )}
-                              </TableCell>
-                              <TableCell className="text-viewertext">
-                                 {formatDate(upload.initiated)}
-                              </TableCell>
-                              <TableCell className="text-viewertext">
-                                 {formatRelativeDay(upload.initiated)}
-                              </TableCell>
-                           </TableRow>
-                        );
-                     })}
-                  </TableBody>
-               </Table>
-            </div>
+                  );
+               })}
+            </UploadsTable>
          )}
          {hasNextPage && (
             <Button

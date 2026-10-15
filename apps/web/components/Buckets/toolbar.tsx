@@ -213,14 +213,11 @@ const ObjectsToolbar = () => {
             className="@container -mx-1 flex h-11 min-w-0 items-center gap-2 overflow-x-auto px-1 [&>*]:shrink-0"
             aria-busy={isLoading || commands.isResolving || undefined}
          >
+            <SortMenu />
             {commands.isResolving ? (
-               <>
-                  <Skeleton className="h-9 w-9 rounded-lg pointer-coarse:h-11 @xl:w-36" />
-                  <Skeleton className="size-9 rounded-lg pointer-coarse:size-11" />
-               </>
+               <Skeleton className="h-9 w-9 rounded-lg pointer-coarse:h-11 @xl:w-32" />
             ) : (
                <>
-                  <SortMenu />
                   {commands.can.upload && (
                      <SimpleTooltip label={folderBlocked ?? "New folder"}>
                         <Button

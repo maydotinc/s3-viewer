@@ -17,8 +17,8 @@ const FormError = ({
          id={id}
          role={children ? "alert" : undefined}
          className={cn(
-            "shrink-0 break-words leading-5",
-            size === "sm" ? "text-sm" : "text-xs",
+            "shrink-0 break-words",
+            size === "sm" ? "text-sm/5" : "text-xs/5",
             children ? "text-viewertextred" : "text-viewertext"
          )}
       >

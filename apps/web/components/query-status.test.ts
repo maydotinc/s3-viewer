@@ -15,6 +15,7 @@ describe("query status", () => {
       const html = render({
          error: new Error("Boom"),
          loading: true,
+         skeleton: "Bones",
          title: "Couldn't load",
          onRetry: () => undefined,
       });
@@ -32,21 +33,13 @@ describe("query status", () => {
       expect(html).not.toContain("Try again");
    });
 
-   it("spins while loading and then yields to its children", () => {
-      const loading = render({
-         error: null,
-         loading: true,
-         loadingLabel: "Loading things",
-         title: "Couldn't load",
-      });
-      expect(loading).toContain('aria-label="Loading things"');
-      expect(loading).not.toContain("Loaded");
+   it("yields to its children once loaded", () => {
       expect(render({ error: null, title: "Couldn't load" })).toBe(
          "<p>Loaded</p>"
       );
    });
 
-   it("shows a given skeleton instead of the spinner", () => {
+   it("shows its skeleton while loading, never a spinner", () => {
       const html = render({
          error: null,
          loading: true,

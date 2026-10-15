@@ -139,12 +139,14 @@ const BucketAccessRow = memo(function BucketAccessRow({
 const BucketSkeletonRows = () => (
    <ul aria-hidden="true" className="divide-y divide-viewerborder">
       {Array.from({ length: SKELETON_ROWS }, (_, index) => (
-         <li key={index} className="flex h-10 items-center gap-3 px-3">
-            <Skeleton className="size-4 shrink-0 rounded" />
-            <CellBar className={nameBarWidth(index)} />
-            <Skeleton
-               className={cn("ml-auto h-8 shrink-0 rounded-lg", ROLE_SELECT)}
-            />
+         <li key={index} className="px-3">
+            <div className="flex h-10 items-center gap-3">
+               <Skeleton className="size-4 shrink-0 rounded" />
+               <CellBar className={nameBarWidth(index)} />
+               <Skeleton
+                  className={cn("ml-auto h-8 shrink-0 rounded-lg", ROLE_SELECT)}
+               />
+            </div>
          </li>
       ))}
    </ul>

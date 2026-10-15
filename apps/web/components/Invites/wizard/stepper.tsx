@@ -3,7 +3,7 @@ import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Check } from "lucide-react";
 import { Fragment, memo } from "react";
-import { STEP_LABELS, type StepId } from "./wizard-text";
+import { STEP_LABELS, wizardSteps, type StepId } from "./wizard-text";
 
 type StepperProps = {
    steps: readonly StepId[];
@@ -19,17 +19,33 @@ const ROW = "flex h-9 items-center gap-2";
 const CIRCLE =
    "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums";
 
-const StepperSkeleton = () => (
-   <div className={ROW} aria-hidden="true">
-      {Array.from({ length: 4 }, (_, index) => (
-         <Fragment key={index}>
-            <Skeleton className="size-6 rounded-full" />
-            <Skeleton className="h-3.5 w-16" />
-            {index < 3 && <Skeleton className="h-px min-w-4 flex-1" />}
-         </Fragment>
-      ))}
-   </div>
-);
+// the four-step layout, with each bar sized by the label it stands in for so the circles land where the steps will
+const StepperSkeleton = () => {
+   const steps = wizardSteps(true);
+   return (
+      <div className={ROW} aria-hidden="true">
+         {steps.map((step, index) => (
+            <Fragment key={step}>
+               <span className="flex shrink-0 items-center gap-2">
+                  <Skeleton className="size-6 rounded-full" />
+                  <span
+                     className={cn(
+                        "relative text-sm whitespace-nowrap",
+                        index === 0 ? "font-medium" : "max-sm:hidden"
+                     )}
+                  >
+                     <span className="invisible">{STEP_LABELS[step]}</span>
+                     <Skeleton className="absolute inset-x-0 top-1/2 h-3.5 -translate-y-1/2" />
+                  </span>
+               </span>
+               {index < steps.length - 1 && (
+                  <Skeleton className="h-px min-w-4 flex-1" />
+               )}
+            </Fragment>
+         ))}
+      </div>
+   );
+};
 
 const Stepper = memo(function Stepper({
    steps,

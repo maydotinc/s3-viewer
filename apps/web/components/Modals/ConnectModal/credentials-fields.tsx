@@ -2,7 +2,7 @@ import {
    serverCredentialsSchema,
    type ServerCredentials,
 } from "@s3-viewer/types";
-import Field from "@/components/form-field";
+import Field, { FieldSkeleton, HintSkeleton } from "@/components/form-field";
 import { Input } from "@s3-viewer/ui/components/input";
 import { defaultRegion, REGIONS } from "./regions";
 
@@ -63,6 +63,12 @@ const toServerCredentials = (f: CredentialFields): ServerCredentials => ({
    ...(f.sessionToken.trim() && { sessionToken: f.sessionToken.trim() }),
 });
 
+const regionHint = (endpoint: string) =>
+   `Enter your provider's region, or leave blank for ${defaultRegion(endpoint)}.`;
+
+const SESSION_TOKEN_HINT =
+   "For temporary AWS or R2 credentials. Update all three values when they expire; they aren't renewed automatically.";
+
 type CredentialsFieldsProps = {
    fields: CredentialFields;
    onChange: (key: keyof CredentialFields, value: string) => void;
@@ -112,8 +118,7 @@ const CredentialsFields = ({
             id={`${idPrefix}-region-help`}
             className="text-xs text-viewerlighttext"
          >
-            Enter your provider&apos;s region, or leave blank for{" "}
-            {defaultRegion(fields.endpoint)}.
+            {regionHint(fields.endpoint)}
          </p>
       </Field>
       <Field label="Access key ID" htmlFor={`${idPrefix}-access-key`}>
@@ -155,15 +160,30 @@ const CredentialsFields = ({
             id={`${idPrefix}-session-token-help`}
             className="text-xs text-viewerlighttext"
          >
-            For temporary AWS or R2 credentials. Update all three values when
-            they expire; they aren&apos;t renewed automatically.
+            {SESSION_TOKEN_HINT}
          </p>
       </Field>
    </>
 );
 
+// Field's own gap is 1.5, FieldSkeleton defaults to the gap-2 variant
+const CredentialsFieldsSkeleton = () => (
+   <>
+      <FieldSkeleton className="gap-1.5" />
+      <FieldSkeleton className="gap-1.5">
+         <HintSkeleton>{regionHint("")}</HintSkeleton>
+      </FieldSkeleton>
+      <FieldSkeleton className="gap-1.5" />
+      <FieldSkeleton className="gap-1.5" />
+      <FieldSkeleton className="gap-1.5">
+         <HintSkeleton>{SESSION_TOKEN_HINT}</HintSkeleton>
+      </FieldSkeleton>
+   </>
+);
+
 export {
    CredentialsFields,
+   CredentialsFieldsSkeleton,
    EMPTY_CREDENTIALS,
    toServerCredentials,
    validateCredentialFields,

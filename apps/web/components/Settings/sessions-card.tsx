@@ -25,22 +25,28 @@ const ACTION_COLUMN =
 const ROW =
    "grid min-h-20 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-2 text-sm @xl:flex @xl:min-h-10";
 
+// newest first, so the first row is usually this device: a badge and no sign-out button
 const SessionsSkeleton = () => (
    <ul
       aria-busy="true"
       aria-label="Loading sessions"
       className="divide-y divide-viewerborder"
    >
-      {Array.from({ length: 2 }, (_, index) => (
+      {[true, false].map((current, index) => (
          <li key={index} className={ROW}>
-            <span className="flex min-w-0 flex-1 items-center">
-               <Skeleton className="h-3.5 w-40 max-w-full" />
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+               <span className="flex h-5 items-center">
+                  <Skeleton className="h-3.5 w-24 max-w-full" />
+               </span>
+               {current && <Skeleton className="h-5.5 w-21 rounded-md" />}
             </span>
-            <span className="col-start-1 row-start-2 flex items-center">
-               <Skeleton className="h-3.5 w-28" />
+            <span className="col-start-1 row-start-2 flex h-5 items-center">
+               <Skeleton className="h-3.5 w-36" />
             </span>
             <span className={ACTION_COLUMN}>
-               <Skeleton className="h-8 w-16 rounded-lg pointer-coarse:h-11" />
+               {!current && (
+                  <Skeleton className="h-8 w-19 rounded-lg pointer-coarse:h-11" />
+               )}
             </span>
          </li>
       ))}

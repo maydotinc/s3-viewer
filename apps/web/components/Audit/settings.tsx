@@ -1,4 +1,4 @@
-import Field from "@/components/form-field";
+import Field, { FieldSkeleton } from "@/components/form-field";
 import QueryStatus from "@/components/query-status";
 import StaleSignIn, { isSessionStale } from "@/components/stale-sign-in";
 import { FORM_GRID } from "@/components/Settings/card";
@@ -21,6 +21,7 @@ import {
    SelectTrigger,
    SelectValue,
 } from "@s3-viewer/ui/components/select";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { useEffect, useId, useState, type FormEvent } from "react";
 import {
@@ -228,6 +229,29 @@ const SettingsForm = ({ serverId, saved, isOwner }: FormProps) => {
    );
 };
 
+const SettingsSkeleton = () => (
+   <div aria-busy="true" className={CARD}>
+      <span className="sr-only">Loading audit settings</span>
+      <div className="flex min-w-0 flex-col gap-2">
+         <div className="flex h-5 items-center gap-3">
+            <Skeleton className="size-4 shrink-0 rounded" />
+            <Skeleton className="h-3.5 w-48" />
+         </div>
+         <div className="flex h-4 items-center">
+            <Skeleton className="h-3 w-52" />
+         </div>
+      </div>
+      <div className={FORM_GRID}>
+         {Array.from({ length: 4 }, (_, index) => (
+            <FieldSkeleton key={index} />
+         ))}
+      </div>
+      <div className="flex justify-end">
+         <Skeleton className="h-9 w-16.75 rounded-lg pointer-coarse:h-11" />
+      </div>
+   </div>
+);
+
 type SettingsProps = { serverId: string; myRole: Role };
 
 const Settings = ({ serverId, myRole }: SettingsProps) => {
@@ -237,7 +261,7 @@ const Settings = ({ serverId, myRole }: SettingsProps) => {
          <QueryStatus
             error={settings.error}
             loading={!settings.data}
-            loadingLabel="Loading audit settings"
+            skeleton={<SettingsSkeleton />}
             title="Couldn't load audit settings"
             retrying={settings.isFetching}
             onRetry={() => void settings.refetch()}

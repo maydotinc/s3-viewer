@@ -20,7 +20,7 @@ const ROW_GAP = 4;
 
 const BucketList = () => {
    const router = useRouter();
-   const { currentServer } = useCurrentServer();
+   const { currentServer, isLoading: isServerLoading } = useCurrentServer();
    const { buckets, isBucketsLoading, bucketsError, isFetching, refetch } =
       useBuckets();
    const scrollRef = useRef<HTMLElement>(null);
@@ -37,9 +37,7 @@ const BucketList = () => {
          ? router.query.slug[0]
          : null;
 
-   if (!currentServer) return null;
-
-   if (isBucketsLoading) {
+   if (isServerLoading || (currentServer && isBucketsLoading)) {
       return (
          <div
             aria-busy="true"
@@ -50,6 +48,8 @@ const BucketList = () => {
          </div>
       );
    }
+
+   if (!currentServer) return null;
 
    if (bucketsError) {
       return (

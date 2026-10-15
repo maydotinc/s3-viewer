@@ -105,17 +105,24 @@ const StepWhere = ({
             role="group"
             aria-label="Servers to invite to"
             aria-busy={loading || undefined}
-            className="flex min-h-36 flex-col divide-y divide-viewerborder rounded-lg border border-viewerborder"
+            // three rows plus their borders, so the skeleton and a list of up to three servers share a height
+            className="flex min-h-37 flex-col divide-y divide-viewerborder rounded-lg border border-viewerborder"
          >
             {loading ? (
                Array.from({ length: SKELETON_ROWS }, (_, index) => (
-                  <li key={index} aria-hidden="true" className={ROW}>
-                     <Skeleton className="size-4 shrink-0 rounded" />
-                     <Skeleton className="size-6 shrink-0 rounded-md" />
-                     <span className="flex flex-col gap-1.5">
-                        <CellBar className="w-40" />
-                        <CellBar className="h-3 w-12" />
-                     </span>
+                  <li key={index} aria-hidden="true">
+                     <div className={ROW}>
+                        <Skeleton className="size-4 shrink-0 rounded" />
+                        <Skeleton className="size-6 shrink-0 rounded-md" />
+                        <span className="flex flex-col">
+                           <span className="flex h-5 items-center">
+                              <CellBar className="w-40" />
+                           </span>
+                           <span className="flex h-4 items-center">
+                              <CellBar className="h-3 w-12" />
+                           </span>
+                        </span>
+                     </div>
                   </li>
                ))
             ) : empty ? (

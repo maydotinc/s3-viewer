@@ -1,7 +1,6 @@
 import PasswordInput from "@/components/Auth/password-input";
 import Callout from "@/components/callout";
-import CenteredSpinner from "@/components/centered-spinner";
-import Field from "@/components/form-field";
+import Field, { FieldSkeleton } from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import { ModalShell } from "@/components/Modals/modal-shell";
 import { signInAgain } from "@/components/stale-sign-in";
@@ -263,12 +262,7 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
                your storage. Deleting your account throws those away and never
                reads, changes or deletes anything on your S3 servers.
             </Callout>
-            {passwordPending ? (
-               <CenteredSpinner
-                  label="Loading account confirmation"
-                  className="h-24"
-               />
-            ) : needsPassword ? (
+            {needsPassword ? (
                <NeedsPassword />
             ) : (
                <div className="flex flex-col gap-4">
@@ -283,55 +277,67 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
                         }}
                      />
                   )}
-                  <Field
-                     label="Type your email to confirm"
-                     htmlFor="delete-account-email"
-                     className="gap-2"
-                  >
-                     <Input
-                        id="delete-account-email"
-                        type="email"
-                        value={typed}
-                        autoComplete="off"
-                        spellCheck={false}
-                        placeholder={email}
-                        disabled={deleting}
-                        aria-invalid={error ? true : undefined}
-                        onChange={(event) => {
-                           setTyped(event.target.value);
-                           clearError();
-                        }}
-                     />
-                  </Field>
-                  <Field
-                     label="Your password"
-                     htmlFor="delete-account-password"
-                     className="gap-2"
-                  >
-                     <PasswordInput
-                        id="delete-account-password"
-                        autoComplete="current-password"
-                        value={password}
-                        disabled={deleting}
-                        aria-invalid={error ? true : undefined}
-                        onChange={(event) => {
-                           setPassword(event.target.value);
-                           clearError();
-                        }}
-                     />
-                     <FormError>{error}</FormError>
-                     {sessionExpired && (
-                        <Button
-                           type="button"
-                           variant="link"
-                           size="sm"
-                           className="h-auto self-start px-0"
-                           onClick={signInAgain}
+                  {passwordPending ? (
+                     <>
+                        <FieldSkeleton />
+                        <FieldSkeleton />
+                        <span className="sr-only">
+                           Loading account confirmation
+                        </span>
+                     </>
+                  ) : (
+                     <>
+                        <Field
+                           label="Type your email to confirm"
+                           htmlFor="delete-account-email"
+                           className="gap-2"
                         >
-                           Sign in again
-                        </Button>
-                     )}
-                  </Field>
+                           <Input
+                              id="delete-account-email"
+                              type="email"
+                              value={typed}
+                              autoComplete="off"
+                              spellCheck={false}
+                              placeholder={email}
+                              disabled={deleting}
+                              aria-invalid={error ? true : undefined}
+                              onChange={(event) => {
+                                 setTyped(event.target.value);
+                                 clearError();
+                              }}
+                           />
+                        </Field>
+                        <Field
+                           label="Your password"
+                           htmlFor="delete-account-password"
+                           className="gap-2"
+                        >
+                           <PasswordInput
+                              id="delete-account-password"
+                              autoComplete="current-password"
+                              value={password}
+                              disabled={deleting}
+                              aria-invalid={error ? true : undefined}
+                              onChange={(event) => {
+                                 setPassword(event.target.value);
+                                 clearError();
+                              }}
+                           />
+                           <FormError>{error}</FormError>
+                           {sessionExpired && (
+                              <Button
+                                 type="button"
+                                 variant="link"
+                                 size="sm"
+                                 className="h-auto self-start px-0"
+                                 onClick={signInAgain}
+                              >
+                                 Sign in again
+                              </Button>
+                           )}
+                        </Field>
+                     </>
+                  )}
                </div>
             )}
          </DialogBody>
