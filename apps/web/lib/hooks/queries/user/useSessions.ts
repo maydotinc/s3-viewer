@@ -20,20 +20,20 @@ const failed = (error: AuthError): Error =>
 const newestFirst = (a: Session, b: Session): number =>
    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
 
+const sessionsQuery = (userId: string) => ({
+   queryKey: queryKeys.sessions(userId),
+   queryFn: async (): Promise<Session[]> => {
+      const { data, error } = await authClient.listSessions({
+         fetchOptions: accountFetchOptions(userId),
+      });
+      if (error) throw failed(error);
+      return [...(data ?? [])].sort(newestFirst);
+   },
+});
+
 const useSessions = () => {
    const userId = useUserId();
-
-   return useQuery({
-      queryKey: queryKeys.sessions(userId),
-      queryFn: async (): Promise<Session[]> => {
-         const { data, error } = await authClient.listSessions({
-            fetchOptions: accountFetchOptions(userId),
-         });
-         if (error) throw failed(error);
-         return [...(data ?? [])].sort(newestFirst);
-      },
-      enabled: Boolean(userId),
-   });
+   return useQuery({ ...sessionsQuery(userId), enabled: Boolean(userId) });
 };
 
 const sessionsOf = ({ scope }: { scope: MutationScope }) => [
@@ -67,5 +67,5 @@ const useRevokeOtherSessions = () =>
       failure: "Couldn't sign the other devices out",
    });
 
-export { useRevokeOtherSessions, useRevokeSession, useSessions };
+export { sessionsQuery, useRevokeOtherSessions, useRevokeSession, useSessions };
 export type { Session };

@@ -10,15 +10,27 @@ const PAGE_SIZE = MAX_PAGE_SIZE;
 
 const pageInvites = (page: InvitesPage) => page.invites;
 
+const receivedInvitesQuery = (userId: string) => ({
+   queryKey: queryKeys.receivedInvites(userId),
+   queryFn: (cursor: string | null, signal: AbortSignal) =>
+      api.get<InvitesPage>(
+         `/invites${qs({ cursor, limit: PAGE_SIZE })}`,
+         signal
+      ),
+});
+
+const sentInvitesQuery = (userId: string, serverId: string) => ({
+   queryKey: queryKeys.sentInvites(userId, serverId),
+   queryFn: ({ signal }: { signal: AbortSignal }) =>
+      api
+         .get<InvitesResponse>(`${serverPath(serverId)}/invites`, signal)
+         .then(field("invites")),
+});
+
 const useReceivedInvites = () => {
    const userId = useUserId();
    const { items: invites, ...pages } = useCursorQuery({
-      queryKey: queryKeys.receivedInvites(userId),
-      queryFn: (cursor, signal) =>
-         api.get<InvitesPage>(
-            `/invites${qs({ cursor, limit: PAGE_SIZE })}`,
-            signal
-         ),
+      ...receivedInvitesQuery(userId),
       select: pageInvites,
       nextCursor: pageCursor,
       enabled: Boolean(userId),
@@ -30,14 +42,15 @@ const useReceivedInvites = () => {
 const useSentInvites = (serverId: string) => {
    const userId = useUserId();
    return useQuery({
-      queryKey: queryKeys.sentInvites(userId, serverId),
-      queryFn: ({ signal }) =>
-         api
-            .get<InvitesResponse>(`${serverPath(serverId)}/invites`, signal)
-            .then(field("invites")),
+      ...sentInvitesQuery(userId, serverId),
       enabled: Boolean(userId && serverId),
       refetchOnWindowFocus: true,
    });
 };
 
-export { useReceivedInvites, useSentInvites };
+export {
+   receivedInvitesQuery,
+   sentInvitesQuery,
+   useReceivedInvites,
+   useSentInvites,
+};

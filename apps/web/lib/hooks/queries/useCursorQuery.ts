@@ -1,4 +1,8 @@
-import { useInfiniteQuery, type QueryKey } from "@tanstack/react-query";
+import {
+   useInfiniteQuery,
+   type QueryClient,
+   type QueryKey,
+} from "@tanstack/react-query";
 import { useMemo } from "react";
 
 type CursorPage = { nextCursor: string | null };
@@ -23,6 +27,23 @@ const startsWith = (key: QueryKey, prefix: QueryKey): boolean =>
    prefix.every((part, index) => key[index] === part);
 
 const pageCursor = (page: CursorPage) => page.nextCursor;
+
+type CursorQuerySource<Page, Cursor> = Pick<
+   CursorQueryOptions<Page, unknown, Cursor>,
+   "queryKey" | "queryFn"
+>;
+
+// warms the first page under the same key the hook reads, so a page that mounts next renders without a skeleton
+const prefetchCursorQuery = <Page, Cursor = string>(
+   queryClient: QueryClient,
+   { queryKey, queryFn }: CursorQuerySource<Page, Cursor>
+) =>
+   queryClient.prefetchInfiniteQuery({
+      queryKey,
+      queryFn: ({ pageParam, signal }) =>
+         queryFn(pageParam as Cursor | null, signal),
+      initialPageParam: null as Cursor | null,
+   });
 
 const useCursorQuery = <Page, Item, Cursor = string>({
    queryKey,
@@ -69,4 +90,5 @@ const useCursorQuery = <Page, Item, Cursor = string>({
 };
 
 export default useCursorQuery;
-export { pageCursor };
+export { pageCursor, prefetchCursorQuery };
+export type { CursorQuerySource };

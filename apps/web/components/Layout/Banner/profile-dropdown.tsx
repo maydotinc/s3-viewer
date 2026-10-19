@@ -1,6 +1,7 @@
 import GithubIcon from "@/components/Auth/github-icon";
 import Avatar from "@/components/avatar";
 import { authClient, signOut } from "@/lib/auth";
+import usePrefetchSettings from "@/lib/hooks/queries/usePrefetchSettings";
 import { SUPPORT_URL } from "@/lib/site-config";
 import { isModifiedClick } from "@/lib/utils/events";
 import { toastFailure } from "@/lib/utils/toast";
@@ -25,6 +26,7 @@ const ProfileDropdown = () => {
    const router = useRouter();
    const [open, setOpen] = useState(false);
    const modifiedClick = useRef(false);
+   const prefetch = usePrefetchSettings();
 
    useEffect(() => {
       if (!open) return;
@@ -75,6 +77,8 @@ const ProfileDropdown = () => {
             >
                <Link
                   href={SITE_PATHS.settingsProfile}
+                  onPointerEnter={() => prefetch(SITE_PATHS.settingsProfile)}
+                  onFocus={() => prefetch(SITE_PATHS.settingsProfile)}
                   onClick={(event) => {
                      modifiedClick.current = isModifiedClick(event);
                   }}

@@ -1,4 +1,5 @@
 import { Page, PageTitle } from "@/components/Layout/page";
+import usePrefetchSettings from "@/lib/hooks/queries/usePrefetchSettings";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -19,10 +20,12 @@ const isActive = (pathname: string, href: string) =>
 
 const SettingsShell = ({ children }: { children: ReactNode }) => {
    const { pathname } = useRouter();
+   const prefetch = usePrefetchSettings();
    // the whole page scrolls, not the card column, so cards run past the window edges instead of clipping in the page padding.
+   // the top gap is inside the scroll area, not scroll-container padding: chrome measures the sticky inset from the content box.
    return (
-      <Page className="pt-10">
-         <div className="flex min-w-0 flex-col gap-6 lg:flex-row lg:items-start lg:gap-8">
+      <Page className="pt-0">
+         <div className="flex min-w-0 flex-col gap-6 pt-10 lg:flex-row lg:items-start lg:gap-8">
             <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:sticky lg:top-10 lg:w-40">
                <PageTitle>Settings</PageTitle>
                <nav
@@ -36,6 +39,8 @@ const SettingsShell = ({ children }: { children: ReactNode }) => {
                            key={href}
                            href={href}
                            aria-current={active ? "page" : undefined}
+                           onPointerEnter={() => prefetch(href)}
+                           onFocus={() => prefetch(href)}
                            className={cn(
                               "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2 text-sm text-viewertext outline-none transition-colors duration-150 hover:bg-viewergray/70",
                               FOCUS_RING,

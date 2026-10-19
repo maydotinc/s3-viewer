@@ -389,9 +389,10 @@ const auth = betterAuth({
    session: {
       expiresIn: SESSION_TTL_DAYS * DAY_SECONDS,
       updateAge: DAY_SECONDS,
-      // better auth would refuse /list-sessions after a day; the actions that need a recent
-      // sign-in (password, server and account deletion) check isSessionFresh themselves.
-      freshAge: 0,
+      // better auth would refuse /list-sessions and revokes after a day ("Session is not fresh");
+      // a fresh age as long as the session itself never trips, whatever a release makes of 0. the
+      // actions that need a recent sign-in (password, server and account deletion) check isSessionFresh.
+      freshAge: SESSION_TTL_DAYS * DAY_SECONDS,
       cookieCache: { enabled: false },
    },
    user: {

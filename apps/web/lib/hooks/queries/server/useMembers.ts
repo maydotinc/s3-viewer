@@ -10,19 +10,23 @@ const PAGE_SIZE = MAX_PAGE_SIZE;
 
 const pageMembers = (page: MemberPage) => page.members;
 
+const membersQuery = (userId: string, serverId: string) => ({
+   queryKey: queryKeys.members(userId, serverId),
+   queryFn: (cursor: string | null, signal: AbortSignal) =>
+      api.get<MemberPage>(
+         `${serverPath(serverId)}/members${qs({
+            cursor,
+            limit: PAGE_SIZE,
+         })}`,
+         signal
+      ),
+});
+
 const useMembers = (serverId: string) => {
    const userId = useUserId();
 
    const { items: members, ...pages } = useCursorQuery({
-      queryKey: queryKeys.members(userId, serverId),
-      queryFn: (cursor, signal) =>
-         api.get<MemberPage>(
-            `${serverPath(serverId)}/members${qs({
-               cursor,
-               limit: PAGE_SIZE,
-            })}`,
-            signal
-         ),
+      ...membersQuery(userId, serverId),
       select: pageMembers,
       nextCursor: pageCursor,
       enabled: Boolean(userId && serverId),
@@ -44,5 +48,5 @@ const useAllMembers = (serverId: string) => {
 };
 
 export default useMembers;
-export { useAllMembers };
+export { membersQuery, useAllMembers };
 export type { MemberPage };

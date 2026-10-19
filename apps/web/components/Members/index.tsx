@@ -7,7 +7,10 @@ import useBucketsForServer from "@/lib/hooks/queries/s3/useBucketsForServer";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import { invitePeoplePath, membersPath } from "@/lib/server-paths";
 import { useUserId } from "@/lib/stores/session-store";
-import { manageableServers } from "@/components/Invites/manageable";
+import {
+   defaultManageableServer,
+   manageableServers,
+} from "@/components/Invites/manageable";
 import { SITE_PATHS, type ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { ShieldOff, UserRoundPlus } from "lucide-react";
@@ -46,8 +49,7 @@ const MembersSettings = () => {
    const selected = loading
       ? null
       : (find(manageable, requested) ??
-        find(manageable, currentServer?.id) ??
-        manageable[0] ??
+        defaultManageableServer(manageable, currentServer?.id) ??
         null);
    const selectedId = selected?.id ?? "";
 

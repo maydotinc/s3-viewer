@@ -6,8 +6,9 @@ import {
 } from "@s3-viewer/ui/components/dialog";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import { useUserId } from "@/lib/stores/session-store";
 import dynamic from "next/dynamic";
-import type { ComponentType } from "react";
+import { useEffect, useState, type ComponentType } from "react";
 
 // a dialog-shaped card, so the first open of a modal doesn't go spinner -> dialog
 const loading = () => (
@@ -25,9 +26,26 @@ const loading = () => (
    </>
 );
 
+type Loader<P> = () => Promise<{ default: ComponentType<P> }>;
+type Preloadable = { preload: () => Promise<unknown> };
+
 // the static `import()` string inside each arrow is what lets next split a chunk per modal.
-const lazyModal = <P,>(loader: () => Promise<{ default: ComponentType<P> }>) =>
-   dynamic(loader, { ssr: false, loading });
+// a preloaded module renders directly: next/dynamic would still show the placeholder for a tick.
+const lazyModal = <P extends object>(loader: Loader<P>) => {
+   let loaded: ComponentType<P> | null = null;
+   let pending: Promise<unknown> | null = null;
+   const Lazy = dynamic(loader, { ssr: false, loading });
+   const Modal = (props: P) => {
+      // chosen once per open, so a chunk arriving mid-session can't remount a dialog in use
+      const [Impl] = useState<ComponentType<P>>(() => loaded ?? Lazy);
+      return <Impl {...props} />;
+   };
+   const preload = () =>
+      (pending ??= loader().then((module) => {
+         loaded = module.default;
+      }));
+   return Object.assign(Modal, { preload });
+};
 
 const MODALS: { [K in ModalType]: ComponentType<ModalProps<K>> } = {
    connect: lazyModal(() => import("./ConnectModal")),
@@ -46,9 +64,28 @@ const MODALS: { [K in ModalType]: ComponentType<ModalProps<K>> } = {
    updateCredentials: lazyModal(() => import("./UpdateCredentialsModal")),
 };
 
+const preloadModals = () => {
+   for (const modal of Object.values(MODALS))
+      void (modal as Preloadable).preload();
+};
+
+// a signed-in page fetches every modal chunk while idle, so the first open is instant instead of placeholder -> dialog
+const usePreloadModals = (enabled: boolean) => {
+   useEffect(() => {
+      if (!enabled) return;
+      if (typeof requestIdleCallback !== "function") {
+         const id = setTimeout(preloadModals, 1000);
+         return () => clearTimeout(id);
+      }
+      const id = requestIdleCallback(preloadModals);
+      return () => cancelIdleCallback(id);
+   }, [enabled]);
+};
+
 const ModalManager = () => {
    const modals = useModalState();
    const { closeModal } = useModalActions();
+   usePreloadModals(Boolean(useUserId()));
    return (Object.keys(MODALS) as ModalType[]).map((type) => {
       const props = modals[type];
       if (!props) return null;
