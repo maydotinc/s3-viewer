@@ -47,7 +47,9 @@ const lazyModal = <P extends object>(loader: Loader<P>) => {
    return Object.assign(Modal, { preload });
 };
 
-const MODALS: { [K in ModalType]: ComponentType<ModalProps<K>> } = {
+const MODALS: {
+   [K in ModalType]: ComponentType<ModalProps<K>> & Preloadable;
+} = {
    connect: lazyModal(() => import("./ConnectModal")),
    createBucket: lazyModal(() => import("./CreateBucketModal")),
    confirmDelete: lazyModal(() => import("./ConfirmDeleteModal")),
@@ -65,8 +67,7 @@ const MODALS: { [K in ModalType]: ComponentType<ModalProps<K>> } = {
 };
 
 const preloadModals = () => {
-   for (const modal of Object.values(MODALS))
-      void (modal as Preloadable).preload();
+   for (const modal of Object.values(MODALS)) void modal.preload();
 };
 
 // a signed-in page fetches every modal chunk while idle, so the first open is instant instead of placeholder -> dialog
