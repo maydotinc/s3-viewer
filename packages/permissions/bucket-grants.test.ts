@@ -33,7 +33,7 @@ describe("canGrantBucketAccess", () => {
       );
    });
 
-   it("holds a folder-limited admin to their own folders", () => {
+   it("keeps a folder-limited granter inside their own folders", () => {
       const held = grant(Role.EDITOR, ["landing/"]);
       const can = (target: ScopedGrant) =>
          canGrantBucketAccess(Role.ADMIN, held, target);
@@ -43,6 +43,7 @@ describe("canGrantBucketAccess", () => {
       expect(can(grant(Role.VIEWER, ["uploads/"]))).toBe(false);
       expect(can(grant(Role.VIEWER, ["landing/", "uploads/"]))).toBe(false);
       expect(can(grant(Role.VIEWER, ["landing-internal/"]))).toBe(false);
+      expect(can(grant(Role.VIEWER, ["landing/../uploads/"]))).toBe(false);
    });
 
    it("still requires the role itself to be grantable", () => {

@@ -12,7 +12,10 @@ vi.mock("@s3-viewer/auth", () => ({
       handler: async (incoming: Request) => {
          const { pathname } = new URL(incoming.url);
          reached.push(pathname);
-         return Response.json({ pathname });
+         return Response.json({
+            pathname,
+            padding: pathname.endsWith("/large") ? "x".repeat(16 * 1024) : "",
+         });
       },
    },
 }));
@@ -59,14 +62,12 @@ const rawPost = (path: string) =>
    );
 
 describe("non-canonical auth paths", () => {
-   it.each(["/auth/x/../sign-up/email", "/auth/%2e/sign-up/email"])(
-      "refuses %s before Better Auth sees it",
-      async (path) => {
-         reached.length = 0;
-         expect((await rawPost(path)).status).toBe(400);
-         expect(reached).toEqual([]);
-      }
-   );
+   // canonical-path.test.ts owns the input classes; this only proves the guard runs before auth.
+   it("refuses a dot-segment path before Better Auth sees it", async () => {
+      reached.length = 0;
+      expect((await rawPost("/auth/x/../sign-up/email")).status).toBe(400);
+      expect(reached).toEqual([]);
+   });
 
    it("still serves the canonical sign-up path through the sign-up limiter", async () => {
       reached.length = 0;
@@ -104,5 +105,19 @@ describe("response caching headers", () => {
       });
       expect(response.status).toBe(204);
       expect(response.headers.get("access-control-max-age")).toBe("600");
+   });
+});
+
+describe("response compression", () => {
+   const encoding = async (path: string) =>
+      (
+         await fetch(`http://127.0.0.1:${port}${path}`, {
+            headers: { "accept-encoding": "gzip" },
+         })
+      ).headers.get("content-encoding");
+
+   it("compresses JSON above the threshold and leaves small bodies alone", async () => {
+      expect(await encoding("/auth/large")).toBe("gzip");
+      expect(await encoding("/health")).toBeNull();
    });
 });

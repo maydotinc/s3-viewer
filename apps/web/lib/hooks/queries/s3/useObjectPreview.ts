@@ -41,7 +41,6 @@ const useObjectPreview = (
       refetchInterval: PRESIGN_STALE_MS,
       refetchIntervalInBackground: false,
       // every fetch writes an object.view audit row, so only the interval refreshes the url.
-      refetchOnWindowFocus: false,
       refetchOnReconnect: false,
       retry: false,
    });

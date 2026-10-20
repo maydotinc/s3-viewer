@@ -210,12 +210,23 @@ const ObjectsToolbar = () => {
       <Toolbar>
          <PrefixSearch className="w-full min-w-0" />
          <div
-            className="@container -mx-1 flex h-11 min-w-0 items-center gap-2 overflow-x-auto px-1 [&>*]:shrink-0"
+            className="@container -mx-1 flex h-11 min-w-0 items-center gap-2 overflow-x-auto px-1 pointer-coarse:gap-1 [&>*]:shrink-0"
             aria-busy={isLoading || commands.isResolving || undefined}
          >
             <SortMenu />
+            <RefreshButton
+               spinning={isRefreshing}
+               shortcut="r"
+               onClick={refresh}
+            />
             {commands.isResolving ? (
-               <Skeleton className="h-9 w-9 rounded-lg pointer-coarse:h-11 @xl:w-32" />
+               // shaped like an editor's controls, the most common set; @xl widths are the labelled New folder and Upload buttons
+               <>
+                  <Skeleton className="h-9 w-9 rounded-lg pointer-coarse:h-11 pointer-coarse:@max-xl:w-11 @xl:w-[131px]" />
+                  <Skeleton className="h-9 w-9 rounded-lg pointer-coarse:h-11 pointer-coarse:@max-xl:w-11 @xl:w-[130px]" />
+                  <Skeleton className="size-9 rounded-lg pointer-coarse:size-11" />
+                  <Skeleton className="size-9 rounded-lg pointer-coarse:size-11" />
+               </>
             ) : (
                <>
                   {commands.can.upload && (
@@ -242,11 +253,6 @@ const ObjectsToolbar = () => {
                         blockedReason={blockedReason}
                      />
                   )}
-                  <RefreshButton
-                     spinning={isRefreshing}
-                     shortcut="r"
-                     onClick={refresh}
-                  />
                   {commands.can.delete && (
                      <SimpleTooltip label={deleteLabel} shortcut="backspace">
                         <Button

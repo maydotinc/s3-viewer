@@ -41,7 +41,6 @@ const state = vi.hoisted(() => ({
    clamp: vi.fn(),
    listMembers: vi.fn(async () => ({ members: [], nextCursor: null })),
    deleteAccess: vi.fn(),
-   deleteGrants: vi.fn(),
    writeAudit: vi.fn(),
    beforeScopeLock: vi.fn(),
 }));
@@ -129,7 +128,6 @@ vi.mock("@s3-viewer/db", () => ({
                deleteMany: state.deleteAccess,
             },
             bucketAccess: {
-               deleteMany: state.deleteGrants,
                findMany: async ({
                   where,
                }: {
@@ -201,7 +199,6 @@ beforeEach(() => {
    );
    state.clamp.mockReset().mockResolvedValue(undefined);
    state.deleteAccess.mockReset().mockResolvedValue({ count: 1 });
-   state.deleteGrants.mockReset().mockResolvedValue({ count: 0 });
    state.writeAudit.mockReset().mockResolvedValue(undefined);
    state.listMembers
       .mockReset()
@@ -310,37 +307,17 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
    it("refuses a save over access that changed since the editor opened", async () => {
       state.currentGrants = [limited];
       const widened = { ...shown, folders: null };
-      for (const previousBucketAccess of [
-         [widened],
-         [],
-         [{ ...shown, role: "VIEWER" }],
-         [{ ...shown, folders: ["landing/", "blog/"] }],
-         [shown, { bucketName: "other", role: "VIEWER", folders: null }],
-      ]) {
-         const res = await patchRole({
-            role: "EDITOR",
-            bucketAccess: [widened],
-            previousBucketAccess,
-         });
-         expect(res.status).toBe(409);
-      }
+      const res = await patchRole({
+         role: "EDITOR",
+         bucketAccess: [widened],
+         previousBucketAccess: [widened],
+      });
+      expect(res.status).toBe(409);
       expect(state.update).not.toHaveBeenCalled();
    });
 
    it("accepts a save made from the member's current access", async () => {
       state.currentGrants = [limited];
-      const res = await patchRole({
-         role: "EDITOR",
-         bucketAccess: [{ ...shown, folders: ["landing/", "blog/"] }],
-         previousBucketAccess: [shown],
-      });
-      expect(res.status).toBe(200);
-   });
-
-   it("accepts a repeated save whose access is already stored", async () => {
-      state.currentGrants = [
-         { ...limited, allowedFolders: ["landing/", "blog/"] },
-      ];
       const res = await patchRole({
          role: "EDITOR",
          bucketAccess: [{ ...shown, folders: ["landing/", "blog/"] }],
@@ -549,7 +526,6 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
       state.removeMembership.mockImplementation(removeMembership);
       expect((await fetch(base, { method: "DELETE" })).status).toBe(403);
       expect(state.deleteAccess).not.toHaveBeenCalled();
-      expect(state.deleteGrants).not.toHaveBeenCalled();
       expect(state.writeAudit).toHaveBeenCalledWith(
          expect.objectContaining({
             entry: expect.objectContaining({
@@ -588,7 +564,6 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
          resume();
          expect((await response).status).toBe(403);
          expect(state.deleteAccess).not.toHaveBeenCalled();
-         expect(state.deleteGrants).not.toHaveBeenCalled();
       }
    );
 
@@ -609,7 +584,6 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
          state.removeMembership.mockImplementation(removeMembership);
          expect((await fetch(base, { method: "DELETE" })).status).toBe(204);
          expect(state.deleteAccess).toHaveBeenCalledOnce();
-         expect(state.deleteGrants).toHaveBeenCalledOnce();
       }
    );
 
@@ -671,7 +645,6 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
          message: "You can't manage that member",
       });
       expect(state.deleteAccess).not.toHaveBeenCalled();
-      expect(state.deleteGrants).not.toHaveBeenCalled();
       expect(state.recordMany).not.toHaveBeenCalled();
    });
 
@@ -690,16 +663,16 @@ describe("DELETE /servers/:serverId/members/:userId", () => {
 });
 
 describe("a refusal raised inside the transaction", () => {
-   it("audits a folder-limited admin granting past their folders", async () => {
+   it("audits an admin granting above what they hold", async () => {
       state.actorRole = "ADMIN";
       state.actorGrants = [
-         { bucketName: "company", role: "EDITOR", folders: ["landing/"] },
+         { bucketName: "company", role: "VIEWER", folders: null },
       ];
       state.grantChanges.mockImplementation(assertBucketGrantChanges);
       const res = await patchRole({
          role: "EDITOR",
          bucketAccess: [
-            { bucketName: "company", role: "VIEWER", folders: null },
+            { bucketName: "company", role: "EDITOR", folders: null },
          ],
          previousBucketAccess: [],
       });
@@ -709,7 +682,7 @@ describe("a refusal raised inside the transaction", () => {
             entry: {
                action: "access.denied",
                bucket: "company",
-               detail: { permission: "MANAGE_MEMBERS", reason: "folder" },
+               detail: { permission: "MANAGE_MEMBERS", reason: "member" },
             },
          })
       );

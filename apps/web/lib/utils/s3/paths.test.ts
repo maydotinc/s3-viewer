@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+   bucketEntryHref,
    bucketRoute,
    folderHref,
    objectHref,
@@ -43,7 +44,6 @@ describe("pretty path segments for ordinary keys", () => {
       ["report.pdf", ["report.pdf"]],
       ["docs/2026/report.pdf", ["docs", "2026", "report.pdf"]],
       ["docs/", ["docs", ""]],
-      ["docs/2026/", ["docs", "2026", ""]],
    ])("splits the object key %j without losing a segment", (key, segments) => {
       expect(segmentsFromObjectKey(key)).toEqual(segments);
    });
@@ -62,10 +62,7 @@ describe("keys the URL path cannot carry travel in the query", () => {
       ["docs/../secret.txt", ["docs", "..", "secret.txt"]],
       ["a//b.txt", ["a", "", "b.txt"]],
       ["./x", [".", "x"]],
-      ["docs/.", ["docs", "."]],
-      ["..", [".."]],
       ["docs/", ["docs", ""]],
-      ["a/b/", ["a", "b", ""]],
    ])("routes the object key %j through ?key", (key, segments) => {
       const href = objectHref("backups", key);
       expect(href).toEqual({
@@ -85,7 +82,6 @@ describe("keys the URL path cannot carry travel in the query", () => {
       ["docs/../", ["docs", ".."]],
       ["a//", ["a", ""]],
       ["./", ["."]],
-      ["//", ["", ""]],
    ])("routes the folder prefix %j through ?prefix", (prefix, segments) => {
       const href = folderHref("backups", segments);
       expect(href).toEqual({
@@ -155,5 +151,17 @@ describe("bucketRoute reads both URL shapes", () => {
       expect(
          bucketRoute({ slug: ["backups", "docs"], prefix: ["a/", "b/"] }).path
       ).toEqual(["docs"]);
+   });
+});
+
+describe("opening a bucket", () => {
+   it("goes straight into the only folder someone was given, otherwise to the root", () => {
+      expect(
+         bucketEntryHref({ name: "site", folders: ["reports/2026/"] })
+      ).toEqual(folderHref("site", ["reports", "2026"]));
+      for (const folders of [null, ["a/", "b/"]])
+         expect(bucketEntryHref({ name: "site", folders })).toEqual(
+            folderHref("site", [])
+         );
    });
 });

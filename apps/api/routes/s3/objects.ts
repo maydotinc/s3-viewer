@@ -32,6 +32,7 @@ import {
    moveObjects,
    partialCopies,
    renameObject,
+   unconfirmedCopies,
 } from "@/lib/s3/rename";
 import { presignedUrl } from "@/lib/s3/presign";
 import {
@@ -69,7 +70,13 @@ import {
    type S3ObjectUploaded,
 } from "@s3-viewer/types";
 import { Router, type RequestHandler } from "express";
-import { awaitStorage, copyScope, mutationScope, readScope } from "./scope";
+import {
+   awaitStorage,
+   copyScope,
+   mutationScope,
+   readScope,
+   recordedIfUnconfirmed,
+} from "./scope";
 
 const objectsRouter = Router({ mergeParams: true });
 
@@ -351,21 +358,23 @@ objectsRouter.post(
          const { bucketName, objectKey, newObjectKey, expectedETag } = input;
          const { scope, provider } = await mutationScope(bucketName, res);
          const source = await headReviewed(scope, objectKey, expectedETag);
+         const copied: AuditEntry = {
+            action: "object.copy",
+            bucket: bucketName,
+            target: objectKey,
+            detail: { to: newObjectKey },
+         };
          try {
-            await renameObject(copyScope(scope, res, source), provider, {
-               objectKey,
-               newObjectKey,
-               source,
-               sourceETag: expectedETag,
-            });
+            await recordedIfUnconfirmed(res, copied, () =>
+               renameObject(copyScope(scope, res, source), provider, {
+                  objectKey,
+                  newObjectKey,
+                  source,
+                  sourceETag: expectedETag,
+               })
+            );
          } catch (error) {
-            if (error instanceof PartialRenameError)
-               await record(res, {
-                  action: "object.copy",
-                  bucket: bucketName,
-                  target: objectKey,
-                  detail: { to: newObjectKey },
-               });
+            if (error instanceof PartialRenameError) await record(res, copied);
             throw error;
          }
          await record(res, {
@@ -404,17 +413,21 @@ objectsRouter.post(
          const byKey = new Map(objects.map(({ key, newKey }) => [key, newKey]));
          const entriesFor = (
             action: "object.move" | "object.copy",
-            keys: readonly string[]
+            keys: readonly string[],
+            extra: AuditDetail = {}
          ): AuditEntry[] =>
             keys.map((key) => ({
                action,
                bucket: bucketName,
                target: key,
-               detail: { ...detail, to: byKey.get(key) ?? null },
+               detail: { ...detail, to: byKey.get(key) ?? null, ...extra },
             }));
          await recordMany(res, [
             ...entriesFor("object.move", result.moved),
             ...entriesFor("object.copy", partialCopies(result)),
+            ...entriesFor("object.copy", unconfirmedCopies(result), {
+               confirmed: false,
+            }),
          ]);
          const moved: S3MoveResult = result;
          sendPartialResult(res, moved);
@@ -438,30 +451,33 @@ objectsRouter.post(
          } = input;
          const { scope, provider } = await mutationScope(bucketName, res);
          const source = await headReviewed(scope, objectKey, expectedETag);
-         const { eTag, size } = await copyObject(
-            copyScope(scope, res, source),
-            provider,
+         const replaced = expectedDestinationETag !== undefined && {
+            replaced: true,
+         };
+         const { eTag, size } = await recordedIfUnconfirmed(
+            res,
             {
-               sourceKey: objectKey,
-               destinationKey: newObjectKey,
-               source,
-               sourceETag: expectedETag,
-               ...(expectedDestinationETag !== undefined && {
-                  destinationETag: expectedDestinationETag,
-               }),
-            }
+               action: "object.copy",
+               bucket: bucketName,
+               target: objectKey,
+               detail: { to: newObjectKey, ...replaced },
+            },
+            () =>
+               copyObject(copyScope(scope, res, source), provider, {
+                  sourceKey: objectKey,
+                  destinationKey: newObjectKey,
+                  source,
+                  sourceETag: expectedETag,
+                  ...(expectedDestinationETag !== undefined && {
+                     destinationETag: expectedDestinationETag,
+                  }),
+               })
          );
          await record(res, {
             action: "object.copy",
             bucket: bucketName,
             target: objectKey,
-            detail: {
-               size,
-               to: newObjectKey,
-               ...(expectedDestinationETag !== undefined && {
-                  replaced: true,
-               }),
-            },
+            detail: { size, to: newObjectKey, ...replaced },
          });
          const copied: S3ObjectUploaded = { key: newObjectKey, size, eTag };
          res.status(201).json(copied);

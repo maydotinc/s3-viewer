@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { QueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import type { S3DeleteResult, S3DeleteTarget } from "@s3-viewer/types";
 
@@ -53,7 +53,11 @@ import useUpdateObjectSettings from "./useUpdateObjectSettings";
 type Scope = { userId: string; serverId: string; bucketName: string };
 type Mutation<Input, Result> = {
    mutationFn: (input: Input) => Promise<Result>;
-   onSettled: (result: Result, error: null, input: Input) => void;
+   onSettled: (
+      result: Result | undefined,
+      error: Error | null,
+      input: Input
+   ) => void;
 };
 
 const target: Scope = {
@@ -334,5 +338,50 @@ describe("object mutations keep the confirmed target", () => {
          contentType: "text/plain",
       });
       expectOnlyOriginalCacheChanged();
+   });
+});
+
+describe("an open object view after a mutation that did not go through", () => {
+   const watch = (key: string) =>
+      new QueryObserver(h.client!, {
+         queryKey: previewKey(target, key),
+         queryFn: async () => "fresh preview",
+         staleTime: Infinity,
+      }).subscribe(() => undefined);
+   const cached = (key: string) =>
+      h.client?.getQueryCache().find({ queryKey: previewKey(target, key) });
+
+   it("keeps a view whose delete storage refused, and drops the one it confirmed", async () => {
+      const kept = "folder/kept.txt";
+      watch(objectKey);
+      watch(kept);
+      const input = {
+         ...target,
+         objects: [...objects, { key: kept, expectedETag: '"reviewed"' }],
+      };
+      const mutation = useDeleteObjects() as unknown as Mutation<
+         typeof input,
+         DeleteSummary
+      >;
+      h.delete.mockResolvedValue({
+         deleted: [objectKey],
+         failed: [{ key: kept, message: "Changed", retryable: false }],
+      });
+      mutation.onSettled(await mutation.mutationFn(input), null, input);
+      expect(cached(objectKey)).toBeUndefined();
+      expect(cached(kept)).toBeDefined();
+   });
+
+   it("keeps the view of an object whose rename failed", () => {
+      watch(objectKey);
+      const input = { ...target, objectKey, newObjectKey };
+      const mutation = useRenameObject() as unknown as Mutation<
+         typeof input,
+         void
+      >;
+      mutation.onSettled(undefined, new Error("Changed"), input);
+      expect(cached(objectKey)).toBeDefined();
+      mutation.onSettled(undefined, null, input);
+      expect(cached(objectKey)).toBeUndefined();
    });
 });

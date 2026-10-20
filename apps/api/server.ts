@@ -10,7 +10,7 @@ import { assertPrivateKey } from "@/lib/utils/encryption";
 import { assertInstanceSecrets } from "@/lib/utils/instance-secrets";
 import { onUserDeletion } from "@s3-viewer/auth";
 import { configureEmail } from "@s3-viewer/email";
-import { describeError } from "@s3-viewer/types";
+import { describeError, SECOND_MS } from "@s3-viewer/types";
 import { createServer } from "node:http";
 import type { Socket } from "node:net";
 
@@ -32,9 +32,9 @@ configureEmail({
    logBodies: env.NODE_ENV === "development" && localSite,
 });
 
-const HEADERS_TIMEOUT_MS = env.KEEP_ALIVE_TIMEOUT_MS + 5_000;
-const FORCED_FLUSH_MS = 3_000;
-const SHUTDOWN_GRACE_MS = 5_000;
+const HEADERS_TIMEOUT_MS = env.KEEP_ALIVE_TIMEOUT_MS + 5 * SECOND_MS;
+const FORCED_FLUSH_MS = 3 * SECOND_MS;
+const SHUTDOWN_GRACE_MS = 5 * SECOND_MS;
 
 const app = createApp();
 

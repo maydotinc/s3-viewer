@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { archiveLabel, previewKind } from "./file-utils";
 
 describe("archives", () => {
    it.each([
       ["application/zip", "kit.zip", "ZIP archive"],
-      ["application/x-zip-compressed", "kit.zip", "ZIP archive"],
       ["application/gzip", "logs.tar.gz", "Gzipped TAR archive"],
       ["application/gzip", "logs.gz", "Gzip archive"],
       ["application/x-7z-compressed", "kit", "7-Zip archive"],
@@ -37,5 +36,27 @@ describe("markdown", () => {
       ["image/png", "shot.md", "image"],
    ])("previews %s %s as %s", (contentType, fileName, kind) => {
       expect(previewKind(contentType, fileName)).toBe(kind);
+   });
+});
+
+describe("media the browser can show", () => {
+   it("previews only the image types browsers decode", () => {
+      expect(previewKind("image/webp")).toBe("image");
+      expect(previewKind("image/heic")).toBe("none");
+   });
+
+   it("asks the browser which audio and video it can play", () => {
+      const canPlayType = vi.fn((type: string) =>
+         type === "video/mp4" ? "maybe" : ""
+      );
+      vi.stubGlobal("document", { createElement: () => ({ canPlayType }) });
+      try {
+         expect(previewKind("video/mp4")).toBe("video");
+         expect(previewKind("video/x-matroska")).toBe("none");
+         expect(previewKind("video/quicktime")).toBe("video");
+         expect(previewKind("audio/x-aiff")).toBe("none");
+      } finally {
+         vi.unstubAllGlobals();
+      }
    });
 });

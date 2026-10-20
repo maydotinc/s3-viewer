@@ -20,6 +20,20 @@ const TEXT_TYPES = new Set([
 
 const JSON_TYPES = new Set(["application/json", "text/json"]);
 
+// what every current browser decodes in an <img>; heic, tiff and the like only error and re-fetch
+const IMAGE_TYPES = new Set([
+   "image/apng",
+   "image/avif",
+   "image/bmp",
+   "image/gif",
+   "image/jpeg",
+   "image/png",
+   "image/svg+xml",
+   "image/vnd.microsoft.icon",
+   "image/webp",
+   "image/x-icon",
+]);
+
 const MARKDOWN_TYPES = new Set(["text/markdown", "text/x-markdown"]);
 const MARKDOWN_NAME = /\.(md|markdown|mdown|mkd)$/i;
 
@@ -55,6 +69,16 @@ const ARCHIVE_EXTENSIONS: [RegExp, string][] = [
    [/\.zst$/i, "Zstandard archive"],
 ];
 
+// chrome answers "" for quicktime yet plays the H.264 inside most .mov files;
+// the preview's error fallback covers the codecs it cannot decode
+const PLAYABLE_ANYWAY = new Set(["video/quicktime"]);
+
+// codec support differs per browser, so only the browser can say what it plays
+const canPlay = (element: "video" | "audio", type: string): boolean =>
+   PLAYABLE_ANYWAY.has(type) ||
+   (typeof document !== "undefined" &&
+      document.createElement(element).canPlayType(type) !== "");
+
 const mimeType = (contentType: string | null | undefined): string =>
    (contentType ?? "").split(";")[0]?.trim().toLowerCase() ?? "";
 
@@ -79,9 +103,12 @@ const previewKind = (
    if (archiveLabel(contentType, fileName)) return "archive";
    const type = mimeType(contentType);
    if (!type) return "none";
-   if (type.startsWith("image/")) return "image";
-   if (type.startsWith("video/")) return "video";
-   if (type.startsWith("audio/")) return "audio";
+   if (IMAGE_TYPES.has(type)) return "image";
+   if (type.startsWith("video/"))
+      return canPlay("video", type) ? "video" : "none";
+   if (type.startsWith("audio/"))
+      return canPlay("audio", type) ? "audio" : "none";
+   if (type.startsWith("image/")) return "none";
    if (type === "application/pdf") return "pdf";
    if (JSON_TYPES.has(type) || type.endsWith("+json")) return "json";
    if (GENERIC_TYPES.has(type) && /\.jsonc?$/i.test(fileName ?? ""))

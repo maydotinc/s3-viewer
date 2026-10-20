@@ -91,15 +91,6 @@ describe("the members list", () => {
       );
    });
 
-   it("percent-encodes the opaque cursor it was handed back", async () => {
-      useMembers("server-1");
-      await options().queryFn({ pageParam: "bWVtYmVyfGlk==", signal });
-      expect(h.get).toHaveBeenCalledWith(
-         `/servers/server-1/members?cursor=bWVtYmVyfGlk%3D%3D&limit=${MAX_PAGE_SIZE}`,
-         signal
-      );
-   });
-
    it("stays idle until a server is picked", () => {
       useMembers("");
       expect(options().enabled).toBe(false);

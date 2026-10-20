@@ -102,20 +102,10 @@ describe("contentDispositionFilename", () => {
       );
    });
 
-   it("strips quotes, backslashes and control characters", () => {
-      expect(contentDispositionFilename('a"b\\c d\r\n.txt')).toBe(
+   it("strips quotes, backslashes and control characters from both values", () => {
+      expect(contentDispositionFilename('a"b\\c d\x00\x1b\x7f\r\n.txt')).toBe(
          `attachment; filename="abc d.txt"; filename*=UTF-8''abc%20d.txt`
       );
-   });
-
-   it("strips control characters out of the RFC 5987 value too, not just the quoted one", () => {
-      const withControlChars = "evil\x00\x01\x1b\x7f\r\nname.txt";
-      const result = contentDispositionFilename(withControlChars);
-      expect(result).toBe(
-         `attachment; filename="evilname.txt"; filename*=UTF-8''evilname.txt`
-      );
-      // eslint-disable-next-line no-control-regex -- asserting that no control character survives
-      expect(/[\x00-\x1f\x7f]/.test(result)).toBe(false);
    });
 
    it("keeps unicode in filename* with an ASCII fallback", () => {

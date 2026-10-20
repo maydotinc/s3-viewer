@@ -23,7 +23,7 @@ const UNBOUND: { keys: string; label: string; group: ShortcutGroup }[] = [
 const ShortcutRow = ({ keys, label }: { keys: string; label: string }) => (
    <li className="flex h-7 items-center justify-between gap-4">
       <span className="min-w-0 truncate text-sm text-viewertext">{label}</span>
-      {/* Kbd hides on touch, but this list is useless without its keys. */}
+      {/* the Kbd component hides on touch, but this list is useless without its keys */}
       <Kbd keys={keys} className="shrink-0 pointer-coarse:inline-flex" />
    </li>
 );

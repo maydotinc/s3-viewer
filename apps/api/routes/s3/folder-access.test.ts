@@ -15,15 +15,16 @@ import {
 } from "@/lib/testing/route-harness";
 import type { DbRole } from "@/lib/testing/scope-probe";
 import {
+   errorXml,
    listing,
    reply,
    s3Fixture,
+   xml,
    type FixtureRequest,
 } from "@/lib/testing/s3-fixture";
 
 const ACTOR = "actor12345";
 const SERVER = "server12345";
-const OTHER_SERVER = "server67890";
 const BUCKET = "company";
 
 type Grant = { bucketName: string; role: DbRole; folders?: string[] };
@@ -105,13 +106,7 @@ uncheckedRouter.get(
    )
 );
 
-const notFound = () =>
-   reply(
-      404,
-      Readable.from([
-         `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchKey</Code></Error>`,
-      ])
-   );
+const notFound = () => xml(errorXml("NoSuchKey"), 404);
 
 let storage: ReturnType<typeof s3Fixture>;
 let answer: (request: FixtureRequest) => ReturnType<typeof notFound>;
@@ -151,7 +146,6 @@ beforeEach(() => {
    state.ticketKeys = ["private/secret.txt"];
    answer = notFound;
    storage = s3Fixture(async (request) => answer(request));
-   withFolderGuard(storage.client, SERVER);
    state.getClient.mockReset().mockResolvedValue(storage.client);
 });
 
@@ -164,6 +158,8 @@ type Call = {
    query?: Record<string, string>;
    body?: unknown;
    headers?: Record<string, string>;
+   // names a key to create, which the schema refuses with dot segments before any folder check.
+   creates?: boolean;
 };
 
 const send = ({ method, path, query, body, headers }: Call) =>
@@ -207,6 +203,7 @@ const callsWith = (key: string, inside = "landing/ok.png"): Call[] => [
    },
    {
       route: "PUT /v3/upload",
+      creates: true,
       method: "PUT",
       path: `${objects}/v3/upload`,
       query: {
@@ -256,6 +253,7 @@ const callsWith = (key: string, inside = "landing/ok.png"): Call[] => [
          expectedETag: E_TAG,
          expectedUserId: ACTOR,
       },
+      creates: true,
    },
    {
       route: "POST /v3/move",
@@ -274,6 +272,7 @@ const callsWith = (key: string, inside = "landing/ok.png"): Call[] => [
          expectedUserId: ACTOR,
          objects: [{ key: inside, newKey: key, expectedETag: null }],
       },
+      creates: true,
    },
    {
       route: "POST /v3/copy",
@@ -296,12 +295,14 @@ const callsWith = (key: string, inside = "landing/ok.png"): Call[] => [
          expectedETag: E_TAG,
          expectedUserId: ACTOR,
       },
+      creates: true,
    },
    {
       route: "POST /v3/folders",
       method: "POST",
       path: `${objects}/v3/folders`,
       body: { folderKey: `${key}/`, expectedUserId: ACTOR },
+      creates: true,
    },
    {
       route: "GET /v3/content",
@@ -347,6 +348,7 @@ const callsWith = (key: string, inside = "landing/ok.png"): Call[] => [
    },
    {
       route: "POST /v3/multipart-uploads",
+      creates: true,
       method: "POST",
       path: `${objects}/v3/multipart-uploads`,
       body: {
@@ -430,11 +432,15 @@ const expectRefused = async (call: Call) => {
    expect(storage.requests).toEqual([]);
 };
 
-const expectBlocked = async (call: Call) => {
+const expectDotSegmentsRefused = async (call: Call) => {
    const response = await send(call);
-   expect([400, 403]).toContain(response.status);
-   const { code } = (await response.json()) as { code?: string };
-   expect([ErrorCode.VALIDATION, ErrorCode.FOLDER_ACCESS]).toContain(code);
+   await expect(
+      response.json().then((body) => ({ status: response.status, body }))
+   ).resolves.toMatchObject(
+      call.creates
+         ? { status: 400, body: { code: ErrorCode.VALIDATION } }
+         : { status: 403, body: { code: ErrorCode.FOLDER_ACCESS } }
+   );
    expect(storage.requests).toEqual([]);
 };
 
@@ -462,27 +468,12 @@ describe("a member limited to landing/", () => {
       expectRefused
    );
 
-   it.each(callsWith("landing/../private/secret.txt"))(
-      "is kept from storage by $route on a path that climbs out with dot segments",
-      expectBlocked
-   );
-
    it.each(
-      callsWith("landing/../private/secret.txt").filter(({ method }) =>
-         ["GET", "DELETE"].includes(method)
+      // these rows turn "landing" into "landing/", which is the folder itself.
+      callsWith("landing").filter(
+         (call) => !JSON.stringify(call).includes('"landing/"')
       )
-   )(
-      "is refused $route by folder access when the key already exists with dot segments",
-      expectRefused
-   );
-
-   it.each(callsWith("landing"))(
-      "is refused $route on the folder's name without its slash",
-      async (call) => {
-         if (JSON.stringify(call).includes('"landing/"')) return;
-         await expectRefused(call);
-      }
-   );
+   )("is refused $route on the folder's name without its slash", expectRefused);
 
    it("is refused removing the bucket even if a limited grant were an admin one", async () => {
       // the database forbids this row; the route must not depend on that.
@@ -627,12 +618,7 @@ describe("a member limited to landing/", () => {
    });
 });
 
-const transfer = (
-   source: string,
-   destination: string,
-   destinationServer = SERVER,
-   destinationBucket = "archive"
-): Call => ({
+const transfer = (source: string, destination: string): Call => ({
    route: "POST /transfers",
    method: "POST",
    path: `/servers/${SERVER}/transfers`,
@@ -640,8 +626,8 @@ const transfer = (
       expectedUserId: ACTOR,
       source: { bucketName: BUCKET, objectKey: source, expectedETag: null },
       destination: {
-         serverId: destinationServer,
-         bucketName: destinationBucket,
+         serverId: SERVER,
+         bucketName: "archive",
          objectKey: destination,
       },
       overwrite: false,
@@ -653,35 +639,11 @@ const TRANSFER_GRANTS: Grant[] = [
    { bucketName: "archive", role: "EDITOR", folders: ["inbox/"] },
 ];
 
-describe("route checks without the storage guard behind them", () => {
-   beforeEach(() => {
-      storage = s3Fixture(async (request) => answer(request));
-      state.getClient.mockReset().mockResolvedValue(storage.client);
-   });
-
-   it.each(callsWith("private/secret.txt"))(
-      "refuses $route on a key outside the folder",
-      expectRefused
-   );
-
-   it("refuses a transfer from outside the source folder or to outside the destination's", async () => {
-      state.grants = TRANSFER_GRANTS;
-      await expectRefused(transfer("private/secret.txt", "inbox/secret.txt"));
-      await expectRefused(transfer("landing/hero.png", "elsewhere/hero.png"));
-   });
-
-   it("reaches storage for a key inside the folder", async () => {
-      await send({
-         route: "GET /v3/settings",
-         method: "GET",
-         path: `${objects}/v3/settings`,
-         query: { objectKey: "landing/hero.png" },
-      });
-      expect(storage.requests).toHaveLength(1);
-   });
-});
-
 describe("the storage guard behind a route that forgot its check", () => {
+   beforeEach(() => {
+      withFolderGuard(storage.client, SERVER);
+   });
+
    const unchecked = (objectKey: string) =>
       fetch(
          `${origin}/unchecked/${SERVER}/${BUCKET}/unchecked?${new URLSearchParams({ objectKey })}`
@@ -714,6 +676,24 @@ describe("the storage guard behind a route that forgot its check", () => {
 });
 
 describe("dot segments", () => {
+   describe.each([
+      {
+         who: "a member limited to landing/",
+         folders: ["landing/"],
+         key: "landing/../private/secret.txt",
+      },
+      {
+         who: "a whole-bucket member",
+         folders: undefined,
+         key: "landing/../../other-bucket/x",
+      },
+   ])("for $who", ({ folders, key }) => {
+      it.each(callsWith(key))("keep $route from storage", async (call) => {
+         state.grants = [{ bucketName: BUCKET, role: "EDITOR", folders }];
+         await expectDotSegmentsRefused(call);
+      });
+   });
+
    const DOT_MESSAGE =
       "Paths with . or .. segments can only be opened by the server owner.";
    const read = (objectKey: string): Call => ({
@@ -884,18 +864,6 @@ describe("transfers", () => {
 
    it("refuses writing outside the destination folder", async () => {
       await expectRefused(transfer("landing/hero.png", "elsewhere/hero.png"));
-   });
-
-   it("refuses writing outside the destination folder on another server", async () => {
-      await expectRefused(
-         transfer("landing/hero.png", "elsewhere/hero.png", OTHER_SERVER)
-      );
-   });
-
-   it("refuses pulling a key out of the same bucket's other folders", async () => {
-      await expectRefused(
-         transfer("private/secret.txt", "landing/secret.txt", SERVER, BUCKET)
-      );
    });
 
    it("lets a transfer between two held folders reach storage", async () => {

@@ -89,6 +89,7 @@ type AuditAccess = {
    enabled: boolean;
    canView: boolean;
    canManage: boolean;
+   canVerify: boolean;
 };
 
 export { AUDIT_ACTIONS, AuditLevel };

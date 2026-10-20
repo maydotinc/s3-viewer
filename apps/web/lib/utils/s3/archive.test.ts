@@ -25,8 +25,7 @@ describe("requestArchive", () => {
       await requestArchive("server 1", "my bucket", "user1", keys);
       expect(h.post).toHaveBeenCalledWith(
          "/servers/server%201/buckets/my%20bucket/objects/v3/archive",
-         { expectedUserId: "user1", objectKeys: keys },
-         undefined
+         { expectedUserId: "user1", objectKeys: keys }
       );
    });
 });

@@ -74,6 +74,7 @@ const member = (role = Role.EDITOR, bucketAccess = LOADED): ServerUser => ({
    email: "sam@example.com",
    role,
    bucketAccess,
+   canRemove: true,
 });
 
 const view = mountedRuntime();
@@ -132,6 +133,13 @@ describe("saving a member's access", () => {
       });
    });
 
+   it("can take away every bucket while keeping the member", async () => {
+      await open();
+      await choose([]);
+      await submit();
+      expect(sent().bucketAccess).toEqual([]);
+   });
+
    it("can save a folder that was only typed, and sends it", async () => {
       await open();
       expect(submitDisabled()).toBe(true);
@@ -181,7 +189,7 @@ describe("someone else changed the access meanwhile", () => {
       expect(h.close).not.toHaveBeenCalled();
    });
 
-   it("leaves other failures to the toast", async () => {
+   it("keeps the form open to resubmit after a non-conflict failure", async () => {
       await open();
       await choose([LOADED[0]!, { ...LOADED[1]!, role: Role.EDITOR }]);
       await submit();

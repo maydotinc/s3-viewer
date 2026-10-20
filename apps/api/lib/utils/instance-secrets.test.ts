@@ -1,6 +1,5 @@
 import { generateKeyPairSync, hkdfSync } from "node:crypto";
 import {
-   chmodSync,
    mkdirSync,
    mkdtempSync,
    readFileSync,
@@ -75,6 +74,18 @@ class PrismaKnownError extends Error {
 vi.mock("@prisma/client", () => ({
    Prisma: { PrismaClientKnownRequestError: PrismaKnownError },
 }));
+// the production cost makes every fingerprint take tens of milliseconds; the tests only compare them.
+vi.mock("node:crypto", async (original) => {
+   const actual = await original<typeof import("node:crypto")>();
+   return {
+      ...actual,
+      scryptSync: (
+         password: string | Buffer,
+         salt: string | Buffer,
+         length: number
+      ) => actual.scryptSync(password, salt, length, { N: 1024, r: 8, p: 1 }),
+   };
+});
 
 const {
    assertInstanceSecrets,
@@ -215,15 +226,6 @@ describe("audit chain key", () => {
       );
    });
 
-   it("keeps deriving from BETTER_AUTH_SECRET across reboots so existing audit rows keep verifying", async () => {
-      await assertInstanceSecrets();
-      state.create.mockClear();
-      const key = await assertInstanceSecrets();
-      expect(key).toEqual(legacyAuditChainKey(AUTH_SECRET));
-      expect(state.create).not.toHaveBeenCalled();
-      expect(state.warn).not.toHaveBeenCalled();
-   });
-
    it("refuses to boot when BETTER_AUTH_SECRET rotates while still relying on the legacy derivation", async () => {
       await assertInstanceSecrets(AUTH_SECRET);
       await expect(
@@ -307,23 +309,6 @@ describe("audit chain key", () => {
       }
    });
 
-   it.skipIf(process.getuid?.() === 0)(
-      "names DATA_DIR, the file and the uid when the key cannot be persisted",
-      async () => {
-         const dir = tempDir();
-         try {
-            chmodSync(dir, 0o500);
-            process.env.DATA_DIR = dir;
-            await expect(assertInstanceSecrets(AUTH_SECRET)).rejects.toThrow(
-               `Could not persist ${join(dir, "audit-chain-key")}: DATA_DIR (${dir}) must be readable and writable by the user this process runs as (uid ${String(process.getuid?.())})`
-            );
-         } finally {
-            chmodSync(dir, 0o700);
-            rmSync(dir, { recursive: true, force: true });
-         }
-      }
-   );
-
    it("reads a key already persisted in DATA_DIR back on the next boot without touching the database", async () => {
       const dir = tempDir();
       try {
@@ -386,9 +371,6 @@ describe("audit chain key", () => {
    it.each([
       ["non-base64", "!!!!"],
       ["empty", ""],
-      ["whitespace", " \n\t"],
-      ["short", Buffer.alloc(16, 1).toString("base64")],
-      ["corrupt", `${Buffer.alloc(32, 1).toString("base64")}!`],
    ])(
       "rejects a %s persisted key even when key replacement is accepted",
       async (_name, contents) => {

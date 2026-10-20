@@ -42,21 +42,19 @@ type FilterInputProps = Omit<
 > & {
    label: string;
    shortcut?: boolean;
-   inputClassName?: string;
 };
 
 const FilterInput = ({
    label,
    shortcut,
    className,
-   inputClassName,
    ...input
 }: FilterInputProps) => {
    const inputId = useId();
    return (
       <div
          className={cn(
-            "relative flex h-9 w-full min-w-0 items-center",
+            "relative flex h-9 w-full min-w-0 items-center pointer-coarse:h-11",
             className
          )}
       >
@@ -65,7 +63,7 @@ const FilterInput = ({
             type="text"
             autoComplete="off"
             spellCheck={false}
-            className={cn("peer", FILTER_PADDING, inputClassName)}
+            className={`peer ${FILTER_PADDING}`}
             {...input}
          />
          <FilterDecor inputId={inputId} label={label} shortcut={shortcut} />

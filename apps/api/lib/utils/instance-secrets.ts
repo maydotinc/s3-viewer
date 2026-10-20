@@ -14,6 +14,7 @@ import {
 } from "node:crypto";
 import { lstatSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { MIB } from "@s3-viewer/types";
 
 const ENCRYPTION_KEY = "encryption-key";
 const AUTH_SECRET = "auth-secret";
@@ -24,7 +25,7 @@ const FINGERPRINT_SCRYPT = {
    N: 2 ** 15,
    r: 8,
    p: 1,
-   maxmem: 64 * 1024 * 1024,
+   maxmem: 64 * MIB,
 };
 
 const LEGACY_AUDIT_CHAIN_INFO = "s3-viewer audit chain";

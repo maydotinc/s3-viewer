@@ -6,6 +6,9 @@
 **/.turbo
 **/coverage
 **/.env
+**/*.pem
+data
+apps/*/data
 **/.env.*
 !**/.env.example
 .git

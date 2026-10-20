@@ -28,10 +28,7 @@ type Mode = "login" | "signup";
 type Credentials = { email: string; password: string };
 
 // `verificationRequired` means no session exists yet: the code step comes next
-type Outcome = Credentials & {
-   created: boolean;
-   verificationRequired: boolean;
-};
+type Outcome = Credentials & { verificationRequired: boolean };
 
 type SignInFormProps = {
    mode: Mode;
@@ -118,7 +115,6 @@ const SignInForm = ({
       if (result.code === AuthErrorCode.EMAIL_NOT_VERIFIED) {
          await onDone({
             ...credentials,
-            created: false,
             verificationRequired: true,
          });
          return;
@@ -133,7 +129,6 @@ const SignInForm = ({
       }
       await onDone({
          ...credentials,
-         created: result.created,
          verificationRequired: result.created,
       });
    };

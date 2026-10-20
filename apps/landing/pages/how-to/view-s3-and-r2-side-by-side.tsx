@@ -120,6 +120,7 @@ export default createHowToPage({
    seoDescription:
       "Add AWS S3 and Cloudflare R2 as servers in one sidebar and switch between them in a click — one file browser over both S3-compatible APIs.",
    published: "2026-04-28",
+   updated: "2026-10-12",
    visual: <SideBySideIllustration />,
    steps,
    underTheHood: (

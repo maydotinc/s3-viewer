@@ -1,7 +1,6 @@
 import type { Request, Response } from "express";
 import { describe, expect, it, vi } from "vitest";
 import { z, type ZodTypeAny } from "zod";
-import { updateObjectSettingsBodySchema } from "@s3-viewer/types";
 import { input, validate } from "./validate";
 
 const schema = z.object({
@@ -183,36 +182,10 @@ describe("validate", () => {
          ]);
       });
 
-      it("refuses an over-count metadata map without walking its entries", () => {
-         // numeric values would surface as the first entry's type error if the map were walked
-         const metadata = Object.fromEntries(
-            Array.from({ length: 100_000 }, (_, i) => [`k${i}`, i])
-         );
-         const { res, next } = run(
-            {
-               method: "PATCH",
-               params: { serverId: "server123", bucketName: "photos" },
-               body: {
-                  expectedUserId: "user12345",
-                  objectKey: "file.txt",
-                  expectedETag: '"old"',
-                  contentType: "text/plain",
-                  metadata,
-               },
-            },
-            updateObjectSettingsBodySchema
-         );
-         expect(next).not.toHaveBeenCalled();
-         expect(res.json).toHaveBeenCalledWith({
-            message: "metadata: Use at most 50 metadata entries",
-            code: "VALIDATION",
-         });
-      });
-
       it("leaves non-array values to zod's own type errors", () => {
          const { res } = post({ keys: "not-an-array" });
          expect(res.json).toHaveBeenCalledWith({
-            message: expect.stringMatching(/^keys: Expected array/),
+            message: expect.stringMatching(/^keys: /),
             code: "VALIDATION",
          });
       });

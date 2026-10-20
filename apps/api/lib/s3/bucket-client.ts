@@ -1,5 +1,5 @@
 import { HeadBucketCommand, type S3Client } from "@aws-sdk/client-s3";
-import { MINUTE_MS, Provider } from "@s3-viewer/types";
+import { MINUTE_MS, Provider, SECOND_MS } from "@s3-viewer/types";
 import { ApiHttpError } from "@/lib/http";
 import { assertPublicEndpoint } from "@/lib/utils/endpoint";
 import { waitForSharedOperation } from "@/lib/utils/abort";
@@ -9,7 +9,7 @@ import { bucketRegionHeader, failedResponse } from "./failure";
 import { cloneS3Client } from "./clone-client";
 
 const REGION_TTL_MS = 10 * MINUTE_MS;
-const DISCOVERY_TIMEOUT_MS = 15_000;
+const DISCOVERY_TIMEOUT_MS = 15 * SECOND_MS;
 const MAX_BUCKET_CLIENTS = 500;
 const REGION = /^[a-z]{2}(?:-[a-z]+)+-\d+$/;
 

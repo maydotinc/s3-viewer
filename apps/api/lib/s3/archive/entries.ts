@@ -161,18 +161,23 @@ const lastSegment = (key: string): string | null =>
 
 const FLATTENED_ENTRY_NAME = "file";
 
+// macOS and Windows extract case-insensitively, so names differing only by case would overwrite each other.
+const foldCase = (name: string): string => name.toLowerCase();
+
+// used, nextSuffix and directories are keyed by folded names.
 const distinctName = (
    name: string,
    used: Set<string>,
    nextSuffix: Map<string, number>,
    directories: ReadonlySet<string>
 ): string => {
+   const folded = foldCase(name);
    let candidate = name;
-   let suffix = nextSuffix.get(name) ?? 2;
-   while (used.has(candidate) || directories.has(candidate))
+   let suffix = nextSuffix.get(folded) ?? 2;
+   while (used.has(foldCase(candidate)) || directories.has(foldCase(candidate)))
       candidate = `${name}.${suffix++}`;
-   nextSuffix.set(name, suffix);
-   used.add(candidate);
+   nextSuffix.set(folded, suffix);
+   used.add(foldCase(candidate));
    return candidate;
 };
 
@@ -295,7 +300,7 @@ const collectWithin = (
             slash > 0;
             slash = name.lastIndexOf("/", slash - 1)
          ) {
-            const directory = name.slice(0, slash);
+            const directory = foldCase(name.slice(0, slash));
             if (directories.has(directory)) break;
             reservation.retain(directory.length * 2 + 128);
             directories.add(copyRetainedString(directory));

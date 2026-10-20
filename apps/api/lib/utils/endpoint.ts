@@ -2,13 +2,14 @@ import { env } from "@/lib/env";
 import { ApiHttpError } from "@/lib/http";
 import dns from "node:dns";
 import { isIP, type LookupFunction } from "node:net";
+import { MINUTE_MS } from "@s3-viewer/types";
 
 const REJECTION = "Endpoint must be a public https URL";
 
 const RESOLVE_TIMEOUT_MS = 3000;
 const RESOLVE_TRIES = 2;
 const LOOKUP_TIMEOUT_MS = 5000;
-const LOOKUP_TTL_MS = 60_000;
+const LOOKUP_TTL_MS = MINUTE_MS;
 const LOOKUP_FAILURE_TTL_MS = 5000;
 const LOOKUP_CACHE_MAX = 1000;
 
@@ -144,10 +145,16 @@ const v4Behind = (groups: number[]): string | null => {
    return null;
 };
 
-// AWS's IPv6 instance metadata endpoint.
-const isAwsMetadataV6 = (groups: number[]): boolean =>
-   groups[0] === 0xfd00 &&
-   groups[1] === 0x0ec2 &&
+// AWS (fd00:ec2::254) and Google Cloud (fd20:ce::254) serve instance metadata over IPv6 too.
+const METADATA_V6_PREFIXES: readonly (readonly [number, number])[] = [
+   [0xfd00, 0x0ec2],
+   [0xfd20, 0x00ce],
+];
+
+const isCloudMetadataV6 = (groups: number[]): boolean =>
+   METADATA_V6_PREFIXES.some(
+      ([first, second]) => groups[0] === first && groups[1] === second
+   ) &&
    groups.slice(2, 7).every((x) => x === 0) &&
    groups[7] === 0x0254;
 
@@ -155,7 +162,7 @@ const isMetadataV6 = (ip: string): boolean => {
    const groups = v6Groups(ip);
    const v4 = v4Behind(groups);
    if (v4) return isMetadataV4(v4);
-   return isLinkLocalV6(groups[0] ?? 0) || isAwsMetadataV6(groups);
+   return isLinkLocalV6(groups[0] ?? 0) || isCloudMetadataV6(groups);
 };
 
 const isPrivateV6 = (ip: string): boolean => {

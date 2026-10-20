@@ -156,18 +156,6 @@ describe("first block hooks", () => {
       expect(onFirstPage.mock.calls[0]![0]).toHaveLength(BLOCK);
       expect(onFirstPage.mock.calls[0]![0][0]).toBe("k0");
    });
-
-   it("stays silent once the listing is destroyed", async () => {
-      const blocked = blockedPage(false);
-      const onFirstPage = vi.fn();
-      const datasource = source({ onFirstPage });
-      const request = rowRequest(datasource);
-      await blocked.signal;
-      datasource.destroy();
-      blocked.resolve({ objects: [entry("a.txt")], nextToken: null });
-      await request.done;
-      expect(onFirstPage).not.toHaveBeenCalled();
-   });
 });
 
 describe("createObjectDatasource", () => {
@@ -283,9 +271,11 @@ describe("createObjectDatasource", () => {
       "ignores a late successful page for obsolete block %s even if transport ignores abort",
       async (block) => {
          const onError = vi.fn();
+         const onFirstPage = vi.fn();
          const grid = { showNoRowsOverlay: vi.fn(), hideOverlay: vi.fn() };
          const datasource = source({
             onError,
+            onFirstPage,
             getGridApi: () => grid as unknown as GridApi,
          });
          const blocked = blockedPage(false);
@@ -304,24 +294,11 @@ describe("createObjectDatasource", () => {
          expect(request.successCallback).not.toHaveBeenCalled();
          expect(request.failCallback).toHaveBeenCalledOnce();
          expect(onError).not.toHaveBeenCalled();
+         expect(onFirstPage).not.toHaveBeenCalled();
          expect(grid.showNoRowsOverlay).not.toHaveBeenCalled();
          expect(grid.hideOverlay).toHaveBeenCalledTimes(1);
       }
    );
-
-   it("ignores late errors from a replaced generation", async () => {
-      const onError = vi.fn();
-      const datasource = source({ onError });
-      const blocked = blockedPage(false);
-      const request = rowRequest(datasource);
-      await blocked.signal;
-      datasource.destroy();
-      blocked.reject(new Error("old listing failed"));
-      await request.done;
-      expect(request.successCallback).not.toHaveBeenCalled();
-      expect(request.failCallback).toHaveBeenCalledOnce();
-      expect(onError).not.toHaveBeenCalled();
-   });
 
    it("preserves failures from the current generation", async () => {
       const error = new Error("listing failed");

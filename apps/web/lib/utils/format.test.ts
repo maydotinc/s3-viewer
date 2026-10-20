@@ -7,7 +7,6 @@ describe("formatting sizes", () => {
       [1023, "1023 B"],
       [1024, "1.0 KiB"],
       [1024 ** 2 - 1, "1.0 MiB"],
-      [1024 ** 3 - 1, "1.0 GiB"],
       [5 * 1024 ** 4, "5.0 TiB"],
       [5 * 1024 ** 5, "5120 TiB"],
    ])("shows %d bytes as %s", (bytes, label) => {

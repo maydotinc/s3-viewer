@@ -47,17 +47,6 @@ const folderAccessAt = (reach: KnownReach, prefix: string): FolderAccess => {
 const canListPrefix = (reach: KnownReach, prefix: string): boolean =>
    reach?.owner === true || !prefixHasDotSegment(prefix);
 
-const canWriteAt = (reach: KnownReach, key: string): boolean => {
-   const access = folderAccessAt(reach, key);
-   return access === "whole" || access === "inside";
-};
-
-const canActOnFolder = (
-   serverRole: Role | null | undefined,
-   bucket: S3Bucket | null | undefined,
-   prefix: string
-): boolean => serverRole === Role.OWNER || canWriteAt(reachOf(bucket), prefix);
-
 const foldersUnder = (scope: readonly string[], prefix: string): string[] =>
    scope.filter((folder) => folder.startsWith(prefix));
 
@@ -148,7 +137,6 @@ const limitedGrantsNote = (
 
 export {
    accessNotice,
-   canActOnFolder,
    canListPrefix,
    folderAccessAt,
    folderList,

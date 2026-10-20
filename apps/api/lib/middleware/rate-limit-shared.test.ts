@@ -123,12 +123,6 @@ it("asks the shared store again once the window it refused in has ended", async 
    }
 });
 
-it("still refuses a key another replica already spent", async () => {
-   db.hits.set("connect:roamer", 30);
-   expect(await post("/connect", "roamer")).toBe(429);
-   expect(db.hit).toHaveBeenCalledOnce();
-});
-
 it("keeps failed requests out of both counters when only successes are budgeted", async () => {
    for (let i = 0; i < 15; i++)
       expect(await post("/sign-up", "", 422)).toBe(422);

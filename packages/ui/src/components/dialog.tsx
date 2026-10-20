@@ -13,13 +13,13 @@ const DIALOG_CONTENT =
 function Dialog({
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+   return <DialogPrimitive.Root {...props} />;
 }
 
 function DialogPortal({
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
-   return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />;
+   return <DialogPrimitive.Portal {...props} />;
 }
 
 function DialogOverlay({
@@ -28,7 +28,6 @@ function DialogOverlay({
 }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
    return (
       <DialogPrimitive.Overlay
-         data-slot="dialog-overlay"
          data-backdrop=""
          className={cn(DIALOG_OVERLAY, className)}
          {...props}
@@ -45,7 +44,7 @@ function DialogContent({
    showCloseButton?: boolean;
 }) {
    return (
-      <DialogPortal data-slot="dialog-portal">
+      <DialogPortal>
          <DialogOverlay />
          <DialogPrimitive.Content
             data-slot="dialog-content"
@@ -55,7 +54,6 @@ function DialogContent({
             {children}
             {showCloseButton && (
                <DialogPrimitive.Close
-                  data-slot="dialog-close"
                   aria-label="Close"
                   className={cn(
                      "absolute top-4 right-4 flex size-8 cursor-pointer items-center justify-center rounded-md pointer-coarse:top-2.5 pointer-coarse:right-2.5 pointer-coarse:size-11 text-viewertext transition-colors outline-none not-disabled:hover:bg-viewergray not-disabled:hover:text-viewerblack [&_svg]:size-4 [&_svg]:shrink-0",
@@ -73,7 +71,6 @@ function DialogContent({
 function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
    return (
       <div
-         data-slot="dialog-header"
          className={cn(
             "flex max-h-[min(35dvh,16rem)] min-w-0 shrink-0 flex-col gap-1 overflow-y-auto px-4 pt-5 pr-12 pb-4 [overflow-wrap:anywhere] [scrollbar-gutter:stable] sm:px-6 sm:pr-12 pointer-coarse:pr-14",
             className
@@ -86,7 +83,6 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
    return (
       <div
-         data-slot="dialog-body"
          className={cn(
             "min-h-0 min-w-0 overflow-y-auto overscroll-contain px-4 pb-4 [scrollbar-gutter:stable] sm:px-6",
             className
@@ -99,7 +95,6 @@ function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
 function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
    return (
       <div
-         data-slot="dialog-footer"
          className={cn(
             "flex min-w-0 shrink-0 flex-wrap justify-end gap-2 px-4 pt-2 pb-5 [&>button]:h-auto [&>button]:min-h-9 pointer-coarse:[&>button]:min-h-11 [&>button]:whitespace-normal sm:px-6",
             className
@@ -115,7 +110,6 @@ function DialogTitle({
 }: React.ComponentProps<typeof DialogPrimitive.Title>) {
    return (
       <DialogPrimitive.Title
-         data-slot="dialog-title"
          className={cn(
             "text-base leading-6 font-semibold text-viewerblack",
             className
@@ -131,7 +125,6 @@ function DialogDescription({
 }: React.ComponentProps<typeof DialogPrimitive.Description>) {
    return (
       <DialogPrimitive.Description
-         data-slot="dialog-description"
          className={cn("text-sm text-viewertext", className)}
          {...props}
       />

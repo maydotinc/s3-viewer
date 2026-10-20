@@ -98,9 +98,9 @@ describe("incremental multipart resume persistence", () => {
       vi.resetModules();
       const { resumableSession } = await load();
       storage.getItem.mockClear();
-      expect((await resumableSession(candidate))?.partDigests).toEqual(
-         saved.partDigests
-      );
+      expect(
+         (await resumableSession(candidate)).resumable?.partDigests
+      ).toEqual(saved.partDigests);
       expect(storage.getItem.mock.calls.length).toBeLessThan(160);
    });
 
@@ -111,7 +111,8 @@ describe("incremental multipart resume persistence", () => {
       expect(await forgetPartDigest(saved, 1)).toBe(true);
       vi.resetModules();
       expect(
-         (await (await load()).resumableSession(candidate))?.partDigests
+         (await (await load()).resumableSession(candidate)).resumable
+            ?.partDigests
       ).toEqual({
          2: proof,
       });
@@ -139,7 +140,9 @@ describe("incremental multipart resume persistence", () => {
       await expect(
          rememberPartDigest(saved, 1, proof)
       ).resolves.toBeUndefined();
-      expect((await resumableSession(candidate))?.partDigests).toEqual({});
+      expect(
+         (await resumableSession(candidate)).resumable?.partDigests
+      ).toEqual({});
    });
 
    it("cleans chunks on completion, replacement, expiration, and eviction", async () => {
@@ -178,9 +181,9 @@ describe("incremental multipart resume persistence", () => {
       await rememberSession(saved);
       storage.setItem.mockClear();
       await rememberPartDigest(saved, 1, proof);
-      expect((await resumableSession(candidate))?.savedAt).toBeGreaterThan(
-         saved.savedAt
-      );
+      expect(
+         (await resumableSession(candidate)).resumable?.savedAt
+      ).toBeGreaterThan(saved.savedAt);
       expect(storage.setItem.mock.calls).toHaveLength(2);
       await rememberPartDigest(saved, 2, proof);
       expect(storage.setItem.mock.calls).toHaveLength(3);
@@ -220,7 +223,9 @@ describe("multipart persistence across tabs", () => {
       });
       await second.rememberPartDigest(session(), 2, proof);
       await expect(invalidation).resolves.toBe(true);
-      expect((await first.resumableSession(candidate))?.partDigests).toEqual({
+      expect(
+         (await first.resumableSession(candidate)).resumable?.partDigests
+      ).toEqual({
          2: proof,
       });
    });
@@ -240,7 +245,7 @@ describe("multipart persistence across tabs", () => {
       });
       await second.rememberPartDigest(saved, 1, proof);
       await removal;
-      expect(await first.resumableSession(candidate)).toBeNull();
+      expect((await first.resumableSession(candidate)).resumable).toBeNull();
       expect(memory.size).toBe(1);
    });
 
@@ -261,7 +266,9 @@ describe("multipart persistence across tabs", () => {
       });
       await second.rememberPartDigest(saved, 1, proof);
       await expect(insertion).resolves.toBe(true);
-      expect((await first.resumableSession(candidate))?.partDigests).toEqual({
+      expect(
+         (await first.resumableSession(candidate)).resumable?.partDigests
+      ).toEqual({
          1: proof,
       });
       expect(
@@ -270,7 +277,7 @@ describe("multipart persistence across tabs", () => {
                ...candidate,
                target: { ...target, objectKey: "second" },
             })
-         )?.uploadId
+         ).resumable?.uploadId
       ).toBe("upload-2");
    });
 
@@ -281,7 +288,7 @@ describe("multipart persistence across tabs", () => {
       await rememberSession(saved);
       expect(
          await resumableSession({ ...candidate, userId: "user-b" })
-      ).toBeNull();
+      ).toEqual({ resumable: null, stale: null });
       let release!: () => void;
       let entered!: () => void;
       const acquired = new Promise<void>((resolve) => {
@@ -330,7 +337,10 @@ describe("multipart persistence across tabs", () => {
       vi.stubGlobal("navigator", {});
       expect(await rememberSession(saved)).toBe(false);
       await rememberPartDigest(saved, 2, proof);
-      expect(await resumableSession(candidate)).toBeNull();
+      expect(await resumableSession(candidate)).toEqual({
+         resumable: null,
+         stale: null,
+      });
       await forgetSession(target);
       expect(storage.getItem).not.toHaveBeenCalled();
       expect(storage.setItem).not.toHaveBeenCalled();

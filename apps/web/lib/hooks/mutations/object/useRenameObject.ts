@@ -6,9 +6,10 @@ import useObjectMutation, {
 const useRenameObject = () =>
    useObjectMutation({
       mutationFn: postKeyChange<void>("rename"),
-      settle: forgetTouched(
-         ({ newObjectKey }) => [newObjectKey],
-         ({ objectKey }) => [objectKey]
+      settle: forgetTouched(({ objectKey, newObjectKey }, outcome) =>
+         outcome
+            ? { changed: [newObjectKey], removed: [objectKey] }
+            : { changed: [newObjectKey, objectKey] }
       ),
    });
 

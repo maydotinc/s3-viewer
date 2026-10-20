@@ -32,7 +32,6 @@ const clientFor = (
    s3Fixture(handle, {
       endpoint: `https://${hostname}`,
       forcePathStyle: false,
-      maxAttempts: 1,
    }).client;
 
 describe("bucket listing across providers", () => {

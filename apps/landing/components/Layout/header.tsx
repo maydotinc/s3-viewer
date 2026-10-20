@@ -26,8 +26,6 @@ const ICON_BUTTON = cn(
    FOCUS_RING
 );
 
-// the bar sits flat and transparent at the top of the page and tightens into
-// a floating pill once the reader scrolls, with the centre links fading out.
 const useScrolled = () => {
    const [scrolled, setScrolled] = useState(false);
 

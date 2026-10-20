@@ -82,7 +82,6 @@ jobs:
               NEXT_PUBLIC_SITE_URL: http://localhost:3000
 
    distribution:
-      if: github.event_name != 'pull_request'
       runs-on: ubuntu-latest
       timeout-minutes: 20
       steps:

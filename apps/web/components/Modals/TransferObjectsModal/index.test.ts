@@ -52,6 +52,10 @@ vi.mock("@/lib/stores/session-store", () => ({
 vi.mock("@/lib/hooks/queries/s3/useBucketsForServer", () => ({
    default: () => ({ buckets: h.buckets, isLoading: h.loading }),
 }));
+vi.mock("@/lib/hooks/queries/s3/useBuckets", () => ({ default: vi.fn() }));
+vi.mock("@/lib/hooks/queries/server/useCurrentServer", () => ({
+   default: vi.fn(),
+}));
 vi.mock("./useTransferPreflight", () => ({
    default: h.preflight,
 }));
@@ -109,7 +113,7 @@ const server = (overrides: Record<string, unknown> = {}) => ({
    id: "server",
    name: "Server",
    userRole: "EDITOR",
-   capabilities: { upload: true },
+   capabilities: { writable: true },
    ...overrides,
 });
 beforeEach(() => {
@@ -134,23 +138,20 @@ it("freezes every destination control after starting and carries the same operat
    submit(render());
    const [input, callbacks] = h.mutate.mock.calls[0]!;
    const started = render();
-   expect(
-      nodes(started)
-         .filter(
-            ({ props }) =>
-               "onValueChange" in props ||
-               "onCheckedChange" in props ||
-               props.placeholder === "reports/"
-         )
-         .map(({ props }) => props.disabled)
-   ).toEqual([true, true, true, true]);
+   const controls = nodes(started).filter(
+      ({ props }) =>
+         "onValueChange" in props ||
+         "onCheckedChange" in props ||
+         props.placeholder === "reports/"
+   );
+   expect(new Set(controls.map(({ props }) => props.disabled))).toEqual(
+      new Set([true])
+   );
    callbacks.onSuccess({
       transferred: 1,
       skipped: 0,
       bytes: 1,
-      failed: [
-         { key: "raw/b", message: "Busy", retryable: true, outcome: "failed" },
-      ],
+      failed: [{ key: "raw/b", message: "Busy", retryable: true }],
       listingError: null,
       remaining: true,
    } satisfies TransferSummary);
@@ -220,7 +221,7 @@ it.each([
    ["a viewer of the destination", [server()], "VIEWER"],
    [
       "a server that can't take uploads",
-      [server({ capabilities: {} })],
+      [server({ capabilities: { writable: false } })],
       "EDITOR",
    ],
 ])(

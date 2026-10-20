@@ -74,7 +74,9 @@ describe("parseSharedEnv", () => {
    it("reports every problem in one message", () => {
       expect(() =>
          parse({ COOKIE_SAMESITE: "strict", SIGNUP_MODE: "invite-only" })
-      ).toThrow(/COOKIE_SAMESITE: .*; SIGNUP_MODE: must be one of/);
+      ).toThrow(
+         /COOKIE_SAMESITE: .*; SIGNUP_MODE: must be one of open, domains, invite, closed/
+      );
    });
 });
 
@@ -118,9 +120,14 @@ describe("sign-up policy", () => {
       });
    });
 
-   it("refuses an unknown mode", () => {
-      expect(() => parse({ SIGNUP_MODE: "invite-only" })).toThrow(
-         /SIGNUP_MODE: must be one of open, domains, invite, closed/
+   it("refuses list entries no address could match", () => {
+      expect(() =>
+         parse({
+            ALLOWED_EMAIL_DOMAINS:
+               "acme.com, *.acme.dev, https://acme.io, acme.org., localhost",
+         })
+      ).toThrow(
+         "ALLOWED_EMAIL_DOMAINS: each entry must be a bare domain such as `acme.com` (no wildcard, scheme or trailing dot); got `*.acme.dev`, `https://acme.io`, `acme.org.`, `localhost`"
       );
    });
 });

@@ -20,7 +20,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const line = (title: string, href: string, note: string) =>
    `- [${title}](${SITE_URL}${href}): ${note}`;
 
-export const buildLlmsTxt = (): string =>
+const buildLlmsTxt = (): string =>
    [
       "# S3 Viewer",
       "",

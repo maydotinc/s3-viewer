@@ -414,19 +414,6 @@ describe("verifyAuditChain", () => {
       });
    });
 
-   it("passes a server that has never written a row", async () => {
-      serveChain(h, []);
-      h.headFind.mockResolvedValue(null);
-      expect(await verifyAuditChain("server12345")).toEqual({
-         ...whole,
-         ok: true,
-         rows: 0,
-         firstSeq: null,
-         lastSeq: null,
-         brokenAt: null,
-      });
-   });
-
    it("detects a last row rewritten by someone holding the key", async () => {
       const rows = await chain();
       serveChain(h, rows);
@@ -535,7 +522,7 @@ describe("verifyAuditChain", () => {
       );
       await expect(verifyAuditChain("server5")).rejects.toMatchObject({
          status: 429,
-         message: expect.stringMatching(/Too many integrity checks/),
+         message: expect.stringMatching(/Too many audit log reads/),
       });
       held.resolve();
       await Promise.all([first, ...others]);
@@ -860,14 +847,6 @@ describe("text search cost", () => {
       expect(queryText()).toContain('"target" ILIKE $2');
    });
 
-   it("bounds an unfiltered page the same way", async () => {
-      await listAuditPage({ serverId: "s", reach: null, limit: 1 });
-      expect(h.transaction).toHaveBeenCalledOnce();
-      const [strings] = h.queryRaw.mock.calls[0] as [TemplateStringsArray];
-      expect(strings.join("")).toBe("SET LOCAL statement_timeout = '8s'");
-      expect(h.selectRows).toHaveBeenCalledOnce();
-   });
-
    it("bounds every export batch under its own timeout", async () => {
       h.selectRows
          .mockResolvedValueOnce(
@@ -879,11 +858,11 @@ describe("text search cost", () => {
             )
          )
          .mockResolvedValueOnce([]);
-      for await (const entry of iterateAudit({
+      for await (const batch of iterateAudit({
          serverId: "s",
          reach: null,
       }))
-         expect(entry.action).toBe("object.delete");
+         for (const entry of batch) expect(entry.action).toBe("object.delete");
       expect(h.transaction).toHaveBeenCalledTimes(2);
       expect(h.queryRaw).toHaveBeenCalledTimes(2);
    });
@@ -894,12 +873,6 @@ describe("text search cost", () => {
          status: 422,
          message: expect.stringMatching(/Narrow the search/),
       });
-   });
-
-   it("bounds every export batch the same way", async () => {
-      h.selectRows.mockRejectedValueOnce(canceled());
-      const rows = iterateAudit({ serverId: "s", reach: null, q: "png" });
-      await expect(rows.next()).rejects.toMatchObject({ status: 422 });
    });
 
    const holdReads = () => {
@@ -924,6 +897,20 @@ describe("text search cost", () => {
       h.selectRows.mockResolvedValue([]);
       await expect(listAuditPage(search)).resolves.toMatchObject({
          entries: [],
+      });
+   });
+
+   it("counts integrity checks against the same slots as searches", async () => {
+      const held = holdReads();
+      const running = Array.from({ length: 4 }, () => listAuditPage(search));
+      await expect(verifyAuditChain("server12345")).rejects.toMatchObject({
+         status: 429,
+      });
+      held.resolve();
+      await Promise.all(running);
+      h.findMany.mockResolvedValue([]);
+      await expect(verifyAuditChain("server12345")).resolves.toMatchObject({
+         ok: true,
       });
    });
 
@@ -1213,7 +1200,7 @@ describe("the grants a member or invite row lists", () => {
          grantRow("invite.send", "secret:VIEWER"),
       ]);
       const entries = [];
-      for await (const entry of iterateAudit(admin)) entries.push(entry);
+      for await (const batch of iterateAudit(admin)) entries.push(...batch);
       expect(entries[0]?.detail).toEqual({ role: "EDITOR" });
    });
 });
@@ -1232,17 +1219,19 @@ describe("iterateAudit", () => {
          .mockResolvedValueOnce(batch(2000, 1000))
          .mockResolvedValueOnce(batch(1000, 1000))
          .mockResolvedValueOnce(batch(0, 7));
-      let seen = 0;
-      for await (const entry of iterateAudit({
+      const sizes: number[] = [];
+      for await (const rows of iterateAudit({
          serverId: "server12345",
          reach: null,
       })) {
-         expect(entry.action).toBe("object.delete");
-         expect(entry.prevHash).toBe("");
-         expect(entry.hash).toBe("h");
-         seen++;
+         for (const entry of rows) {
+            expect(entry.action).toBe("object.delete");
+            expect(entry.prevHash).toBe("");
+            expect(entry.hash).toBe("h");
+         }
+         sizes.push(rows.length);
       }
-      expect(seen).toBe(2007);
+      expect(sizes).toEqual([1000, 1000, 7]);
       expect(h.selectRows).toHaveBeenCalledTimes(3);
       expect(query().values).toEqual(["server12345", 1000]);
       expect(queryText(1)).toContain(

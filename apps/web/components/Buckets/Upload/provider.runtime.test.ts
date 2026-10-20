@@ -13,7 +13,6 @@ import { UploadProvider, useUploader } from "./provider";
 
 const h = vi.hoisted(() => ({
    enqueue: vi.fn(),
-   refresh: vi.fn(),
    error: vi.fn(),
    prefix: "p/",
    reach: undefined as KnownReach,
@@ -28,17 +27,14 @@ vi.mock("@/components/Buckets/Context", () => ({
       bucketName: "backups",
       prefix: h.prefix,
       reach: h.reach,
-      reloadListing: h.refresh,
    }),
 }));
 vi.mock("@/lib/hooks/useStorageCapabilities", () => ({
-   useStorageCapabilities: () => ({
-      upload: true,
-      replace: true,
-      notice: null,
-   }),
+   useStorageCapabilities: () => ({ notice: null }),
 }));
-vi.mock("@/lib/hooks/usePermission", () => ({ usePermission: () => true }));
+vi.mock("@/components/Buckets/useObjectCommands", () => ({
+   default: () => ({ can: { upload: true } }),
+}));
 vi.mock("@/lib/utils/toast", () => ({ toastError: () => h.error }));
 vi.mock("@s3-viewer/ui/components/toast", async () =>
    (await import("@/components/test-helpers")).toastMock({ error: h.error })

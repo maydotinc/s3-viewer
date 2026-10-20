@@ -148,6 +148,7 @@ export default createHowToPage({
    seoDescription:
       "Two patterns for scoping S3 access to one folder: an IAM policy with s3:GetObject + s3:ListBucket conditions, or a folder-limited role in S3 Viewer.",
    published: "2026-04-28",
+   updated: "2026-10-14",
    visual: <PermissionsIllustration />,
    steps,
    underTheHood: (

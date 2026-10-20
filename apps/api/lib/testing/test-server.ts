@@ -28,7 +28,6 @@ const closeServer = (server: Server): Promise<void> =>
       server.close(() => resolve());
    });
 
-// servers started through the returned function close after each test, or after the suite.
 const testServers = (lifetime: "test" | "suite" = "test") => {
    const started: Server[] = [];
    (lifetime === "test" ? afterEach : afterAll)(async () => {

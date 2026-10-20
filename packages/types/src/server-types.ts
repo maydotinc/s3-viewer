@@ -22,16 +22,14 @@ type ServerInfo = {
    provider: Provider;
    capabilities: StorageCapabilities;
    canCreateBucket: boolean;
+   canRemoveBuckets: boolean;
    audit: AuditAccess;
 };
 
 type ServerPage = { servers: ServerInfo[]; nextCursor: string | null };
 
 type StorageCapabilities = {
-   upload: boolean;
-   replace: boolean;
-   rename: boolean;
-   delete: boolean;
+   writable: boolean;
    deleteProtection: "conditional" | "checked" | null;
    notice: string | null;
 };
@@ -48,6 +46,7 @@ type ServerUser = {
    email: string;
    role: Role;
    bucketAccess: BucketAccessEntry[];
+   canRemove: boolean;
 };
 
 type MemberPage = { members: ServerUser[]; nextCursor: string | null };
@@ -62,8 +61,10 @@ type ServerInvite = {
    bucketAccess: BucketAccessEntry[];
 };
 
-type InvitesResponse = { invites: ServerInvite[] };
-type InvitesPage = InvitesResponse & { nextCursor: string | null };
+type ManagedInvite = ServerInvite & { canRevoke: boolean };
+
+type InvitesResponse = { invites: ManagedInvite[] };
+type InvitesPage = { invites: ServerInvite[]; nextCursor: string | null };
 
 type ApiError = {
    message: string;
@@ -130,6 +131,7 @@ export type {
    InviteOutcome,
    InvitesPage,
    InvitesResponse,
+   ManagedInvite,
    MemberPage,
    PublicConfig,
    SendInvitesResult,

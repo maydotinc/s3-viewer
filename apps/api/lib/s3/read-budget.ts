@@ -1,9 +1,10 @@
-import { MIB } from "@s3-viewer/types";
+import { MIB, SECOND_MS } from "@s3-viewer/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ServerResponse } from "node:http";
 import { rateLimited } from "./errors";
 
-type ReadScope = { serverId: string; userId?: string };
+// storage has already acted on a committed request, so refusing its response would only hide that it landed.
+type ReadScope = { serverId: string; userId?: string; committed?: boolean };
 type Usage = { reads: number; bytes: number };
 type ReadReservation = {
    retain: (bytes: number) => void;
@@ -110,16 +111,19 @@ const createReadBudget = (limits: ReadBudgetOptions) => {
    const acquire = ({
       serverId,
       userId = readUserId(),
+      committed = false,
    }: ReadScope): ReadReservation => {
       const userKey = userId ?? "internal";
       const user = users.get(userKey) ?? { reads: 0, bytes: 0 };
       const server = servers.get(serverId) ?? { reads: 0, bytes: 0 };
-      if (total.reads >= limits.maxReads) throw poolFull();
-      if (
-         user.reads >= share(limits.maxUserReads, limits.maxReads) ||
-         server.reads >= share(limits.maxServerReads, limits.maxReads)
-      )
-         throw readCapacityError();
+      if (!committed) {
+         if (total.reads >= limits.maxReads) throw poolFull();
+         if (
+            user.reads >= share(limits.maxUserReads, limits.maxReads) ||
+            server.reads >= share(limits.maxServerReads, limits.maxReads)
+         )
+            throw readCapacityError();
+      }
       users.set(userKey, user);
       servers.set(serverId, server);
       const usages = [total, user, server];
@@ -153,14 +157,16 @@ const createReadBudget = (limits: ReadBudgetOptions) => {
                throw new Error("Read reservation is no longer reading");
             if (!Number.isSafeInteger(bytes) || bytes < 0)
                throw new Error("Invalid read reservation size");
-            if (total.bytes + bytes > limits.maxBytes) throw poolFull();
-            if (
-               user.bytes + bytes >
-                  share(limits.maxUserBytes, limits.maxBytes) ||
-               server.bytes + bytes >
-                  share(limits.maxServerBytes, limits.maxBytes)
-            )
-               throw readCapacityError();
+            if (!committed) {
+               if (total.bytes + bytes > limits.maxBytes) throw poolFull();
+               if (
+                  user.bytes + bytes >
+                     share(limits.maxUserBytes, limits.maxBytes) ||
+                  server.bytes + bytes >
+                     share(limits.maxServerBytes, limits.maxBytes)
+               )
+                  throw readCapacityError();
+            }
             held += bytes;
             for (const usage of usages) usage.bytes += bytes;
          },
@@ -184,7 +190,7 @@ const readBudget = createReadBudget({
    maxReads: 128,
    maxUserReads: 64,
    maxServerReads: 64,
-   contention: { above: 1 / 2, share: 1 / 4, holdMs: 10_000 },
+   contention: { above: 1 / 2, share: 1 / 4, holdMs: 10 * SECOND_MS },
 });
 
 const retainedRead = async <T>(

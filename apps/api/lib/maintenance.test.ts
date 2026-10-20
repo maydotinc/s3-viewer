@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client";
-import { DAY_MS } from "@s3-viewer/types";
+import { DAY_MS, SESSION_ABSOLUTE_TTL_DAYS } from "@s3-viewer/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -57,6 +57,8 @@ vi.mock("@s3-viewer/db", () => ({
       },
    },
 }));
+// fake timers do not reach node:timers/promises, so the pause between delete batches resolves at once.
+vi.mock("node:timers/promises", () => ({ setTimeout: async () => {} }));
 vi.mock("@s3-viewer/db/rate-limit", () => ({
    sweepRateLimits: h.sweepRateLimits,
 }));
@@ -486,7 +488,7 @@ describe("orphaned audit rows", () => {
 });
 
 describe("expired records", () => {
-   it("prunes sessions, verifications, archive tickets and invitations in bounded batches", async () => {
+   it("prunes expired sessions and those past the absolute cap, verifications, archive tickets and invitations in bounded batches", async () => {
       deleting({
          session: [5000, 2],
          archive_ticket: [5000, 3],
@@ -496,9 +498,13 @@ describe("expired records", () => {
 
       const [session] = deletesFrom("session");
       expect(textOf(session ?? [])).toBe(
-         'DELETE FROM "session" WHERE "id" IN ( SELECT "id" FROM "session" WHERE "expiresAt" <= $1::timestamp LIMIT $2 )'
+         'DELETE FROM "session" WHERE "id" IN ( SELECT "id" FROM "session" WHERE "expiresAt" <= $1::timestamp OR "createdAt" <= $2::timestamp LIMIT $3 )'
       );
-      expect(sqlOf(session ?? []).values).toEqual([NOW.toISOString(), 5000]);
+      expect(sqlOf(session ?? []).values).toEqual([
+         NOW.toISOString(),
+         cutoff(SESSION_ABSOLUTE_TTL_DAYS),
+         5000,
+      ]);
       expect(deletesFrom("session")).toHaveLength(2);
       expect(deletesFrom("verification")).toHaveLength(1);
       expect(deletesFrom("archive_ticket")).toHaveLength(2);

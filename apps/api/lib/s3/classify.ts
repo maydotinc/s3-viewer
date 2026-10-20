@@ -1,6 +1,5 @@
 import {
    describeFailure,
-   isConflictCode,
    isForbiddenFailure,
    type FailureShape,
 } from "./failure";
@@ -132,10 +131,5 @@ const classifyS3Error = (
    return { ...classifyFailure(failure, scope), name: failure.name };
 };
 
-const deleteFailureMessage = (code: string | undefined): string =>
-   isConflictCode(code)
-      ? "The object changed. Refresh and review it before deleting."
-      : classifyFailure({ name: code ?? "Unknown", detail: "" }).message;
-
-export { classifyS3Error, deleteFailureMessage };
+export { classifyS3Error };
 export type { FailureScope };

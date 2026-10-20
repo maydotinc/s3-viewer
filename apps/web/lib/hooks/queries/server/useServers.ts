@@ -90,7 +90,6 @@ const useServers = () => {
       isFetchingCurrentServer: selected.isFetching,
       serverListError: query.error,
       hasNextPage: query.hasNextPage,
-      isFetchingNextPage: query.isFetchingNextPage,
       isFetchNextPageError: query.isFetchNextPageError,
       isFetching: query.isFetching,
       fetchNextPage: query.fetchNextPage,

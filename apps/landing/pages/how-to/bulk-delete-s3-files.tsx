@@ -120,6 +120,7 @@ export default createHowToPage({
    seoDescription:
       "Three ways to bulk-delete S3 files: AWS CLI rm --recursive, checkbox multi-select in S3 Viewer, or DeleteObjectsCommand — 1,000 keys per request.",
    published: "2026-04-28",
+   updated: "2026-10-14",
    visual: <DeleteIllustration />,
    steps,
    underTheHood: (

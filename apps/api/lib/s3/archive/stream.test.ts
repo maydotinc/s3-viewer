@@ -8,7 +8,6 @@ import { collectArchiveEntries } from "./entries";
 import {
    ARCHIVE_DRAIN_FLOOR_FRACTION,
    ARCHIVE_MIN_BYTES_PER_SECOND,
-   ARCHIVE_MS_PER_OBJECT,
    uploadMemoryFor,
 } from "@/lib/constants";
 import {
@@ -443,37 +442,16 @@ describe("archive streaming", () => {
          return reply(200, Readable.from(trickle()));
       });
       try {
-         await streamArchive({
-            maxBytes: limits.maxBytes,
-            scope: f.scope,
-            entries: [{ key: "logs/a.txt", name: "a.txt", size: 16 * KIB }],
-            output: collect().output,
-            abortController: new AbortController(),
-            idleTimeoutMs: 200,
-         });
-      } finally {
-         f.client.destroy();
-      }
-   });
-
-   it("stops at the first unreadable object", async () => {
-      const f = s3Fixture(async (request) =>
-         decodeURIComponent(request.path).endsWith("b.txt")
-            ? reply(500, "<Error><Code>InternalError</Code></Error>")
-            : reply(200, "alpha")
-      );
-      const sink = collect();
-      try {
          await expect(
             streamArchive({
                maxBytes: limits.maxBytes,
                scope: f.scope,
-               entries,
-               output: sink.output,
+               entries: [{ key: "logs/a.txt", name: "a.txt", size: 16 * KIB }],
+               output: collect().output,
                abortController: new AbortController(),
+               idleTimeoutMs: 200,
             })
-         ).rejects.toBeDefined();
-         expect(hasCentralDirectory(sink.buffer())).toBe(false);
+         ).resolves.toBe(16 * KIB);
       } finally {
          f.client.destroy();
       }
@@ -793,14 +771,6 @@ describe("zip deadline", () => {
       const floorBytesPerSecond =
          ARCHIVE_MIN_BYTES_PER_SECOND * ARCHIVE_DRAIN_FLOOR_FRACTION;
       const bytes = 200 * 1024 * 1024;
-      const objects = 40;
-      // the drain floor credits work-ms per window; the deadline is the wall time that credit needs at the floor.
-      const credited =
-         (bytes / ARCHIVE_MIN_BYTES_PER_SECOND) * 1000 +
-         objects * ARCHIVE_MS_PER_OBJECT;
-      expect(archiveDeadlineMs(bytes, objects)).toBeCloseTo(
-         credited / ARCHIVE_DRAIN_FLOOR_FRACTION
-      );
       expect(archiveDeadlineMs(bytes, 0)).toBeGreaterThanOrEqual(
          (bytes / floorBytesPerSecond) * 1000
       );

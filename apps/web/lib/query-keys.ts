@@ -94,13 +94,19 @@ const queryKeys = {
 
 // matchers read keys positionally, so they derive their offsets from the builders above
 const BUCKETS_KEY = queryKeys.buckets("", "");
+const SERVER_INFO_KEY = queryKeys.serverInfo("", "");
 const OBJECT_SEGMENT = bucket("", "", "").length;
 
-const isBucketsKey = (queryKey: readonly unknown[]): boolean =>
-   queryKey.length === BUCKETS_KEY.length &&
-   BUCKETS_KEY.every(
-      (segment, index) => segment === "" || queryKey[index] === segment
-   );
+const matchesShape =
+   (shape: readonly string[]) =>
+   (queryKey: readonly unknown[]): boolean =>
+      queryKey.length === shape.length &&
+      shape.every(
+         (segment, index) => segment === "" || queryKey[index] === segment
+      );
+
+const isBucketsKey = matchesShape(BUCKETS_KEY);
+const isServerInfoKey = matchesShape(SERVER_INFO_KEY);
 
 const objectKeyOf = (queryKey: readonly unknown[]): string | undefined => {
    const objectKey = queryKey[OBJECT_SEGMENT + 1];
@@ -109,5 +115,5 @@ const objectKeyOf = (queryKey: readonly unknown[]): string | undefined => {
       : undefined;
 };
 
-export { isBucketsKey, objectKeyOf, queryKeys };
+export { isBucketsKey, isServerInfoKey, objectKeyOf, queryKeys };
 export type { AuditFilters };

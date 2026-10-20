@@ -45,7 +45,7 @@ beforeEach(() => {
 });
 
 describe("path suggestion scope", () => {
-   it("queries and caches rename suggestions under the modal's captured target", async () => {
+   it("queries, caches and checks folder reach under the modal's captured target", async () => {
       useObjectKeys("backups", "folder/", true, {
          userId: "original-user",
          serverId: "original-server",
@@ -58,6 +58,12 @@ describe("path suggestion scope", () => {
             "folder/"
          )
       );
+      expect(h.reachArgs).toEqual([
+         "original-user",
+         "original-server",
+         "backups",
+      ]);
+      expect(h.options?.enabled).toBe(true);
       expect(await h.options?.queryFn({ signal })).toEqual(["folder/next.txt"]);
       expect(h.get).toHaveBeenCalledWith(
          "/servers/original-server/buckets/backups/objects?prefix=folder%2F&blockSize=50",
@@ -84,19 +90,6 @@ describe("path suggestion scope", () => {
 });
 
 describe("prefixes only the owner may list", () => {
-   it("checks the bucket of the captured target", () => {
-      useObjectKeys("backups", "folder/", true, {
-         userId: "original-user",
-         serverId: "original-server",
-      });
-      expect(h.reachArgs).toEqual([
-         "original-user",
-         "original-server",
-         "backups",
-      ]);
-      expect(h.options?.enabled).toBe(true);
-   });
-
    it("has no suggestions for a dotted prefix instead of a refused listing", () => {
       useObjectKeys("backups", "a/..", true);
       expect(h.options?.enabled).toBe(false);

@@ -251,7 +251,7 @@ describe("GET /invites", () => {
       );
    });
 
-   it("decodes a cursor into a descending row-value filter", async () => {
+   it("hands the decoded query cursor to the reader", async () => {
       const cursor = Buffer.from("2026-09-01T00:00:00.000Z|i2").toString(
          "base64url"
       );

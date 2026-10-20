@@ -1,4 +1,4 @@
-import { ApiError, isAborted } from "@/lib/api";
+import { ApiError, ClientErrorCode, isAborted } from "@/lib/api";
 import useSessionStore from "@/lib/stores/session-store";
 import { backoffMs, sleep } from "@/lib/utils/retry";
 import {
@@ -87,12 +87,17 @@ const uploadMultipart = ({
 
    const resume = async (): Promise<OpenUpload | null> => {
       if (!persistent) return null;
-      const saved = await resumableSession({
+      const { resumable: saved, stale } = await resumableSession({
          userId,
          target,
          file,
          expectedETag: expectedETag ?? null,
       });
+      if (stale) {
+         // the lease means no tab in this browser is still sending to it
+         ref = { ...target, uploadId: stale.uploadId };
+         await abandon();
+      }
       if (!saved) return null;
       ref = { ...target, uploadId: saved.uploadId };
       if (stopped()) {
@@ -382,6 +387,17 @@ const uploadMultipart = ({
       persistent = enabled;
       try {
          return await run();
+      } catch (error) {
+         // without a saved session nothing could resume these parts; an unknown outcome may still be committing
+         if (
+            !persistent &&
+            !(
+               error instanceof ApiError &&
+               error.code === ClientErrorCode.UPLOAD_OUTCOME_UNKNOWN
+            )
+         )
+            await abandon();
+         throw error;
       } finally {
          if (stopped()) await abandon();
          await cleanup;

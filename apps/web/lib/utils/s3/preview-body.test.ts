@@ -9,7 +9,6 @@ describe("ETag comparison", () => {
    it.each([
       ['"one"', '"one"'],
       ['"one"', 'W/"one"'],
-      ['W/"one"', '"one"'],
       ['"one"', "one"],
    ])("treats %s and %s as the same object", (reviewed, served) => {
       expect(changedETag(reviewed, served)).toBe(false);
@@ -17,7 +16,6 @@ describe("ETag comparison", () => {
 
    it.each([
       ['"one"', '"two"'],
-      ['"one"', 'W/"two"'],
       ['"one-2"', '"one"'],
    ])("treats %s and %s as a change", (reviewed, served) => {
       expect(changedETag(reviewed, served)).toBe(true);

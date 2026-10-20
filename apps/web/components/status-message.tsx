@@ -36,7 +36,7 @@ const StatusMessage = ({
             {title && (
                <p
                   className={cn(
-                     "font-semibold text-viewerblack",
+                     "font-semibold text-viewerblack [overflow-wrap:anywhere]",
                      size === "lg" ? "text-base" : "text-sm"
                   )}
                >

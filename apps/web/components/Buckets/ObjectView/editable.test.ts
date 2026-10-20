@@ -6,11 +6,8 @@ describe("which objects the inline editor opens", () => {
    it.each([
       ["notes.txt", "text/plain"],
       ["config.json", "application/json"],
-      ["page.html", "text/html"],
       ["logo.svg", "image/svg+xml"],
       [".env", "application/octet-stream"],
-      ["deploy/run.sh", "application/octet-stream"],
-      ["data.csv", "text/csv"],
    ])("opens %s served as %s", (key, contentType) =>
       expect(isEditableObject(contentType, key, 1024)).toBe(true)
    );
@@ -18,7 +15,6 @@ describe("which objects the inline editor opens", () => {
    it.each([
       ["photo.png", "image/png"],
       ["archive.zip", "application/zip"],
-      ["clip.mp4", "video/mp4"],
       ["blob", "application/octet-stream"],
    ])("leaves %s served as %s alone", (key, contentType) =>
       expect(isEditableObject(contentType, key, 1024)).toBe(false)

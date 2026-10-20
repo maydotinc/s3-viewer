@@ -1,3 +1,4 @@
+import type { S3Bucket } from "@s3-viewer/types";
 import type { ParsedUrlQuery } from "querystring";
 import { isLossyKeySegment } from "./key-segments";
 
@@ -29,6 +30,15 @@ const folderHref = (bucketName: string, segments: readonly string[]) =>
            },
         }
       : { pathname: BUCKETS_ROUTE, query: { slug: [bucketName, ...segments] } };
+
+// a member limited to one folder has nothing to see above it
+const bucketEntryHref = ({
+   name,
+   folders,
+}: Pick<S3Bucket, "name" | "folders">) =>
+   folders?.length === 1
+      ? folderHref(name, segmentsFromKey(folders[0]!))
+      : folderHref(name, []);
 
 const objectHref = (bucketName: string, key: string) => {
    const segments = segmentsFromObjectKey(key);
@@ -70,6 +80,7 @@ const bucketRoute = (
 };
 
 export {
+   bucketEntryHref,
    bucketRoute,
    folderHref,
    objectHref,

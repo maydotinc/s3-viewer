@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ErrorCode } from "@s3-viewer/types";
-import { classifyS3Error, deleteFailureMessage } from "./classify";
+import { classifyS3Error } from "./classify";
 
 const s3Error = (name: string, httpStatusCode?: number, message = "") => ({
    name,
@@ -150,18 +150,6 @@ describe("classifyS3Error", () => {
    it("reports the error name for logging", () => {
       expect(classifyS3Error(s3Error("NoSuchKey", 404)).name).toBe("NoSuchKey");
       expect(classifyS3Error({ code: "ECONNRESET" }).name).toBe("ECONNRESET");
-   });
-});
-
-describe("deleteFailureMessage", () => {
-   it("uses safe per-key messages", () => {
-      expect(deleteFailureMessage("AccessDenied")).toBe(
-         "The server credentials don't allow this"
-      );
-      expect(deleteFailureMessage("InternalError")).toBe(
-         "Storage request failed"
-      );
-      expect(deleteFailureMessage(undefined)).toBe("Storage request failed");
    });
 });
 

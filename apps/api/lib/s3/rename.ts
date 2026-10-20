@@ -12,7 +12,7 @@ import {
    type S3KeyFailure,
    type S3MoveResult,
 } from "@s3-viewer/types";
-import { objectPresent } from "./conditions";
+import { UnconfirmedWriteError, objectPresent } from "./conditions";
 import { copyObject } from "./copy";
 import { refusedFailure, toHttpError } from "./errors";
 import type { S3Scope } from "./listing";
@@ -86,11 +86,21 @@ const MOVE_CONCURRENCY = 8;
 type MoveTarget = MoveObjectsInput["objects"][number];
 
 const partialFailures = new WeakSet<S3KeyFailure>();
+const unconfirmedFailures = new WeakSet<S3KeyFailure>();
+
+const failedKeys = (
+   result: S3MoveResult,
+   marked: WeakSet<S3KeyFailure>
+): string[] =>
+   result.failed.flatMap((failure) =>
+      marked.has(failure) ? [failure.key] : []
+   );
 
 const partialCopies = (result: S3MoveResult): string[] =>
-   result.failed.flatMap((failure) =>
-      partialFailures.has(failure) ? [failure.key] : []
-   );
+   failedKeys(result, partialFailures);
+
+const unconfirmedCopies = (result: S3MoveResult): string[] =>
+   failedKeys(result, unconfirmedFailures);
 
 const moveOne = async (
    scope: S3Scope,
@@ -124,12 +134,14 @@ const moveOne = async (
       return null;
    } catch (error) {
       const { status, message } = toHttpError(error);
+      const unconfirmed = error instanceof UnconfirmedWriteError;
       const failure = refusedFailure(error, key) ?? {
          key,
          message,
-         retryable: status >= 500,
+         retryable: status >= 500 && !unconfirmed,
       };
       if (error instanceof PartialRenameError) partialFailures.add(failure);
+      if (unconfirmed) unconfirmedFailures.add(failure);
       return failure;
    }
 };
@@ -160,4 +172,10 @@ const moveObjects = async (
    return result;
 };
 
-export { PartialRenameError, moveObjects, partialCopies, renameObject };
+export {
+   PartialRenameError,
+   moveObjects,
+   partialCopies,
+   renameObject,
+   unconfirmedCopies,
+};

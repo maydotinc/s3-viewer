@@ -17,6 +17,7 @@ import {
    MAX_OBJECT_BYTES,
    MIB,
    MINUTE_MS,
+   SECOND_MS,
 } from "@s3-viewer/types";
 import {
    deriveSharedEnv,
@@ -78,7 +79,7 @@ const schema = z
       UPLOAD_MEMORY_BUDGET_BYTES: positiveInt(256 * MIB),
       UPLOAD_IDLE_TIMEOUT_MS: positiveInt(STREAM_IDLE_TIMEOUT_MS),
       // must exceed any load balancer's idle timeout, or it reuses sockets Node closed (502s).
-      KEEP_ALIVE_TIMEOUT_MS: positiveInt(65_000),
+      KEEP_ALIVE_TIMEOUT_MS: positiveInt(65 * SECOND_MS),
       S3_MAX_SOCKETS_PER_HOST: positiveInt(100),
       S3_MAX_TOTAL_SOCKETS: positiveInt(1000),
       S3_REQUESTS_PER_MINUTE: positiveInt(12_000),
@@ -122,7 +123,11 @@ const schema = z
    })
    .superRefine((value, ctx) => {
       refineSharedEnv(value, ctx);
-      if (value.NODE_ENV === "production" && value.TRUST_PROXY === true) {
+      // NODE_ENV defaults to development, so only an explicit local setting may trust every hop.
+      if (
+         value.TRUST_PROXY === true &&
+         !["development", "test"].includes(process.env.NODE_ENV ?? "")
+      ) {
          ctx.addIssue({
             code: z.ZodIssueCode.custom,
             path: ["TRUST_PROXY"],

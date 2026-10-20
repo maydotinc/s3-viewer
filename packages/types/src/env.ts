@@ -30,6 +30,9 @@ const parseDomains = (raw: string | undefined): readonly string[] => [
    ),
 ];
 
+// the domain shape emailSchema accepts, so every listed entry can match an address.
+const BARE_DOMAIN = /^([a-z0-9][a-z0-9-]*\.)+[a-z]{2,}$/;
+
 const sharedEnvShape = {
    BETTER_AUTH_SECRET: z.string().min(32, "must be at least 32 characters"),
    NEXT_PUBLIC_SITE_URL: z.string().url(),
@@ -57,7 +60,15 @@ const sharedEnvShape = {
          })
          .optional()
    ),
-   ALLOWED_EMAIL_DOMAINS: optionalString.transform(parseDomains),
+   ALLOWED_EMAIL_DOMAINS: optionalString.transform(parseDomains).refine(
+      (domains) => domains.every((domain) => BARE_DOMAIN.test(domain)),
+      (domains) => ({
+         message: `each entry must be a bare domain such as \`acme.com\` (no wildcard, scheme or trailing dot); got ${domains
+            .filter((domain) => !BARE_DOMAIN.test(domain))
+            .map((domain) => `\`${domain}\``)
+            .join(", ")}`,
+      })
+   ),
 };
 
 const sharedEnvSchema = z.object(sharedEnvShape);

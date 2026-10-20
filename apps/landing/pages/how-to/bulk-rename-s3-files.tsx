@@ -125,6 +125,7 @@ export default createHowToPage({
    seoDescription:
       "S3 has no batch rename call. Bulk-rename a selection or folder by find/replace, prefix, suffix or extension, with a preview before anything runs.",
    published: "2026-09-07",
+   updated: "2026-10-12",
    visual: <RenameIllustration />,
    steps,
    underTheHood: (

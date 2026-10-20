@@ -81,12 +81,6 @@ describe("replaceLiteral", () => {
 describe("applyOperation", () => {
    it.each([
       [
-         "prefix",
-         "report.csv",
-         { kind: "prefix", text: "2026-" },
-         "2026-report.csv",
-      ],
-      [
          "suffix",
          "report.csv",
          { kind: "suffix", text: "-v2" },

@@ -8,6 +8,7 @@ type SkeletonColumn = {
    align?: "left" | "right";
    avatar?: boolean;
    checkbox?: boolean;
+   className?: string;
 };
 
 type TableSkeletonRowsProps = {
@@ -38,7 +39,7 @@ const TableSkeletonRows = ({
                className={cn("hover:bg-transparent", rowClassName)}
             >
                {columns.map((column, index) => (
-                  <TableCell key={index}>
+                  <TableCell key={index} className={column.className}>
                      {column.checkbox ? (
                         <Skeleton className="size-4 rounded-[4px]" />
                      ) : column.avatar ? (

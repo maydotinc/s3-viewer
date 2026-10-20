@@ -51,7 +51,6 @@ const BucketAccessDialog = ({
    };
    const canSave =
       conflict === null &&
-      access.length > 0 &&
       (accessKey(access) !== accessKey(loaded) || hasDrafts(access));
    const [invalid] = accessErrors(access, { ...check, drafts: true });
 

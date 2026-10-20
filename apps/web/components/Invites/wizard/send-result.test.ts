@@ -7,7 +7,7 @@ import {
 } from "@/components/test-helpers";
 import type { InviteOutcome } from "@s3-viewer/types";
 import { act, createElement } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import SendResult from "./send-result";
 
 vi.mock("@/components/Layout/Sidebar/Servers/server-logo", () => ({
@@ -21,6 +21,7 @@ const servers = [
 
 const view = mountedRuntime();
 const onRetry = vi.fn();
+beforeEach(() => onRetry.mockClear());
 
 const render = async (
    outcomes: InviteOutcome[],

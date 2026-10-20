@@ -11,8 +11,10 @@ import {
    AWS_ENDPOINT,
    MINIO_ENDPOINT,
    R2_ENDPOINT,
+   completedXml,
    empty,
    errorXml,
+   initiatedXml,
    reply,
    s3Fixture,
    type FixtureRequest,
@@ -55,20 +57,17 @@ const fixture = (
             if (options.omitContentType) delete headers["content-type"];
             if (options.headConflict) statusCode = 412;
          } else if ("uploads" in request.query) {
-            body =
-               "<InitiateMultipartUploadResult><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>";
+            body = initiatedXml("upload-1");
          } else if ("partNumber" in request.query) {
             if (options.changeAfterPart) changed = true;
          } else if (request.method === "POST" && "uploadId" in request.query) {
-            body =
-               '<CompleteMultipartUploadResult><ETag>"replacement"</ETag></CompleteMultipartUploadResult>';
+            body = completedXml('"replacement"');
          }
          return reply(statusCode, body, headers);
       },
       {
          endpoint: R2_ENDPOINT,
          region: "auto",
-         maxAttempts: 1,
          requestChecksumCalculation: "WHEN_REQUIRED",
       }
    );
@@ -326,7 +325,6 @@ describe("replacements carry over tags and ACL grants where a provider has them"
          },
          {
             endpoint,
-            maxAttempts: 1,
             requestChecksumCalculation: "WHEN_REQUIRED",
          }
       );

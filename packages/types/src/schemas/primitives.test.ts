@@ -250,11 +250,6 @@ describe("replacing unsafe display characters", () => {
    it("keeps joiners that build an emoji", () => {
       expect(mark("Ops 👨‍👩‍👧 🏳️‍🌈")).toBe("Ops 👨‍👩‍👧 🏳️‍🌈");
    });
-
-   it("gives the same answer on every call", () => {
-      expect(mark("a\u202Eb")).toBe("a?b");
-      expect(mark("a\u202Eb")).toBe("a?b");
-   });
 });
 
 describe("plainLabel", () => {

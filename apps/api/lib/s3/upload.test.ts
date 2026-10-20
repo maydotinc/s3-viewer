@@ -33,7 +33,13 @@ import {
    UploadIdleError,
 } from "./progress-floor";
 import { isUploadTooLargeError } from "./stream-upload";
-import { empty, reply, s3Fixture } from "@/lib/testing/s3-fixture";
+import {
+   empty,
+   errorXml,
+   initiatedXml,
+   reply,
+   s3Fixture,
+} from "@/lib/testing/s3-fixture";
 import { declaredLength, streamUpload } from "./upload";
 
 const mockConfig = {
@@ -757,14 +763,8 @@ describe("upload transport does not replay ambiguous writes", () => {
                      failAbortOnce &&
                      calls.filter((call) => call === "abort").length === 1)
                )
-                  return reply(
-                     503,
-                     "<Error><Code>ServiceUnavailable</Code></Error>"
-                  );
-               const body =
-                  step === "create"
-                     ? "<InitiateMultipartUploadResult><UploadId>upload1</UploadId></InitiateMultipartUploadResult>"
-                     : "";
+                  return reply(503, errorXml("ServiceUnavailable"));
+               const body = step === "create" ? initiatedXml("upload1") : "";
                return reply(200, body, {
                   etag: '"part"',
                });

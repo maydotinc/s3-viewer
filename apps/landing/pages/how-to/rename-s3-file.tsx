@@ -134,6 +134,7 @@ export default createHowToPage({
    seoDescription:
       "General purpose S3 buckets have no rename API. The copy + delete pattern explained: what happens to metadata and tags, and multipart copy past 5 GB.",
    published: "2026-04-28",
+   updated: "2026-10-12",
    visual: <RenameIllustration />,
    steps,
    underTheHood: (

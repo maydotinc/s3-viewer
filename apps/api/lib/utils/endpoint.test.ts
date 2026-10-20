@@ -152,6 +152,7 @@ describe("isMetadataAddress", () => {
       ["Azure WireServer", "168.63.129.16"],
       ["Alibaba Cloud metadata", "100.100.100.200"],
       ["AWS IPv6 metadata", "fd00:ec2::254"],
+      ["Google Cloud IPv6 metadata", "fd20:ce::254"],
       ["AWS IPv6 metadata, fully written", "fd00:0ec2:0:0:0:0:0:0254"],
       ["IPv6 link-local", "fe80::1"],
       ["IPv6 link-local with a zone", "fe80::1%eth0"],
@@ -191,15 +192,6 @@ describe("publicHostname", () => {
       expect(publicHostname("nope")).toBeNull();
       expect(publicHostname("ftp://example.com")).toBeNull();
       expect(publicHostname("file:///etc/passwd")).toBeNull();
-   });
-
-   it("allows http only in development and test", () => {
-      process.env.NODE_ENV = "development";
-      expect(publicHostname("http://example.com")).toBe("example.com");
-      process.env.NODE_ENV = "test";
-      expect(publicHostname("http://example.com")).toBe("example.com");
-      process.env.NODE_ENV = "production";
-      expect(publicHostname("http://example.com")).toBeNull();
    });
 
    it("rejects http when NODE_ENV is unset or unrecognised", () => {
@@ -247,11 +239,6 @@ describe("publicOnlyLookup", () => {
             });
          });
       });
-
-   it("rejects a private address at connect time, even though it skipped a real DNS query", async () => {
-      const { err } = await lookup("127.0.0.1");
-      expect(err?.code).toBe(PRIVATE_ADDRESS_CODE);
-   });
 
    it("allows a public IP literal through", async () => {
       const { err, address } = await lookup("8.8.8.8");

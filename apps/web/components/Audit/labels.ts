@@ -1,4 +1,4 @@
-import { formatBytes, pluralize } from "@/lib/utils/format";
+import { formatBytes, formatCount, pluralize } from "@/lib/utils/format";
 import { bucketDetailText } from "./bucket-detail";
 import { Permission, ROLE_LABELS } from "@s3-viewer/permissions";
 import {
@@ -120,8 +120,7 @@ const INDIRECT_REASONS: Readonly<Record<string, string>> = {
    account_deleted: "account deleted",
 };
 
-const count = new Intl.NumberFormat();
-const seq = (n: number) => `#${count.format(n)}`;
+const seq = (n: number) => `#${formatCount(n)}`;
 
 const verificationMessage = ({
    ok,
@@ -133,7 +132,7 @@ const verificationMessage = ({
 }: AuditVerification): string => {
    if (!ok)
       return `Chain broken${brokenAt === null ? "" : ` at record ${seq(brokenAt)}`}`;
-   const records = `${count.format(rows)} ${rows === 1 ? "record" : "records"}`;
+   const records = `${formatCount(rows)} ${rows === 1 ? "record" : "records"}`;
    if (nextFromSeq !== null)
       return `Verified ${records} so far. Continue to check the remaining records.`;
    if (firstSeq === null || lastSeq === null) return "Chain intact: no records";
@@ -150,7 +149,10 @@ const retentionLabel = (days: number): string =>
 const lookup = (
    table: Readonly<Record<string, string>>,
    key: AuditDetail[string] | undefined
-): string | null => (typeof key === "string" ? (table[key] ?? null) : null);
+): string | null =>
+   typeof key === "string" && Object.hasOwn(table, key)
+      ? (table[key] ?? null)
+      : null;
 
 const joined = (parts: readonly (string | null)[], sep: string): string =>
    parts.filter((part): part is string => Boolean(part)).join(sep);
@@ -158,8 +160,10 @@ const joined = (parts: readonly (string | null)[], sep: string): string =>
 const targetOf = ({ bucket, target }: AuditLogEntry): string | null =>
    joined([bucket, target === "/" ? null : target], " / ") || null;
 
-const metaOf = ({ action, detail }: AuditLogEntry): string | null => {
-   if (!detail) return null;
+const actionMeta = (
+   action: AuditLogEntry["action"],
+   detail: AuditDetail
+): string | null => {
    switch (action) {
       case "object.view":
       case "object.upload":
@@ -180,9 +184,17 @@ const metaOf = ({ action, detail }: AuditLogEntry): string | null => {
             ) || null
          );
       case "bucket.create":
-         return typeof detail.clearedGrants === "number"
-            ? `cleared ${pluralize(detail.clearedGrants, "earlier grant")}`
-            : null;
+         return (
+            joined(
+               [
+                  detail.existing === true ? "added an existing bucket" : null,
+                  typeof detail.clearedGrants === "number"
+                     ? `cleared ${pluralize(detail.clearedGrants, "earlier grant")}`
+                     : null,
+               ],
+               " · "
+            ) || null
+         );
       case "object.delete":
          return typeof detail.count === "number" && detail.count > 1
             ? `one of ${detail.count} objects`
@@ -260,6 +272,17 @@ const metaOf = ({ action, detail }: AuditLogEntry): string | null => {
          return null;
    }
 };
+
+const metaOf = ({ action, detail }: AuditLogEntry): string | null =>
+   detail
+      ? joined(
+           [
+              detail.confirmed === false ? "unconfirmed" : null,
+              actionMeta(action, detail),
+           ],
+           " · "
+        ) || null
+      : null;
 
 export {
    ACTION_FAMILY_LABELS,

@@ -1,6 +1,10 @@
-import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { env } from "@/lib/env";
-import { ApiHttpError, noContent, rethrowDbError } from "@/lib/http";
+import {
+   ApiHttpError,
+   noContent,
+   rethrowDbError,
+   serverNotFound,
+} from "@/lib/http";
 import { LOCK_NAMESPACE, xactLock } from "@/lib/db-locks";
 import {
    getAuth,
@@ -139,7 +143,7 @@ const renameServer = async (
       })
       .catch((err: unknown) =>
          rethrowDbError(err, {
-            missing: new ApiHttpError(404, SERVER_NOT_FOUND),
+            missing: serverNotFound(),
          })
       );
    await record(res, {

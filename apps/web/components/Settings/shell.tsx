@@ -42,7 +42,7 @@ const SettingsShell = ({ children }: { children: ReactNode }) => {
                            onPointerEnter={() => prefetch(href)}
                            onFocus={() => prefetch(href)}
                            className={cn(
-                              "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2 text-sm text-viewertext outline-none transition-colors duration-150 hover:bg-viewergray/70",
+                              "flex h-9 shrink-0 items-center gap-2.5 rounded-lg px-2 pointer-coarse:h-11 text-sm text-viewertext outline-none transition-colors duration-150 hover:bg-viewergray/70",
                               FOCUS_RING,
                               // the nav scrolls on narrow screens, so an outset ring would be clipped.
                               "focus-visible:-outline-offset-2",

@@ -21,6 +21,7 @@
 }
 
 :root {
+   color-scheme: only light;
    --radius: 0.5rem;
    --background: var(--color-viewerwhite);
    --foreground: var(--color-viewertext);

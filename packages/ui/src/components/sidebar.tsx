@@ -26,9 +26,7 @@ function useIsDesktop() {
 }
 
 type SidebarContextProps = {
-   state: "expanded" | "collapsed";
    open: boolean;
-   setOpen: (open: boolean) => void;
    openMobile: boolean;
    setOpenMobile: (open: boolean) => void;
    isDesktop: boolean;
@@ -58,34 +56,26 @@ function SidebarProvider({
    const toggleSidebar = React.useCallback(() => {
       if (isDesktop) setOpen((current) => !current);
       else setOpenMobile((current) => !current);
-   }, [isDesktop, setOpen]);
+   }, [isDesktop]);
 
    React.useEffect(() => {
       if (isDesktop) setOpenMobile(false);
    }, [isDesktop]);
 
-   const state = open ? "expanded" : "collapsed";
-
    const contextValue = React.useMemo<SidebarContextProps>(
       () => ({
-         state,
          open,
-         setOpen,
          openMobile,
          setOpenMobile,
          isDesktop,
          toggleSidebar,
       }),
-      [state, open, setOpen, openMobile, isDesktop, toggleSidebar]
+      [open, openMobile, isDesktop, toggleSidebar]
    );
 
    return (
       <SidebarContext.Provider value={contextValue}>
-         <div
-            data-slot="sidebar-wrapper"
-            className={cn("flex min-h-svh w-full", className)}
-            {...props}
-         >
+         <div className={cn("flex min-h-svh w-full", className)} {...props}>
             {children}
          </div>
       </SidebarContext.Provider>
@@ -100,7 +90,7 @@ function Sidebar({
    children,
    ...props
 }: React.ComponentProps<"aside">) {
-   const { state, open, openMobile, setOpenMobile } = useSidebar();
+   const { open, openMobile, setOpenMobile } = useSidebar();
    const ref = React.useRef<HTMLElement>(null);
    const opener = React.useRef<HTMLElement | null>(null);
 
@@ -166,8 +156,6 @@ function Sidebar({
          <aside
             ref={ref}
             tabIndex={-1}
-            data-slot="sidebar"
-            data-state={state}
             className={cn(
                SIDEBAR_BASE,
                openMobile
@@ -194,8 +182,6 @@ function SidebarTrigger({
 
    return (
       <Button
-         data-sidebar="trigger"
-         data-slot="sidebar-trigger"
          variant="ghost"
          size="icon"
          aria-expanded={expanded}

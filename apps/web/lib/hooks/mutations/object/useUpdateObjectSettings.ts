@@ -33,7 +33,7 @@ const useUpdateObjectSettings = () =>
             "/settings",
             fields
          ),
-      settle: forgetTouched(({ objectKey }) => [objectKey]),
+      settle: forgetTouched(({ objectKey }) => ({ changed: [objectKey] })),
    });
 
 export default useUpdateObjectSettings;

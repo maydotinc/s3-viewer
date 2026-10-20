@@ -69,7 +69,7 @@ const BucketActions = () => {
          <SimpleTooltip label="Refresh" shortcut="r">
             <Button
                variant="outline"
-               className="max-sm:w-9 max-sm:px-0"
+               className="max-sm:w-9 max-sm:px-0 max-sm:pointer-coarse:w-11"
                disabled={!serverId}
                onClick={refresh}
             >

@@ -65,14 +65,6 @@ describe("choosing servers", () => {
 });
 
 describe("per-server access", () => {
-   it("starts a server from the fallback the section supplies", () => {
-      const state = withAccess(INITIAL_WIZARD_STATE, "a", [row("site")]);
-      expect(state.access.a).toEqual({
-         role: defaultAccess(Role.OWNER).role,
-         rows: [row("site")],
-      });
-   });
-
    it("the lowest assignable role is the default", () => {
       expect(defaultAccess(Role.OWNER).role).toBe(Role.VIEWER);
       expect(defaultAccess(Role.ADMIN).role).toBe(Role.VIEWER);

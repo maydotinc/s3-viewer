@@ -1,5 +1,5 @@
-import { ApiError, setFolderRefusalHandler } from "./api";
-import { isBucketsKey } from "./query-keys";
+import { ApiError, setAccessRefusalHandler } from "./api";
+import { isBucketsKey, isServerInfoKey } from "./query-keys";
 import { MINUTE_MS } from "@s3-viewer/types";
 import { QueryClient } from "@tanstack/react-query";
 
@@ -22,14 +22,15 @@ const createQueryClient = (): QueryClient =>
       },
    });
 
-const refreshFolderScopes = (queryClient: QueryClient) => {
+const refreshAccess = (queryClient: QueryClient) => {
    let pending = false;
    return (): void => {
       if (pending) return;
       pending = true;
       void queryClient
          .invalidateQueries({
-            predicate: ({ queryKey }) => isBucketsKey(queryKey),
+            predicate: ({ queryKey }) =>
+               isBucketsKey(queryKey) || isServerInfoKey(queryKey),
          })
          .finally(() => {
             pending = false;
@@ -44,7 +45,7 @@ const getQueryClient = (): QueryClient => {
    if (typeof window === "undefined") return createQueryClient();
    if (!browserClient) {
       browserClient = createQueryClient();
-      setFolderRefusalHandler(refreshFolderScopes(browserClient));
+      setAccessRefusalHandler(refreshAccess(browserClient));
    }
    return browserClient;
 };
@@ -53,4 +54,4 @@ const clearQueryCache = (): void => {
    browserClient?.clear();
 };
 
-export { clearQueryCache, getQueryClient, refreshFolderScopes };
+export { clearQueryCache, getQueryClient, refreshAccess };

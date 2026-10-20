@@ -6,6 +6,7 @@ import {
 import useObjectCommands from "@/components/Buckets/useObjectCommands";
 import { COMPACT } from "@/components/compact-button";
 import { PageHeader, PageTitle } from "@/components/Layout/page";
+import RefreshButton from "@/components/refresh-button";
 import Reserve from "@/components/reserve";
 import useAsyncAction from "@/components/use-async-action";
 import { copyToClipboard } from "@/lib/utils/clipboard";
@@ -44,6 +45,8 @@ type ObjectHeaderProps = {
    objectKey: string;
    eTag: string | null;
    metadataPending: boolean;
+   onRefresh: (() => void) | null;
+   refreshing: boolean;
    path: string[];
    canEdit: boolean;
    editing: boolean;
@@ -56,6 +59,8 @@ const ObjectHeader = ({
    path,
    eTag,
    metadataPending,
+   onRefresh,
+   refreshing,
    canEdit,
    editing,
    onEdit,
@@ -95,13 +100,13 @@ const ObjectHeader = ({
       can.upload && {
          label: "Edit settings",
          icon: SlidersHorizontal,
-         disabled: editing,
+         disabled: editing || metadataPending,
          onSelect: () => commands.editSettings(objectKey, eTag),
       },
       can.rename && {
          label: "Rename",
          icon: FilePen,
-         disabled: editing,
+         disabled: editing || metadataPending,
          onSelect: () =>
             commands.rename(
                objectKey,
@@ -113,6 +118,7 @@ const ObjectHeader = ({
       can.upload && {
          label: "Copy to…",
          icon: CopyPlus,
+         disabled: metadataPending,
          onSelect: () =>
             commands.copy(
                objectKey,
@@ -137,6 +143,15 @@ const ObjectHeader = ({
 
    const actions = (
       <>
+         {/* the details card offers its own retry when the metadata failed */}
+         <Reserve show={onRefresh !== null} className="inline-flex">
+            <RefreshButton
+               spinning={refreshing}
+               disabled={metadataPending}
+               shortcut="r"
+               onClick={() => onRefresh?.()}
+            />
+         </Reserve>
          {can.download && (
             <>
                <Button

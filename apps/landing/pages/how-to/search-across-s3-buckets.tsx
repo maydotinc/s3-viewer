@@ -96,6 +96,7 @@ export default createHowToPage({
    seoDescription:
       "Three ways to search S3: a prefix filter on the current folder in S3 Viewer, a recursive listing from the AWS CLI, or S3 Inventory + Athena.",
    published: "2026-04-28",
+   updated: "2026-10-12",
    visual: <SearchIllustration />,
    steps,
    underTheHood: (

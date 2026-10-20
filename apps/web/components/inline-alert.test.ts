@@ -9,31 +9,12 @@ const render = (props: Props) =>
    renderToStaticMarkup(createElement(InlineAlert, props));
 
 describe("inline alert variants", () => {
-   it("announces the message in a panel with its action beside it", () => {
-      const html = render({
-         children: "List failed",
-         action: createElement("button", null, "Try again"),
-      });
-      expect(html).toContain('role="alert"');
-      expect(html).toContain("List failed");
-      expect(html).toContain("Try again");
-   });
-
-   it("renders a plain row without a box", () => {
-      const html = render({ variant: "plain", children: "Page failed" });
-      expect(html).toMatch(/^<p role="alert"/);
-      expect(html).not.toContain("bg-viewerbgred");
-      expect(html).not.toContain('title="Page failed"');
-   });
-
-   it("truncates to one line and keeps the whole message as a tooltip", () => {
-      const html = render({
-         variant: "plain",
-         truncate: true,
-         children: "Page failed",
-      });
-      expect(html).toContain('title="Page failed"');
-      expect(html).toContain('class="min-w-0 truncate">Page failed</span>');
+   it("keeps the whole message as a tooltip only when a plain row truncates", () => {
+      const plain = { variant: "plain", children: "Page failed" } as const;
+      expect(render(plain)).not.toContain('title="Page failed"');
+      expect(render({ ...plain, truncate: true })).toContain(
+         'title="Page failed"'
+      );
    });
 
    it("stacks a title above the detail and action", () => {

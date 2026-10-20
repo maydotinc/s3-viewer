@@ -39,7 +39,12 @@ const server = (id: string): ServerInfo =>
    serverInfo({
       id,
       name: id,
-      audit: { enabled: false, canView: false, canManage: true },
+      audit: {
+         enabled: false,
+         canView: false,
+         canManage: true,
+         canVerify: false,
+      },
    });
 const page = (ids: string[], nextCursor: string | null): ServerPage => ({
    servers: ids.map(server),
@@ -153,7 +158,6 @@ describe("selected server and on-demand membership pages", () => {
          fetchPage = result.fetchNextPage();
       });
       await settle();
-      expect(result.isFetchingNextPage).toBe(true);
       expect(result.currentServer?.id).toBe("selected");
       expect(result.isLoading).toBe(false);
       await act(async () => {

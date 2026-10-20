@@ -4,6 +4,7 @@ import {
    UPLOAD_FLOOR_BYTES_PER_SECOND,
    uploadMemoryFor,
 } from "@/lib/constants";
+import { SECOND_MS } from "@s3-viewer/types";
 
 const MAX_TIMER_MS = 2 ** 31 - 1;
 
@@ -92,7 +93,7 @@ const progressFloor = ({
       if (
          paused * 2 >= spanMs &&
          moved <
-            ((STORAGE_FLOOR_BYTES_PER_SECOND * spanMs) / 1000) *
+            ((STORAGE_FLOOR_BYTES_PER_SECOND * spanMs) / SECOND_MS) *
                STORAGE_RATE_TOLERANCE
       )
          abortController.abort(new StorageStalledError());
@@ -177,11 +178,11 @@ const progressFloor = ({
 };
 
 const floorBytesFor = (windowMs: number): number =>
-   (windowMs / 1000) * UPLOAD_FLOOR_BYTES_PER_SECOND;
+   (windowMs / SECOND_MS) * UPLOAD_FLOOR_BYTES_PER_SECOND;
 
 const stallMsFor = (windowMs: number, partSize: number): number =>
    windowMs +
-   (uploadMemoryFor(partSize) / STORAGE_FLOOR_BYTES_PER_SECOND) * 1000;
+   (uploadMemoryFor(partSize) / STORAGE_FLOOR_BYTES_PER_SECOND) * SECOND_MS;
 
 const floorGuard = (
    abortController: AbortController,

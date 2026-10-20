@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { api } from "@/lib/api";
-import { flushRuntime } from "@/lib/test/runtime";
+import { flushUntil } from "@/lib/test/runtime";
 import { Role, type ServerInvite } from "@s3-viewer/types";
 import { act, createElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -48,10 +48,10 @@ describe("received invites with a filtered first page", () => {
                   : { invites: [], nextCursor: "older" }
             );
          await view.mount(createElement(ReceivedInvites));
-         await flushRuntime();
-         await flushRuntime();
-         expect(view.current.container.textContent).toContain(
-            "Load more to check for older invites"
+         await flushUntil(() =>
+            expect(view.current.container.textContent).toContain(
+               "Load more to check for older invites"
+            )
          );
          expect(view.current.container.textContent).not.toContain(
             "No invites waiting for you"
@@ -61,10 +61,10 @@ describe("received invites with a filtered first page", () => {
          ].find((button) => button.textContent === "Load more invites");
          expect(more).toBeDefined();
          await act(async () => more!.click());
-         await flushRuntime();
-         await flushRuntime();
-         expect(view.current.container.textContent).toContain(
-            hasOlderInvite ? "Older server" : "No invites waiting for you"
+         await flushUntil(() =>
+            expect(view.current.container.textContent).toContain(
+               hasOlderInvite ? "Older server" : "No invites waiting for you"
+            )
          );
          expect(view.current.container.textContent).not.toContain(
             "Load more invites"

@@ -7,7 +7,7 @@ import {
    RAW_TEXT_PREVIEW_CHARS,
 } from "@/lib/utils/file-utils";
 import { copyToClipboard } from "@/lib/utils/clipboard";
-import { formatBytes } from "@/lib/utils/format";
+import { formatBytes, formatCount } from "@/lib/utils/format";
 import { previewBodyVersion } from "@/lib/utils/s3/preview-body";
 import type { S3ObjectPreview } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -30,7 +30,7 @@ const Panel = ({
    children: ReactNode;
 }) => (
    <div className={PREVIEW_PANEL}>
-      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-viewerborder bg-viewergray/60 px-4">
+      <div className="@container flex h-11 shrink-0 items-center gap-2 border-b border-viewerborder bg-viewergray/60 px-4 pointer-coarse:h-14">
          <span className="truncate text-[13px] text-viewertext tabular-nums">
             {summary}
          </span>
@@ -48,6 +48,11 @@ const Panel = ({
       </div>
    </div>
 );
+
+// a narrow header (phones, the 1024px laptop column) keeps the text actions as icons so the tabs and copy still fit
+const COMPACT_ACTION =
+   "@max-[22rem]:w-8 @max-[22rem]:px-0 @max-[22rem]:pointer-coarse:w-11";
+const COMPACT_LABEL = "@max-[22rem]:sr-only";
 
 type ViewMode = "preview" | "source";
 
@@ -80,6 +85,7 @@ const CopyButton = ({ text }: { text: string }) => (
    <Button
       variant="ghost"
       size="sm"
+      className={COMPACT_ACTION}
       onClick={() =>
          void copyToClipboard(text, {
             success: "Copied to clipboard.",
@@ -88,7 +94,7 @@ const CopyButton = ({ text }: { text: string }) => (
       }
    >
       <Copy aria-hidden="true" />
-      Copy
+      <span className={COMPACT_LABEL}>Copy</span>
    </Button>
 );
 
@@ -101,7 +107,7 @@ const RawTextBody = ({ text }: { text: string }) => {
          </pre>
          {clipped && (
             <p className="border-t border-viewerborder px-4 py-2 text-viewerlighttext">
-               Showing the first {RAW_TEXT_PREVIEW_CHARS.toLocaleString()}{" "}
+               Showing the first {formatCount(RAW_TEXT_PREVIEW_CHARS)}{" "}
                characters — download to view the rest.
             </p>
          )}
@@ -188,5 +194,14 @@ const BodyPreview = ({
    });
 };
 
-export { BodyPreview, CopyButton, Panel, RawText, RawTextBody, ViewTabs };
+export {
+   BodyPreview,
+   COMPACT_ACTION,
+   COMPACT_LABEL,
+   CopyButton,
+   Panel,
+   RawText,
+   RawTextBody,
+   ViewTabs,
+};
 export type { BodyPreviewProps, ViewMode };

@@ -37,10 +37,9 @@ function TabList({
 }: React.ComponentProps<"div">) {
    return (
       <div
-         data-slot="tab-list"
          role="tablist"
          className={cn(
-            "inline-flex h-9 max-w-full w-fit shrink-0 items-center gap-1 overflow-x-auto rounded-lg bg-viewergray p-1 [scrollbar-width:none]",
+            "inline-flex h-9 max-w-full w-fit shrink-0 items-center gap-1 overflow-x-auto rounded-lg bg-viewergray p-1 [scrollbar-width:none] pointer-coarse:h-12",
             className
          )}
          onKeyDown={moveFocus}
@@ -52,7 +51,7 @@ function TabList({
 }
 
 const ITEM =
-   "inline-flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap outline-none select-none transition-colors duration-150";
+   "inline-flex h-7 shrink-0 cursor-pointer items-center gap-2 rounded-md px-3 text-sm font-medium whitespace-nowrap outline-none select-none transition-colors duration-150 pointer-coarse:h-10";
 
 type TabItemProps = {
    active: boolean;
@@ -71,7 +70,6 @@ function TabButton({
       <button
          type="button"
          role="tab"
-         data-slot="tab-button"
          data-state={active ? "active" : "inactive"}
          aria-selected={active}
          className={cn(

@@ -4,7 +4,10 @@ import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ result: {} as Record<string, unknown> }));
+const h = vi.hoisted(() => ({
+   result: {} as Record<string, unknown>,
+   isDesktop: true,
+}));
 vi.mock("@/lib/hooks/queries/server/useServers", () => ({
    default: () => h.result,
 }));
@@ -15,6 +18,9 @@ vi.mock("@/lib/contexts/modal-context", () => ({
    useModalActions: () => ({ open: vi.fn() }),
 }));
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user" }));
+vi.mock("@s3-viewer/ui/components/sidebar", () => ({
+   useSidebar: () => ({ isDesktop: h.isDesktop }),
+}));
 vi.mock("next/router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 // the real menu renders nothing while closed; a flat stand-in exposes the per-server items to the markup
 vi.mock("@s3-viewer/ui/components/dropdown-menu", () => {
@@ -48,11 +54,12 @@ import ServerSelect from "./server-select";
 const selected = serverInfo({
    id: "selected",
    name: "Selected storage",
-   audit: { enabled: false, canManage: true, canView: false },
+   audit: { enabled: false, canManage: true, canView: false, canVerify: false },
 });
 const render = () => renderToStaticMarkup(createElement(ServerSelect));
 const count = (html: string, text: string) => html.split(text).length - 1;
 beforeEach(() => {
+   h.isDesktop = true;
    h.result = {
       servers: [],
       currentServer: null,
@@ -66,12 +73,11 @@ beforeEach(() => {
 describe("paged server picker", () => {
    it("names the selected server on the trigger", () => {
       Object.assign(h.result, { currentServer: selected, servers: [selected] });
-      expect(render()).toContain("Selected storage");
       expect(render()).toContain(
          'aria-label="Switch server, current: Selected storage"'
       );
    });
-   it("keeps the picker reachable when known revoked servers exhaust the loaded page but more pages remain", () => {
+   it("keeps the picker reachable when the loaded page is empty but more pages remain", () => {
       h.result.hasNextPage = true;
       expect(render()).toContain("Choose a server");
       expect(render()).toContain('aria-label="Switch server"');
@@ -98,5 +104,18 @@ describe("per-server actions", () => {
       const html = render();
       expect(count(html, "Invite people")).toBe(2);
       expect(count(html, ">Members<")).toBe(2);
+   });
+   it("list only the current server's actions, without submenus, when the sidebar is an overlay", () => {
+      h.isDesktop = false;
+      Object.assign(h.result, {
+         currentServer: selected,
+         servers: [
+            selected,
+            serverInfo({ id: "admin", name: "Admin", userRole: Role.ADMIN }),
+         ],
+      });
+      const html = render();
+      expect(count(html, "Invite people")).toBe(1);
+      expect(html).not.toContain("Switch to");
    });
 });

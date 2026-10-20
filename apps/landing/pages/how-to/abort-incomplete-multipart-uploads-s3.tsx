@@ -139,6 +139,7 @@ export default createHowToPage({
    seoDescription:
       "Failed or abandoned multipart uploads leave billed parts behind that ListObjects can't see. List and abort them with the CLI, an SDK, or S3 Viewer.",
    published: "2026-09-07",
+   updated: "2026-10-12",
    visual: <UploadIllustration />,
    steps,
    underTheHood: (

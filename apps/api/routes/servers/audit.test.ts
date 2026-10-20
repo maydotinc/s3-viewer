@@ -4,6 +4,7 @@ import {
    scopeQueryRaw,
    signedIn,
 } from "@/lib/testing/route-harness";
+import compression from "compression";
 import express from "express";
 import {
    afterAll,
@@ -142,6 +143,7 @@ routeServer(
          next();
       });
       app.use(privateNoStore);
+      app.use(compression());
       app.use("/servers", auditRouter);
       app.use(recordDenials);
       app.use(errorHandler);
@@ -716,6 +718,32 @@ describe("GET /servers/:serverId/audit/export", () => {
       expect(lines[5]).toContain(',"\'\rsum",');
       expect(lines[6]).toContain('"\'=cmd()@x.com"');
       expect(lines[6]).toContain(',"safe",');
+   });
+
+   it("waits out a gzipped export's backpressure on a single drain listener", async () => {
+      const warnings: Error[] = [];
+      const warned = (warning: Error) => warnings.push(warning);
+      process.on("warning", warned);
+      const batch = Array.from({ length: 1000 }, (_, index) =>
+         row(`row${index}`, "2026-09-06T12:00:00.000Z")
+      );
+      let pages = 0;
+      state.selectRows.mockImplementation(async () =>
+         pages++ < 12 ? batch : []
+      );
+      try {
+         const res = await fetch(`${base}/export`, {
+            headers: { "accept-encoding": "gzip" },
+         });
+         expect(res.headers.get("content-encoding")).toBe("gzip");
+         expect((await res.text()).split("\r\n")).toHaveLength(12_002);
+         await new Promise((resolve) => setImmediate(resolve));
+         expect(warnings.map((warning) => warning.name)).not.toContain(
+            "MaxListenersExceededWarning"
+         );
+      } finally {
+         process.off("warning", warned);
+      }
    });
 
    it("confines a non-owner's export to their reach", async () => {

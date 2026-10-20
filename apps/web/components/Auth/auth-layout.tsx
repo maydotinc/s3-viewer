@@ -89,17 +89,19 @@ const AuthLayout = ({ children }: AuthLayoutProps) => (
          <div className="flex flex-1 flex-col items-center justify-center py-8">
             <div className="flex w-full max-w-[360px] flex-col gap-6 [overflow-wrap:anywhere]">
                {children}
-               <p className="text-meta text-balance text-center">
-                  By continuing you agree to the{" "}
-                  <a href={TERMS_URL} className={LEGAL_LINK}>
-                     Terms of Service
-                  </a>{" "}
-                  and{" "}
-                  <a href={PRIVACY_URL} className={LEGAL_LINK}>
-                     Privacy Policy
-                  </a>
-                  .
-               </p>
+               {publicEnv.hasLanding && (
+                  <p className="text-meta text-balance text-center">
+                     By continuing you agree to the{" "}
+                     <a href={TERMS_URL} className={LEGAL_LINK}>
+                        Terms of Service
+                     </a>{" "}
+                     and{" "}
+                     <a href={PRIVACY_URL} className={LEGAL_LINK}>
+                        Privacy Policy
+                     </a>
+                     .
+                  </p>
+               )}
             </div>
          </div>
          <footer className="flex items-center justify-between gap-3 pt-6 text-sm text-viewertext">

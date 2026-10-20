@@ -1,3 +1,5 @@
+import { setTimeout as sleep } from "node:timers/promises";
+
 const DELETE_BATCH_SIZE = 5000;
 const DELETE_PAUSE_MS = 50;
 
@@ -9,7 +11,7 @@ const deleteBatches = async (
       const count = await deleteBatch(DELETE_BATCH_SIZE);
       total += count;
       if (count < DELETE_BATCH_SIZE) return total;
-      await new Promise((resolve) => setTimeout(resolve, DELETE_PAUSE_MS));
+      await sleep(DELETE_PAUSE_MS);
    }
 };
 

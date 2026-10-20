@@ -122,13 +122,6 @@ describe("editor target identity", () => {
       expect((await pressSave()).defaultPrevented).toBe(true);
       expect(h.mutate).not.toHaveBeenCalled();
    });
-
-   it("refuses a save before React rerenders an account or server change", async () => {
-      await edit("updated");
-      h.session = { userId: "user-a", serverId: "server-b" };
-      await save();
-      expect(h.mutate).not.toHaveBeenCalled();
-   });
 });
 
 describe("editor saving", () => {

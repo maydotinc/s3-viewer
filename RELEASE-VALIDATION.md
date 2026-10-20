@@ -16,18 +16,18 @@ Its `finally` block removes its containers, volumes, network, and image tags,
 including after a failed assertion or an interrupt (Ctrl-C or SIGTERM). Docker's build cache remains available.
 
 The `distribution` job of the CI workflow (`.github/workflows/ci.yml`) runs
-this check on main/tag pushes and manual dispatches. Packaging PRs can run the
-command locally before merge; ordinary PR checks do not require Docker or cloud
-credentials.
+this check on every push, pull request and manual dispatch, so packaging
+changes are validated before merge. It needs Docker but no cloud credentials.
 
 ## What it checks
 
-- The API and web Dockerfiles build, including API dependency pruning and the
-  web standalone output. The landing Dockerfile is not built by this check.
+- The API, web and landing Dockerfiles build, including API dependency pruning
+  and the standalone Next outputs.
 - API startup applies all checked-in migrations to an empty PostgreSQL 16
   database; the packaged Prisma CLI reports the schema up to date.
-- API `/health` and `/config`, web `/api/health`, and the rendered `/login` page
-  respond successfully.
+- API `/health` and `/config`, web `/api/health`, the rendered `/login` page,
+  the landing `/` page and the landing `/about` page proxied through web respond
+  successfully.
 - Four independent Node processes make 128 rate-limit increments on one key.
   Every count from 1 through 128 occurs once, and an expired window resets.
 - Four independent audit writers wait on an externally held PostgreSQL advisory

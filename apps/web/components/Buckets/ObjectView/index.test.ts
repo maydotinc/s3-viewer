@@ -20,6 +20,8 @@ const h = vi.hoisted(() => ({
    preview: vi.fn(),
    reach: { folders: null, owner: true } as KnownReach,
    refresh: vi.fn(),
+   refetch: vi.fn(),
+   shortcut: vi.fn(),
    can: { download: true, upload: true },
 }));
 vi.mock("react", async (original) => ({
@@ -31,6 +33,7 @@ vi.mock("@/lib/stores/session-store", () => ({
       select({ serverId: "server" }),
    useUserId: () => "user",
 }));
+vi.mock("@/lib/shortcuts", () => ({ useShortcut: h.shortcut }));
 vi.mock("@/components/Buckets/Context", () => ({
    useBucketContext: () => ({
       bucketName: "bucket",
@@ -53,6 +56,8 @@ vi.mock("@/lib/hooks/queries/s3/useObjectPreview", () => ({
          isPending: !h.previewAvailable,
          isError: false,
          error: null,
+         isFetching: false,
+         refetch: h.refetch,
       };
    },
 }));
@@ -62,7 +67,10 @@ vi.mock("@/lib/hooks/queries/s3/useObjectSettings", () => ({
       return {
          data: h.available ? h.metadata : undefined,
          isPending: h.loading,
+         isError: h.error !== null,
          error: h.error,
+         isFetching: false,
+         refetch: h.refetch,
       };
    },
 }));
@@ -85,6 +93,8 @@ beforeEach(() => {
    h.previewAvailable = false;
    h.settings.mockClear();
    h.preview.mockClear();
+   h.refetch.mockClear();
+   h.shortcut.mockClear();
    h.reach = { folders: null, owner: true };
    h.loading = false;
    h.error = null;
@@ -125,6 +135,35 @@ describe("metadata for objects without a browser link", () => {
          isLoading: false,
          error: h.error,
       });
+   });
+});
+
+describe("refreshing the object", () => {
+   type Shortcut = { when: () => boolean; handler: () => void };
+   const shortcut = () => h.shortcut.mock.lastCall![0] as Shortcut;
+   const header = () =>
+      one(render(), (node) => node.type === "header", "header").props as {
+         onRefresh: (() => void) | null;
+      };
+
+   it("refetches the metadata from the header and the r shortcut", () => {
+      header().onRefresh!();
+      expect(shortcut().when()).toBe(true);
+      shortcut().handler();
+      expect(h.refetch).toHaveBeenCalledTimes(2);
+   });
+
+   it("leaves a failed read to the details card's retry", () => {
+      h.available = false;
+      h.error = new Error("Storage unavailable");
+      expect(header().onRefresh).toBeNull();
+   });
+
+   it("never refetches a read the role would be refused", () => {
+      h.can = { download: false, upload: false };
+      h.available = false;
+      expect(header().onRefresh).toBeNull();
+      expect(shortcut().when()).toBe(false);
    });
 });
 
@@ -215,7 +254,7 @@ describe("files outside someone's reach", () => {
       );
    });
 
-   it("waits for the bucket list before asking for anything", () => {
+   it("holds the preview read until the bucket list says the file is in reach", () => {
       h.key = "landing/index.html";
       h.reach = undefined;
       render();

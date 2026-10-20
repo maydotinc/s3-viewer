@@ -55,7 +55,6 @@ type TransferFailure = {
    key: string;
    message: string;
    retryable: boolean;
-   outcome: "failed" | "unknown";
 };
 
 type TransferSummary = {
@@ -212,14 +211,6 @@ const transferObjects = async (
                  "Review this object at the destination before copying it again"
               ),
          retryable: canRetry,
-         // only a definite 4xx proves nothing was copied; a dropped connection or an
-         // unreadable 2xx body may have landed.
-         outcome:
-            !(error instanceof ApiError) ||
-            error.status < 400 ||
-            error.status >= 500
-               ? "unknown"
-               : "failed",
       });
    };
    operation.running = true;

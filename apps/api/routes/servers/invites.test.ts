@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import express from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { errorHandler } from "@/lib/http";
@@ -72,7 +73,7 @@ vi.mock("@/lib/services/members", async (original) => ({
    ...(await original<typeof import("@/lib/services/members")>()),
    loadGrantingActor: state.loadGrantingActor,
    assertBucketGrants: () => undefined,
-   visibleBuckets: async () => state.visible,
+   viewerGrants: async () => ({ visible: state.visible, held: state.held }),
 }));
 
 const inviteId = (email: string) => `inv${email.replace(/\W/g, "")}`;
@@ -81,7 +82,6 @@ const listedRow = ({ email, role }: { email: string; role: string }) => ({
    id: inviteId(email),
    email,
    role,
-   token: "kept-token-1",
    expiresAt: new Date("2030-01-01T00:00:00.000Z"),
    serverId: SERVER,
    invitedById: ACTOR,
@@ -106,10 +106,6 @@ const revoked = vi.hoisted(() => ({ target: null as Row | null }));
 
 vi.mock("@s3-viewer/db", () => {
    const pendingInvitation = {
-      findMany: async (args: unknown) => {
-         state.findInvites(args);
-         return state.pending.map(listedRow);
-      },
       deleteMany: state.deleteInvites,
       findUnique: async () =>
          revoked.target
@@ -125,8 +121,13 @@ vi.mock("@s3-viewer/db", () => {
    };
    return {
       prisma: {
-         $queryRaw: scopeQueryRaw(() =>
-            state.role ? { role: state.role, auditEnabled: true } : null
+         $queryRaw: scopeQueryRaw(
+            () =>
+               state.role ? { role: state.role, auditEnabled: true } : null,
+            async (strings, ...values) => {
+               state.findInvites(Prisma.sql(strings, ...values));
+               return state.pending.map(listedRow);
+            }
          ),
          serverAccess: { findUnique: accessWithServer },
          pendingInvitation,
@@ -178,16 +179,41 @@ beforeEach(() => {
 });
 
 describe("GET /servers/:serverId/invites", () => {
-   it("lists pending invites without reading or returning their tokens", async () => {
+   it("lists live pending invites in one statement without reading or returning their tokens", async () => {
       state.pending = [{ email: "one@example.com", role: "VIEWER" }];
       const res = await fetch(base);
       expect(res.status).toBe(200);
       const body = await res.text();
       expect(JSON.parse(body).invites).toHaveLength(1);
       expect(body).not.toContain("token");
-      const [args] = state.findInvites.mock.calls[0] ?? [];
-      expect(args.select).not.toHaveProperty("token");
+      expect(state.findInvites).toHaveBeenCalledOnce();
+      const [sql] = state.findInvites.mock.calls[0] as [Prisma.Sql];
+      expect(sql.text).not.toContain("token");
+      expect(sql.text).toContain('"expiresAt" >');
+      expect(sql.values).toContain(SERVER);
    });
+
+   it.each([
+      ["OWNER", null, true],
+      ["ADMIN", "EDITOR", true],
+      ["ADMIN", "VIEWER", false],
+      ["ADMIN", null, false],
+   ] as const)(
+      "lets a %s holding %s on the bucket revoke an Editor grant: %s",
+      async (role, held, revocable) => {
+         state.role = role;
+         if (held) state.held.set("photos", { role: held, folders: null });
+         state.pending = [{ email: "one@example.com", role: "VIEWER" }];
+         state.grantRows = [
+            {
+               invitationId: inviteId("one@example.com"),
+               ...grant("photos", "EDITOR"),
+            },
+         ];
+         const res = await fetch(base);
+         expect((await res.json()).invites[0].canRevoke).toBe(revocable);
+      }
+   );
 
    it("shows an admin only the invite grants on buckets the admin holds", async () => {
       state.role = "ADMIN";

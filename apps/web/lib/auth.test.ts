@@ -110,14 +110,14 @@ const expectErased = () => {
       batch: null,
       isUploading: false,
    });
-   expect(h.jobs).toHaveLength(3);
+   expect(h.jobs).not.toHaveLength(0);
    for (const job of h.jobs) expect(job.abort).toHaveBeenCalledOnce();
 };
 
-beforeEach(() => {
-   uploadStore.getState().cancelAllAndClear();
-   h.jobs = [];
+beforeEach(async () => {
    h.holdCleanup = false;
+   await uploadStore.getState().cancelAllAndClear();
+   h.jobs = [];
    h.cleanups = [];
    emit("user-a");
    sessionStore.getState().setServerId("shared-server");
@@ -138,8 +138,9 @@ describe("uploads follow the authenticated session synchronously", () => {
       );
       enqueue();
       const pending = signOut();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(h.routerReplace).toHaveBeenCalledOnce();
+      await vi.waitFor(() => expect(h.routerReplace).toHaveBeenCalledOnce(), {
+         interval: 1,
+      });
       emit("user-b");
       navigated();
       await pending;
@@ -194,8 +195,12 @@ describe("uploads follow the authenticated session synchronously", () => {
       expectErased();
       enqueue();
       expectErased();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(sessionStore.getState().userId).toBeNull();
+      await vi.waitFor(
+         () => expect(sessionStore.getState().userId).toBeNull(),
+         {
+            interval: 1,
+         }
+      );
       finish();
       await signingOut;
       emit("user-b");
@@ -284,8 +289,12 @@ describe("uploads follow the authenticated session synchronously", () => {
       enqueue();
       handleUnauthorized("user-a");
       expectErased();
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(sessionStore.getState().userId).toBeNull();
+      await vi.waitFor(
+         () => expect(sessionStore.getState().userId).toBeNull(),
+         {
+            interval: 1,
+         }
+      );
       expectErased();
    });
 

@@ -1,4 +1,4 @@
-import { MIB } from "@s3-viewer/types";
+import { MIB, SECOND_MS, MINUTE_MS } from "@s3-viewer/types";
 
 const SERVER_NOT_FOUND = "Server not found";
 const MEMBER_NOT_FOUND = "Member not found";
@@ -6,10 +6,10 @@ const OBJECT_EXISTS = "An object with that name already exists";
 const UPLOAD_CONFLICT =
    "The file changed or already exists. Refresh the folder and confirm the upload again.";
 
-const S3_ROUTE_TIMEOUT_MS = 60_000;
+const S3_ROUTE_TIMEOUT_MS = MINUTE_MS;
 const HEAD_CONCURRENCY = 16;
-const CLEANUP_TIMEOUT_MS = 10_000;
-const STREAM_IDLE_TIMEOUT_MS = 120_000;
+const CLEANUP_TIMEOUT_MS = 10 * SECOND_MS;
+const STREAM_IDLE_TIMEOUT_MS = 2 * MINUTE_MS;
 const ARCHIVE_MIN_BYTES_PER_SECOND = MIB;
 const ARCHIVE_MS_PER_OBJECT = 500;
 const ARCHIVE_DRAIN_FLOOR_FRACTION = 1 / 32;
@@ -17,11 +17,11 @@ const ARCHIVE_DRAIN_FLOOR_FRACTION = 1 / 32;
 const UPLOAD_FLOOR_BYTES_PER_SECOND = 128 * 1024;
 // storage backpressure is tolerated at half the client floor; slow backends are not the abuse vector.
 const STORAGE_FLOOR_BYTES_PER_SECOND = 64 * 1024;
-const SLOT_MIN_LIFETIME_MS = 10 * 60_000;
+const SLOT_MIN_LIFETIME_MS = 10 * MINUTE_MS;
 const SLOT_MIN_BYTES_PER_SECOND = 256 * 1024;
 const COPY_MIN_BYTES_PER_SECOND = 8 * MIB;
 const copyWorkMs = (bytes: number): number =>
-   (bytes / COPY_MIN_BYTES_PER_SECOND) * 1000;
+   (bytes / COPY_MIN_BYTES_PER_SECOND) * SECOND_MS;
 const copyDeadlineMs = (bytes: number): number =>
    Math.max(S3_ROUTE_TIMEOUT_MS, copyWorkMs(bytes));
 const UPLOAD_PART_QUEUE_SIZE = 2;

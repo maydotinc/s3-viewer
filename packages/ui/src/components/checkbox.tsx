@@ -10,7 +10,6 @@ function Checkbox({
 }: React.ComponentProps<typeof CheckboxPrimitive.Root>) {
    return (
       <CheckboxPrimitive.Root
-         data-slot="checkbox"
          className={cn(
             "peer relative size-4 shrink-0 cursor-pointer rounded-[4px] border border-viewerborder bg-viewerwhite transition-colors outline-none",
             "pointer-coarse:after:absolute pointer-coarse:after:-inset-3.5",
@@ -23,10 +22,7 @@ function Checkbox({
          )}
          {...props}
       >
-         <CheckboxPrimitive.Indicator
-            data-slot="checkbox-indicator"
-            className="flex items-center justify-center text-current transition-none"
-         >
+         <CheckboxPrimitive.Indicator className="flex items-center justify-center text-current transition-none">
             <CheckIcon className="size-4" />
          </CheckboxPrimitive.Indicator>
       </CheckboxPrimitive.Root>

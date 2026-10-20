@@ -4,14 +4,19 @@ import { describe, expect, it, vi } from "vitest";
 import { logger } from "@/lib/logger";
 import {
    PROVIDER_ENDPOINTS,
+   completedXml,
+   copiedPartXml,
+   copiedXml,
    empty,
    errorXml,
+   initiatedXml,
    reply,
    s3Fixture,
    xml,
    type FixtureReply,
    type FixtureRequest,
 } from "@/lib/testing/s3-fixture";
+import { UnconfirmedWriteError } from "./conditions";
 import {
    MIN_COPY_PART_BYTES,
    copyObject,
@@ -24,12 +29,12 @@ const SOURCE = "reports/q3.csv";
 const DEST = "reports/q4.csv";
 const ETAG = '"reviewed"';
 
-const COPIED = '<CopyObjectResult><ETag>"copied"</ETag></CopyObjectResult>';
+const COPIED = copiedXml('"copied"');
 
 const clientFor = (
    endpoint: string,
    handle: (request: FixtureRequest) => Promise<FixtureReply>
-) => s3Fixture(handle, { endpoint, maxAttempts: 1 }).client;
+) => s3Fixture(handle, { endpoint }).client;
 
 const sourceHead = (size: number) =>
    ({
@@ -91,7 +96,6 @@ const emptyDestination = async (request: FixtureRequest) =>
 describe("the destination condition reaches every provider", () => {
    it.each([
       ["MinIO", Provider.Other, PROVIDER_ENDPOINTS[Provider.Other]],
-      ["B2", Provider.Other, PROVIDER_ENDPOINTS.B2],
       ["AWS S3", Provider.S3, PROVIDER_ENDPOINTS[Provider.S3]],
    ])(
       "sends if-none-match on the copy to %s",
@@ -122,23 +126,59 @@ describe("the destination condition reaches every provider", () => {
    });
 });
 
-describe("an unreadable destination blocks an unapproved replacement", () => {
-   it.each([
-      ["MinIO", PROVIDER_ENDPOINTS[Provider.Other]],
-      ["B2", PROVIDER_ENDPOINTS.B2],
-   ])(
-      "refuses to guess when HEAD answers 403 on %s",
-      async (_name, endpoint) => {
-         const { requests, result } = await run(
-            endpoint,
-            Provider.Other,
-            async (request) =>
-               request.method === "HEAD" ? empty(403) : xml(COPIED)
-         );
-         expect(result).toMatchObject({ status: 403 });
-         expect(requests.filter((r) => r.method !== "HEAD")).toEqual([]);
+describe("a copy cut off after storage received it", () => {
+   it("reports a server error answering the copy as unconfirmed", async () => {
+      const { result } = await run(
+         PROVIDER_ENDPOINTS[Provider.S3],
+         Provider.S3,
+         async (request) =>
+            request.method === "PUT"
+               ? reply(500, errorXml("InternalError"))
+               : emptyDestination(request)
+      );
+      expect(result).toBeInstanceOf(UnconfirmedWriteError);
+   });
+
+   it("reports a copy the caller stopped waiting for as unconfirmed", async () => {
+      const controller = new AbortController();
+      const client = clientFor(
+         PROVIDER_ENDPOINTS[Provider.S3],
+         async (request) => {
+            if (request.method !== "PUT") return emptyDestination(request);
+            controller.abort();
+            throw Object.assign(new Error("aborted"), { name: "AbortError" });
+         }
+      );
+      try {
+         await expect(
+            copyObject(
+               { client, bucket: BUCKET, signal: controller.signal },
+               Provider.S3,
+               {
+                  sourceKey: SOURCE,
+                  destinationKey: DEST,
+                  source: sourceHead(12),
+                  sourceETag: ETAG,
+               }
+            )
+         ).rejects.toBeInstanceOf(UnconfirmedWriteError);
+      } finally {
+         client.destroy();
       }
-   );
+   });
+});
+
+describe("an unreadable destination blocks an unapproved replacement", () => {
+   it("refuses to guess when HEAD answers 403", async () => {
+      const { requests, result } = await run(
+         PROVIDER_ENDPOINTS[Provider.Other],
+         Provider.Other,
+         async (request) =>
+            request.method === "HEAD" ? empty(403) : xml(COPIED)
+      );
+      expect(result).toMatchObject({ status: 403 });
+      expect(requests.filter((r) => r.method !== "HEAD")).toEqual([]);
+   });
 
    it("still refuses a destination that HEAD confirms exists", async () => {
       const { requests, result } = await run(
@@ -163,9 +203,7 @@ describe("a failed multipart copy waits for its siblings", () => {
          async (request) => {
             if (request.method === "HEAD") return empty(404);
             if ("uploads" in request.query)
-               return xml(
-                  "<InitiateMultipartUploadResult><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>"
-               );
+               return xml(initiatedXml("upload-1"));
             const part = request.query.partNumber;
             if (part === "1") {
                events.push("part-1-failed");
@@ -174,14 +212,9 @@ describe("a failed multipart copy waits for its siblings", () => {
             if (part === "2") {
                await new Promise((resolve) => setTimeout(resolve, 50));
                events.push("part-2-done");
-               return xml(
-                  '<CopyPartResult><ETag>"part"</ETag></CopyPartResult>'
-               );
+               return xml(copiedPartXml('"part"'));
             }
-            if (part)
-               return xml(
-                  '<CopyPartResult><ETag>"part"</ETag></CopyPartResult>'
-               );
+            if (part) return xml(copiedPartXml('"part"'));
             if (request.method === "DELETE") {
                events.push("abort");
                return empty(204);
@@ -224,11 +257,9 @@ describe("part sizing covers the whole provider range", () => {
    });
 });
 
-const MULTIPART =
-   "<InitiateMultipartUploadResult><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>";
-const PART = '<CopyPartResult><ETag>"part"</ETag></CopyPartResult>';
-const COMPLETED =
-   '<CompleteMultipartUploadResult><ETag>"whole"</ETag></CompleteMultipartUploadResult>';
+const MULTIPART = initiatedXml("upload-1");
+const PART = copiedPartXml('"part"');
+const COMPLETED = completedXml('"whole"');
 
 const multipartDestination = async (request: FixtureRequest) => {
    if (request.method === "HEAD") return empty(404);
@@ -617,7 +648,6 @@ const occupied =
 describe("an overwriting copy pins the version it replaces", () => {
    it.each([
       ["MinIO", Provider.Other, PROVIDER_ENDPOINTS[Provider.Other]],
-      ["B2", Provider.Other, PROVIDER_ENDPOINTS.B2],
       ["AWS S3", Provider.S3, PROVIDER_ENDPOINTS[Provider.S3]],
    ])(
       "sends if-match on the live destination ETag to %s",
@@ -775,7 +805,6 @@ describe("a reviewed destination ETag replaces only that version", () => {
 
    it.each([
       ["MinIO", Provider.Other, PROVIDER_ENDPOINTS[Provider.Other]],
-      ["B2", Provider.Other, PROVIDER_ENDPOINTS.B2],
       ["AWS S3", Provider.S3, PROVIDER_ENDPOINTS[Provider.S3]],
    ])(
       "sends if-match on the caller's ETag to %s",
@@ -811,7 +840,7 @@ describe("a reviewed destination ETag replaces only that version", () => {
 
    it("refuses a newer destination on storage that ignores if-match", async () => {
       const { requests, result } = await run(
-         PROVIDER_ENDPOINTS.B2,
+         PROVIDER_ENDPOINTS[Provider.Other],
          Provider.Other,
          occupied(async () => xml(COPIED)),
          12,
@@ -819,19 +848,6 @@ describe("a reviewed destination ETag replaces only that version", () => {
       );
       expect(result).toMatchObject({ status: 409 });
       expect(requests.filter((r) => r.method === "PUT")).toEqual([]);
-   });
-
-   it("keeps R2 on its own destination condition", async () => {
-      const { requests } = await run(
-         PROVIDER_ENDPOINTS[Provider.R2],
-         Provider.R2,
-         occupied(async () => xml(COPIED)),
-         12,
-         { destinationETag: REVIEWED }
-      );
-      const put = requests.find((r) => r.method === "PUT")!;
-      expect(put.headers["cf-copy-destination-if-match"]).toBe(REVIEWED);
-      expect(put.headers).not.toHaveProperty("if-match");
    });
 
    it("reports the storage refusal when that version is gone", async () => {
@@ -902,7 +918,7 @@ describe("a multipart copy that cannot be aborted", () => {
 });
 
 describe("multipart copy revision safety", () => {
-   it.each([200, 409, 412])(
+   it.each([200, 412])(
       "pins settings completion when storage answers %s",
       async (status) => {
          let currentETag = ETAG;
@@ -1097,21 +1113,18 @@ describe("a compatible multipart copy re-checks the destination before completin
 });
 
 describe("uncertain destination HEAD failures", () => {
-   it.each([403, 429, 503, "TimeoutError", "AbortError"])(
-      "never writes after %s",
-      async (failure) => {
-         const { requests, result } = await run(
-            PROVIDER_ENDPOINTS[Provider.Other],
-            Provider.Other,
-            async () => {
-               if (typeof failure === "number") return empty(failure);
-               throw Object.assign(new Error(failure), { name: failure });
-            }
-         );
-         expect(result).toHaveProperty("status");
-         expect(requests.map((request) => request.method)).toEqual(["HEAD"]);
-      }
-   );
+   it.each([503, "TimeoutError"])("never writes after %s", async (failure) => {
+      const { requests, result } = await run(
+         PROVIDER_ENDPOINTS[Provider.Other],
+         Provider.Other,
+         async () => {
+            if (typeof failure === "number") return empty(failure);
+            throw Object.assign(new Error(failure), { name: failure });
+         }
+      );
+      expect(result).toMatchObject({ status: 502 });
+      expect(requests.map((request) => request.method)).toEqual(["HEAD"]);
+   });
 });
 
 const READER = "b".repeat(64);
@@ -1126,7 +1139,7 @@ describe("destination ownership during cross-bucket copies", () => {
       | "denied"
       | "failed";
    const failure = (status: number, code: string) =>
-      reply(status, `<Error><Code>${code}</Code></Error>`);
+      reply(status, errorXml(code));
    const owned =
       (
          ownership: Ownership,

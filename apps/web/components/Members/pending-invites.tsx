@@ -8,16 +8,13 @@ import {
    type Column,
 } from "@/components/invite-table";
 import { EmptyRow } from "@/components/Layout/table-states";
-import { canRemoveAccess } from "@s3-viewer/permissions";
-import type { Role, ServerInvite } from "@s3-viewer/types";
+import type { ManagedInvite } from "@s3-viewer/types";
 import { TableRow } from "@s3-viewer/ui/components/table";
 import { MailOpen } from "lucide-react";
 
 type PendingInvitesProps = {
    serverId: string;
-   // null until the server loads: rows need the viewer's role, so the list stays a skeleton
-   myRole: Role | null;
-   invites: ServerInvite[];
+   invites: ManagedInvite[];
    isLoading: boolean;
 };
 
@@ -30,45 +27,37 @@ const COLUMNS: readonly Column[] = [
 
 const PendingInvites = ({
    serverId,
-   myRole,
    invites,
    isLoading,
-}: PendingInvitesProps) => {
-   const loading = isLoading || myRole === null;
-   return (
-      <InviteTable columns={COLUMNS} actionsWidth="w-24" loading={loading}>
-         {loading ? null : invites.length === 0 ? (
-            <EmptyRow colSpan={COLUMNS.length + 1} icon={MailOpen}>
-               No pending invites
-            </EmptyRow>
-         ) : (
-            invites.map((invite) => (
-               <TableRow key={invite.id}>
-                  <TextCell strong>{invite.email}</TextCell>
-                  <RoleCell
-                     role={invite.role}
-                     bucketAccess={invite.bucketAccess}
-                  />
-                  <TextCell label="Sent by">{invite.invitedBy.name}</TextCell>
-                  <ExpiresCell expiresAt={invite.expiresAt} />
-                  <ActionsCell>
-                     {canRemoveAccess(
-                        myRole,
-                        invite.role,
-                        invite.bucketAccess.map((grant) => grant.role)
-                     ) && (
-                        <RevokeInviteButton
-                           serverId={serverId}
-                           inviteId={invite.id}
-                           email={invite.email}
-                        />
-                     )}
-                  </ActionsCell>
-               </TableRow>
-            ))
-         )}
-      </InviteTable>
-   );
-};
+}: PendingInvitesProps) => (
+   <InviteTable columns={COLUMNS} actionsWidth="w-24" loading={isLoading}>
+      {isLoading ? null : invites.length === 0 ? (
+         <EmptyRow colSpan={COLUMNS.length + 1} icon={MailOpen}>
+            No pending invites
+         </EmptyRow>
+      ) : (
+         invites.map((invite) => (
+            <TableRow key={invite.id}>
+               <TextCell strong>{invite.email}</TextCell>
+               <RoleCell
+                  role={invite.role}
+                  bucketAccess={invite.bucketAccess}
+               />
+               <TextCell label="Sent by">{invite.invitedBy.name}</TextCell>
+               <ExpiresCell expiresAt={invite.expiresAt} />
+               <ActionsCell>
+                  {invite.canRevoke && (
+                     <RevokeInviteButton
+                        serverId={serverId}
+                        inviteId={invite.id}
+                        email={invite.email}
+                     />
+                  )}
+               </ActionsCell>
+            </TableRow>
+         ))
+      )}
+   </InviteTable>
+);
 
 export default PendingInvites;

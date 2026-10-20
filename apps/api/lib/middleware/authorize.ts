@@ -1,6 +1,10 @@
 import type { AuditReach } from "@/lib/audit/query";
-import { MEMBER_NOT_FOUND, SERVER_NOT_FOUND } from "@/lib/constants";
-import { ApiHttpError, asyncHandler } from "@/lib/http";
+import {
+   ApiHttpError,
+   asyncHandler,
+   memberNotFound,
+   serverNotFound,
+} from "@/lib/http";
 import type { SessionUser } from "./auth";
 import type { CredentialSnapshot } from "@/lib/s3/client-cache";
 import { guardFolders, type FolderGrant } from "@/lib/s3/folder-guard";
@@ -23,7 +27,6 @@ import {
    canRemoveAccess,
    effectiveBucketRole,
    hasPermission,
-   isAtLeast,
 } from "@s3-viewer/permissions";
 import {
    DOT_SEGMENTS_MESSAGE,
@@ -103,16 +106,8 @@ const denied = (
 
 const grantRefusal =
    (scope: DenialScope): GrantRefusal =>
-   (message, reason, bucket, code) =>
-      denied(
-         403,
-         message,
-         scope,
-         Permission.MANAGE_MEMBERS,
-         reason,
-         bucket,
-         code
-      );
+   (message, bucket) =>
+      denied(403, message, scope, Permission.MANAGE_MEMBERS, "member", bucket);
 
 const requireUser = (req: Request): SessionUser => {
    const user = req.user;
@@ -254,7 +249,7 @@ const assertMemberAuthority = (
    if (!serverRole || !hasPermission(serverRole, Permission.MANAGE_MEMBERS)) {
       throw refused(FORBIDDEN, "forbidden");
    }
-   if (!targetRole) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+   if (!targetRole) throw memberNotFound();
    if (!canManageRole(serverRole, targetRole)) {
       throw refused("You can't manage that member", "member");
    }
@@ -307,7 +302,7 @@ const scopeRow = async <Row extends ScopeRow>(
       JOIN "server" s ON s."id" = a."serverId"
       ${join}
       WHERE a."userId" = ${userId} AND a."serverId" = ${serverId}`;
-   if (!row) throw new ApiHttpError(404, SERVER_NOT_FOUND);
+   if (!row) throw serverNotFound();
    return row;
 };
 
@@ -478,13 +473,13 @@ type AuditSettingsScopeRow = ScopeRow & {
 
 const reachOf = (
    actorId: string,
-   serverRole: Role,
+   serverWide: boolean,
    { reachBuckets, ownBuckets }: AuditSettingsScopeRow
 ): AuditReach => ({
    buckets: reachBuckets ?? [],
    ownBuckets: ownBuckets ?? [],
    actorId,
-   serverWide: isAtLeast(serverRole, Role.ADMIN),
+   serverWide,
 });
 
 const authorizeAudit = (kind: "view" | "manage"): RequestHandler =>
@@ -510,7 +505,10 @@ const authorizeAudit = (kind: "view" | "manage"): RequestHandler =>
       );
       const auth = contextOf(user.id, serverId, row);
       const settings = auditSettingsOf(row);
-      const { canView, canManage } = auditAccess(auth.serverRole, settings);
+      const { canView, canManage, canVerify } = auditAccess(
+         auth.serverRole,
+         settings
+      );
       if (!(kind === "view" ? canView : canManage)) {
          throw denied(
             403,
@@ -526,7 +524,7 @@ const authorizeAudit = (kind: "view" | "manage"): RequestHandler =>
          reach:
             auth.serverRole === Role.OWNER
                ? null
-               : reachOf(user.id, auth.serverRole, row),
+               : reachOf(user.id, canVerify, row),
       } satisfies AuditContext;
       next();
    });

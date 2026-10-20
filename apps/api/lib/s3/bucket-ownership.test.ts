@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AWS_ENDPOINT, reply, s3Fixture } from "@/lib/testing/s3-fixture";
+import {
+   AWS_ENDPOINT,
+   errorXml,
+   reply,
+   s3Fixture,
+} from "@/lib/testing/s3-fixture";
 import { destinationAcceptsAcl } from "./bucket-ownership";
 import { withoutRetries } from "./no-retry";
 
@@ -11,7 +16,7 @@ const controls = (ownership: string): Reply => ({
 });
 const failure = (status: number, code: string): Reply => ({
    status,
-   body: `<Error><Code>${code}</Code></Error>`,
+   body: errorXml(code),
 });
 
 const fixture = (answer: (bucket: string) => Reply) => {
@@ -23,7 +28,7 @@ const fixture = (answer: (bucket: string) => Reply) => {
          const { status, body } = answer(bucket);
          return reply(status, body);
       },
-      { endpoint: AWS_ENDPOINT, maxAttempts: 1 }
+      { endpoint: AWS_ENDPOINT }
    );
    return { asked, client };
 };

@@ -43,18 +43,6 @@ describe("account command history", () => {
       session.getState().setUserId("b");
       expect(memory.get("command-menu-storage")).not.toContain("bucket:");
    });
-   it("discards unowned legacy persisted recents on migration", async () => {
-      memory.set(
-         "command-menu-storage",
-         JSON.stringify({
-            state: { recentIds: ["bucket:legacy-secret"] },
-            version: 0,
-         })
-      );
-      const { commands } = await load();
-      expect(commands.getState().recentIds).toEqual([]);
-      expect(memory.get("command-menu-storage")).not.toContain("legacy-secret");
-   });
    it("discards persisted recents whose owner differs from the current session", async () => {
       memory.set(
          "session-storage",
@@ -70,5 +58,20 @@ describe("account command history", () => {
       const { commands } = await load();
       expect(commands.getState().recentIds).toEqual([]);
       expect(memory.get("command-menu-storage")).not.toContain("private-a");
+   });
+   it("keeps the stored owner's recents across reloads", async () => {
+      memory.set(
+         "session-storage",
+         JSON.stringify({ state: { userId: "a", serverId: "" }, version: 0 })
+      );
+      memory.set(
+         "command-menu-storage",
+         JSON.stringify({
+            state: { userId: "a", recentIds: ["bucket:kept"] },
+            version: 1,
+         })
+      );
+      const { commands } = await load();
+      expect(commands.getState().recentIds).toEqual(["bucket:kept"]);
    });
 });

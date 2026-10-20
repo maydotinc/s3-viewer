@@ -1,12 +1,12 @@
 import PathInput from "@/components/path-input";
 import RemovableChip from "@/components/removable-chip";
+import { publicEnv } from "@/lib/env";
 import { usePathSuggestion } from "@/lib/hooks/usePathSuggestion";
 import { useUserId } from "@/lib/stores/session-store";
 import { visibleText } from "@/lib/utils/format";
 import {
    canLimitToFolders,
    type BucketAccessEntry,
-   type FolderScope,
    type HowToSlug,
    type Role,
 } from "@s3-viewer/types";
@@ -23,7 +23,6 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import { ExternalLink } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
 import {
-   canChooseWholeBucket,
    withSpecificFolders,
    withWholeBucket,
    type GrantRow,
@@ -48,7 +47,6 @@ type FolderListEditorProps = {
    bucketName: string;
    folders: string[];
    draft: string;
-   held: FolderScope;
    disabled?: boolean;
    error: string | null;
    showError: boolean;
@@ -60,7 +58,6 @@ const FolderListEditor = ({
    bucketName,
    folders,
    draft,
-   held,
    disabled,
    error,
    showError,
@@ -78,7 +75,7 @@ const FolderListEditor = ({
 
    const add = () => {
       if (!draft.trim()) return;
-      const result = addGrantFolder(folders, draft, held);
+      const result = addGrantFolder(folders, draft);
       if (!result.ok) {
          setFeedback(feedbackFor("error", result.error, folders));
          return;
@@ -111,7 +108,6 @@ const FolderListEditor = ({
       hint: hintFor({
          folders,
          draft,
-         held,
          hasSuggestion: Boolean(suggestion),
       }),
    });
@@ -192,7 +188,6 @@ const FolderListEditor = ({
 type GrantScopeProps = {
    serverId: string;
    entry: GrantRow;
-   held: FolderScope;
    original?: BucketAccessEntry;
    serverRole?: Role;
    error: string | null;
@@ -224,7 +219,6 @@ const FolderGuideLink = () => (
 const GrantScope = ({
    serverId,
    entry,
-   held,
    original,
    serverRole,
    error,
@@ -237,7 +231,6 @@ const GrantScope = ({
       serverRole !== undefined && !canLimitToFolders(serverRole);
    const limitable = roleLimitable && !adminMember;
    const mode: ScopeMode = entry.folders === null ? "whole" : "folders";
-   const wholeAllowed = canChooseWholeBucket(held, original);
 
    return (
       <div className="flex min-w-0 flex-col gap-1.5 pb-3 pl-7">
@@ -249,7 +242,7 @@ const GrantScope = ({
                   onChange(
                      next === "whole"
                         ? withWholeBucket(entry)
-                        : withSpecificFolders(entry, held, original)
+                        : withSpecificFolders(entry, original)
                   )
                }
             >
@@ -263,12 +256,7 @@ const GrantScope = ({
                <SelectContent align="start" className="w-64">
                   <SelectItem
                      value="whole"
-                     disabled={!wholeAllowed}
-                     description={
-                        wholeAllowed
-                           ? "Everything in this bucket."
-                           : "You only have access to some folders here."
-                     }
+                     description="Everything in this bucket."
                   >
                      {SCOPE_LABEL.whole}
                   </SelectItem>
@@ -290,7 +278,7 @@ const GrantScope = ({
                   {ADMINS_WHOLE}
                </span>
             ) : (
-               mode === "folders" && <FolderGuideLink />
+               mode === "folders" && publicEnv.hasLanding && <FolderGuideLink />
             )}
          </div>
          {entry.folders === null ? (
@@ -308,7 +296,6 @@ const GrantScope = ({
                bucketName={entry.bucketName}
                folders={entry.folders}
                draft={entry.draft ?? ""}
-               held={held}
                disabled={disabled || !limitable}
                error={error}
                showError={showError}

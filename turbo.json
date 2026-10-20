@@ -33,7 +33,6 @@
       "PRISMA_LOG_QUERIES",
       "RATE_LIMIT_STORE",
       "RESEND_KEY",
-      "RUN_MIGRATIONS",
       "S3_MAX_INFLIGHT_PER_SERVER",
       "S3_MAX_INFLIGHT_PER_USER",
       "S3_MAX_SOCKETS_PER_HOST",
@@ -56,7 +55,7 @@
          "cache": false
       },
       "build": {
-         "dependsOn": ["^db:generate", "^build"],
+         "dependsOn": ["^db:generate"],
          "outputs": [".next/**", "!.next/cache/**", "dist/**"],
          "inputs": [".env*", "$TURBO_DEFAULT$"]
       },
@@ -65,11 +64,9 @@
          "persistent": true,
          "cache": false
       },
-      "lint": {
-         "dependsOn": ["^db:generate"]
-      },
+      "lint": {},
       "check-types": {
-         "dependsOn": ["^db:generate", "^build"]
+         "dependsOn": ["db:generate", "^db:generate"]
       }
    }
 }

@@ -41,12 +41,6 @@ describe("untrustedProxyWarning", () => {
 
    it.each([
       ["a trusted loopback proxy", "loopback", "127.0.0.1", "203.0.113.9"],
-      [
-         "a mapped loopback proxy",
-         "loopback",
-         "::ffff:127.0.0.1",
-         "203.0.113.9",
-      ],
       ["a proxy covered by a hop count", 1, "10.0.0.7", "203.0.113.9"],
       ["a direct client", "loopback", "203.0.113.9", undefined],
    ])("stays quiet for %s", (_name, trustProxy, peer, forwardedFor) => {

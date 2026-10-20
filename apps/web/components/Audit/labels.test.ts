@@ -59,3 +59,26 @@ describe("the action filter", () => {
       expect(unreachable).toEqual([]);
    });
 });
+
+describe("writes whose outcome the log qualifies", () => {
+   const meta = (
+      action: AuditLogEntry["action"],
+      detail: AuditLogEntry["detail"]
+   ) => metaOf({ action, detail } as AuditLogEntry);
+
+   it("marks a write storage may not have completed", () => {
+      expect(
+         meta("object.copy", { to: "b.txt", size: 4, confirmed: false })
+      ).toBe("unconfirmed · → b.txt · 4 B");
+      expect(meta("object.upload", { confirmed: false })).toBe("unconfirmed");
+   });
+
+   it("tells adding an existing bucket apart from creating one", () => {
+      expect(meta("bucket.create", { existing: true, clearedGrants: 2 })).toBe(
+         "added an existing bucket · cleared 2 earlier grants"
+      );
+      expect(meta("bucket.create", { clearedGrants: 1 })).toBe(
+         "cleared 1 earlier grant"
+      );
+   });
+});

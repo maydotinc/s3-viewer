@@ -12,12 +12,13 @@ import {
    type EstablishInput,
    type EstablishResult,
    type ValidateBucketsInput,
+   SECOND_MS,
 } from "@s3-viewer/types";
 import { Router, type Request, type Response } from "express";
 
 const connectRouter: Router = Router();
 
-const VALIDATE_TIMEOUT_MS = 30_000;
+const VALIDATE_TIMEOUT_MS = 30 * SECOND_MS;
 const VALIDATE_CONCURRENCY = 5;
 
 const establish = async (

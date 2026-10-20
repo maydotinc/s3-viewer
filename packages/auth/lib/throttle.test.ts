@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createThrottle, perAddress, perAddressAndIp } from "./throttle";
+import { createThrottle } from "./throttle";
 
 const store = vi.hoisted(() => ({
    hit: vi.fn(),
@@ -41,21 +41,6 @@ describe("createThrottle", () => {
       expect(await throttle.allow("a", 10)).toBe(false);
       await throttle.refund("a");
       expect(await throttle.allow("a", 20)).toBe(false);
-   });
-
-   it("counts one address separately per client ip", async () => {
-      const throttle = createThrottle(1, 1000);
-      const email = "ada@example.com";
-      expect(await throttle.allow(perAddressAndIp("1.1.1.1", email), 0)).toBe(
-         true
-      );
-      expect(await throttle.allow(perAddressAndIp("1.1.1.1", email), 0)).toBe(
-         false
-      );
-      expect(await throttle.allow(perAddressAndIp("2.2.2.2", email), 0)).toBe(
-         true
-      );
-      expect(await throttle.allow(perAddress("2.2.2.2", email), 0)).toBe(true);
    });
 
    it("caps the keys it remembers, forgetting the least recently seen first", async () => {
@@ -123,14 +108,5 @@ describe("shared throttle", () => {
       expect(store.undo).toHaveBeenCalledWith("throttle:sign-in:k");
       store.undo.mockRejectedValueOnce(new Error("connection refused"));
       await expect(throttle.refund("k")).resolves.toBeUndefined();
-   });
-
-   it("stays in memory unless asked to share", async () => {
-      const throttle = createThrottle(1, 60_000, {
-         name: "sign-in",
-         shared: false,
-      });
-      expect(await throttle.allow("k")).toBe(true);
-      expect(store.hit).not.toHaveBeenCalled();
    });
 });

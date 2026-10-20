@@ -6,7 +6,7 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import Link from "next/link";
 
 const ROW =
-   "flex w-full cursor-pointer select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none transition-colors duration-150 [&_svg]:size-4 [&_svg]:shrink-0";
+   "flex w-full cursor-pointer select-none items-center gap-2.5 rounded-lg px-2.5 py-2 text-left outline-none transition-colors duration-150 [&_svg]:size-4 [&_svg]:shrink-0 pointer-coarse:min-h-11";
 
 type RowProps = {
    command: CommandItem;

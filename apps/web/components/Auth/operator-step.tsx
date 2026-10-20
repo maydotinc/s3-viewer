@@ -9,7 +9,6 @@ type OperatorStepProps = {
    onBack: () => void;
 };
 
-// instances without an email transport cannot send a code; the operator verifies by hand
 const OperatorStep = ({ email, backLabel, onBack }: OperatorStepProps) => (
    <>
       <StepHeader title="Your account needs verifying">

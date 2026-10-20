@@ -115,6 +115,7 @@ export default createHowToPage({
    seoDescription:
       "Versioning, delete markers, MFA Delete — what aws s3 rm actually does. Plus how to bulk-delete with the DeleteObjects API.",
    published: "2026-04-28",
+   updated: "2026-10-14",
    visual: <DeleteIllustration />,
    steps,
    underTheHood: (

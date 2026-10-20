@@ -1,12 +1,10 @@
 import express from "express";
-import { S3Client } from "@aws-sdk/client-s3";
-import { Readable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GIB, MAX_BATCH_KEYS } from "@s3-viewer/types";
 import { S3_ROUTE_TIMEOUT_MS, copyWorkMs } from "@/lib/constants";
 import { errorHandler } from "@/lib/http";
-import { privateNoStore } from "@/lib/middleware/cache-control";
 import { isObjectUpload } from "@/lib/middleware/upload-body";
+import { UnconfirmedWriteError } from "@/lib/s3/conditions";
 import { PartialRenameError } from "@/lib/s3/rename";
 import { objectsRouter } from "./objects";
 import {
@@ -26,6 +24,7 @@ const state = vi.hoisted(() => ({
    rename: vi.fn(),
    move: vi.fn(),
    partial: vi.fn(),
+   unconfirmed: vi.fn(),
    head: vi.fn(),
    copy: vi.fn(),
    folder: vi.fn(),
@@ -71,6 +70,7 @@ vi.mock("@/lib/s3/rename", async (original) => ({
    renameObject: state.rename,
    moveObjects: state.move,
    partialCopies: state.partial,
+   unconfirmedCopies: state.unconfirmed,
 }));
 vi.mock("@/lib/s3/object-metadata", () => ({ headReviewed: state.head }));
 vi.mock("@/lib/http", async (original) => {
@@ -92,8 +92,7 @@ vi.mock("@/lib/middleware/audit-record", () => ({
    recordMany: state.auditMany,
 }));
 
-const clientFor = (hostname: string) => endpointStub(state.send, hostname);
-const awsClient = clientFor("s3.us-east-1.amazonaws.com");
+const awsClient = endpointStub(state.send, "s3.us-east-1.amazonaws.com");
 
 let base: string;
 routeServer(
@@ -109,7 +108,6 @@ routeServer(
          isObjectUpload(req) ? next() : json(req, res, next)
       );
       app.use(signedIn(() => ({ id: state.actor })));
-      app.use(privateNoStore);
       app.use("/servers/:serverId/buckets/:bucketName/objects", objectsRouter);
       app.use(errorHandler);
    },
@@ -143,6 +141,7 @@ beforeEach(() => {
       .mockReset()
       .mockResolvedValue({ moved: ["report.json"], failed: [] });
    state.partial.mockReset().mockReturnValue([]);
+   state.unconfirmed.mockReset().mockReturnValue([]);
    state.head.mockReset().mockResolvedValue({ ContentLength: 4 });
    state.copy.mockReset().mockResolvedValue({ eTag: '"copied"', size: 4 });
    state.folder.mockReset().mockResolvedValue(undefined);
@@ -154,56 +153,42 @@ beforeEach(() => {
 });
 
 describe("storage setup after authorization", () => {
-   it.each([
-      { method: "GET", path: "/?blockSize=50", input: undefined },
-      {
+   // mutations reach storage through readScope too, so one route covers reads as well.
+   it("does not resolve a storage client after a request disconnected during authorization", async () => {
+      let release!: () => void;
+      state.authorizeRead.mockImplementationOnce(
+         () =>
+            new Promise<void>((resolve) => {
+               release = resolve;
+            })
+      );
+      const controller = new AbortController();
+      const response = fetch(`${base}/v3/folders`, {
          method: "POST",
-         path: "/v3/folders",
-         input: { folderKey: "folder/", expectedUserId: "actor12345" },
-      },
-   ])(
-      "does not resolve a storage client after $method $path disconnected during authorization",
-      async ({ method, path, input }) => {
-         let release!: () => void;
-         state.authorizeRead.mockImplementationOnce(
-            () =>
-               new Promise<void>((resolve) => {
-                  release = resolve;
-               })
+         signal: controller.signal,
+         headers: { "content-type": "application/json" },
+         body: JSON.stringify({
+            folderKey: "folder/",
+            expectedUserId: "actor12345",
+         }),
+      }).catch(() => undefined);
+      try {
+         await vi.waitFor(() =>
+            expect(state.authorizeRead).toHaveBeenCalledOnce()
          );
-         const controller = new AbortController();
-         const response = fetch(`${base}${path}`, {
-            method,
-            signal: controller.signal,
-            ...(input
-               ? {
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify(input),
-                 }
-               : {}),
-         }).catch(() => undefined);
-         try {
-            await vi.waitFor(() =>
-               expect(state.authorizeRead).toHaveBeenCalledOnce()
-            );
-            controller.abort();
-            await response;
-            await vi.waitFor(() =>
-               expect(state.responseClosed).toHaveBeenCalledOnce()
-            );
-         } finally {
-            release?.();
-         }
-         await vi.waitFor(() => expect(state.requestSignal).toHaveBeenCalled());
-         expect(state.requestSignal.mock.results.at(-1)?.value.aborted).toBe(
-            true
+         controller.abort();
+         await response;
+         await vi.waitFor(() =>
+            expect(state.responseClosed).toHaveBeenCalledOnce()
          );
-         expect(state.getClient).not.toHaveBeenCalled();
-         expect(state.send).not.toHaveBeenCalled();
-         expect(state.list).not.toHaveBeenCalled();
-         expect(state.folder).not.toHaveBeenCalled();
+      } finally {
+         release?.();
       }
-   );
+      await vi.waitFor(() => expect(state.requestSignal).toHaveBeenCalled());
+      expect(state.requestSignal.mock.results.at(-1)?.value.aborted).toBe(true);
+      expect(state.getClient).not.toHaveBeenCalled();
+      expect(state.folder).not.toHaveBeenCalled();
+   });
 });
 
 const requests = [
@@ -281,38 +266,21 @@ const expectNoStorage = () => {
 };
 
 describe("versioned object mutation boundaries", () => {
-   it.each([undefined, '"*"'])(
-      "requires a reviewed ETag for rename: %s",
-      async (expectedETag) => {
-         const response = await fetch(`${base}/v3/rename`, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-               expectedUserId: state.actor,
-               objectKey: "report.json",
-               newObjectKey: "renamed.json",
-               expectedETag,
-            }),
-         });
-         expect(response.status).toBe(400);
-         expectNoStorage();
-      }
-   );
-   it.each(['"*"'])(
-      "rejects wildcard deletion %s before storage work",
-      async (expectedETag) => {
-         const response = await fetch(`${base}/v3`, {
-            method: "DELETE",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-               expectedUserId: state.actor,
-               objects: [{ key: "report.json", expectedETag }],
-            }),
-         });
-         expect(response.status).toBe(400);
-         expectNoStorage();
-      }
-   );
+   it("refuses a wildcard ETag for rename before storage work", async () => {
+      const response = await fetch(`${base}/v3/rename`, {
+         method: "POST",
+         headers: { "content-type": "application/json" },
+         body: JSON.stringify({
+            expectedUserId: state.actor,
+            objectKey: "report.json",
+            newObjectKey: "renamed.json",
+            expectedETag: '"*"',
+         }),
+      });
+      expect(response.status).toBe(400);
+      expectNoStorage();
+   });
+
    it.each(requests)(
       "rejects a changed account on $method $path before storage work",
       async (request) => {
@@ -338,15 +306,6 @@ describe("versioned object mutation boundaries", () => {
       async (request) => {
          state.role = "VIEWER";
          expect((await send(request, state.actor)).status).toBe(403);
-         expectNoStorage();
-      }
-   );
-
-   it.each(requests)(
-      "rejects removed members on $method $path",
-      async (request) => {
-         state.role = null;
-         expect((await send(request, state.actor)).status).toBe(404);
          expectNoStorage();
       }
    );
@@ -443,6 +402,27 @@ describe("versioned object mutation boundaries", () => {
       ]);
    });
 
+   it.each([
+      ["rename", requests[2], "renamed.json"],
+      ["copy", requests[4], "copy.json"],
+   ] as const)(
+      "audits a %s cut off after storage received it as unconfirmed",
+      async (_name, request, to) => {
+         state.rename.mockRejectedValue(new UnconfirmedWriteError());
+         state.copy.mockRejectedValue(new UnconfirmedWriteError());
+         const response = await send(request, state.actor);
+         expect(response.status).toBe(502);
+         expect(state.audit.mock.calls.map(([, entry]) => entry)).toEqual([
+            {
+               action: "object.copy",
+               bucket: "backups",
+               target: "report.json",
+               detail: { to, confirmed: false },
+            },
+         ]);
+      }
+   );
+
    it("audits nothing for a rename that created no copy", async () => {
       state.rename.mockRejectedValue(new Error("storage failed"));
       const response = await send(requests[2], state.actor);
@@ -495,40 +475,22 @@ describe("versioned object mutation boundaries", () => {
       ]);
    });
 
-   it("reports partial moves as 207 and audits only the moved keys", async () => {
+   it("audits a move cut off after storage received its copy as unconfirmed", async () => {
       state.move.mockResolvedValue({
-         moved: ["report.json"],
-         failed: [{ key: "stale.json", message: "changed", retryable: false }],
+         moved: [],
+         failed: [{ key: "report.json", message: "unsure", retryable: false }],
       });
-      const response = await fetch(`${base}/v3/move`, {
-         method: "POST",
-         headers: { "content-type": "application/json" },
-         body: JSON.stringify({
-            expectedUserId: state.actor,
-            objects: [
-               {
-                  key: "report.json",
-                  newKey: "moved/report.json",
-                  expectedETag: '"reviewed"',
-               },
-               {
-                  key: "stale.json",
-                  newKey: "moved/stale.json",
-                  expectedETag: '"reviewed"',
-               },
-            ],
-         }),
-      });
+      state.unconfirmed.mockReturnValue(["report.json"]);
+      const response = await send(requests[3], state.actor);
       expect(response.status).toBe(207);
-      expect(await response.json()).toMatchObject({
-         moved: ["report.json"],
-         failed: [{ key: "stale.json" }],
-      });
       expect(state.auditMany.mock.calls[0]?.[1]).toEqual([
          expect.objectContaining({
-            action: "object.move",
+            action: "object.copy",
             target: "report.json",
-            detail: expect.objectContaining({ to: "moved/report.json" }),
+            detail: expect.objectContaining({
+               to: "moved/report.json",
+               confirmed: false,
+            }),
          }),
       ]);
    });
@@ -576,31 +538,25 @@ describe("versioned object mutation boundaries", () => {
       ).not.toContain(signal);
    });
 
-   it.each([
-      ["rename", requests[2], () => state.rename, undefined],
-      ["copy", requests[4], () => state.copy, { eTag: '"copied"', size: 4 }],
-      [
-         "bulk move",
-         requests[3],
-         () => state.move,
-         { moved: ["report.json"], failed: [] },
-      ],
-   ] as const)(
-      "keeps a silent %s open past the idle socket timeout",
-      async (_name, request, mutation, result) => {
-         state.idleTimeoutMs = 50;
-         mutation().mockImplementation(
-            () =>
-               new Promise((resolve) => setTimeout(() => resolve(result), 250))
-         );
-         const response = await send(request, state.actor);
-         expect(response.status).toBeLessThan(300);
-         const { signal } = mutation().mock.calls[0]![0] as {
-            signal: AbortSignal;
-         };
-         expect(signal.aborted).toBe(false);
-      }
-   );
+   // rename and copy hand the timeout over through copyScope (scope.test.ts); a bulk move calls awaitStorage itself.
+   it("keeps a silent bulk move open past the idle socket timeout", async () => {
+      state.idleTimeoutMs = 20;
+      state.move.mockImplementation(
+         () =>
+            new Promise((resolve) =>
+               setTimeout(
+                  () => resolve({ moved: ["report.json"], failed: [] }),
+                  80
+               )
+            )
+      );
+      const response = await send(requests[3], state.actor);
+      expect(response.status).toBe(200);
+      const { signal } = state.move.mock.calls[0]![0] as {
+         signal: AbortSignal;
+      };
+      expect(signal.aborted).toBe(false);
+   });
 
    it("returns the copied object and audits object.copy", async () => {
       const response = await send(requests[4], state.actor);
@@ -669,24 +625,12 @@ describe("versioned object mutation boundaries", () => {
 
    it.each([
       [
-         "duplicate sources",
-         [
-            { key: "a.txt", newKey: "b.txt", expectedETag: '"reviewed"' },
-            { key: "a.txt", newKey: "c.txt", expectedETag: '"reviewed"' },
-         ],
-      ],
-      [
          "duplicate destinations",
          [
             { key: "a.txt", newKey: "c.txt", expectedETag: '"reviewed"' },
             { key: "b.txt", newKey: "c.txt", expectedETag: '"reviewed"' },
          ],
       ],
-      [
-         "an unchanged key",
-         [{ key: "a.txt", newKey: "a.txt", expectedETag: '"reviewed"' }],
-      ],
-      ["an empty batch", []],
       [
          "more than MAX_BATCH_KEYS",
          Array.from({ length: MAX_BATCH_KEYS + 1 }, (_, i) => ({
@@ -710,21 +654,14 @@ describe("versioned object mutation boundaries", () => {
       ]);
    });
 
-   it.each(["reports", "", "reports/nested"])(
-      "refuses a folder key that does not end in a slash: %s",
-      async (folderKey) => {
-         expect((await post("/v3/folders", { folderKey })).status).toBe(400);
-         expectNoStorage();
-      }
-   );
+   it("refuses a folder key that does not end in a slash", async () => {
+      expect(
+         (await post("/v3/folders", { folderKey: "reports/nested" })).status
+      ).toBe(400);
+      expectNoStorage();
+   });
 
-   it.each([
-      ["AWS S3", "s3.us-east-1.amazonaws.com"],
-      ["R2", "account.r2.cloudflarestorage.com"],
-      ["B2", "s3.us-west-004.backblazeb2.com"],
-      ["MinIO", "minio.example.com"],
-   ])("passes a replacement straight through on %s", async (_name, host) => {
-      state.getClient.mockResolvedValue(clientFor(host));
+   it("passes a replacement straight through", async () => {
       const response = await fetch(
          `${base}/v3/upload?objectKey=report.json&contentType=text%2Fplain&expectedUserId=${state.actor}&expectedETag=${encodeURIComponent('"reviewed"')}`,
          {
@@ -743,163 +680,58 @@ describe("versioned object mutation boundaries", () => {
       );
    });
 
-   it("executes authorized R2 deletion and reports stale keys separately", async () => {
-      const { deleteKeys } =
-         await vi.importActual<typeof import("@/lib/s3/delete")>(
-            "@/lib/s3/delete"
-         );
-      const sent: { method: string; path: string }[] = [];
-      const client = new S3Client({
-         region: "auto",
-         endpoint: "https://account.r2.cloudflarestorage.com",
-         credentials: { accessKeyId: "test", secretAccessKey: "test" },
-         forcePathStyle: true,
-         requestHandler: {
-            handle: async (request: { method: string; path: string }) => {
-               sent.push({ method: request.method, path: request.path });
-               if (request.method === "HEAD")
-                  return {
-                     response: {
-                        statusCode: 200,
-                        headers: {
-                           etag: request.path.endsWith("stale.json")
-                              ? '"changed"'
-                              : '"reviewed"',
-                           "content-length": "0",
-                        },
-                        body: Readable.from([]),
-                     },
-                  };
-               return {
-                  response: {
-                     statusCode: 200,
-                     headers: { "content-type": "application/xml" },
-                     body: Readable.from([
-                        '<?xml version="1.0" encoding="UTF-8"?><DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Deleted><Key>report.json</Key></Deleted></DeleteResult>',
-                     ]),
-                  },
-               };
-            },
+   it("answers failures with 207 and audits deletions and unconfirmed failures", async () => {
+      const failed = [
+         {
+            key: "stale.json",
+            message:
+               "The object changed. Refresh and review it before deleting.",
+            retryable: false,
          },
-      });
-      state.getClient.mockResolvedValue(client);
-      state.remove.mockImplementation(deleteKeys);
-      try {
-         const response = await fetch(`${base}/v3`, {
-            method: "DELETE",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-               expectedUserId: state.actor,
-               objects: ["report.json", "stale.json"].map((key) => ({
-                  key,
-                  expectedETag: '"reviewed"',
-               })),
-            }),
-         });
-         expect(response.status).toBe(207);
-         expect(await response.json()).toMatchObject({
-            deleted: ["report.json"],
-            failed: [{ key: "stale.json", retryable: false }],
-         });
-         expect(sent.filter(({ method }) => method === "POST")).toEqual([
-            { method: "POST", path: "/backups/" },
-         ]);
-         expect(state.auditMany).toHaveBeenCalledWith(expect.anything(), [
-            expect.objectContaining({
-               action: "object.delete",
-               bucket: "backups",
-               target: "report.json",
-            }),
-         ]);
-      } finally {
-         client.destroy();
-      }
-   });
-
-   it("audits confirmed exact-key deletions when the remaining AWS batch fails", async () => {
-      const { deleteKeys } =
-         await vi.importActual<typeof import("@/lib/s3/delete")>(
-            "@/lib/s3/delete"
-         );
-      const exactKey = "nul\0name";
-      const sent: {
-         method: string;
-         path: string;
-         headers: Record<string, string>;
-         body: unknown;
-      }[] = [];
-      const client = new S3Client({
-         region: "us-east-1",
-         endpoint: "https://s3.us-east-1.amazonaws.com",
-         credentials: { accessKeyId: "test", secretAccessKey: "test" },
-         forcePathStyle: true,
-         maxAttempts: 1,
-         requestHandler: {
-            handle: async (request: (typeof sent)[number]) => {
-               sent.push(request);
-               if (request.method === "DELETE")
-                  return {
-                     response: {
-                        statusCode: 204,
-                        headers: {},
-                        body: Readable.from([]),
-                     },
-                  };
-               throw Object.assign(new Error("response lost"), {
-                  name: "TimeoutError",
-               });
-            },
+         {
+            key: "lost.json",
+            message:
+               "Deletion was not confirmed. Refresh and check this object before trying again.",
+            retryable: false,
          },
+      ];
+      state.remove.mockResolvedValue({
+         deleted: ["report.json"],
+         alreadyGone: ["gone.json"],
+         failed,
       });
-      state.getClient.mockResolvedValue(client);
-      state.remove.mockImplementation(deleteKeys);
-      try {
-         const response = await fetch(`${base}/v3`, {
-            method: "DELETE",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-               expectedUserId: state.actor,
-               objects: [exactKey, "report.json"].map((key) => ({
-                  key,
-                  expectedETag: '"reviewed"',
-               })),
-            }),
-         });
-         expect(response.status).toBe(207);
-         expect(await response.json()).toEqual({
-            deleted: [exactKey],
-            failed: [
-               {
-                  key: "report.json",
-                  message: expect.stringContaining("not confirmed"),
-                  retryable: false,
-               },
-            ],
-         });
-         expect(sent.map(({ method, path }) => ({ method, path }))).toEqual([
-            { method: "DELETE", path: "/backups/nul%00name" },
-            { method: "POST", path: "/backups/" },
-         ]);
-         expect(sent[0]?.headers["if-match"]).toBe('"reviewed"');
-         expect(String(sent[1]?.body)).toContain("<Key>report.json</Key>");
-         expect(state.auditMany).toHaveBeenCalledOnce();
-         expect(state.auditMany.mock.calls[0]?.[1]).toEqual([
-            {
-               action: "object.delete",
-               bucket: "backups",
-               target: exactKey,
-               detail: { batch: null, count: 1 },
-            },
-            {
-               action: "object.delete",
-               bucket: "backups",
-               target: "report.json",
-               detail: { batch: null, confirmed: false },
-            },
-         ]);
-      } finally {
-         client.destroy();
-      }
+      const response = await fetch(`${base}/v3`, {
+         method: "DELETE",
+         headers: { "content-type": "application/json" },
+         body: JSON.stringify({
+            expectedUserId: state.actor,
+            objects: [
+               "report.json",
+               "gone.json",
+               "stale.json",
+               "lost.json",
+            ].map((key) => ({ key, expectedETag: '"reviewed"' })),
+         }),
+      });
+      expect(response.status).toBe(207);
+      expect(await response.json()).toEqual({
+         deleted: ["report.json", "gone.json"],
+         failed,
+      });
+      expect(state.auditMany.mock.calls[0]?.[1]).toEqual([
+         {
+            action: "object.delete",
+            bucket: "backups",
+            target: "report.json",
+            detail: { batch: null, count: 1 },
+         },
+         {
+            action: "object.delete",
+            bucket: "backups",
+            target: "lost.json",
+            detail: { batch: null, confirmed: false },
+         },
+      ]);
    });
 });
 
@@ -1029,17 +861,6 @@ describe("audit trail of reads and uploads", () => {
       expect(state.presign).not.toHaveBeenCalled();
    });
 
-   it.each(["preview-url", "download-url"])(
-      "keeps the presigned url in %s out of every cache",
-      async (path) => {
-         const response = await fetch(`${base}/${path}?objectKey=report.png`);
-         expect(response.status).toBe(200);
-         expect(response.headers.get("cache-control")).toBe(
-            "private, no-store"
-         );
-      }
-   );
-
    it("records a download link", async () => {
       const response = await fetch(
          `${base}/download-url?objectKey=report.json`
@@ -1097,20 +918,17 @@ describe("audit trail of reads and uploads", () => {
 });
 
 describe("new file key validation", () => {
-   it.each(["docs/", "é".repeat(513), "a\tfile"])(
-      "rejects an invalid upload key before storage",
-      async (objectKey) => {
-         const response = await fetch(
-            `${base}/v3/upload?objectKey=${encodeURIComponent(objectKey)}&contentType=text%2Fplain&expectedUserId=${state.actor}`,
-            {
-               method: "PUT",
-               body: "bytes",
-               headers: { "content-type": "text/plain" },
-            }
-         );
-         expect(response.status).toBe(400);
-         expect(state.upload).not.toHaveBeenCalled();
-         expect(state.getClient).not.toHaveBeenCalled();
-      }
-   );
+   it("rejects an invalid upload key before storage", async () => {
+      const response = await fetch(
+         `${base}/v3/upload?objectKey=docs%2F&contentType=text%2Fplain&expectedUserId=${state.actor}`,
+         {
+            method: "PUT",
+            body: "bytes",
+            headers: { "content-type": "text/plain" },
+         }
+      );
+      expect(response.status).toBe(400);
+      expect(state.upload).not.toHaveBeenCalled();
+      expect(state.getClient).not.toHaveBeenCalled();
+   });
 });

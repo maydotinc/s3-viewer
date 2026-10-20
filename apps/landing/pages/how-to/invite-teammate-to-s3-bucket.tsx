@@ -124,6 +124,7 @@ export default createHowToPage({
    seoDescription:
       "Skip per-person IAM users for human collaboration. Add the server once, then invite teammates by email and give them a role.",
    published: "2026-04-28",
+   updated: "2026-10-14",
    visual: <InviteIllustration />,
    steps,
    underTheHood: (

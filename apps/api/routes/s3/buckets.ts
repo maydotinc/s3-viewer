@@ -1,5 +1,10 @@
-import { S3_ROUTE_TIMEOUT_MS, SERVER_NOT_FOUND } from "@/lib/constants";
-import { ApiHttpError, noContent, requestSignal } from "@/lib/http";
+import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
+import {
+   ApiHttpError,
+   noContent,
+   requestSignal,
+   serverNotFound,
+} from "@/lib/http";
 import { recordMany } from "@/lib/middleware/audit-record";
 import {
    authorizeBucket,
@@ -11,8 +16,9 @@ import {
 import { bucketCreateLimit } from "@/lib/middleware/rate-limit";
 import { bucketRoute, serverRoute, wholeBucket } from "@/lib/middleware/route";
 import { withBucketCreation } from "@/lib/s3/bucket-creation-coordination";
-import { createNewBucket } from "@/lib/s3/bucket-create";
+import { BucketExistsError, createNewBucket } from "@/lib/s3/bucket-create";
 import { listBuckets } from "@/lib/s3/bucket-listing";
+import { canHeadBucket } from "@/lib/s3/probe";
 import { getS3Client, getS3ClientFromCredentials } from "@/lib/s3/client-cache";
 import {
    credentialsUnreadableError,
@@ -45,6 +51,7 @@ import {
    bucketScope,
    newBucketScope,
    serverScope,
+   type CreatedBucket,
    type S3Bucket,
    type ServerCredentials,
 } from "@s3-viewer/types";
@@ -119,7 +126,7 @@ bucketsRouter.post(
          } = getAuth(res);
          const signal = requestSignal(res, S3_ROUTE_TIMEOUT_MS);
 
-         if (!snapshot) throw new ApiHttpError(404, SERVER_NOT_FOUND);
+         if (!snapshot) throw serverNotFound();
          if (scope.restrictedBuckets && serverRole !== Role.OWNER) {
             throw refuse(
                res,
@@ -145,114 +152,140 @@ bucketsRouter.post(
             serverId
          );
          const startedAt = new Date();
-         const created = await withBucketCreation(
-            { endpoint: credentials.endpoint, bucketName, userId },
-            async (lifecycle) => {
-               await createNewBucket(
-                  client,
-                  provider,
-                  bucketName,
-                  signal,
-                  lifecycle
+         const allowBucket = (permission: Permission) =>
+            prisma.$transaction(async (tx) => {
+               await lockBucketScope(tx, serverId);
+               const current = await tx.server.findUnique({
+                  where: { id: serverId },
+                  select: {
+                     credentials: true,
+                     provider: true,
+                     restrictedBuckets: true,
+                  },
+               });
+               if (
+                  !current ||
+                  current.credentials !== snapshot.credentials ||
+                  current.provider !== snapshot.provider
+               ) {
+                  throw new ApiHttpError(
+                     409,
+                     "Server credentials changed while the bucket was being created. No bucket access was added."
+                  );
+               }
+               const currentRole = await lockedPermission(
+                  tx,
+                  res,
+                  serverId,
+                  permission,
+                  CREATE_PERMISSION_CHANGED
                );
-
-               return prisma.$transaction(async (tx) => {
-                  await lockBucketScope(tx, serverId);
-                  const current = await tx.server.findUnique({
-                     where: { id: serverId },
-                     select: {
-                        credentials: true,
-                        provider: true,
-                        restrictedBuckets: true,
-                     },
-                  });
-                  if (
-                     !current ||
-                     current.credentials !== snapshot.credentials ||
-                     current.provider !== snapshot.provider
-                  ) {
-                     throw new ApiHttpError(
-                        409,
-                        "Server credentials changed while the bucket was being created. No bucket access was added."
-                     );
-                  }
-                  const currentRole = await lockedPermission(
-                     tx,
+               if (current.restrictedBuckets && currentRole !== Role.OWNER)
+                  throw refuse(
                      res,
-                     serverId,
-                     Permission.CREATE_BUCKET,
+                     permission,
+                     "forbidden",
                      CREATE_PERMISSION_CHANGED
                   );
-                  if (current.restrictedBuckets && currentRole !== Role.OWNER)
-                     throw refuse(
-                        res,
-                        Permission.CREATE_BUCKET,
-                        "forbidden",
-                        CREATE_PERMISSION_CHANGED
-                     );
-                  const stale = await tx.bucketAccess.deleteMany({
-                     where: {
-                        serverId,
-                        bucketName,
-                        updatedAt: { lt: startedAt },
-                     },
-                  });
-                  const revoked =
-                     stale.count > 0
-                        ? await revokeInvalidInvites(tx, serverId)
-                        : [];
-                  await tx.$executeRaw`
-                     UPDATE "server"
-                     SET "allowedBuckets" = array_append("allowedBuckets", ${bucketName})
-                     WHERE "id" = ${serverId}
-                       AND "restrictedBuckets"
-                       AND NOT (${bucketName} = ANY("allowedBuckets"))
-                  `;
-                  const outcome = { cleared: stale.count, revoked };
-                  if (currentRole === Role.OWNER)
-                     return { ...outcome, access: Role.OWNER as const };
-                  const grant = await tx.bucketAccess.upsert({
-                     where: {
-                        userId_serverId_bucketName: {
-                           userId,
-                           serverId,
-                           bucketName,
-                        },
-                     },
-                     create: {
+               const stale = await tx.bucketAccess.deleteMany({
+                  where: {
+                     serverId,
+                     bucketName,
+                     updatedAt: { lt: startedAt },
+                  },
+               });
+               const revoked =
+                  stale.count > 0
+                     ? await revokeInvalidInvites(tx, serverId)
+                     : [];
+               await tx.$executeRaw`
+                  UPDATE "server"
+                  SET "allowedBuckets" = array_append("allowedBuckets", ${bucketName})
+                  WHERE "id" = ${serverId}
+                    AND "restrictedBuckets"
+                    AND NOT (${bucketName} = ANY("allowedBuckets"))
+               `;
+               const outcome = { cleared: stale.count, revoked };
+               if (currentRole === Role.OWNER)
+                  return { ...outcome, access: Role.OWNER as const };
+               const grant = await tx.bucketAccess.upsert({
+                  where: {
+                     userId_serverId_bucketName: {
                         userId,
                         serverId,
                         bucketName,
-                        role: currentRole,
                      },
-                     update: {},
-                     select: bucketGrantSelect,
-                  });
-                  return { ...outcome, access: grant };
+                  },
+                  create: {
+                     userId,
+                     serverId,
+                     bucketName,
+                     role: currentRole,
+                  },
+                  update: {},
+                  select: bucketGrantSelect,
                });
+               return { ...outcome, access: grant };
+            });
+         // the owner's way back to a bucket that was removed from an allow-listed server.
+         const attachable = async (error: unknown): Promise<boolean> =>
+            error instanceof BucketExistsError &&
+            serverRole === Role.OWNER &&
+            scope.restrictedBuckets &&
+            !scope.allowedBuckets.includes(bucketName) &&
+            (await canHeadBucket(client, bucketName, signal));
+         const created = await withBucketCreation(
+            { endpoint: credentials.endpoint, bucketName, userId },
+            async (lifecycle) => {
+               try {
+                  await createNewBucket(
+                     client,
+                     provider,
+                     bucketName,
+                     signal,
+                     lifecycle
+                  );
+               } catch (error) {
+                  if (!(await attachable(error))) throw error;
+                  return {
+                     ...(await allowBucket(Permission.UPDATE_CREDENTIALS)),
+                     existing: true,
+                  };
+               }
+               return {
+                  ...(await allowBucket(Permission.CREATE_BUCKET)),
+                  existing: false,
+               };
             }
          );
-         const { access, cleared, revoked } = created;
+         const { access, cleared, revoked, existing } = created;
          await recordMany(res, [
             {
                action: "bucket.create",
                bucket: bucketName,
-               ...(cleared > 0 && { detail: { clearedGrants: cleared } }),
+               ...((cleared > 0 || existing) && {
+                  detail: {
+                     ...(cleared > 0 && { clearedGrants: cleared }),
+                     ...(existing && { existing: true }),
+                  },
+               }),
             },
             ...revoked,
          ]);
 
+         const createdAt = existing ? null : new Date().toISOString();
          res.status(201).json({
             bucket:
                access === Role.OWNER
-                  ? toBucket(bucketName, Role.OWNER, new Date().toISOString())
+                  ? toBucket(bucketName, Role.OWNER, createdAt)
                   : toBucket(
                        bucketName,
                        Role[access.role],
-                       new Date().toISOString(),
+                       createdAt,
                        grantFoldersOf(access)
                     ),
-         });
+            ...(existing && { existing: true as const }),
+         } satisfies CreatedBucket);
       }
    )
 );

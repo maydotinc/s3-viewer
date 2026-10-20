@@ -278,7 +278,23 @@ describe("GET /servers", () => {
 });
 
 describe("GET /servers/:serverId", () => {
-   it("resolves one server for its member without fetching membership pages", async () => {
+   beforeEach(() => {
+      state.queryRaw.mockImplementation(async () =>
+         state.role
+            ? [
+                 {
+                    ...serverRow("Selected server"),
+                    capabilities: null,
+                    restrictedBuckets: false,
+                    auditLevel: "ALL",
+                    role: state.role,
+                 },
+              ]
+            : []
+      );
+   });
+
+   it("resolves one server for its member in one statement", async () => {
       state.role = "VIEWER";
       const res = await fetch(base);
       expect(res.status).toBe(200);
@@ -288,11 +304,8 @@ describe("GET /servers/:serverId", () => {
       });
       expect(body.server).not.toHaveProperty("credentials");
       expect(body.server).not.toHaveProperty("ownerId");
-      expect(state.access).toHaveBeenCalledExactlyOnceWith({
-         where: { userId_serverId: { userId: ACTOR, serverId: SERVER } },
-         select: { role: true, server: { select: expect.any(Object) } },
-      });
-      expect(state.queryRaw).not.toHaveBeenCalled();
+      expect(state.queryRaw).toHaveBeenCalledOnce();
+      expect(bindings(state.queryRaw.mock.calls[0])).toEqual([ACTOR, SERVER]);
    });
 
    it("answers missing membership without disclosing a server", async () => {
@@ -305,7 +318,7 @@ describe("GET /servers/:serverId", () => {
    it("requires an authenticated user before reading membership", async () => {
       state.authenticated = false;
       expect((await fetch(base)).status).toBe(401);
-      expect(state.access).not.toHaveBeenCalled();
+      expect(state.queryRaw).not.toHaveBeenCalled();
    });
 });
 

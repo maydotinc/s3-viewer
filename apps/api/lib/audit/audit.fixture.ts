@@ -57,7 +57,6 @@ const auditMocks = (): AuditMocks => ({
    error: vi.fn(),
 });
 
-// the `@s3-viewer/db` module shape, so writes, chain heads and raw queries land in `h`.
 const auditDatabase = (h: AuditMocks) => {
    const auditLog = {
       createMany: h.createMany,

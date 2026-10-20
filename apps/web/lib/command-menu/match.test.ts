@@ -150,13 +150,6 @@ describe("segmentText", () => {
       ]);
    });
 
-   it("alternates plain and matched runs", () => {
-      expect(segmentText("prod-logs", [{ start: 5, end: 9 }])).toEqual([
-         { text: "prod-", matched: false },
-         { text: "logs", matched: true },
-      ]);
-   });
-
    it("handles several ranges", () => {
       expect(
          segmentText("Go to settings", [

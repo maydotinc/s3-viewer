@@ -49,7 +49,7 @@ describe("moveObjects", () => {
       expect(summary.failed).toEqual([]);
    });
 
-   it("refuses an invalid new key, naming the source, before sending anything", async () => {
+   it("refuses an invalid new key, naming the source with bidi spelled out, before sending anything", async () => {
       const failure = moveObjects(
          "/objects",
          [target("a", "dest/a"), target("src/b", "dest//b")],
@@ -59,12 +59,9 @@ describe("moveObjects", () => {
       await expect(failure).rejects.toThrow(
          "Can't move src/b: its new key must be valid and at most 1,024 UTF-8 bytes."
       );
-      expect(h.post).not.toHaveBeenCalled();
-   });
-
-   it("spells out bidi characters in the source key it names", async () => {
       await expect(
          moveObjects("/objects", [target("a\u202Eb", "dest//b")], "user1")
       ).rejects.toThrow("Can't move a[U+202E]b: its new key must be valid");
+      expect(h.post).not.toHaveBeenCalled();
    });
 });

@@ -1,7 +1,8 @@
 import { fail } from "@/lib/http";
 import type { Request, RequestHandler } from "express";
+import { SECOND_MS } from "@s3-viewer/types";
 
-const BODY_READ_TIMEOUT_MS = 30_000;
+const BODY_READ_TIMEOUT_MS = 30 * SECOND_MS;
 const deadlines = new WeakMap<Request, () => void>();
 
 const allowStreamingBody = (req: Request): void => {

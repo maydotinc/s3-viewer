@@ -59,5 +59,5 @@ const button = (root: unknown, label: string): Element =>
 const click = (element: Element): void =>
    (element.props.onClick as () => void)();
 
-export { button, click, one, text };
+export { all, button, click, one, text };
 export type { Element };

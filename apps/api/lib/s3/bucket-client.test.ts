@@ -246,20 +246,14 @@ describe("AWS bucket regions", () => {
       expect(calls).toBe(3);
    });
 
-   it.each([
-      "https://account.r2.cloudflarestorage.com",
-      "https://s3.us-west-004.backblazeb2.com",
-      "https://minio.example.test",
-   ])(
-      "leaves the endpoint and signing region intact for %s",
-      async (endpoint) => {
-         const handle = vi.fn();
-         const base = clientFor(handle, endpoint);
-         expect(await getBucketClient(base, "photos")).toBe(base);
-         expect(handle).not.toHaveBeenCalled();
-         expect(state.assertPublicEndpoint).not.toHaveBeenCalled();
-      }
-   );
+   // every provider but AWS returns before region discovery.
+   it("leaves the endpoint and signing region intact for non-AWS storage", async () => {
+      const handle = vi.fn();
+      const base = clientFor(handle, "https://minio.example.test");
+      expect(await getBucketClient(base, "photos")).toBe(base);
+      expect(handle).not.toHaveBeenCalled();
+      expect(state.assertPublicEndpoint).not.toHaveBeenCalled();
+   });
 
    it.each(["localhost", "eu-west-1.evil.test", "cn-north-1", ""])(
       "rejects an invalid or cross-partition region %s",

@@ -135,7 +135,7 @@ afterEach(() => {
 });
 
 describe("delete confirmation retry accounting", () => {
-   it("enables R2 deletion with explicit key-deletion limits", () => {
+   it("enables R2 deletion and warns it is permanent", () => {
       h.provider = "R2";
       const view = renderModal(reviewed.slice(0, 2), vi.fn());
       expect(view.props.confirmDisabled).toBe(false);
@@ -162,9 +162,11 @@ describe("delete confirmation retry accounting", () => {
       h.get.mockResolvedValue({ objects: reviewed, nextToken: null });
       const onClose = vi.fn();
       await confirm(folder, onClose);
-      expect(renderModal(folder, onClose).props.confirmLabel).toBe(
-         "Continue deleting"
-      );
+      const view = renderModal(folder, onClose);
+      expect(view.props.error).toContain("more remain");
+      expect(view.props.confirmDisabled).toBe(false);
+      expect(view.props.confirmLabel).toBe("Continue deleting");
+      expect(onClose).not.toHaveBeenCalled();
       await confirm(folder, onClose);
       expect(h.get).toHaveBeenCalledTimes(2);
       expect(
@@ -341,18 +343,6 @@ describe("delete confirmation retry accounting", () => {
       expect(view.props.confirmDisabled).toBe(false);
       expect(onClose).not.toHaveBeenCalled();
       expect(h.get).toHaveBeenCalledTimes(2);
-   });
-
-   it("counts a failing last page as work remaining, not as a clean finish", async () => {
-      const folder = [{ key: "folder/", expectedETag: null }];
-      h.get.mockResolvedValue({ objects: reviewed, nextToken: null });
-      const onClose = vi.fn();
-      await confirm(folder, onClose);
-      const view = renderModal(folder, onClose);
-      expect(view.props.error).toContain("more remain");
-      expect(view.props.confirmDisabled).toBe(false);
-      expect(view.props.confirmLabel).toBe("Continue deleting");
-      expect(onClose).not.toHaveBeenCalled();
    });
 
    it("blocks a folder resume once only unreviewable failures are left", async () => {

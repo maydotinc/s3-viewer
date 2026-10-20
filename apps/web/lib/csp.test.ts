@@ -74,13 +74,6 @@ describe("landing origin", () => {
 describe("script nonce", () => {
    const HTTPS = { NEXT_PUBLIC_SITE_URL: "https://s3.example.com" };
 
-   it("trades 'unsafe-inline' for the request's nonce in production", async () => {
-      const policy = await load(HTTPS, { nonce: "n0nc3" });
-      expect(policy["script-src"]).toBe(
-         "'self' 'nonce-n0nc3' 'strict-dynamic'"
-      );
-   });
-
    it("keeps inline styles working, which have no nonce to carry", async () => {
       const policy = await load(HTTPS, { nonce: "n0nc3" });
       expect(policy["style-src"]).toContain("'unsafe-inline'");

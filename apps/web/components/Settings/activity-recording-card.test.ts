@@ -20,7 +20,7 @@ const server = (
       id: name,
       name,
       userRole,
-      audit: { enabled, canView: false, canManage: false },
+      audit: { enabled, canView: false, canManage: false, canVerify: false },
    });
 
 const render = (servers: ServerInfo[]) => {
@@ -42,21 +42,15 @@ describe("activity recording notice", () => {
    });
 
    it("names only the servers that record", () => {
-      expect(
-         render([
-            server("Acme storage", true),
-            server("Scratch", false),
-            server("Backups", true),
-         ])
-      ).toBe(
-         "Activity recordingThe owner of these servers records what you do on them through S3 Viewer: Acme storage, Backups."
+      const text = render([
+         server("Acme storage", true),
+         server("Scratch", false),
+         server("Backups", true),
+      ]);
+      expect(text).toContain(
+         "these servers records what you do on them through S3 Viewer: Acme storage, Backups."
       );
-   });
-
-   it("reads as one sentence for a single server", () => {
-      expect(render([server("Acme storage", true)])).toContain(
-         "The owner of this server records what you do on it through S3 Viewer: Acme storage."
-      );
+      expect(text).not.toContain("Scratch");
    });
 
    it("leaves out servers the reader owns, since they are the one recording", () => {

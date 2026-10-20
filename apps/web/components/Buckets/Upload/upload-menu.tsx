@@ -117,8 +117,7 @@ const UploadMenu = ({
                {...(mode === "folder" ? FOLDER_INPUT_ATTRS : {})}
                onChange={(event) => {
                   const files = event.target.files;
-                  if (files && files.length > 0)
-                     void upload(fromFileList(files));
+                  if (files) void upload(fromFileList(files));
                   event.target.value = "";
                }}
             />

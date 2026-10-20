@@ -13,15 +13,16 @@ import useRemoveMember from "@/lib/hooks/mutations/invites/useRemoveMember";
 import useUpdateRole from "@/lib/hooks/mutations/invites/useUpdateRole";
 import TableSkeletonRows from "@/components/table-skeleton";
 import { useUserId } from "@/lib/stores/session-store";
+import { limitedGrants } from "@/lib/utils/folder-access";
 import { pluralize } from "@/lib/utils/format";
 import {
    ROLE_LABELS,
    assignableRoles,
    canManageRole,
-   canRemoveAccess,
 } from "@s3-viewer/permissions";
 import {
    Role,
+   canLimitToFolders,
    type GrantableRole,
    type S3Bucket,
    type ServerUser,
@@ -76,13 +77,10 @@ const MemberRow = ({
    const busy = updateRole.isPending || removeMember.isPending;
 
    const manageable = !isMe && canManageRole(myRole, member.role);
-   const removable =
-      !isMe &&
-      canRemoveAccess(
-         myRole,
-         member.role,
-         member.bucketAccess.map((grant) => grant.role)
-      );
+   const removable = !isMe && member.canRemove;
+   const roles = limitedGrants(member.bucketAccess).length
+      ? assignableRoles(myRole).filter(canLimitToFolders)
+      : assignableRoles(myRole);
    const isOwner = member.role === Role.OWNER;
    const bucketSummary = isOwner
       ? "All buckets"
@@ -124,7 +122,7 @@ const MemberRow = ({
                   className="w-36"
                   label={`Role for ${member.name}`}
                   value={member.role}
-                  roles={assignableRoles(myRole)}
+                  roles={roles}
                   disabled={busy}
                   onChange={(next) =>
                      updateRole.mutate({

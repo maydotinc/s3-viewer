@@ -10,6 +10,7 @@ import {
    type Session,
 } from "@/lib/hooks/queries/user/useSessions";
 import { formatDay } from "@/lib/utils/format";
+import { DAY_MS, SESSION_ABSOLUTE_TTL_DAYS } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
@@ -53,6 +54,24 @@ const SessionsSkeleton = () => (
    </ul>
 );
 
+// the absolute cap is only enforced when that session's own cookie comes back, so its stored expiry can run past it
+const endsAt = (session: Session): number =>
+   Math.min(
+      new Date(session.expiresAt).getTime(),
+      new Date(session.createdAt).getTime() + SESSION_ABSOLUTE_TTL_DAYS * DAY_MS
+   );
+
+// the current session is live by definition (its cookie fetched the list), whatever the client clock says
+const liveSessions = (
+   sessions: readonly Session[] | undefined,
+   currentId: string | undefined
+): Session[] => {
+   const now = Date.now();
+   return (sessions ?? []).filter(
+      (session) => session.id === currentId || endsAt(session) > now
+   );
+};
+
 type SessionRowProps = {
    session: Session;
    isCurrent: boolean;
@@ -70,7 +89,7 @@ const SessionRow = ({ session, isCurrent, revoke }: SessionRowProps) => (
          {isCurrent && <Badge className="shrink-0">This device</Badge>}
       </span>
       <span className="col-start-1 row-start-2 shrink-0 text-viewertext tabular-nums">
-         Expires {formatDay(new Date(session.expiresAt).toISOString())}
+         Expires {formatDay(new Date(endsAt(session)).toISOString())}
       </span>
       <span className={ACTION_COLUMN}>
          {!isCurrent && (
@@ -105,9 +124,8 @@ const SessionsCard = () => {
    const [confirming, setConfirming] = useState(false);
 
    const currentId = current?.session.id;
-   const others = (sessions ?? []).filter(
-      (session) => session.id !== currentId
-   );
+   const live = liveSessions(sessions, currentId);
+   const others = live.filter((session) => session.id !== currentId);
 
    const action = (
       <div className="flex shrink-0 items-center gap-2">
@@ -146,7 +164,7 @@ const SessionsCard = () => {
                onRetry={() => void refetch()}
             >
                <ul className="divide-y divide-viewerborder">
-                  {(sessions ?? []).map((session) => (
+                  {live.map((session) => (
                      <SessionRow
                         key={session.id}
                         session={session}

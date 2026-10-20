@@ -16,11 +16,10 @@ const h = vi.hoisted(() => ({
    forgetKeys: vi.fn(),
    toastError: vi.fn(),
    toast: { error: vi.fn() },
-   refresh: vi.fn(),
+   notify: vi.fn(),
    queryClient: {},
    prefix: "p/",
    canUpload: true,
-   canReplace: true,
 }));
 
 vi.mock("react", async (original) => ({
@@ -74,19 +73,15 @@ vi.mock("@/components/Buckets/Context", () => ({
    useBucketContext: () => ({
       bucketName: "backups",
       prefix: h.prefix,
-      reloadListing: h.refresh,
    }),
 }));
 vi.mock("@/lib/hooks/useStorageCapabilities", () => ({
-   useStorageCapabilities: () => ({
-      upload: h.canUpload,
-      replace: h.canReplace,
-      rename: false,
-      delete: false,
-      notice: null,
-   }),
+   useStorageCapabilities: () => ({ notice: null }),
 }));
-vi.mock("@/lib/hooks/usePermission", () => ({ usePermission: () => true }));
+vi.mock("@/components/Buckets/useObjectCommands", () => ({
+   default: () => ({ can: { upload: h.canUpload } }),
+}));
+vi.mock("@/lib/listing-events", () => ({ notifyListingChanged: h.notify }));
 vi.mock("./replace-dialog", () => ({ ReplaceDialog: () => null }));
 vi.mock("@/lib/hooks/mutations/object/invalidate", () => ({
    forgetKeys: h.forgetKeys,
@@ -151,7 +146,6 @@ const original: S3ObjectsExist = {
 beforeEach(() => {
    h.prefix = "p/";
    h.canUpload = true;
-   h.canReplace = true;
    h.session = { userId: "user-a", serverId: "server-a" };
    h.slots = [];
    h.effects.clear();
@@ -165,35 +159,6 @@ afterEach(() => {
 });
 
 describe("upload preflight and confirmation keep the reviewed target", () => {
-   it("rejects existing files before confirmation when replacements are unavailable", async () => {
-      h.canReplace = false;
-      await mount().uploader.upload(files);
-      expect(h.enqueue).not.toHaveBeenCalled();
-      expect(render().dialog.open).toBe(false);
-      expect(h.toastError).toHaveBeenCalledWith(
-         expect.objectContaining({
-            message: expect.stringContaining("unavailable right now"),
-         })
-      );
-   });
-
-   it("still starts absent-key uploads when replacements are unavailable", async () => {
-      h.canReplace = false;
-      h.post.mockResolvedValue({ existing: [], eTags: {} });
-      await mount().uploader.upload(files);
-      expect(h.enqueue).toHaveBeenCalledWith(
-         expect.objectContaining({ eTags: {} })
-      );
-   });
-
-   it("refuses a pending replacement after replacement capability is removed", async () => {
-      await mount().uploader.upload(files);
-      const oldDialog = render().dialog;
-      h.canReplace = false;
-      expect(render().dialog.open).toBe(false);
-      oldDialog.onReplaceAll();
-      expect(h.enqueue).not.toHaveBeenCalled();
-   });
    it("does not preflight or enqueue files when provider uploads are unavailable", async () => {
       h.canUpload = false;
       await mount().uploader.upload(files);
@@ -246,7 +211,11 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
          "backups",
          ["p/old.txt", "p/new.txt"]
       );
-      expect(h.refresh).not.toHaveBeenCalled();
+      expect(h.notify).toHaveBeenCalledExactlyOnceWith({
+         serverId: "server-a",
+         bucketName: "backups",
+         keys: ["p/old.txt", "p/new.txt"],
+      });
    });
 
    it("uploads only the non-colliding files when existing ones are skipped", async () => {
@@ -292,10 +261,10 @@ describe("upload preflight and confirmation keep the reviewed target", () => {
       expect(render().dialog.open).toBe(false);
    });
 
-   it("refuses a skip after replacement capability is removed", async () => {
+   it("refuses a skip after upload capability is removed", async () => {
       await mount().uploader.upload(files);
       const oldDialog = render().dialog;
-      h.canReplace = false;
+      h.canUpload = false;
       expect(render().dialog.open).toBe(false);
       oldDialog.onSkipExisting();
       expect(h.enqueue).not.toHaveBeenCalled();
@@ -324,7 +293,6 @@ describe("large drops", () => {
          file: new File(["x"], `f${index}.txt`),
          relativePath: `f${index}.txt`,
       }));
-   const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
    it("refuses a drop over the file cap before checking anything", async () => {
       await mount().uploader.upload(many(MAX_UPLOAD_FILES + 1));
@@ -346,9 +314,13 @@ describe("large drops", () => {
             })
          );
       const task = mount().uploader.upload(files);
-      await settle();
-      expect(h.post).toHaveBeenCalledTimes(2);
-      expect(h.enqueue).toHaveBeenCalledTimes(1);
+      await vi.waitFor(
+         () => {
+            expect(h.post).toHaveBeenCalledTimes(2);
+            expect(h.enqueue).toHaveBeenCalledTimes(1);
+         },
+         { interval: 1 }
+      );
       expect(h.enqueue.mock.calls[0]![0]).toMatchObject({
          files: files.slice(0, MAX_BATCH_KEYS),
       });
@@ -402,53 +374,12 @@ describe("full upload key validation", () => {
    });
 });
 
-it("invalidates once and refreshes the current prefix after uploads from two prefixes settle together", async () => {
-   h.post.mockResolvedValue({ existing: [], eTags: {} });
-   h.prefix = "a/";
-   await mount().uploader.upload(files);
-   h.prefix = "b/";
-   let current = render();
-   flushEffects();
-   await current.uploader.upload(files);
-   const latestQueued = h.enqueue.mock.calls[1]![0] as {
-      onSettled: (keys: string[]) => void;
-   };
-   const previousRefresh = h.refresh;
-   const currentRefresh = vi.fn();
-   h.refresh = currentRefresh;
-   h.prefix = "a/";
-   current = render();
-   flushEffects();
-   latestQueued.onSettled(["a/old.txt", "a/new.txt", "b/old.txt", "b/new.txt"]);
-   expect(h.forgetKeys).toHaveBeenCalledExactlyOnceWith(
-      h.queryClient,
-      "user-a",
-      "server-a",
-      "backups",
-      ["a/old.txt", "a/new.txt", "b/old.txt", "b/new.txt"]
-   );
-   expect(currentRefresh).toHaveBeenCalledOnce();
-   expect(previousRefresh).not.toHaveBeenCalled();
+describe("dropping only empty folders", () => {
+   it("says nothing was uploaded instead of doing nothing", async () => {
+      await mount().uploader.upload([]);
+      expect(h.post).not.toHaveBeenCalled();
+      expect(h.toast.error).toHaveBeenCalledWith(
+         expect.stringContaining("folders are empty")
+      );
+   });
 });
-
-it.each([
-   { viewing: "archive/", reloads: 0 },
-   { viewing: "p/sub/", reloads: 0 },
-   { viewing: "", reloads: 1 },
-   { viewing: "p/", reloads: 1 },
-])(
-   "reloads the listing $reloads time(s) when an upload to p/ settles while $viewing is open",
-   async ({ viewing, reloads }) => {
-      h.post.mockResolvedValue({ existing: [], eTags: {} });
-      await mount().uploader.upload(files);
-      const queued = h.enqueue.mock.calls[0]![0] as {
-         onSettled: (keys: string[]) => void;
-      };
-      h.prefix = viewing;
-      render();
-      flushEffects();
-      queued.onSettled(["p/old.txt", "p/new.txt"]);
-      expect(h.forgetKeys).toHaveBeenCalledOnce();
-      expect(h.refresh).toHaveBeenCalledTimes(reloads);
-   }
-);

@@ -46,7 +46,6 @@
       "@types/react-dom": "^19",
       "eslint": "catalog:",
       "happy-dom": "^20.14.5",
-      "postcss": "^8.4.35",
       "tailwindcss": "catalog:",
       "typescript": "catalog:",
       "vitest": "catalog:"

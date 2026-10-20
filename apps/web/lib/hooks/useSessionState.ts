@@ -19,7 +19,7 @@ const useSessionState = (attempt = 0): SessionState => {
    }, [isPending, attempt]);
 
    if (!hydrated) return "pending";
-   // the API refuses such a session too; AuthGuard signs it out.
+   // an unverified session counts as signed out: the API refuses it too and AuthGuard ends it
    if (session) return session.user.emailVerified ? "signedIn" : "signedOut";
    if (error || (isPending && timedOut)) return "unreachable";
    if (isPending) return "pending";

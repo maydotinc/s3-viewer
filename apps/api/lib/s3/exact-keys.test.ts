@@ -5,7 +5,12 @@ import {
 } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { AWS_ENDPOINT, reply, s3Fixture } from "@/lib/testing/s3-fixture";
+import {
+   AWS_ENDPOINT,
+   copiedXml,
+   reply,
+   s3Fixture,
+} from "@/lib/testing/s3-fixture";
 import { collectArchiveEntries } from "./archive/entries";
 import { encodeCopySource } from "./keys";
 import { listPage } from "./listing";
@@ -29,14 +34,11 @@ const encoded = (key: string) =>
 const clientFor = (forcePathStyle: boolean, body = "") =>
    s3Fixture(
       async (request) =>
-         reply(
-            200,
-            request.method === "PUT"
-               ? '<CopyObjectResult><ETag>"copied"</ETag></CopyObjectResult>'
-               : body,
-            { etag: eTag, "content-type": "application/xml" }
-         ),
-      { endpoint: AWS_ENDPOINT, forcePathStyle, maxAttempts: 1 }
+         reply(200, request.method === "PUT" ? copiedXml('"copied"') : body, {
+            etag: eTag,
+            "content-type": "application/xml",
+         }),
+      { endpoint: AWS_ENDPOINT, forcePathStyle }
    );
 
 describe.each([true, false])(

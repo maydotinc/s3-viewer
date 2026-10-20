@@ -18,7 +18,6 @@ const h = vi.hoisted(() => ({
    open: vi.fn(),
    dismiss: vi.fn(),
    error: vi.fn(),
-   aborted: false,
 }));
 
 vi.mock("@tanstack/react-query", () => ({
@@ -29,10 +28,6 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 vi.mock("@s3-viewer/ui/components/toast", () => ({
    toast: { dismiss: h.dismiss, error: h.error },
-}));
-vi.mock("@/lib/api", async (original) => ({
-   ...(await original<typeof import("@/lib/api")>()),
-   isAborted: () => h.aborted,
 }));
 vi.mock("@/lib/utils/s3/archive", () => ({
    requestArchive: vi.fn(),
@@ -56,10 +51,7 @@ const input = {
    objectKeys: ["photos/"],
 };
 
-beforeEach(() => {
-   vi.clearAllMocks();
-   h.aborted = false;
-});
+beforeEach(() => vi.clearAllMocks());
 
 describe("useArchiveDownload", () => {
    it("navigates to the token url and clears the toast", () => {
@@ -88,15 +80,6 @@ describe("useArchiveDownload", () => {
       expect(h.error).toHaveBeenCalledWith("Nothing to download", {
          description: "There are no objects under this selection.",
       });
-   });
-
-   it("stays quiet when the request was cancelled", () => {
-      h.aborted = true;
-      useOptions().onError(new Error("Request cancelled"), input, {
-         toastId: 7,
-      });
-      expect(h.dismiss).toHaveBeenCalledWith(7);
-      expect(h.error).not.toHaveBeenCalled();
    });
 
    it("never dismisses every toast when no context was captured", () => {

@@ -31,13 +31,16 @@ describe.skipIf(!integrationUrl)("database pagination", () => {
          })),
       });
       await prisma.serverAccess.createMany({
-         data: userIds.map((userId, n) => ({
-            id: `${run}m${n}`,
-            userId,
-            serverId: serverIds[0]!,
-            role: "EDITOR",
-            createdAt: at,
-         })),
+         data: [
+            ...userIds.map((userId, n) => ({
+               id: `${run}m${n}`,
+               userId,
+               serverId: serverIds[0]!,
+               role: "EDITOR" as const,
+               createdAt: at,
+            })),
+            { userId: userIds[0]!, serverId: serverIds[1]!, role: "ADMIN" },
+         ],
       });
       await prisma.bucketAccess.createMany({
          data: [
@@ -57,7 +60,7 @@ describe.skipIf(!integrationUrl)("database pagination", () => {
                userId: userIds[0]!,
                serverId: serverIds[1]!,
                bucketName: "must-not-leak",
-               role: "OWNER",
+               role: "ADMIN",
             },
          ],
       });
@@ -115,7 +118,7 @@ describe.skipIf(!integrationUrl)("database pagination", () => {
       expect(second.members.map((member) => member.id)).toEqual([userIds[2]]);
       expect(second.nextCursor).toBeNull();
       expect(
-         (await listMembers(serverIds[1]!, undefined, 2, owner)).members
+         (await listMembers(serverIds[2]!, undefined, 2, owner)).members
       ).toEqual([]);
    });
 

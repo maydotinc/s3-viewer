@@ -37,7 +37,7 @@ const RemovableChip = ({
          disabled={disabled}
          onClick={onRemove}
          className={cn(
-            "shrink-0 cursor-pointer rounded-sm p-0.5 outline-none transition-colors hover:bg-viewerborder disabled:opacity-50",
+            "relative shrink-0 cursor-pointer rounded-sm p-0.5 outline-none pointer-coarse:after:absolute pointer-coarse:after:-inset-3 transition-colors hover:bg-viewerborder disabled:opacity-50",
             FOCUS_RING
          )}
       >

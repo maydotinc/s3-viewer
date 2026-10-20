@@ -5,13 +5,12 @@ import * as React from "react";
 import { cn } from "@s3-viewer/ui/lib/utils";
 
 function Breadcrumb({ ...props }: React.ComponentProps<"nav">) {
-   return <nav aria-label="breadcrumb" data-slot="breadcrumb" {...props} />;
+   return <nav aria-label="breadcrumb" {...props} />;
 }
 
 function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
    return (
       <ol
-         data-slot="breadcrumb-list"
          className={cn(
             "flex min-w-0 items-center gap-1.5 text-sm text-viewertext",
             className
@@ -24,7 +23,6 @@ function BreadcrumbList({ className, ...props }: React.ComponentProps<"ol">) {
 function BreadcrumbItem({ className, ...props }: React.ComponentProps<"li">) {
    return (
       <li
-         data-slot="breadcrumb-item"
          className={cn("inline-flex min-w-0 items-center gap-1.5", className)}
          {...props}
       />
@@ -42,9 +40,8 @@ function BreadcrumbLink({
 
    return (
       <Comp
-         data-slot="breadcrumb-link"
          className={cn(
-            "min-w-0 transition-colors hover:text-viewerblack",
+            "min-w-0 transition-colors hover:text-viewerblack pointer-coarse:leading-11",
             className
          )}
          {...props}
@@ -55,7 +52,6 @@ function BreadcrumbLink({
 function BreadcrumbPage({ className, ...props }: React.ComponentProps<"span">) {
    return (
       <span
-         data-slot="breadcrumb-page"
          role="link"
          aria-disabled="true"
          aria-current="page"
@@ -71,7 +67,6 @@ function BreadcrumbSeparator({
 }: Omit<React.ComponentProps<"li">, "children">) {
    return (
       <li
-         data-slot="breadcrumb-separator"
          role="presentation"
          aria-hidden="true"
          className={cn(
@@ -91,7 +86,6 @@ function BreadcrumbEllipsis({
 }: React.ComponentProps<"span">) {
    return (
       <span
-         data-slot="breadcrumb-ellipsis"
          className={cn(
             "flex size-4 shrink-0 items-center justify-center",
             className

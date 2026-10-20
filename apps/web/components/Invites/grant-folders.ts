@@ -5,11 +5,9 @@ import {
    MAX_GRANT_FOLDERS,
    grantFolderSchema,
    hasDotSegment,
-   isInFolderScope,
    isSafeKeyText,
    normalizeFolders,
    utf8ByteLength,
-   type FolderScope,
 } from "@s3-viewer/types";
 
 const MAX_FOLDER_BYTES = 1024;
@@ -51,8 +49,7 @@ type FolderAddition =
 
 const addGrantFolder = (
    current: readonly string[],
-   raw: string,
-   held: FolderScope
+   raw: string
 ): FolderAddition => {
    const folder = normalizeFolderInput(raw);
    const invalid = folderInputError(folder);
@@ -61,11 +58,6 @@ const addGrantFolder = (
       return {
          ok: false,
          error: `${visibleText(folder)} is already in the list.`,
-      };
-   if (held !== null && !isInFolderScope(held, folder))
-      return {
-         ok: false,
-         error: `You can only share folders inside ${folderList(held)}.`,
       };
    const broader = current.find((existing) => folder.startsWith(existing));
    const folders = normalizeFolders([
@@ -102,22 +94,19 @@ const feedbackFor = (
 const hintFor = ({
    folders,
    draft,
-   held,
    hasSuggestion,
 }: {
    folders: readonly string[];
    draft: string;
-   held: FolderScope;
    hasSuggestion: boolean;
 }): string => {
    if (draft.trim())
       return hasSuggestion
          ? "→ to autocomplete. Press Enter or Add to add it."
          : "Press Enter or Add to add it.";
-   const where = held === null ? "" : `Inside ${folderList(held)} only. `;
    if (folders.length >= MAX_GRANT_FOLDERS)
-      return `${where}That's the limit of ${MAX_GRANT_FOLDERS} folders. A parent folder can still replace the ones inside it.`;
-   return `${where}A folder doesn't have to exist yet.`;
+      return `That's the limit of ${MAX_GRANT_FOLDERS} folders. A parent folder can still replace the ones inside it.`;
+   return "A folder doesn't have to exist yet.";
 };
 
 const editorMessages = ({

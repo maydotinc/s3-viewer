@@ -2,7 +2,6 @@ import { DOT_SEGMENTS_MESSAGE, Role, type S3Bucket } from "@s3-viewer/types";
 import { describe, expect, it } from "vitest";
 import {
    accessNotice,
-   canActOnFolder,
    canListPrefix,
    folderAccessAt,
    grantLabel,
@@ -54,22 +53,6 @@ describe("what someone can reach in a bucket", () => {
       expect(canListPrefix(owner, "a/..")).toBe(true);
       expect(canListPrefix(undefined, "a/..")).toBe(false);
       expect(canListPrefix(undefined, "a/")).toBe(true);
-   });
-});
-
-describe("folder commands in the command menu", () => {
-   it("offers them to the server owner anywhere, and to others only inside a known reach", () => {
-      expect(canActOnFolder(Role.OWNER, undefined, "a/../")).toBe(true);
-      expect(canActOnFolder(Role.EDITOR, undefined, "")).toBe(false);
-      expect(canActOnFolder(undefined, undefined, "")).toBe(false);
-      const site = bucket(Role.EDITOR, SCOPE);
-      expect(canActOnFolder(Role.EDITOR, site, "landing/")).toBe(true);
-      expect(canActOnFolder(Role.EDITOR, site, "")).toBe(false);
-      expect(canActOnFolder(Role.EDITOR, site, "blog/")).toBe(false);
-      expect(canActOnFolder(Role.EDITOR, bucket(Role.EDITOR), "")).toBe(true);
-      expect(canActOnFolder(Role.EDITOR, bucket(Role.EDITOR), "a/../")).toBe(
-         false
-      );
    });
 });
 

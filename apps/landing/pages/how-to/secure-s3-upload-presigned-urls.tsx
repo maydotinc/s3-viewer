@@ -121,6 +121,7 @@ export default createHowToPage({
    seoDescription:
       "How S3 Viewer uploads to AWS S3 and Cloudflare R2 without your key reaching the browser or a single bucket setting changing — plus presigned URLs as background.",
    published: "2026-04-28",
+   updated: "2026-10-12",
    visual: <UploadIllustration />,
    steps,
    underTheHood: (

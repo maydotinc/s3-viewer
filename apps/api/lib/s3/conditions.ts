@@ -71,6 +71,40 @@ const onBuild = <T extends { middlewareStack: unknown }>(
    return command;
 };
 
+// set once the request is built, past every local admission check.
+const sentMarker = <T extends { middlewareStack: unknown }>(
+   command: T
+): (() => boolean) => {
+   let sent = false;
+   onBuild(command, "sentMarker", () => {
+      sent = true;
+   });
+   return () => sent;
+};
+
+class UnconfirmedWriteError extends ApiHttpError {
+   constructor() {
+      super(
+         502,
+         "Storage may have completed this change. Refresh and check before trying again."
+      );
+   }
+}
+
+// storage keeps acting on a write it received even when the caller stops waiting, so a sent write
+// with no definite answer (an abort, a dropped connection or a 5xx) is unconfirmed rather than failed.
+const unconfirmedOnceSent = <T extends { middlewareStack: unknown }>(
+   command: T
+): ((error: unknown) => unknown) => {
+   const sent = sentMarker(command);
+   return (error) => {
+      const { httpStatus } = describeFailure(error);
+      return sent() && (httpStatus === undefined || httpStatus >= 500)
+         ? new UnconfirmedWriteError()
+         : error;
+   };
+};
+
 const withRequestHeaders = <T extends { middlewareStack: unknown }>(
    command: T,
    headers: Headers
@@ -94,6 +128,7 @@ const conditionalInitiation = (
 };
 
 export {
+   UnconfirmedWriteError,
    assertDestinationAbsent,
    conditionalInitiation,
    conditionHeaders,
@@ -101,6 +136,8 @@ export {
    enforcesConditions,
    objectPresent,
    onBuild,
+   sentMarker,
+   unconfirmedOnceSent,
    uploadConflict,
    uploadConflictError,
    withRequestHeaders,

@@ -167,17 +167,17 @@ describe("per-invocation mutation scope", () => {
       });
       expect(h.post).toHaveBeenCalledOnce();
       changeScope("other-user", "other-server");
-      const bucket = { name: "backups" };
+      const created = { bucket: { name: "backups" } };
       await act(async () => {
-         response.resolve({ bucket });
+         response.resolve(created);
          await pending;
       });
       const scope = { userId: "original-user", serverId: "original-server" };
       expect(invalidate).toHaveBeenCalledWith({
          queryKey: queryKeys.buckets(scope.userId, scope.serverId),
       });
-      expect(success).toHaveBeenCalledWith(bucket, "backups", scope);
-      expect(settled).toHaveBeenCalledWith(bucket, null, "backups", scope);
+      expect(success).toHaveBeenCalledWith(created, "backups", scope);
+      expect(settled).toHaveBeenCalledWith(created, null, "backups", scope);
    });
 
    it("keeps removal and failure callbacks bound to an in-flight request's scope", async () => {

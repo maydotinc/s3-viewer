@@ -6,8 +6,6 @@ import { useHoverPause } from "./use-hover-pause";
 
 type Options = { steps: number; interval: number };
 
-// cycles through `steps` while the figure is on screen, the tab is visible,
-// and the viewer is not hovering it with a mouse.
 export const useAutoplay = ({ steps, interval }: Options) => {
    const [ref, inView] = useInView<HTMLDivElement>();
    const { hovered, hoverProps } = useHoverPause();

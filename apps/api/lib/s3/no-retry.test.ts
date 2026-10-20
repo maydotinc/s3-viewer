@@ -1,8 +1,15 @@
-import { HeadObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import {
+   DeleteObjectCommand,
+   HeadObjectCommand,
+   ListObjectsV2Command,
+   PutObjectCommand,
+   type S3Client,
+} from "@aws-sdk/client-s3";
 import { Provider } from "@s3-viewer/types";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
    AWS_ENDPOINT,
+   copiedXml,
    empty,
    reply,
    s3Fixture,
@@ -31,6 +38,7 @@ const { forCancel, forCleanup, withoutBudget, withoutRetries } = await import(
 );
 const { renameObject } = await import("./rename");
 const { MAX_RESPONSE_BYTES } = await import("./response-collector");
+const { installReadBudget } = await import("./read-budget.fixture");
 
 const head = new HeadObjectCommand({ Bucket: "backups", Key: "report.json" });
 
@@ -49,6 +57,8 @@ beforeEach(() => {
    limit.perMinute = 1;
    resetRequestBudgets();
 });
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("client clones and the per-server budget", () => {
    it("retains the shared HTTP handler and disables region replay", () => {
@@ -136,6 +146,47 @@ describe("client clones and the per-server budget", () => {
       await expect(clone.send(head)).rejects.toThrow("network unavailable");
    });
 
+   it.each([
+      [
+         "refuses a budgeted write before sending it",
+         (client: S3Client) =>
+            client.send(
+               new PutObjectCommand({ Bucket: "backups", Key: "report.json" })
+            ),
+         0,
+      ],
+      [
+         "sends an unbudgeted clone's committed tail",
+         (client: S3Client) =>
+            withoutBudget(client).send(
+               new DeleteObjectCommand({
+                  Bucket: "backups",
+                  Key: "report.json",
+               })
+            ),
+         1,
+      ],
+   ])("with the read pool full, %s", async (_name, send, sent) => {
+      const fixture = s3Fixture(async () => empty(204), { maxAttempts: 1 });
+      const client = withRequestBudget(fixture.client, "full-reads");
+      const held = installReadBudget(1_000_000, {
+         total: 1,
+         user: 1,
+         server: 1,
+      }).acquire({ serverId: "other" });
+      try {
+         if (sent) await send(client);
+         else
+            await expect(send(client)).rejects.toThrow(
+               /response capacity is busy/
+            );
+         expect(fixture.requests).toHaveLength(sent);
+      } finally {
+         held.release();
+         client.destroy();
+      }
+   });
+
    it("removes the source of a rename whose copy used the last of the budget", async () => {
       const seen: string[] = [];
       let present = true;
@@ -147,10 +198,7 @@ describe("client clones and the per-server budget", () => {
                if ("acl" in request.query) return empty(403);
                if (request.method === "DELETE") return empty(204);
                return request.method === "PUT"
-                  ? reply(
-                       200,
-                       '<CopyObjectResult><ETag>"copied"</ETag></CopyObjectResult>'
-                    )
+                  ? reply(200, copiedXml('"copied"'))
                   : empty();
             },
             { endpoint: AWS_ENDPOINT, maxAttempts: 1 }

@@ -3,7 +3,7 @@ import InlineAlert from "@/components/inline-alert";
 import { RetryButton } from "@/components/status-message";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
-import { folderHref } from "@/lib/utils/s3/paths";
+import { bucketEntryHref } from "@/lib/utils/s3/paths";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
@@ -92,7 +92,7 @@ const BucketList = () => {
                const Icon = bucket.folders === null ? Folder : FolderLock;
                const link = (
                   <Link
-                     href={folderHref(bucket.name, [])}
+                     href={bucketEntryHref(bucket)}
                      aria-current={
                         selected === bucket.name ? "page" : undefined
                      }

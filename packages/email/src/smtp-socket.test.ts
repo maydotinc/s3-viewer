@@ -70,58 +70,54 @@ it.each(["connect", "smtp"])(
    }
 );
 
-it.each([200, 204])(
-   "keeps a greeting received with a %s CONNECT response",
-   async (status) => {
-      let peer: Socket | undefined;
-      const proxy = createServer((socket) => {
-         peer = socket;
-         socket.on("error", () => {});
-         let buffered = "";
-         let connected = false;
-         socket.on("data", (data) => {
-            buffered += data.toString();
-            if (!connected) {
-               const end = buffered.indexOf("\r\n\r\n");
-               if (end === -1) return;
-               connected = true;
-               buffered = buffered.slice(end + 4);
-               socket.write(
-                  `HTTP/1.1 ${status} Connection Established\r\n\r\n220 localhost SMTP\r\n`
-               );
-            }
-            let end: number;
-            while ((end = buffered.indexOf("\r\n")) !== -1) {
-               const line = buffered.slice(0, end);
-               buffered = buffered.slice(end + 2);
-               if (line.startsWith("EHLO")) socket.write("250 localhost\r\n");
-               else if (
-                  line.startsWith("MAIL FROM") ||
-                  line.startsWith("RCPT TO") ||
-                  line === "."
-               )
-                  socket.write("250 OK\r\n");
-               else if (line === "DATA") socket.write("354 Send message\r\n");
-            }
-         });
-      }).listen(0, "127.0.0.1");
-      await once(proxy, "listening");
-      const address = proxy.address();
-      if (!address || typeof address === "string")
-         throw new Error("No test port");
-      try {
-         const proxyUrl = `http://127.0.0.1:${address.port}`;
-         await expect(
-            smtpDelivery(
-               `smtp://mail.example.test:587?proxy=${encodeURIComponent(proxyUrl)}`
-            )(message, AbortSignal.timeout(1000))
-         ).resolves.toBeUndefined();
-      } finally {
-         peer?.destroy();
-         proxy.close();
-      }
+it("keeps a greeting received with the CONNECT response", async () => {
+   let peer: Socket | undefined;
+   const proxy = createServer((socket) => {
+      peer = socket;
+      socket.on("error", () => {});
+      let buffered = "";
+      let connected = false;
+      socket.on("data", (data) => {
+         buffered += data.toString();
+         if (!connected) {
+            const end = buffered.indexOf("\r\n\r\n");
+            if (end === -1) return;
+            connected = true;
+            buffered = buffered.slice(end + 4);
+            socket.write(
+               `HTTP/1.1 200 Connection Established\r\n\r\n220 localhost SMTP\r\n`
+            );
+         }
+         let end: number;
+         while ((end = buffered.indexOf("\r\n")) !== -1) {
+            const line = buffered.slice(0, end);
+            buffered = buffered.slice(end + 2);
+            if (line.startsWith("EHLO")) socket.write("250 localhost\r\n");
+            else if (
+               line.startsWith("MAIL FROM") ||
+               line.startsWith("RCPT TO") ||
+               line === "."
+            )
+               socket.write("250 OK\r\n");
+            else if (line === "DATA") socket.write("354 Send message\r\n");
+         }
+      });
+   }).listen(0, "127.0.0.1");
+   await once(proxy, "listening");
+   const address = proxy.address();
+   if (!address || typeof address === "string") throw new Error("No test port");
+   try {
+      const proxyUrl = `http://127.0.0.1:${address.port}`;
+      await expect(
+         smtpDelivery(
+            `smtp://mail.example.test:587?proxy=${encodeURIComponent(proxyUrl)}`
+         )(message, AbortSignal.timeout(1000))
+      ).resolves.toBeUndefined();
+   } finally {
+      peer?.destroy();
+      proxy.close();
    }
-);
+});
 
 it.each([undefined, "smtp.example.test"])(
    "isolates HTTPS proxy trust and hostname from SMTP TLS with servername %s",

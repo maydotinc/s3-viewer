@@ -1,4 +1,4 @@
-import { ApiError, isAborted } from "@/lib/api";
+import { ApiError } from "@/lib/api";
 import { downloadUrl } from "@/lib/utils/download";
 import { archiveUrl, requestArchive } from "@/lib/utils/s3/archive";
 import type { BucketTarget } from "@/lib/types";
@@ -7,10 +7,7 @@ import type { S3ArchiveTicket } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { useMutation } from "@tanstack/react-query";
 
-type ArchiveDownloadInput = BucketTarget & {
-   objectKeys: string[];
-   signal?: AbortSignal;
-};
+type ArchiveDownloadInput = BucketTarget & { objectKeys: string[] };
 
 const PREPARING = "Preparing zip…";
 const EMPTY = "Nothing to download";
@@ -32,9 +29,8 @@ const useArchiveDownload = () =>
          serverId,
          bucketName,
          objectKeys,
-         signal,
       }: ArchiveDownloadInput): Promise<S3ArchiveTicket> =>
-         requestArchive(serverId, bucketName, userId, objectKeys, signal),
+         requestArchive(serverId, bucketName, userId, objectKeys),
       onMutate: () => ({ toastId: toast.loading(PREPARING) }),
       onSuccess: (ticket, { serverId, bucketName }, context) => {
          if (context) toast.dismiss(context.toastId);
@@ -42,7 +38,7 @@ const useArchiveDownload = () =>
       },
       onError: (error, _input, context) => {
          if (context) toast.dismiss(context.toastId);
-         if (!isAborted(error)) reportFailure(error);
+         reportFailure(error);
       },
    });
 

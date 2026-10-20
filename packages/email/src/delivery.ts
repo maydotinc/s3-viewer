@@ -1,11 +1,12 @@
 import type { Socket } from "node:net";
+import { SECOND_MS } from "@s3-viewer/types";
 import { createTransport } from "nodemailer";
 import { parseConnectionUrl } from "nodemailer/lib/shared";
 import { Resend, type CreateEmailRequestOptions } from "resend";
 import { smtpSocket } from "./smtp-socket";
 
-const EMAIL_TIMEOUT_MS = 10_000;
-const RETRY_DELAY_MS = 2_000;
+const EMAIL_TIMEOUT_MS = 10 * SECOND_MS;
+const RETRY_DELAY_MS = 2 * SECOND_MS;
 
 // separate pools so a burst of invites can't starve password-reset and verification links.
 const LANE_CAPACITY = { account: 10, invite: 10 } as const;

@@ -15,12 +15,18 @@ const scoped = (variables: AuditSettingsInput): Input => ({
 });
 type MutationOptions = {
    mutationFn: (input: Input) => Promise<AuditSettings>;
+   onSuccess: (data: AuditSettings, input: Input) => Promise<void>;
    onError: (error: unknown, input: Input) => void;
 };
 
 const h = vi.hoisted(() => ({
    patch: vi.fn(),
    options: null as unknown,
+   queryClient: {
+      setQueryData: vi.fn(),
+      setQueriesData: vi.fn(),
+      invalidateQueries: vi.fn(),
+   },
 }));
 
 vi.mock("react", () => ({
@@ -40,10 +46,7 @@ vi.mock("@tanstack/react-query", () => ({
       h.options = options;
       return { isPending: false };
    },
-   useQueryClient: () => ({
-      setQueryData: vi.fn(),
-      invalidateQueries: vi.fn(),
-   }),
+   useQueryClient: () => h.queryClient,
 }));
 vi.mock("@/lib/api", async (original) => ({
    ...(await original<typeof import("@/lib/api")>()),
@@ -51,6 +54,8 @@ vi.mock("@/lib/api", async (original) => ({
 }));
 import { ApiError } from "@/lib/api";
 import { toast } from "@s3-viewer/ui/components/toast";
+import { queryKeys } from "@/lib/query-keys";
+import { firstPageOnly } from "@/lib/hooks/queries/server/useAuditLog";
 import useUpdateAuditSettings from "./useUpdateAuditSettings";
 
 const saved = {
@@ -77,6 +82,27 @@ describe("saving audit settings", () => {
       expect(h.patch).toHaveBeenCalledWith("/servers/server-1/audit/settings", {
          enabled: false,
       });
+   });
+
+   it("refreshes every activity filter from its first page only", async () => {
+      useUpdateAuditSettings();
+      await options().onSuccess(
+         saved,
+         scoped({ serverId: "server-1", enabled: false })
+      );
+      const logs = queryKeys.auditLogs("signed-in-user", "server-1");
+      expect(h.queryClient.setQueriesData).toHaveBeenCalledWith(
+         { queryKey: logs },
+         firstPageOnly
+      );
+      expect(h.queryClient.invalidateQueries).toHaveBeenCalledWith({
+         queryKey: logs,
+      });
+      expect(
+         h.queryClient.setQueriesData.mock.invocationCallOrder[0]
+      ).toBeLessThan(
+         h.queryClient.invalidateQueries.mock.invocationCallOrder.at(-1)!
+      );
    });
 
    it("leaves a stale sign-in to the form instead of toasting it", () => {

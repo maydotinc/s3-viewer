@@ -5,10 +5,7 @@ import { useMemo } from "react";
 type ResolvedCapabilities = StorageCapabilities & { pending: boolean };
 
 const UNAVAILABLE: StorageCapabilities = {
-   upload: false,
-   replace: false,
-   rename: false,
-   delete: false,
+   writable: false,
    deleteProtection: null,
    notice:
       "Storage capabilities are unavailable. Refresh before changing files.",

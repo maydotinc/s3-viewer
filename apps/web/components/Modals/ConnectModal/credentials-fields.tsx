@@ -166,7 +166,7 @@ const CredentialsFields = ({
    </>
 );
 
-// Field's own gap is 1.5, FieldSkeleton defaults to the gap-2 variant
+// the Field gap is 1.5, but FieldSkeleton defaults to the gap-2 variant
 const CredentialsFieldsSkeleton = () => (
    <>
       <FieldSkeleton className="gap-1.5" />

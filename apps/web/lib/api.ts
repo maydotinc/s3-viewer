@@ -60,11 +60,16 @@ const bodyError = (res: Response, error: unknown) =>
 const isAborted = (error: unknown) =>
    error instanceof ApiError && error.code === ClientErrorCode.ABORTED;
 
-let onFolderRefusal: () => void = () => {};
+let onAccessRefusal: () => void = () => {};
 
-const setFolderRefusalHandler = (handler: () => void): void => {
-   onFolderRefusal = handler;
+const setAccessRefusalHandler = (handler: () => void): void => {
+   onAccessRefusal = handler;
 };
+
+// a bare 403 is a role refusal, so the cached role or folder scope is out of date
+const isAccessRefusal = (error: ApiError) =>
+   error.code === ErrorCode.FOLDER_ACCESS ||
+   (error.status === 403 && error.code === undefined);
 
 const responseError = (status: number, data: ApiErrorBody | null) => {
    const error = new ApiError(
@@ -72,7 +77,7 @@ const responseError = (status: number, data: ApiErrorBody | null) => {
       data?.message ?? GENERIC_ERROR_MESSAGE,
       data?.code
    );
-   if (error.code === ErrorCode.FOLDER_ACCESS) onFolderRefusal();
+   if (isAccessRefusal(error)) onAccessRefusal();
    return error;
 };
 
@@ -234,6 +239,6 @@ export {
    responseError,
    serverInvitePath,
    serverPath,
-   setFolderRefusalHandler,
+   setAccessRefusalHandler,
    setUnauthorizedHandler,
 };

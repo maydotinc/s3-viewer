@@ -8,14 +8,12 @@ const requestArchive = (
    serverId: string,
    bucketName: string,
    userId: string,
-   objectKeys: readonly string[],
-   signal?: AbortSignal
+   objectKeys: readonly string[]
 ): Promise<S3ArchiveTicket> =>
-   api.post<S3ArchiveTicket>(
-      archivePath(serverId, bucketName),
-      { expectedUserId: userId, objectKeys: [...objectKeys] },
-      signal
-   );
+   api.post<S3ArchiveTicket>(archivePath(serverId, bucketName), {
+      expectedUserId: userId,
+      objectKeys: [...objectKeys],
+   });
 
 const archiveUrl = (
    serverId: string,

@@ -62,24 +62,11 @@ beforeEach(() => {
 });
 
 describe("resending a password reset link", () => {
-   it("confirms a resend in the space reserved under the prompt", async () => {
+   it("swaps a failed resend for the confirmation in the slot reserved under the prompt", async () => {
       const container = await mountScreen();
       await reachSentStep(container);
       const slot = status(container);
       expect(slot.textContent).toBe("");
-
-      await act(async () => buttonNamed(container, "Send again").click());
-      await flushRuntime();
-
-      expect(h.requestPasswordReset).toHaveBeenCalledTimes(2);
-      expect(status(container)).toBe(slot);
-      expect(slot.getAttribute("role")).toBe("status");
-      expect(slot.textContent).toBe("Sent again.");
-   });
-
-   it("clears a failed resend once a later one goes through", async () => {
-      const container = await mountScreen();
-      await reachSentStep(container);
 
       h.requestPasswordReset.mockResolvedValueOnce({
          error: "Too many requests",
@@ -91,8 +78,10 @@ describe("resending a password reset link", () => {
 
       await act(async () => buttonNamed(container, "Send again").click());
       await flushRuntime();
-      expect(status(container).getAttribute("role")).toBe("status");
-      expect(status(container).textContent).toBe("Sent again.");
+      expect(h.requestPasswordReset).toHaveBeenCalledTimes(3);
+      expect(status(container)).toBe(slot);
+      expect(slot.getAttribute("role")).toBe("status");
+      expect(slot.textContent).toBe("Sent again.");
    });
 
    it("drops the resend error when going back to change the email", async () => {

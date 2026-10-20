@@ -49,7 +49,7 @@ const fixture = (endpoint: string) => {
          request.method === "HEAD"
             ? empty(200, { etag: '"reviewed"' })
             : deletedAll(request.body),
-      { endpoint, maxAttempts: 1 }
+      { endpoint }
    );
    return { client: withRequestBudget(client, SERVER), requests };
 };
@@ -132,27 +132,49 @@ describe("deletes refused by the storage request budget", () => {
       }
    });
 
-   it("keeps a sent delete whose answer could not be read unconfirmed", async () => {
-      limit.perMinute = 100;
-      const { client, requests } = fixture(AWS_ENDPOINT);
-      const held = Array.from({ length: 64 }, () =>
+   const fillReadBudget = () =>
+      Array.from({ length: 64 }, () =>
          readBudget.acquire({ serverId: SERVER, userId: crypto.randomUUID() })
       );
+
+   it("refuses a delete before sending it when no response could be read", async () => {
+      limit.perMinute = 100;
+      const { client, requests } = fixture(AWS_ENDPOINT);
+      const held = fillReadBudget();
       try {
          const result = await deleteKeys({ client, bucket: "bucket" }, [
             { key: "a", expectedETag: '"reviewed"' },
          ]);
-         expect(requests.map(({ method }) => method)).toEqual(["POST"]);
+         expect(requests).toEqual([]);
+         expect(result.deleted).toEqual([]);
+         expect(result.failed).toEqual([
+            expect.objectContaining({ key: "a", retryable: true }),
+         ]);
+      } finally {
+         for (const reservation of held) reservation.release();
+         client.destroy();
+      }
+   });
+
+   it("reads the answer to a sent delete even when the budget filled meanwhile", async () => {
+      limit.perMinute = 100;
+      const held: ReturnType<typeof fillReadBudget> = [];
+      const { client: raw } = s3Fixture(
+         async (request) => {
+            held.push(...fillReadBudget());
+            return deletedAll(request.body);
+         },
+         { endpoint: AWS_ENDPOINT }
+      );
+      const client = withRequestBudget(raw, SERVER);
+      try {
+         const result = await deleteKeys({ client, bucket: "bucket" }, [
+            { key: "a", expectedETag: '"reviewed"' },
+         ]);
          expect(result).toEqual({
             alreadyGone: [],
-            deleted: [],
-            failed: [
-               {
-                  key: "a",
-                  message: expect.stringContaining("not confirmed"),
-                  retryable: false,
-               },
-            ],
+            deleted: ["a"],
+            failed: [],
          });
       } finally {
          for (const reservation of held) reservation.release();

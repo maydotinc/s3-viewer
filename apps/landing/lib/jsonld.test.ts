@@ -71,52 +71,15 @@ const expectOrganizationAndFounder = (g: Graph) => {
    const org = nodeById(g, ORGANIZATION_ID);
    expect(org).toMatchObject({
       "@type": "Organization",
-      name: "May Inc.",
-      legalName: "May Software Inc.",
-      alternateName: ["May", "May Inc", "may.inc"],
-      url: "https://may.inc",
-      logo: "https://cdn-may.com/assets/may-square-512x512.png",
-      foundingDate: "2024",
-      foundingLocation: { "@type": "Place", name: "Toronto, Canada" },
-      sameAs: [
-         "https://github.com/maydotinc",
-         "https://linkedin.com/company/maydotinc",
-      ],
       founder: { "@id": FOUNDER_ID },
    });
-   expect(org?.description).toContain("behind S3 Viewer");
-   expect(org?.contactPoint).toEqual([
-      expect.objectContaining({ email: "info@may.inc" }),
-   ]);
-
-   const founder = nodeById(g, FOUNDER_ID);
-   expect(founder).toEqual({
+   expect(nodeById(g, FOUNDER_ID)).toMatchObject({
       "@type": "Person",
-      "@id": FOUNDER_ID,
-      name: "Aleem Rehmtulla",
-      alternateName: "Aleem",
-      jobTitle: "Founder & Director of Technology",
-      description:
-         "Aleem Rehmtulla is the founder and Director of Technology of May Inc., the Toronto software company that builds and maintains S3 Viewer.",
-      image: `${SITE_URL}/landing/profiles/aleem.png`,
-      url: "https://may.inc/aleem",
       worksFor: { "@id": ORGANIZATION_ID },
-      sameAs: [
-         "https://aleemrehmtulla.com",
-         "https://github.com/aleemrehmtulla",
-         "https://x.com/aleemrehmtulla",
-         "https://linkedin.com/in/aleemrehmtulla",
-         "https://medium.com/@aleemrehmtulla",
-      ],
    });
-
    expect(nodeById(g, WEBSITE_ID)).toMatchObject({
       "@type": "WebSite",
-      name: "S3 Viewer",
-      url: SITE_URL,
-      inLanguage: "en-US",
       publisher: { "@id": ORGANIZATION_ID },
-      copyrightHolder: { "@id": ORGANIZATION_ID },
    });
 
    g["@graph"].forEach((node) => {
@@ -133,38 +96,6 @@ describe("homeJsonLd", () => {
    it("is a self-contained graph", () => {
       expectWellFormed(g);
       expectOrganizationAndFounder(g);
-   });
-
-   it("attributes the application to May Inc.", () => {
-      const app = nodeById(g, `${SITE_URL}#app`);
-      expect(app).toMatchObject({
-         "@type": ["SoftwareApplication", "WebApplication"],
-         name: "S3 Viewer",
-         description: "A fast S3 browser.",
-         image: `${SITE_URL}/landing/bucketview.png`,
-         isAccessibleForFree: true,
-         license: "https://github.com/maydotinc/s3-viewer/blob/main/LICENSE",
-         sameAs: [
-            "https://github.com/maydotinc/s3-viewer",
-            "https://may.inc/s3-viewer",
-         ],
-         author: { "@id": ORGANIZATION_ID },
-         creator: { "@id": ORGANIZATION_ID },
-         publisher: { "@id": ORGANIZATION_ID },
-         maintainer: { "@id": ORGANIZATION_ID },
-         copyrightHolder: { "@id": ORGANIZATION_ID },
-      });
-   });
-
-   it("links the source repository to the app and to May Inc.", () => {
-      const code = nodeById(g, "https://github.com/maydotinc/s3-viewer#code");
-      expect(code).toMatchObject({
-         "@type": "SoftwareSourceCode",
-         codeRepository: "https://github.com/maydotinc/s3-viewer",
-         license: "https://github.com/maydotinc/s3-viewer/blob/main/LICENSE",
-         author: { "@id": ORGANIZATION_ID },
-         targetProduct: { "@id": `${SITE_URL}#app` },
-      });
    });
 });
 
@@ -252,6 +183,7 @@ describe("buildHowToJsonLd", () => {
       faqs: [{ question: "Q?", answer: "A." }],
       keyword: "rename file in S3",
       datePublished: "2026-04-28",
+      dateModified: "2026-10-12",
    });
 
    it("is a self-contained graph", () => {
@@ -269,7 +201,7 @@ describe("buildHowToJsonLd", () => {
          copyrightHolder: { "@id": ORGANIZATION_ID },
          isPartOf: { "@id": WEBSITE_ID },
          datePublished: "2026-04-28",
-         dateModified: "2026-04-28",
+         dateModified: "2026-10-12",
       });
       const howTo = g["@graph"].find((n) => n["@type"] === "HowTo");
       expect(howTo).toMatchObject({

@@ -1,5 +1,5 @@
 import type { Prisma } from "@prisma/client";
-import { AuditLevel, ErrorCode, Role } from "@s3-viewer/types";
+import { AuditLevel, Role } from "@s3-viewer/types";
 import { describe, expect, it, vi } from "vitest";
 import { grantRefusal } from "@/lib/middleware/authorize";
 import type { BucketRow } from "./bucket-grants";
@@ -41,52 +41,13 @@ const grant = (
    folders: string[] | null = null
 ) => ({ bucketName, role, folders });
 
-// the API never makes a folder-limited admin, but the grant check must still hold one.
-const limitedAdmin: GrantingActor = {
+// holds Viewer on company, so an Editor grant there is one they can keep but not make.
+const viewerAdmin: GrantingActor = {
    serverRole: Role.ADMIN,
-   bucketGrants: new Map([
-      ["company", { role: Role.EDITOR, folders: ["landing/"] }],
-   ]),
+   bucketGrants: new Map([["company", { role: Role.VIEWER, folders: null }]]),
 };
 
-describe("assertBucketGrants with a folder-limited actor", () => {
-   const granting = (folders: string[] | null) => () =>
-      assertBucketGrants(
-         limitedAdmin,
-         openScope,
-         [grant("company", Role.VIEWER, folders)],
-         refuse
-      );
-
-   it("lets them share their own folders and folders inside them", () => {
-      expect(granting(["landing/"])).not.toThrow();
-      expect(granting(["landing/img/"])).not.toThrow();
-   });
-
-   it("refuses the whole bucket and folders outside theirs, by name", () => {
-      for (const folders of [
-         null,
-         ["private/"],
-         ["landing/", "private/"],
-         ["landing-internal/"],
-      ]) {
-         expect(granting(folders)).toThrow(
-            expect.objectContaining({
-               status: 403,
-               code: ErrorCode.FOLDER_ACCESS,
-               message:
-                  "Your access to company is limited to folders, so you can only grant access inside them",
-               denial: expect.objectContaining({
-                  entry: expect.objectContaining({
-                     bucket: "company",
-                     detail: { permission: "MANAGE_MEMBERS", reason: "folder" },
-                  }),
-               }),
-            })
-         );
-      }
-   });
-
+describe("assertBucketGrants with folders", () => {
    it("refuses folders on an admin grant before anything else", () => {
       expect(() =>
          assertBucketGrants(
@@ -105,73 +66,28 @@ describe("assertBucketGrants with a folder-limited actor", () => {
 });
 
 describe("assertBucketGrantChanges with folders", () => {
-   const current = [row("company", Role.VIEWER, ["private/"])];
+   const current = [row("company", Role.EDITOR, ["b/", "a/"])];
+   const changing = (folders: string[] | null) => () =>
+      assertBucketGrantChanges(
+         viewerAdmin,
+         openScope,
+         current,
+         [grant("company", Role.EDITOR, folders)],
+         refuse
+      );
 
-   it("keeps an unchanged limited grant the actor could not make", () => {
-      expect(() =>
-         assertBucketGrantChanges(
-            limitedAdmin,
-            openScope,
-            current,
-            [grant("company", Role.VIEWER, ["private/"])],
-            refuse
-         )
-      ).not.toThrow();
+   it("treats the same folders in another order as unchanged", () => {
+      expect(changing(["a/", "b/"])).not.toThrow();
    });
 
    it("checks a change of folders alone like a fresh grant", () => {
-      const changing = (folders: string[] | null) => () =>
-         assertBucketGrantChanges(
-            limitedAdmin,
-            openScope,
-            current,
-            [grant("company", Role.VIEWER, folders)],
-            refuse
-         );
-      expect(changing(["private/", "landing/"])).toThrow(
-         expect.objectContaining({ code: ErrorCode.FOLDER_ACCESS })
-      );
-      expect(changing(null)).toThrow(
-         expect.objectContaining({ code: ErrorCode.FOLDER_ACCESS })
-      );
-      expect(changing(["landing/"])).toThrow(
+      expect(changing(["a/"])).toThrow(
          expect.objectContaining({
-            message: "You can't change Viewer access to company",
+            status: 403,
+            message:
+               "You don't have Editor access to company, so you can't grant it",
          })
       );
-   });
-
-   it("lets them change folders they cover on both sides of the edit", () => {
-      expect(() =>
-         assertBucketGrantChanges(
-            limitedAdmin,
-            openScope,
-            [row("company", Role.VIEWER, ["landing/img/"])],
-            [grant("company", Role.VIEWER, ["landing/"])],
-            refuse
-         )
-      ).not.toThrow();
-      expect(() =>
-         assertBucketGrantChanges(
-            limitedAdmin,
-            openScope,
-            [row("company", Role.VIEWER, ["landing/img/"])],
-            [],
-            refuse
-         )
-      ).not.toThrow();
-   });
-
-   it("treats the same folders in another order as unchanged", () => {
-      expect(() =>
-         assertBucketGrantChanges(
-            limitedAdmin,
-            openScope,
-            [row("company", Role.VIEWER, ["b/", "a/"])],
-            [grant("company", Role.VIEWER, ["a/", "b/"])],
-            refuse
-         )
-      ).not.toThrow();
    });
 });
 

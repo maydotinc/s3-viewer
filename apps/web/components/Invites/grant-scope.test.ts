@@ -1,14 +1,16 @@
 // @vitest-environment happy-dom
 import { act, createElement, useState, type ChangeEvent } from "react";
-import { MAX_GRANT_FOLDERS } from "@s3-viewer/types";
+import { MAX_GRANT_FOLDERS, Role } from "@s3-viewer/types";
 import { describe, expect, it, vi } from "vitest";
 import {
    buttonByText,
    mountedRuntime,
    typeInto,
 } from "@/components/test-helpers";
-import { FolderListEditor } from "./grant-scope";
+import GrantScope, { FolderListEditor } from "./grant-scope";
 
+const env = vi.hoisted(() => ({ hasLanding: false }));
+vi.mock("@/lib/env", () => ({ publicEnv: env }));
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user" }));
 vi.mock("@/lib/hooks/usePathSuggestion", () => ({
    usePathSuggestion: () => "",
@@ -41,7 +43,6 @@ const Row = ({ initial }: { initial: State }) => {
    return createElement(FolderListEditor, {
       serverId: "server",
       bucketName: "site",
-      held: null,
       ...current,
       onChange: (change) => set((previous) => ({ ...previous, ...change })),
    });
@@ -100,5 +101,32 @@ describe(`at ${MAX_GRANT_FOLDERS} folders`, () => {
       await typeFolder("f");
       await add();
       expect(state.folders).toEqual(["f/"]);
+   });
+});
+
+describe("the folder guide link", () => {
+   const scope = () =>
+      view.mount(
+         createElement(GrantScope, {
+            serverId: "server",
+            entry: { bucketName: "site", role: Role.EDITOR, folders: [] },
+            error: null,
+            showError: false,
+            onChange: vi.fn(),
+         })
+      );
+   const guide = () =>
+      view.current.container.querySelector('a[href^="/how-to/"]');
+
+   it("links to the landing guide when the landing site is served", async () => {
+      env.hasLanding = true;
+      await scope();
+      expect(guide()).not.toBeNull();
+   });
+
+   it("is left out without a landing site, where the page would 404", async () => {
+      env.hasLanding = false;
+      await scope();
+      expect(guide()).toBeNull();
    });
 });

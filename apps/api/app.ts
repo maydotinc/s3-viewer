@@ -35,6 +35,7 @@ import {
    REQUEST_ID_HEADER,
 } from "@s3-viewer/types";
 import { toNodeHandler } from "better-auth/node";
+import compression from "compression";
 import cors from "cors";
 import express, { type Express } from "express";
 import helmet from "helmet";
@@ -42,6 +43,7 @@ import { randomUUID } from "node:crypto";
 
 const IDLE_TIMEOUT_MS = 2 * MINUTE_MS;
 const PREFLIGHT_MAX_AGE_SECONDS = 600;
+const COMPRESSION_THRESHOLD_BYTES = 8 * 1024;
 
 const createApp = (): Express => {
    const app = express();
@@ -82,6 +84,7 @@ const createApp = (): Express => {
    app.use(canonicalPath);
 
    app.use(privateNoStore);
+   app.use(compression({ threshold: COMPRESSION_THRESHOLD_BYTES }));
 
    app.get("/health", (_req, res) => {
       res.json({ ok: true, apiVersion: API_CONTRACT_VERSION });

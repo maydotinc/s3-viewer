@@ -29,28 +29,26 @@ type UploadSlotOptions = {
    reservation: number;
    // declared body size; the slot's lifetime scales with it.
    bytes?: number;
-   ip?: string;
-   // defaults to the server the authorize gate admitted the request for.
-   serverId?: string;
    pool?: Pool;
    admissionErrorCode?: ErrorCode;
    abortController?: AbortController;
    closeOnFailure?: boolean;
 };
 
+// admitted against the server the authorize gate chose.
 const acquireSlot = (
+   req: Request,
    res: Response,
-   {
-      userId,
-      reservation,
-      pool,
-      ip,
-      serverId,
-      admissionErrorCode,
-   }: UploadSlotOptions
+   { userId, reservation, pool, admissionErrorCode }: UploadSlotOptions
 ): (() => void) => {
    try {
-      return uploadBudget.acquire(userId, reservation, pool, ip, serverId);
+      return uploadBudget.acquire(
+         userId,
+         reservation,
+         pool,
+         ipKeyGenerator(req.ip ?? ""),
+         res.locals.auth?.serverId
+      );
    } catch (error) {
       res.setHeader("Connection", "close");
       if (isRateLimited(error)) {
@@ -90,11 +88,7 @@ async function withUploadSlot<T>(
    let expiry: ReturnType<typeof setTimeout> | undefined;
    try {
       abortController.signal.throwIfAborted();
-      release = acquireSlot(res, {
-         ...options,
-         ip: options.ip ?? ipKeyGenerator(req.ip ?? ""),
-         serverId: options.serverId ?? res.locals.auth?.serverId,
-      });
+      release = acquireSlot(req, res, options);
       expiry = setTimeout(
          () => abortController.abort(new SlotExpiredError()),
          slotLifetimeMs(options.bytes)

@@ -18,7 +18,7 @@ import {
    ApiError,
    ClientErrorCode,
    responseError,
-   setFolderRefusalHandler,
+   setAccessRefusalHandler,
    setUnauthorizedHandler,
 } from "./api";
 
@@ -168,18 +168,20 @@ describe("API session response ordering", () => {
    });
 });
 
-describe("a folder refusal", () => {
-   afterEach(() => setFolderRefusalHandler(() => undefined));
+describe("an access refusal", () => {
+   afterEach(() => setAccessRefusalHandler(() => undefined));
 
-   it("reaches the handler from any refused response", () => {
+   it("reaches the handler for a folder refusal or a bare 403, and nothing else", () => {
       const handler = vi.fn();
-      setFolderRefusalHandler(handler);
+      setAccessRefusalHandler(handler);
       responseError(403, { message: "Nope", code: ErrorCode.VALIDATION });
+      responseError(404, { message: "Not found" });
       expect(handler).not.toHaveBeenCalled();
       responseError(403, {
          message: "Your access to this bucket is limited to landing/",
          code: ErrorCode.FOLDER_ACCESS,
       });
-      expect(handler).toHaveBeenCalledOnce();
+      responseError(403, { message: "Forbidden" });
+      expect(handler).toHaveBeenCalledTimes(2);
    });
 });

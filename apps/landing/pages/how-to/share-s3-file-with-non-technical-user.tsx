@@ -127,6 +127,7 @@ export default createHowToPage({
    seoDescription:
       "Two ways to share AWS S3 and Cloudflare R2 files with people who don't use AWS: a 15-minute presigned link, or an email invite you can revoke.",
    published: "2026-04-28",
+   updated: "2026-10-14",
    visual: <ShareLinkIllustration />,
    steps,
    underTheHood: (

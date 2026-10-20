@@ -57,15 +57,18 @@ const serverInfo = (overrides: Partial<ServerInfo> = {}): ServerInfo => ({
    provider: Provider.S3,
    userRole: Role.OWNER,
    capabilities: {
-      upload: true,
-      replace: true,
-      rename: true,
-      delete: true,
+      writable: true,
       deleteProtection: "checked",
       notice: null,
    },
    canCreateBucket: true,
-   audit: { enabled: false, canView: false, canManage: false },
+   canRemoveBuckets: true,
+   audit: {
+      enabled: false,
+      canView: false,
+      canManage: false,
+      canVerify: false,
+   },
    ...overrides,
 });
 

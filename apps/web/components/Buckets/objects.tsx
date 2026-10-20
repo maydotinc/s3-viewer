@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
 import { FittedGridSkeleton } from "@/components/DataGrid/skeleton";
 import { Page, PageHeader } from "@/components/Layout/page";
-import { onListingChanged } from "@/lib/listing-events";
+import { changeReaches, onListingChanged } from "@/lib/listing-events";
 import { queryKeys } from "@/lib/query-keys";
 import usePreferencesStore from "@/lib/stores/preferences-store";
 import { canListPrefix, folderAccessAt } from "@/lib/utils/folder-access";
@@ -81,6 +81,8 @@ const Objects = () => {
    const source = useRef<ReturnType<typeof createObjectDatasource> | null>(
       null
    );
+   const listingScope = useRef({ serverId, bucketName, prefix });
+   listingScope.current = { serverId, bucketName, prefix };
    const listPrefix = `${prefix}${filter}`;
    const listingKey = JSON.stringify([
       serverId,
@@ -117,7 +119,9 @@ const Objects = () => {
          source.current.reload();
       };
       registerRefresh(reload);
-      const stopListening = onListingChanged(reload);
+      const stopListening = onListingChanged((change) => {
+         if (changeReaches(change, listingScope.current)) reload();
+      });
       return () => {
          registerRefresh(null);
          stopListening();
@@ -193,15 +197,17 @@ const Objects = () => {
                </PageHeader>
                <ObjectsToolbar />
                <div className={GRID_CARD}>
-                  <FolderAccessNotice />
                   {error ? (
-                     <BucketUnavailable
-                        bucketName={bucketName}
-                        error={error}
-                        failedAt={bucketsError ? "buckets" : "objects"}
-                        onRetry={refresh}
-                        retrying={isRefreshing}
-                     />
+                     <>
+                        <BucketUnavailable
+                           bucketName={bucketName}
+                           error={error}
+                           failedAt={bucketsError ? "buckets" : "objects"}
+                           onRetry={refresh}
+                           retrying={isRefreshing}
+                        />
+                        <FolderAccessNotice />
+                     </>
                   ) : access === "dotted" || access === "outside" ? (
                      <DropZone className="flex min-h-0 flex-1 flex-col">
                         {access === "dotted" ? (
@@ -216,12 +222,15 @@ const Objects = () => {
                         )}
                      </DropZone>
                   ) : !listable && reach ? (
-                     <DropZone className="flex min-h-0 flex-1 flex-col">
-                        <EmptyState
-                           title="No matching objects"
-                           description={DOT_SEGMENTS_MESSAGE}
-                        />
-                     </DropZone>
+                     <>
+                        <DropZone className="flex min-h-0 flex-1 flex-col">
+                           <EmptyState
+                              title="No matching objects"
+                              description={DOT_SEGMENTS_MESSAGE}
+                           />
+                        </DropZone>
+                        <FolderAccessNotice />
+                     </>
                   ) : !listable ? (
                      <>
                         <DropZone className="flex min-h-0 flex-1 flex-col">
@@ -243,6 +252,8 @@ const Objects = () => {
                               noRowsOverlayComponent={NoObjectsOverlay}
                            />
                         </DropZone>
+                        {/* below the grid, so its late arrival shrinks the viewport instead of pushing the rows down */}
+                        <FolderAccessNotice />
                         <GridPagination />
                      </ObjectGridStateProvider>
                   )}

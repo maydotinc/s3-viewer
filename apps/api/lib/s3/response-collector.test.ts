@@ -100,7 +100,6 @@ const offlineClient = (body: Readable) =>
    withBufferedResponses(
       s3Fixture(async () => reply(200, body), {
          endpoint: "https://storage.example.com",
-         maxAttempts: 1,
       }).client,
       "xml-guard-server"
    );

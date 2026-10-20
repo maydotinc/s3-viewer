@@ -129,7 +129,7 @@ describe("bounded integrity verification", () => {
       await click();
       expect(button().getAttribute("aria-busy")).toBe("true");
       expect(button().disabled).toBe(true);
-      expect(message()).toBeUndefined();
+      expect(message()).toBe("");
       expect(h.success).toHaveBeenCalledOnce();
    });
 
@@ -157,7 +157,7 @@ describe("bounded integrity verification", () => {
          expect(h.get).toHaveBeenCalledTimes(1);
          expect(h.success).not.toHaveBeenCalled();
          expect(h.error).not.toHaveBeenCalled();
-         expect(message()).toBeUndefined();
+         expect(message()).toBe("");
       }
    );
 

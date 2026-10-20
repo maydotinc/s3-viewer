@@ -18,6 +18,7 @@ import {
    conditionHeaders,
    conflictAs,
    enforcesConditions,
+   unconfirmedOnceSent,
    uploadConflict,
    withRequestHeaders,
    writeCondition,
@@ -36,7 +37,6 @@ import {
    BUFFER_MEMORY_FACTOR,
    copyRetainedString,
    readBudget,
-   retainForResponse,
    type ReadReservation,
 } from "./read-budget";
 import { budgetServerOf } from "./request-budget";
@@ -75,15 +75,11 @@ const retainCopyString = (
    return copyRetainedString(value);
 };
 
-const retainedCopyResult = (
-   scope: S3Scope,
-   eTag: string | undefined,
-   size: number
-): CopyResult => {
-   if (eTag === undefined) return { eTag: null, size };
-   retainForResponse(reserveCopyString(scope, eTag));
-   return { eTag: copyRetainedString(eTag), size };
-};
+// the copy has landed by now, so its ETag is not reserved: a refusal would report a committed copy as failed.
+const copyResult = (eTag: string | undefined, size: number): CopyResult => ({
+   eTag: eTag === undefined ? null : copyRetainedString(eTag),
+   size,
+});
 
 type CopySettings = Partial<
    Pick<
@@ -285,27 +281,25 @@ const singleCopy = async (
 ): Promise<CopyResult> => {
    const { client, bucket, signal } = scope;
    const { destinationKey, source, sourceETag, settings } = request;
+   const command = withRequestHeaders(
+      new CopyObjectCommand({
+         Bucket: bucket,
+         Key: destinationKey,
+         CopySource: copySourceFor(bucket, request),
+         CopySourceIfMatch: sourceETag,
+         ...(settings
+            ? { MetadataDirective: "REPLACE", ...settings }
+            : { MetadataDirective: "COPY" }),
+         ...attributes,
+      }),
+      destinationConditions(provider, destination)
+   );
+   const unconfirmed = unconfirmedOnceSent(command);
    const output = await client
-      .send(
-         withRequestHeaders(
-            new CopyObjectCommand({
-               Bucket: bucket,
-               Key: destinationKey,
-               CopySource: copySourceFor(bucket, request),
-               CopySourceIfMatch: sourceETag,
-               ...(settings
-                  ? { MetadataDirective: "REPLACE", ...settings }
-                  : { MetadataDirective: "COPY" }),
-               ...attributes,
-            }),
-            destinationConditions(provider, destination)
-         ),
-         { abortSignal: signal }
-      )
-      .catch(throwCopyError);
+      .send(command, { abortSignal: signal })
+      .catch((error: unknown) => throwCopyError(unconfirmed(error)));
    try {
-      return retainedCopyResult(
-         scope,
+      return copyResult(
          output.CopyObjectResult?.ETag,
          source.ContentLength ?? 0
       );
@@ -397,20 +391,21 @@ const multipartCopy = async (
       );
       if (provider !== Provider.S3 && recheckDestination)
          await assertDestinationUnchanged(scope, destinationKey, destination);
-      const completed = await client.send(
-         new CompleteMultipartUploadCommand({
-            Bucket: bucket,
-            Key: destinationKey,
-            UploadId: uploadId,
-            MultipartUpload: { Parts: parts },
-            ...(provider === Provider.S3
-               ? destinationCondition(destination)
-               : {}),
-         }),
-         { abortSignal: signal }
-      );
+      const complete = new CompleteMultipartUploadCommand({
+         Bucket: bucket,
+         Key: destinationKey,
+         UploadId: uploadId,
+         MultipartUpload: { Parts: parts },
+         ...(provider === Provider.S3 ? destinationCondition(destination) : {}),
+      });
+      const unconfirmed = unconfirmedOnceSent(complete);
+      const completed = await client
+         .send(complete, { abortSignal: signal })
+         .catch((error: unknown) => {
+            throw unconfirmed(error);
+         });
       try {
-         return retainedCopyResult(scope, completed.ETag, size);
+         return copyResult(completed.ETag, size);
       } finally {
          releaseBufferedResponse(completed);
       }

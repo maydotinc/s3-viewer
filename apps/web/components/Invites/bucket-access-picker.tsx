@@ -18,8 +18,8 @@ import {
 } from "react";
 import {
    accessErrors,
-   heldFolders,
    checkedGrant,
+   isLocked,
    newGrant,
    withRole,
    type GrantRow,
@@ -88,13 +88,14 @@ const BucketAccessRow = memo(function BucketAccessRow({
 }: BucketAccessRowProps) {
    const role = entry?.role ?? lowestRole(roles);
    const empty = entry?.folders?.length === 0;
+   const locked = isLocked(myRole, bucket, original);
    return (
       <li className="flex min-w-0 flex-col px-3">
-         <div className="flex h-10 min-w-0 items-center gap-3">
+         <div className="flex h-10 min-w-0 items-center gap-3 pointer-coarse:h-12">
             <Checkbox
                id={id}
                checked={Boolean(entry)}
-               disabled={disabled || roles.length === 0}
+               disabled={disabled || roles.length === 0 || locked}
                onCheckedChange={() => onToggle(bucket, roles)}
             />
             <label
@@ -114,7 +115,7 @@ const BucketAccessRow = memo(function BucketAccessRow({
                   label={`Role on ${bucket.name}`}
                   value={role}
                   roles={roles}
-                  disabled={disabled || !entry}
+                  disabled={disabled || !entry || locked}
                   onChange={(next) => entry && onUpdate(withRole(entry, next))}
                />
             )}
@@ -123,12 +124,11 @@ const BucketAccessRow = memo(function BucketAccessRow({
             <GrantScope
                serverId={serverId}
                entry={entry}
-               held={heldFolders(myRole, bucket)}
                original={original}
                serverRole={serverRole}
                error={error}
                showError={showErrors || !empty}
-               disabled={disabled || roles.length === 0}
+               disabled={disabled || roles.length === 0 || locked}
                onChange={onUpdate}
             />
          )}
@@ -140,11 +140,14 @@ const BucketSkeletonRows = () => (
    <ul aria-hidden="true" className="divide-y divide-viewerborder">
       {Array.from({ length: SKELETON_ROWS }, (_, index) => (
          <li key={index} className="px-3">
-            <div className="flex h-10 items-center gap-3">
+            <div className="flex h-10 items-center gap-3 pointer-coarse:h-12">
                <Skeleton className="size-4 shrink-0 rounded" />
                <CellBar className={nameBarWidth(index)} />
                <Skeleton
-                  className={cn("ml-auto h-8 shrink-0 rounded-lg", ROLE_SELECT)}
+                  className={cn(
+                     "ml-auto h-8 shrink-0 rounded-lg pointer-coarse:h-11",
+                     ROLE_SELECT
+                  )}
                />
             </div>
          </li>
@@ -209,9 +212,18 @@ const BucketAccessPicker = ({
          })),
       [buckets, myRole]
    );
+   const originals = useMemo(
+      () => new Map(original?.map((entry) => [entry.bucketName, entry])),
+      [original]
+   );
    const grantable = useMemo(
-      () => rows.filter((row) => row.roles.length > 0),
-      [rows]
+      () =>
+         rows.filter(
+            ({ bucket, roles }) =>
+               roles.length > 0 &&
+               !isLocked(myRole, bucket, originals.get(bucket.name))
+         ),
+      [rows, myRole, originals]
    );
    const grantableNames = useMemo(
       () => new Set(grantable.map((row) => row.bucket.name)),
@@ -220,10 +232,6 @@ const BucketAccessPicker = ({
    const selected = useMemo(
       () => new Map(value.map((entry) => [entry.bucketName, entry])),
       [value]
-   );
-   const originals = useMemo(
-      () => new Map(original?.map((entry) => [entry.bucketName, entry])),
-      [original]
    );
    const errors = useMemo(
       () =>
@@ -248,13 +256,10 @@ const BucketAccessPicker = ({
             const before = originals.get(bucket.name);
             const role = before?.role ?? lowestRole(roles);
             return role
-               ? [
-                    ...current,
-                    checkedGrant(before, myRole, bucket, role, serverRole),
-                 ]
+               ? [...current, checkedGrant(before, bucket, role)]
                : current;
          }),
-      [onChange, originals, myRole, serverRole]
+      [onChange, originals]
    );
 
    const update = useCallback(
@@ -278,9 +283,7 @@ const BucketAccessPicker = ({
                     const current = selected.get(bucket.name);
                     if (current) return [current];
                     const role = lowestRole(roles);
-                    return role
-                       ? [newGrant(myRole, bucket, role, serverRole)]
-                       : [];
+                    return role ? [newGrant(bucket, role)] : [];
                  }),
               ]
       );

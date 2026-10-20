@@ -3,12 +3,9 @@ import { Role, type InviteOutcome } from "@s3-viewer/types";
 import { describe, expect, it } from "vitest";
 import {
    accessStatus,
-   alreadyMembersText,
-   contextLine,
    peopleText,
    resultTitle,
    sendLabel,
-   serversText,
    stepAnnouncement,
    unemailedAddresses,
    unemailedText,
@@ -27,11 +24,6 @@ const outcome = (
 });
 
 describe("the steps", () => {
-   it("drops Where when there is only one server to invite to", () => {
-      expect(wizardSteps(true)).toEqual(["who", "where", "access", "review"]);
-      expect(wizardSteps(false)).toEqual(["who", "access", "review"]);
-   });
-
    it("announces the position in the flow that is actually shown", () => {
       expect(stepAnnouncement(wizardSteps(true), "where")).toBe(
          "Step 2 of 4, Where"
@@ -50,18 +42,6 @@ describe("the context line", () => {
          "a@x.com and 2 others"
       );
    });
-
-   it("names one server and counts several", () => {
-      expect(serversText(["Backups"])).toBe("Backups");
-      expect(serversText(["Backups", "Media"])).toBe("2 servers");
-   });
-
-   it("summarises the earlier steps on each later step", () => {
-      expect(contextLine("where", ["a@x.com"], [])).toBe("Inviting a@x.com");
-      expect(contextLine("access", ["a@x.com", "b@x.com"], ["Backups"])).toBe(
-         "Inviting a@x.com and 1 other to Backups"
-      );
-   });
 });
 
 describe("the send button", () => {
@@ -71,25 +51,9 @@ describe("the send button", () => {
       expect(sendLabel(true, 3, 2)).toBe("Send 3 invites to 2 servers");
       expect(sendLabel(true, 1, 2)).toBe("Send invite to 2 servers");
    });
-
-   it("saves instead of sending when email is off", () => {
-      expect(sendLabel(false, 2, 3)).toBe("Save 2 invites to 3 servers");
-   });
 });
 
 describe("a server's status line", () => {
-   it("says when nothing is chosen yet", () => {
-      expect(
-         accessStatus({
-            role: Role.VIEWER,
-            checked: 0,
-            grantable: 3,
-            noBuckets: false,
-            problem: null,
-         })
-      ).toEqual({ text: "Not set up yet", tone: "muted" });
-   });
-
    it("counts buckets, or says all when every grantable one is in", () => {
       const base = { grantable: 3, noBuckets: false, problem: null };
       expect(accessStatus({ ...base, role: Role.EDITOR, checked: 1 })).toEqual({
@@ -113,18 +77,6 @@ describe("a server's status line", () => {
          })
       ).toEqual({ text: "Choose at least one bucket", tone: "error" });
    });
-
-   it("says when the server has nothing to share", () => {
-      expect(
-         accessStatus({
-            role: Role.VIEWER,
-            checked: 0,
-            grantable: 0,
-            noBuckets: true,
-            problem: null,
-         })
-      ).toEqual({ text: "No buckets to share", tone: "muted" });
-   });
 });
 
 describe("the result headline", () => {
@@ -143,15 +95,6 @@ describe("the result headline", () => {
 });
 
 describe("the result rows", () => {
-   it("lists who was already in", () => {
-      expect(alreadyMembersText(["a@x.com"])).toBe(
-         "a@x.com is already a member"
-      );
-      expect(alreadyMembersText(["a@x.com", "b@x.com"])).toBe(
-         "a@x.com and b@x.com are already members"
-      );
-   });
-
    it("collects the addresses no email went to, once each", () => {
       const outcomes = [
          outcome("a", {

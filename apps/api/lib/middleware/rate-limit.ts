@@ -6,6 +6,7 @@ import {
    HOUR_MS,
    MINUTE_MS,
    TRANSFERS_PATH,
+   SECOND_MS,
 } from "@s3-viewer/types";
 import type { Request, RequestHandler, Response } from "express";
 import rateLimit, {
@@ -66,10 +67,10 @@ const limiter = (
       return rateLimit(options);
 
    const refusedUntil = new Map<string, number>();
-   const windowSeconds = Math.ceil(windowMs / 1000);
+   const windowSeconds = Math.ceil(windowMs / SECOND_MS);
    // same draft-7 headers express-rate-limit sent on the first refusal.
    const refuse = (req: Request, res: Response, until: number): void => {
-      const resetSeconds = Math.ceil((until - Date.now()) / 1000);
+      const resetSeconds = Math.ceil((until - Date.now()) / SECOND_MS);
       res.setHeader("RateLimit-Policy", `${limit};w=${windowSeconds}`);
       res.setHeader(
          "RateLimit",

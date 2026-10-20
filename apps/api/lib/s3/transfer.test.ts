@@ -3,8 +3,10 @@ import { Readable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
 import { S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import {
+   completedXml,
    empty,
    errorXml,
+   initiatedXml,
    reply,
    s3Fixture,
    type FixtureHandle,
@@ -92,8 +94,10 @@ const run = async ({
    destinationAttempts,
    contentLength,
    head,
+   source = sourceHandler(body, contentLength),
 }: {
    destination: (r: FixtureRequest) => Promise<FixtureReply>;
+   source?: (r: FixtureRequest) => Promise<FixtureReply>;
    overwrite?: boolean;
    body?: () => Readable;
    expectedETag?: string | null;
@@ -102,7 +106,7 @@ const run = async ({
    contentLength?: number;
    head?: HeadObjectCommandOutput;
 }) => {
-   const from = recording(sourceHandler(body, contentLength));
+   const from = recording(source);
    const to = recording(destination);
    const sourceClient = clientFor("https://source.example.com", from.handle);
    const destinationClient = clientFor(
@@ -166,8 +170,8 @@ describe("streaming an object to another server", () => {
                   return reply(
                      200,
                      Object.hasOwn(request.query, "uploads")
-                        ? "<InitiateMultipartUploadResult><UploadId>u1</UploadId></InitiateMultipartUploadResult>"
-                        : '<CompleteMultipartUploadResult><ETag>"written"</ETag></CompleteMultipartUploadResult>'
+                        ? initiatedXml("u1")
+                        : completedXml('"written"')
                   );
                return empty(request.method === "DELETE" ? 204 : 200, {
                   etag: '"written"',
@@ -224,8 +228,8 @@ describe("streaming an object to another server", () => {
                return reply(
                   200,
                   Object.hasOwn(request.query, "uploads")
-                     ? "<InitiateMultipartUploadResult><UploadId>u1</UploadId></InitiateMultipartUploadResult>"
-                     : '<CompleteMultipartUploadResult><ETag>"written"</ETag></CompleteMultipartUploadResult>'
+                     ? initiatedXml("u1")
+                     : completedXml('"written"')
                );
             return empty(200, { etag: '"written"' });
          },
@@ -262,7 +266,7 @@ describe("streaming an object to another server", () => {
       ).toBe("*");
    });
 
-   it("replaces the live destination version when overwrite is on", async () => {
+   it("re-reads and replaces the live destination version when overwrite is on", async () => {
       const { destination, result } = await run({
          overwrite: true,
          destination: async (request) =>
@@ -271,6 +275,7 @@ describe("streaming an object to another server", () => {
                : empty(200, { etag: '"written"' }),
       });
       expect(result).toMatchObject({ eTag: '"written"' });
+      expect(destination.map((r) => r.method)).toEqual(["HEAD", "HEAD", "PUT"]);
       const put = destination.find((r) => r.method === "PUT")!;
       expect(put.headers["if-match"]).toBe('"old"');
       expect(put.headers).not.toHaveProperty("if-none-match");
@@ -301,18 +306,6 @@ describe("streaming an object to another server", () => {
       }
    );
 
-   it("re-reads an overwritten destination just before publishing over it", async () => {
-      const { destination, result } = await run({
-         overwrite: true,
-         destination: async (request) =>
-            request.method === "HEAD"
-               ? empty(200, { etag: '"old"', "content-length": "3" })
-               : empty(200, { etag: '"written"' }),
-      });
-      expect(result).toMatchObject({ eTag: '"written"' });
-      expect(destination.map((r) => r.method)).toEqual(["HEAD", "HEAD", "PUT"]);
-   });
-
    it("refuses an occupied destination before reading the object", async () => {
       const { source, destination, result } = await run({
          destination: async (request) =>
@@ -326,33 +319,10 @@ describe("streaming an object to another server", () => {
    });
 
    it("refuses a source that changed under the reviewed ETag", async () => {
-      const from = recording(async () =>
-         empty(200, { ...SOURCE_HEADERS, etag: '"other"' })
-      );
-      const sourceClient = clientFor("https://source.example.com", from.handle);
-      const destinationClient = clientFor(
-         "https://dest.example.com",
-         emptyDestination
-      );
-      const result = await transferObject({
-         source: {
-            client: sourceClient,
-            bucket: "from-bucket",
-            key: SOURCE_KEY,
-            expectedETag: ETAG,
-         },
-         destination: {
-            client: destinationClient,
-            bucket: "to-bucket",
-            key: DEST_KEY,
-         },
-         overwrite: false,
-         maxBytes: 1024,
-         partSize: 5 * 1024 * 1024,
-         abortController: new AbortController(),
-      }).catch((error: unknown) => error);
-      sourceClient.destroy();
-      destinationClient.destroy();
+      const { result } = await run({
+         destination: emptyDestination,
+         source: async () => empty(200, { ...SOURCE_HEADERS, etag: '"other"' }),
+      });
       expect(result).toMatchObject({ status: 409 });
    });
 
@@ -480,10 +450,7 @@ describe("the transfer closes its source after a destination failure", () => {
          if (request.method === "HEAD") return empty(404);
          if (request.method === "DELETE") return empty(204);
          if (request.method === "POST" && failure === "part")
-            return reply(
-               200,
-               "<InitiateMultipartUploadResult><UploadId>upload</UploadId></InitiateMultipartUploadResult>"
-            );
+            return reply(200, initiatedXml("upload"));
          return reply(500, errorXml("InternalError"));
       };
 
@@ -605,39 +572,16 @@ describe("the transfer closes its source after a destination failure", () => {
 describe("the streamed bytes are bounded, not just the declared length", () => {
    it("stops a source that streams past the cap its HEAD promised to fit", async () => {
       const understated = { ...SOURCE_HEADERS, "content-length": "2" };
-      const sourceClient = clientFor(
-         "https://source.example.com",
-         async (request) =>
+      const { destination, result } = await run({
+         destination: emptyDestination,
+         maxBytes: 4,
+         source: async (request) =>
             request.method === "HEAD"
                ? empty(200, understated)
-               : reply(200, CONTENT, understated)
-      );
-      const to = recording(emptyDestination);
-      const destinationClient = clientFor(
-         "https://dest.example.com",
-         to.handle
-      );
-      const result = await transferObject({
-         source: {
-            client: sourceClient,
-            bucket: "from-bucket",
-            key: SOURCE_KEY,
-            expectedETag: ETAG,
-         },
-         destination: {
-            client: destinationClient,
-            bucket: "to-bucket",
-            key: DEST_KEY,
-         },
-         overwrite: false,
-         maxBytes: 4,
-         partSize: 5 * 1024 * 1024,
-         abortController: new AbortController(),
-      }).catch((error: unknown) => error);
-      sourceClient.destroy();
-      destinationClient.destroy();
+               : reply(200, CONTENT, understated),
+      });
       expect(result).toSatisfy(isUploadTooLargeError);
-      expect(to.requests.filter((r) => r.method === "PUT")).toEqual([]);
+      expect(destination.filter((r) => r.method === "PUT")).toEqual([]);
    });
 });
 

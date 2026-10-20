@@ -11,16 +11,14 @@ import {
    accessErrors,
    accessKey,
    accessSummaryError,
-   canChooseWholeBucket,
    checkedGrant,
    commitDraft,
    commitDrafts,
    grantError,
    grantPayload,
    hasDrafts,
-   heldFolders,
+   isLocked,
    tooManyBuckets,
-   newGrant,
    withRole,
    withSpecificFolders,
    withWholeBucket,
@@ -43,48 +41,36 @@ const grant = (
 ): BucketAccessEntry => ({ bucketName, role, folders });
 
 const ownerBucket = bucket(Role.OWNER);
-const limitedBucket = bucket(Role.EDITOR, ["landing/"]);
 
-describe("starting a grant", () => {
-   it("gives the whole bucket when the actor has it", () => {
-      expect(newGrant(Role.OWNER, ownerBucket, Role.VIEWER)).toEqual(
-         grant(Role.VIEWER, null)
-      );
-      expect(newGrant(Role.ADMIN, bucket(Role.ADMIN), Role.EDITOR)).toEqual(
-         grant(Role.EDITOR, null)
-      );
-   });
-
-   it("starts from the actor's own folders when theirs are limited", () => {
-      const entry = newGrant(Role.ADMIN, limitedBucket, Role.VIEWER);
-      expect(entry).toEqual(grant(Role.VIEWER, ["landing/"]));
-      expect(entry.folders).not.toBe(limitedBucket.folders);
-   });
-
-   it("never starts limited for someone who'll be a server admin", () => {
+describe("grants the actor couldn't have given", () => {
+   it("lock an owner-assigned Admin grant for an admin", () => {
       expect(
-         newGrant(Role.ADMIN, limitedBucket, Role.VIEWER, Role.ADMIN)
-      ).toEqual(grant(Role.VIEWER, null));
+         isLocked(Role.ADMIN, bucket(Role.ADMIN), grant(Role.ADMIN, null))
+      ).toBe(true);
    });
 
-   it("ignores folders the bucket list reports for an owner", () => {
-      expect(heldFolders(Role.OWNER, limitedBucket)).toBeNull();
-      expect(heldFolders(Role.ADMIN, limitedBucket)).toEqual(["landing/"]);
+   it("lock a grant above the role the admin holds on the bucket", () => {
+      expect(
+         isLocked(Role.ADMIN, bucket(Role.VIEWER), grant(Role.EDITOR, null))
+      ).toBe(true);
+      expect(
+         isLocked(Role.ADMIN, bucket(Role.ADMIN), grant(Role.EDITOR, null))
+      ).toBe(false);
    });
 });
 
 describe("checking a bucket again after unchecking it", () => {
    it("brings back the access the member had, not the whole bucket", () => {
       const before = grant(Role.EDITOR, ["landing/"]);
-      const row = checkedGrant(before, Role.OWNER, ownerBucket, Role.VIEWER);
+      const row = checkedGrant(before, ownerBucket, Role.VIEWER);
       expect(row).toEqual(before);
       expect(row.folders).not.toBe(before.folders);
    });
 
-   it("starts a fresh grant for a bucket the member never had", () => {
-      expect(
-         checkedGrant(undefined, Role.OWNER, ownerBucket, Role.VIEWER)
-      ).toEqual(newGrant(Role.OWNER, ownerBucket, Role.VIEWER));
+   it("starts a whole-bucket grant for a bucket the member never had", () => {
+      expect(checkedGrant(undefined, ownerBucket, Role.VIEWER)).toEqual(
+         grant(Role.VIEWER, null)
+      );
    });
 });
 
@@ -126,33 +112,19 @@ describe("changing a row's role", () => {
 describe("whole bucket or specific folders", () => {
    it("switches between the two, offering the last folder list again", () => {
       const whole = grant(Role.EDITOR, null);
-      expect(withSpecificFolders(whole, null).folders).toEqual([]);
-      expect(withSpecificFolders(whole, ["landing/"]).folders).toEqual([
-         "landing/",
-      ]);
+      expect(withSpecificFolders(whole).folders).toEqual([]);
       expect(
-         withSpecificFolders(whole, null, grant(Role.EDITOR, ["kept/"])).folders
+         withSpecificFolders(whole, grant(Role.EDITOR, ["kept/"])).folders
       ).toEqual(["kept/"]);
       const dropped = withWholeBucket(grant(Role.EDITOR, ["a/"]));
       expect(dropped.folders).toBeNull();
-      expect(withSpecificFolders(dropped, null).folders).toEqual(["a/"]);
-   });
-
-   it("only offers the whole bucket to an actor who holds it", () => {
-      expect(canChooseWholeBucket(null, undefined)).toBe(true);
-      expect(canChooseWholeBucket(["landing/"], undefined)).toBe(false);
-      expect(canChooseWholeBucket(["landing/"], grant(Role.VIEWER, null))).toBe(
-         true
-      );
-      expect(
-         canChooseWholeBucket(["landing/"], grant(Role.VIEWER, ["landing/"]))
-      ).toBe(false);
+      expect(withSpecificFolders(dropped).folders).toEqual(["a/"]);
    });
 });
 
 describe("checking a grant before it is sent", () => {
    const owned = { myRole: Role.OWNER, bucket: ownerBucket };
-   const limitedAdmin = { myRole: Role.ADMIN, bucket: limitedBucket };
+   const viewerAdmin = { myRole: Role.ADMIN, bucket: bucket(Role.VIEWER) };
 
    it("asks for at least one folder", () => {
       expect(grantError(grant(Role.EDITOR, []), owned)).toBe(
@@ -193,46 +165,17 @@ describe("checking a grant before it is sent", () => {
       ).toBeNull();
    });
 
-   it("keeps a limited actor from granting the whole bucket", () => {
-      expect(grantError(grant(Role.VIEWER, null), limitedAdmin)).toBe(
-         "You can only give access inside landing/."
-      );
-   });
-
-   it("keeps a limited actor inside their own folders", () => {
-      expect(grantError(grant(Role.VIEWER, ["private/"]), limitedAdmin)).toBe(
-         "You can only give access inside landing/."
-      );
-      expect(
-         grantError(grant(Role.VIEWER, ["landing/hero/"]), limitedAdmin)
-      ).toBeNull();
-   });
-
    it("keeps an unchanged grant the actor couldn't make themselves", () => {
+      const original = grant(Role.EDITOR, ["b/", "a/"]);
       expect(
-         grantError(grant(Role.VIEWER, ["landing/", "private/"]), {
-            ...limitedAdmin,
-            original: grant(Role.VIEWER, ["private/", "landing/"]),
+         grantError(grant(Role.EDITOR, ["a/", "b/"]), {
+            ...viewerAdmin,
+            original,
          })
       ).toBeNull();
       expect(
-         grantError(grant(Role.VIEWER, ["landing/"]), {
-            ...limitedAdmin,
-            original: grant(Role.VIEWER, null),
-         })
-      ).toBeNull();
-      expect(
-         grantError(grant(Role.VIEWER, null), {
-            ...limitedAdmin,
-            original: grant(Role.VIEWER, null),
-         })
-      ).toBeNull();
-      expect(
-         grantError(grant(Role.EDITOR, null), {
-            ...limitedAdmin,
-            original: grant(Role.VIEWER, null),
-         })
-      ).toBe("You can only give access inside landing/.");
+         grantError(grant(Role.EDITOR, ["a/"]), { ...viewerAdmin, original })
+      ).toBe("You can't give Editor access to this bucket.");
    });
 
    it("refuses a role above the actor's own", () => {
@@ -247,17 +190,17 @@ describe("checking a grant before it is sent", () => {
    it("collects errors by bucket and skips buckets the actor can't see", () => {
       const errors = accessErrors(
          [
-            grant(Role.VIEWER, null, "site"),
+            grant(Role.EDITOR, null, "site"),
             grant(Role.VIEWER, ["a/"], "docs"),
             grant(Role.EDITOR, [], "hidden"),
          ],
          {
-            buckets: [limitedBucket, bucket(Role.EDITOR, null, "docs")],
+            buckets: [bucket(Role.VIEWER), bucket(Role.EDITOR, null, "docs")],
             myRole: Role.ADMIN,
          }
       );
       expect([...errors]).toEqual([
-         ["site", "You can only give access inside landing/."],
+         ["site", "You can't give Editor access to this bucket."],
       ]);
    });
 
@@ -279,53 +222,50 @@ describe("folders typed but not added", () => {
    });
 
    it("adds a typed folder that can simply go in", () => {
-      expect(commitDraft(typed([], "landing"), null)).toEqual({
+      expect(commitDraft(typed([], "landing"))).toEqual({
          row: typed(["landing/"], ""),
          problem: null,
       });
-      expect(commitDraft(typed(["a/"], "b/"), null).row.folders).toEqual([
+      expect(commitDraft(typed(["a/"], "b/")).row.folders).toEqual([
          "a/",
          "b/",
       ]);
    });
 
    it("drops what was typed when it's already in the list", () => {
-      expect(commitDraft(typed(["a/"], "/a"), null)).toEqual({
+      expect(commitDraft(typed(["a/"], "/a"))).toEqual({
          row: typed(["a/"], ""),
          problem: null,
       });
    });
 
    it("explains, rather than drops, a folder that can't go in", () => {
-      expect(commitDraft(typed(["a/"], "x/../y"), null)).toEqual({
+      expect(commitDraft(typed(["a/"], "x/../y"))).toEqual({
          row: typed(["a/"], "x/../y"),
          problem:
             'A folder can\'t have empty, "." or ".." parts. Fix or clear the folder you typed.',
       });
-      expect(commitDraft(typed([], "private"), ["landing/"]).problem).toBe(
-         "You can only share folders inside landing/. Fix or clear the folder you typed."
-      );
    });
 
    it("asks before a typed folder replaces others", () => {
-      expect(commitDraft(typed(["landing/"], "landing/hero"), null)).toEqual({
+      expect(commitDraft(typed(["landing/"], "landing/hero"))).toEqual({
          row: typed(["landing/"], "landing/hero"),
          problem: "Press Add to confirm landing/hero/. It replaces landing/.",
       });
-      expect(commitDraft(typed(["a/b/", "a/c/"], "a"), null).problem).toBe(
+      expect(commitDraft(typed(["a/b/", "a/c/"], "a")).problem).toBe(
          "Press Add to confirm a/. It replaces a/b/ and a/c/."
       );
    });
 
    it("spells out bidi characters in the folders it names", () => {
-      expect(commitDraft(typed(["a\u202E/"], "a\u202E/b"), null).problem).toBe(
+      expect(commitDraft(typed(["a\u202E/"], "a\u202E/b")).problem).toBe(
          "Press Add to confirm a[U+202E]/b/. It replaces a[U+202E]/."
       );
    });
 
    it("ignores text left in a row that isn't limited to folders", () => {
       const whole = typed(null, "landing/");
-      expect(commitDraft(whole, null)).toEqual({ row: whole, problem: null });
+      expect(commitDraft(whole)).toEqual({ row: whole, problem: null });
       expect(hasDrafts([whole])).toBe(false);
       expect(hasDrafts([typed([], "  ")])).toBe(false);
       expect(hasDrafts([typed([], "a")])).toBe(true);

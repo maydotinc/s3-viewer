@@ -8,8 +8,9 @@ import { listBuckets, probeBucketList } from "./bucket-listing";
 import { getBucketClient } from "./bucket-client";
 import { toBucketHttpError, toHttpError } from "./errors";
 import { isForbidden } from "./failure";
+import { SECOND_MS } from "@s3-viewer/types";
 
-const CONNECT_TIMEOUT_MS = 15_000;
+const CONNECT_TIMEOUT_MS = 15 * SECOND_MS;
 
 const headBucket = async (
    client: S3Client,

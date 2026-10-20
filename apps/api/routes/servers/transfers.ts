@@ -24,12 +24,13 @@ import { partSizeFor } from "@/lib/s3/part-size";
 import { clientProvider } from "@/lib/s3/provider";
 import { transferObject } from "@/lib/s3/transfer";
 import { streamedUploadCap } from "@/lib/s3/upload";
-import { copyScope, readScope } from "@/routes/s3/scope";
+import { copyScope, readScope, recordedIfUnconfirmed } from "@/routes/s3/scope";
 import { Permission } from "@s3-viewer/permissions";
 import {
    ErrorCode,
    TRANSFERS_PATH,
    transferObjectBodySchema,
+   type AuditEntry,
    type S3ObjectUploaded,
    type TransferObjectInput,
 } from "@s3-viewer/types";
@@ -215,11 +216,7 @@ const runTransfer = async (req: Request, res: Response): Promise<void> => {
          toBucket: destination.bucketName,
       },
    });
-   const uploaded =
-      sourceServerId === destination.serverId
-         ? await copyAcrossBuckets(res, scope)
-         : await streamAcrossServers(req, res, scope);
-   await record(res, {
+   const transferred: AuditEntry = {
       action: "object.transfer",
       bucket: destination.bucketName,
       target: destination.objectKey,
@@ -228,7 +225,14 @@ const runTransfer = async (req: Request, res: Response): Promise<void> => {
          fromBucket: source.bucketName,
          from: source.objectKey,
       },
-   });
+   };
+   const uploaded =
+      sourceServerId === destination.serverId
+         ? await recordedIfUnconfirmed(res, transferred, () =>
+              copyAcrossBuckets(res, scope)
+           )
+         : await streamAcrossServers(req, res, scope);
+   await record(res, transferred);
    res.status(201).json(uploaded);
 };
 

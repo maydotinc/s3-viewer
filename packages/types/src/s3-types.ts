@@ -7,6 +7,9 @@ type S3Bucket = {
    folders: string[] | null;
 };
 
+// existing is set when the owner put a bucket that already existed back on an allow-listed server.
+type CreatedBucket = { bucket: S3Bucket; existing?: true };
+
 type S3Object = {
    key: string;
    isFolder: boolean;
@@ -64,6 +67,7 @@ type S3KeysPage = {
 type S3ObjectsExist = { existing: string[]; eTags: Record<string, string> };
 
 export type {
+   CreatedBucket,
    S3Bucket,
    S3DeleteResult,
    S3DeleteTarget,

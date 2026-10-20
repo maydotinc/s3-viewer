@@ -37,7 +37,6 @@ import {
    type AuditSettingsInput,
 } from "@s3-viewer/types";
 import { Router, type Request, type Response } from "express";
-import { once } from "node:events";
 import { z } from "zod";
 
 const auditRouter: Router = Router();
@@ -295,9 +294,24 @@ const exportAuditLog = async (
    res.write(CSV_HEADER);
    const closed = new AbortController();
    res.once("close", () => closed.abort());
+   // compression hands drain listeners to its gzip stream and never removes them, so a single
+   // listener serves every wait instead of one leaking per batch.
+   let drained: (() => void) | undefined;
+   res.on("drain", () => drained?.());
+   const waitForDrain = (signal: AbortSignal) =>
+      new Promise<void>((resolve, reject) => {
+         if (signal.aborted) return reject(signal.reason);
+         const abort = () => reject(signal.reason);
+         signal.addEventListener("abort", abort, { once: true });
+         drained = () => {
+            drained = undefined;
+            signal.removeEventListener("abort", abort);
+            resolve();
+         };
+      });
    const deadline = Date.now() + EXPORT_DEADLINE_MS;
    try {
-      for await (const entry of iterateAudit({
+      for await (const batch of iterateAudit({
          ...filters,
          reach,
          viewerId: getAuth(res).userId,
@@ -310,14 +324,14 @@ const exportAuditLog = async (
             res.end(TRUNCATED_ROW);
             return;
          }
-         if (!res.write(csvRow(entry))) {
+         if (!res.write(batch.map(csvRow).join(""))) {
             try {
-               await once(res, "drain", {
-                  signal: AbortSignal.any([
+               await waitForDrain(
+                  AbortSignal.any([
                      closed.signal,
                      AbortSignal.timeout(env.UPLOAD_IDLE_TIMEOUT_MS),
-                  ]),
-               });
+                  ])
+               );
             } catch {
                res.destroy();
                return;

@@ -1,6 +1,7 @@
 import { useBucketContext } from "@/components/Buckets/Context";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { filesFromDrop } from "@/lib/utils/s3/drop-entries";
+import { visibleText } from "@/lib/utils/format";
 import { toastFailure } from "@/lib/utils/toast";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { FolderLock, Upload } from "lucide-react";
@@ -91,7 +92,7 @@ const DropZone = ({
             >
                <Upload className="size-8 text-viewerblue" aria-hidden="true" />
                <p className="max-w-full text-sm font-medium text-viewerblack [overflow-wrap:anywhere]">
-                  Drop to upload to {prefix ? prefix : bucketName}
+                  Drop to upload to {visibleText(prefix || bucketName)}
                </p>
             </div>
          )}

@@ -27,7 +27,12 @@ const server = (id: string): ServerInfo =>
    serverInfo({
       id,
       name: id,
-      audit: { enabled: false, canView: false, canManage: true },
+      audit: {
+         enabled: false,
+         canView: false,
+         canManage: true,
+         canVerify: false,
+      },
    });
 
 let runtime: Awaited<ReturnType<typeof mountRuntime>> | undefined;

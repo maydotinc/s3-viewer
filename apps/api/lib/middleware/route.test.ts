@@ -290,7 +290,6 @@ describe("refused attempts", () => {
 
    it.each([
       ["no origin proof", {}],
-      ["a cross-site fetch marker", { "sec-fetch-site": "cross-site" }],
       ["a sibling-site navigation", { "sec-fetch-site": "same-site" }],
       ["another site's Origin", { origin: "https://evil.example" }],
    ])("flags a refused read that arrives with %s", async (_name, origin) => {

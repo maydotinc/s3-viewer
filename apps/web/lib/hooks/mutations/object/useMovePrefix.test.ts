@@ -20,14 +20,7 @@ const input = {
 };
 beforeEach(() => vi.resetAllMocks());
 
-it("rejects an overlapping prefix before a live multipage listing can process its output", async () => {
-   h.get.mockResolvedValue({
-      objects: Array.from({ length: 1000 }, (_, n) => ({
-         key: `raw/deep/deep/item-${n}`,
-         expectedETag: "etag",
-      })),
-      nextToken: "next",
-   });
+it("rejects an overlapping destination before listing anything", async () => {
    await expect(movePrefix({ ...input, newPrefix: "raw/" })).rejects.toThrow(
       "must not overlap"
    );

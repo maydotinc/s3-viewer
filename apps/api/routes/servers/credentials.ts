@@ -1,5 +1,4 @@
-import { SERVER_NOT_FOUND } from "@/lib/constants";
-import { ApiHttpError, rethrowDbError } from "@/lib/http";
+import { ApiHttpError, rethrowDbError, serverNotFound } from "@/lib/http";
 import { getAuth, requireUser } from "@/lib/middleware/authorize";
 import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { connectLimit } from "@/lib/middleware/rate-limit";
@@ -97,7 +96,7 @@ const updateCredentials = async (
       })
       .catch((err: unknown) =>
          rethrowDbError(err, {
-            missing: new ApiHttpError(404, SERVER_NOT_FOUND),
+            missing: serverNotFound(),
          })
       );
    invalidateS3Client(serverId);

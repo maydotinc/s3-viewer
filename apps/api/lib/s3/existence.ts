@@ -68,4 +68,4 @@ const whichExistInFolders = async (
    return found;
 };
 
-export { whichExist, whichExistInFolders };
+export { whichExistInFolders };

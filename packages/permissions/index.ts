@@ -157,11 +157,15 @@ const canRemoveAccess = (
 const auditAccess = (
    role: Role,
    settings: Pick<AuditSettings, "enabled" | "viewRole" | "manageRole">
-): AuditAccess => ({
-   enabled: settings.enabled,
-   canView: isAtLeast(role, settings.viewRole),
-   canManage: isAtLeast(role, settings.manageRole),
-});
+): AuditAccess => {
+   const canView = isAtLeast(role, settings.viewRole);
+   return {
+      enabled: settings.enabled,
+      canView,
+      canManage: isAtLeast(role, settings.manageRole),
+      canVerify: canView && isAtLeast(role, Role.ADMIN),
+   };
+};
 
 export {
    Permission,

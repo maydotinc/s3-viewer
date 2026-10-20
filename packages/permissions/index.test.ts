@@ -16,34 +16,51 @@ import {
 
 const ROLES_ASCENDING = [Role.VIEWER, Role.EDITOR, Role.ADMIN, Role.OWNER];
 
-const grantedTo = (role: Role) =>
+const grantedTo = (role: Role | null) =>
    Object.values(Permission).filter((p) => hasPermission(role, p));
 
 describe("role hierarchy", () => {
-   it("is cumulative", () => {
-      for (let i = 1; i < ROLES_ASCENDING.length; i++) {
-         const lower = grantedTo(ROLES_ASCENDING[i - 1]!);
-         const higher = grantedTo(ROLES_ASCENDING[i]!);
-         for (const p of lower) expect(higher).toContain(p);
-         expect(higher.length).toBeGreaterThan(lower.length);
-      }
-   });
-
-   it("grants the expected permissions", () => {
-      expect(hasPermission(Role.VIEWER, Permission.DOWNLOAD_OBJECT)).toBe(true);
-      expect(hasPermission(Role.VIEWER, Permission.UPLOAD_OBJECT)).toBe(false);
-      expect(hasPermission(Role.EDITOR, Permission.UPLOAD_OBJECT)).toBe(true);
-      expect(hasPermission(Role.EDITOR, Permission.MANAGE_MEMBERS)).toBe(false);
-      expect(hasPermission(Role.ADMIN, Permission.MANAGE_MEMBERS)).toBe(true);
-      expect(hasPermission(Role.ADMIN, Permission.DELETE_SERVER)).toBe(false);
-      expect(hasPermission(Role.OWNER, Permission.DELETE_SERVER)).toBe(true);
-      expect(hasPermission(Role.ADMIN, Permission.UPDATE_CREDENTIALS)).toBe(
-         false
-      );
-      expect(hasPermission(Role.OWNER, Permission.UPDATE_CREDENTIALS)).toBe(
-         true
-      );
-      expect(hasPermission(null, Permission.LIST_BUCKETS)).toBe(false);
+   it("grants exactly this matrix", () => {
+      expect(
+         Object.fromEntries(
+            ROLES_ASCENDING.map((role) => [role, grantedTo(role).sort()])
+         )
+      ).toEqual({
+         [Role.VIEWER]: ["DOWNLOAD_OBJECT", "LIST_BUCKETS", "LIST_OBJECTS"],
+         [Role.EDITOR]: [
+            "CREATE_BUCKET",
+            "DELETE_OBJECT",
+            "DOWNLOAD_OBJECT",
+            "LIST_BUCKETS",
+            "LIST_OBJECTS",
+            "UPLOAD_OBJECT",
+         ],
+         [Role.ADMIN]: [
+            "CREATE_BUCKET",
+            "DELETE_BUCKET",
+            "DELETE_OBJECT",
+            "DOWNLOAD_OBJECT",
+            "LIST_BUCKETS",
+            "LIST_OBJECTS",
+            "MANAGE_MEMBERS",
+            "RENAME_SERVER",
+            "UPLOAD_OBJECT",
+         ],
+         [Role.OWNER]: [
+            "CREATE_BUCKET",
+            "DELETE_BUCKET",
+            "DELETE_OBJECT",
+            "DELETE_SERVER",
+            "DOWNLOAD_OBJECT",
+            "LIST_BUCKETS",
+            "LIST_OBJECTS",
+            "MANAGE_MEMBERS",
+            "RENAME_SERVER",
+            "UPDATE_CREDENTIALS",
+            "UPLOAD_OBJECT",
+         ],
+      });
+      expect(grantedTo(null)).toEqual([]);
    });
 
    it("compares ranks", () => {
@@ -149,21 +166,25 @@ describe("audit access", () => {
          enabled: true,
          canView: true,
          canManage: true,
+         canVerify: true,
       });
       expect(auditAccess(Role.ADMIN, settings)).toEqual({
          enabled: true,
          canView: true,
          canManage: true,
+         canVerify: true,
       });
       expect(auditAccess(Role.EDITOR, settings)).toEqual({
          enabled: true,
          canView: true,
          canManage: false,
+         canVerify: false,
       });
       expect(auditAccess(Role.VIEWER, settings)).toEqual({
          enabled: true,
          canView: false,
          canManage: false,
+         canVerify: false,
       });
    });
 
@@ -177,11 +198,13 @@ describe("audit access", () => {
          enabled: false,
          canView: true,
          canManage: true,
+         canVerify: true,
       });
       expect(auditAccess(Role.ADMIN, ownerOnly)).toEqual({
          enabled: false,
          canView: false,
          canManage: false,
+         canVerify: false,
       });
    });
 });

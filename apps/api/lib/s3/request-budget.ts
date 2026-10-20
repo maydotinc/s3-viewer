@@ -3,7 +3,10 @@ import { MINUTE_MS } from "@s3-viewer/types";
 import { env } from "@/lib/env";
 import { rateLimited } from "./errors";
 import { readUserId } from "./read-budget";
-import { withBufferedResponses } from "./response-collector";
+import {
+   admitCommittingWrite,
+   withBufferedResponses,
+} from "./response-collector";
 
 type Window = {
    count: number;
@@ -84,7 +87,8 @@ const sweep = (now: number): void => {
    }
 };
 
-const spendRequest = (serverId: string, userId = readUserId()): void => {
+const spendRequest = (serverId: string): void => {
+   const userId = readUserId();
    const now = Date.now();
    let open = windows.get(serverId);
    if (!open || open.resetAt <= now) {
@@ -121,9 +125,9 @@ const bump = (counts: Map<string, number>, key: string, by: 1 | -1): void => {
 // by the read budget and progress floors.
 const acquireInFlight = (
    pool: InFlightPool,
-   serverId: string,
-   userId = readUserId()
+   serverId: string
 ): (() => void) => {
+   const userId = readUserId();
    if ((pool.byServer.get(serverId) ?? 0) >= pool.serverCap())
       throw pool.serverBusy();
    if (userId !== undefined && (pool.byUser.get(userId) ?? 0) >= pool.userCap())
@@ -144,7 +148,8 @@ const withRequestBudget = (client: S3Client, serverId: string): S3Client => {
    withBufferedResponses(client, serverId);
    serverOfClient.set(client, serverId);
    client.middlewareStack.add(
-      (next) => async (args) => {
+      (next, context) => async (args) => {
+         admitCommittingWrite(serverId, context.commandName);
          const release = acquireInFlight(requests, serverId);
          try {
             spendRequest(serverId);

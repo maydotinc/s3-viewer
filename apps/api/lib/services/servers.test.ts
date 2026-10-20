@@ -1,10 +1,10 @@
+import { Prisma } from "@prisma/client";
 import { Role } from "@s3-viewer/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getServerInfo, listServerPage, toServerInfo } from "./servers";
 
 const state = vi.hoisted(() => ({
    decrypt: vi.fn(),
-   findAccess: vi.fn(),
    queryRaw: vi.fn(),
 }));
 
@@ -12,19 +12,13 @@ vi.mock("@/lib/utils/encryption", () => ({
    decryptCredentials: state.decrypt,
 }));
 vi.mock("@s3-viewer/db", () => ({
-   prisma: {
-      serverAccess: { findUnique: state.findAccess },
-      $queryRaw: state.queryRaw,
-   },
+   prisma: { $queryRaw: state.queryRaw },
 }));
 
 type Row = Parameters<typeof toServerInfo>[0];
 
 const FLAGS = {
-   upload: true,
-   replace: true,
-   rename: true,
-   delete: true,
+   writable: true,
    deleteProtection: "checked" as const,
 };
 
@@ -45,8 +39,15 @@ const row = (
    ...stored,
 });
 
+const sentSql = (): string => {
+   const [strings, ...values] = state.queryRaw.mock.calls[0] as [
+      TemplateStringsArray,
+      ...unknown[],
+   ];
+   return Prisma.sql(strings, ...values).sql;
+};
+
 beforeEach(() => {
-   state.findAccess.mockReset();
    state.queryRaw.mockReset();
    state.decrypt.mockReset();
 });
@@ -65,7 +66,18 @@ describe("toServerInfo capabilities", () => {
    it.each([
       ["S3", null],
       ["Other", null],
-      ["Other", { upload: "yes" }],
+      ["Other", { writable: "yes" }],
+      [
+         "Other",
+         {
+            upload: true,
+            replace: true,
+            rename: true,
+            delete: true,
+            deleteProtection: "checked",
+            notice: null,
+         },
+      ],
    ] as const)(
       "reports a %s server whose stored answer is %j as read-only",
       (provider, capabilities) => {
@@ -76,8 +88,8 @@ describe("toServerInfo capabilities", () => {
             Role.OWNER
          );
          expect(info.capabilities).toMatchObject({
-            upload: false,
-            delete: false,
+            writable: false,
+            deleteProtection: null,
          });
          expect(state.decrypt).not.toHaveBeenCalled();
       }
@@ -102,6 +114,19 @@ describe("toServerInfo bucket creation", () => {
    );
 });
 
+describe("toServerInfo bucket removal", () => {
+   it.each([true, false])(
+      "offers bucket removal only on a server restricted to an allow-list (%s)",
+      (restrictedBuckets) => {
+         const info = toServerInfo(
+            row("Other", { restrictedBuckets }),
+            Role.OWNER
+         );
+         expect(info.canRemoveBuckets).toBe(restrictedBuckets);
+      }
+   );
+});
+
 describe("server list and info rows", () => {
    it("leaves the credentials blob out of the list query", async () => {
       state.queryRaw.mockResolvedValue([
@@ -121,8 +146,8 @@ describe("server list and info rows", () => {
          },
       ]);
       const page = await listServerPage("user12345", undefined);
-      const [strings] = state.queryRaw.mock.calls[0] as [TemplateStringsArray];
-      expect(strings.join("")).not.toContain('s."credentials"');
+      expect(sentSql()).toContain('s."restrictedBuckets"');
+      expect(sentSql()).not.toContain('"credentials"');
       expect(state.decrypt).not.toHaveBeenCalled();
       expect(page.servers.map((server) => server.capabilities.notice)).toEqual([
          null,
@@ -130,17 +155,22 @@ describe("server list and info rows", () => {
       ]);
    });
 
-   it("answers one server without its credentials", async () => {
-      state.findAccess.mockResolvedValue({
-         role: "EDITOR",
-         server: row("S3", { id: "aws1234567" }),
-      });
+   it("answers one server in one statement without its credentials", async () => {
+      state.queryRaw.mockResolvedValue([
+         { ...row("S3", { id: "aws1234567" }), role: "EDITOR" },
+      ]);
       const info = await getServerInfo("user12345", "aws1234567");
       expect(info.userRole).toBe(Role.EDITOR);
-      const { select } = state.findAccess.mock.calls[0]![0] as {
-         select: { server: { select: Record<string, unknown> } };
-      };
-      expect(select.server.select).not.toHaveProperty("credentials");
+      expect(state.queryRaw).toHaveBeenCalledTimes(1);
+      expect(sentSql()).toContain('s."restrictedBuckets"');
+      expect(sentSql()).not.toContain('"credentials"');
       expect(state.decrypt).not.toHaveBeenCalled();
+   });
+
+   it("answers 404 for a server the user is not a member of", async () => {
+      state.queryRaw.mockResolvedValue([]);
+      await expect(
+         getServerInfo("user12345", "aws1234567")
+      ).rejects.toMatchObject({ status: 404 });
    });
 });

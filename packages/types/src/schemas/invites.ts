@@ -16,6 +16,7 @@ export type InviteIdInput = z.infer<typeof inviteIdSchema>;
 export const revokeInviteSchema = serverScope.merge(inviteIdSchema);
 export type RevokeInviteInput = z.infer<typeof revokeInviteSchema>;
 
+// admins always hold whole buckets, so no actor who can grant access is ever limited to folders.
 const adminsHoldWholeBuckets = ({
    role,
    bucketAccess,

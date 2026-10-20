@@ -54,12 +54,22 @@ const nextConfig: NextConfig = {
    assetPrefix,
    images: {
       path: `${assetPrefix}/_next/image`,
+      minimumCacheTTL: 86400,
       remotePatterns: [
          { protocol: "https", hostname: "cdn-may.com", pathname: "/assets/**" },
       ],
    },
    headers: async () => [
       { source: "/(.*)", headers: securityHeaders },
+      {
+         source: "/landing/:path*",
+         headers: [
+            {
+               key: "Cache-Control",
+               value: "public, max-age=86400, stale-while-revalidate=604800",
+            },
+         ],
+      },
       ...(assetOrigin
          ? [
               {

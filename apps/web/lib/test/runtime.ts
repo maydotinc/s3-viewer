@@ -57,4 +57,17 @@ const flushRuntime = async () => {
    });
 };
 
-export { deferred, flushRuntime, mountRuntime };
+// flushes until the expected effect shows, so a test does not depend on how many tasks the code takes to get there
+const flushUntil = async (expectation: () => void, attempts = 20) => {
+   for (let attempt = 1; ; attempt++) {
+      await flushRuntime();
+      try {
+         expectation();
+         return;
+      } catch (error) {
+         if (attempt >= attempts) throw error;
+      }
+   }
+};
+
+export { deferred, flushRuntime, flushUntil, mountRuntime };

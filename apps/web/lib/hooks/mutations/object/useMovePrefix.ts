@@ -1,5 +1,5 @@
 import { objectsPath } from "@/lib/api";
-import { runPrefixBatches } from "@/lib/utils/s3/batch";
+import { isBatchComplete, runPrefixBatches } from "@/lib/utils/s3/batch";
 import {
    OVERLAP_ERROR,
    destinationKey,
@@ -52,14 +52,13 @@ const useMovePrefix = () =>
    useObjectMutation({
       mutationFn: movePrefix,
       onSuccess: reportMoveResult,
-      settle: forgetMatching(
-         ({ newPrefix }) =>
-            (key) =>
-               key.startsWith(newPrefix),
-         ({ prefix, newPrefix }) =>
-            (key) =>
-               key.startsWith(prefix) && !key.startsWith(newPrefix)
-      ),
+      settle: forgetMatching(({ prefix, newPrefix }, outcome) => {
+         const landed = (key: string) => key.startsWith(newPrefix);
+         const left = (key: string) => key.startsWith(prefix) && !landed(key);
+         return outcome && isBatchComplete(outcome.data)
+            ? { changed: landed, removed: left }
+            : { changed: (key: string) => landed(key) || left(key) };
+      }),
    });
 
 export default useMovePrefix;

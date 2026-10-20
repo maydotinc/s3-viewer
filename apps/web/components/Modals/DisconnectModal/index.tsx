@@ -3,15 +3,15 @@ import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import StaleSignIn, { isSessionStale } from "@/components/stale-sign-in";
 import useDeleteServer from "@/lib/hooks/mutations/server/useDeleteServer";
 import useLeaveServer from "@/lib/hooks/mutations/server/useLeaveServer";
-import { Role } from "@s3-viewer/types";
+import { Permission, hasPermission } from "@s3-viewer/permissions";
 
 type DisconnectModalProps = ModalProps<"disconnect">;
 
 const DisconnectModal = ({ server, onClose }: DisconnectModalProps) => {
-   const isOwner = server.userRole === Role.OWNER;
+   const canDelete = hasPermission(server.userRole, Permission.DELETE_SERVER);
    const deleteServer = useDeleteServer();
    const leaveServer = useLeaveServer();
-   const mutation = isOwner ? deleteServer : leaveServer;
+   const mutation = canDelete ? deleteServer : leaveServer;
 
    const confirm = () =>
       mutation.mutate({ serverId: server.id }, { onSuccess: onClose });
@@ -21,15 +21,15 @@ const DisconnectModal = ({ server, onClose }: DisconnectModalProps) => {
       <ConfirmDialog
          closable={!mutation.isPending}
          onClose={onClose}
-         title={isOwner ? "Delete server" : "Leave server"}
+         title={canDelete ? "Delete server" : "Leave server"}
          description={
-            isOwner
+            canDelete
                ? `This deletes the connection to ${server.name}, all member access and pending invites; your buckets and files are not touched.`
                : `You'll lose access to ${server.name} until someone invites you again.`
          }
          error={stale ? null : (mutation.error?.message ?? null)}
          confirmVariant="destructive"
-         confirmLabel={isOwner ? "Delete server" : "Leave server"}
+         confirmLabel={canDelete ? "Delete server" : "Leave server"}
          isPending={mutation.isPending}
          onConfirm={confirm}
       >

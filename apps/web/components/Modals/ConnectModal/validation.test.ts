@@ -7,7 +7,7 @@ import {
    submitForm,
    typeInto,
 } from "@/components/test-helpers";
-import { deferred, flushRuntime } from "@/lib/test/runtime";
+import { deferred, flushRuntime, flushUntil } from "@/lib/test/runtime";
 import UpdateCredentialsModal from "../UpdateCredentialsModal";
 import ConnectModal from "./index";
 
@@ -57,11 +57,11 @@ const input = (id: string) =>
 const type = (id: string, value: string) =>
    act(async () => typeInto(input(id), value));
 const change = (key: string, value: string) => type(`${prefix}-${key}`, value);
-const submit = async () => {
+const submit = async (until: () => void) => {
    await act(async () => submitForm(view.current.container));
-   await flushRuntime();
-   await flushRuntime();
+   await flushUntil(until);
 };
+const bucketNamesShown = () => expect(input("bucket-names")).not.toBeNull();
 const open = async (kind: "connect" | "update") => {
    prefix = kind === "connect" ? "connect" : "update-credentials";
    await view.mount(
@@ -104,22 +104,24 @@ describe.each(["connect", "update"] as const)(
       it("rejects an invalid region before encryption or submission", async () => {
          await open(kind);
          await change("region", "US-EAST-1");
-         await submit();
+         await submit(() => expect(view.text()).toContain("Invalid region"));
          expect(h.encrypt).not.toHaveBeenCalled();
          expect(h.establish).not.toHaveBeenCalled();
          expect(h.update).not.toHaveBeenCalled();
-         expect(view.text()).toContain("Invalid region");
       });
 
       it("enforces effective HTTP policy and preserves secret material", async () => {
          await open(kind);
          await change("endpoint", "http://minio.local:9000/gateway/");
-         await submit();
+         await submit(() => expect(view.text()).toContain("https://"));
          expect(h.encrypt).not.toHaveBeenCalled();
-         expect(view.text()).toContain("https://");
          h.allowHttp = true;
          await change("region", "us-east-1");
-         await submit();
+         await submit(() =>
+            expect(
+               kind === "connect" ? h.establish : h.update
+            ).toHaveBeenCalledOnce()
+         );
          expect(h.encrypt).toHaveBeenCalledWith(
             {
                endpoint: "http://minio.local:9000/gateway/",
@@ -130,9 +132,6 @@ describe.each(["connect", "update"] as const)(
             "key",
             "user12345"
          );
-         expect(
-            kind === "connect" ? h.establish : h.update
-         ).toHaveBeenCalledOnce();
       });
    }
 );
@@ -140,7 +139,7 @@ describe.each(["connect", "update"] as const)(
 describe("named bucket connection", () => {
    const detected = async (count: number) => {
       await open("connect");
-      await submit();
+      await submit(bucketNamesShown);
       await type(
          "bucket-names",
          Array.from({ length: count }, (_, index) => `bucket-${index}`).join(
@@ -153,7 +152,7 @@ describe("named bucket connection", () => {
       "validates %i names in bounded requests before connecting",
       async (count) => {
          await detected(count);
-         await submit();
+         await submit(() => expect(h.create).toHaveBeenCalledOnce());
          expect(h.post).toHaveBeenCalledTimes(Math.ceil(count / 20));
          expect(
             h.post.mock.calls.every((call) => call[1].bucketNames.length <= 20)
@@ -164,10 +163,9 @@ describe("named bucket connection", () => {
 
    it("rejects 101 names without a validation request", async () => {
       await detected(101);
-      await submit();
+      await submit(() => expect(view.text()).toContain("at most 100"));
       expect(h.post).not.toHaveBeenCalled();
       expect(h.create).not.toHaveBeenCalled();
-      expect(view.text()).toContain("at most 100");
    });
 
    it("waits for every result and blocks creation on inaccessible or missing buckets", async () => {
@@ -180,10 +178,9 @@ describe("named bucket connection", () => {
             })),
          })
       );
-      await submit();
+      await submit(() => expect(view.text()).toContain("can't access"));
       expect(h.post).toHaveBeenCalledTimes(2);
       expect(h.create).not.toHaveBeenCalled();
-      expect(view.text()).toContain("can't access");
    });
 });
 
@@ -198,13 +195,12 @@ describe("connection confirmation snapshot", () => {
       h.encrypt.mockReturnValue(encryption.promise);
       h.establish.mockReturnValue(detection.promise);
       await open("connect");
-      await submit();
+      await submit(() => expect(h.encrypt).toHaveBeenCalledOnce());
       expect(input("connect-name").disabled).toBe(true);
       expect(input("connect-endpoint").disabled).toBe(true);
       await type("connect-name", "Different name");
       await change("endpoint", "https://different.example.com");
-      await submit();
-      expect(h.encrypt).toHaveBeenCalledOnce();
+      await submit(() => expect(h.encrypt).toHaveBeenCalledOnce());
       await act(async () => encryption.resolve("first-credentials"));
       await change("endpoint", "https://also-different.example.com");
       await act(async () =>
@@ -218,7 +214,7 @@ describe("connection confirmation snapshot", () => {
       expect(view.text()).toContain("Storage");
       expect(view.text()).toContain("https://s3.example.com");
       expect(view.text()).not.toContain("different");
-      await submit();
+      await submit(() => expect(h.create).toHaveBeenCalled());
       expect(h.create).toHaveBeenCalledExactlyOnceWith({
          encryptedCredentials: "first-credentials",
          serverName: "Storage",
@@ -228,7 +224,7 @@ describe("connection confirmation snapshot", () => {
 
    it("locks the reviewed bucket scope until validation and creation finish", async () => {
       await open("connect");
-      await submit();
+      await submit(bucketNamesShown);
       await type("bucket-names", "original-bucket");
       const checked = deferred<{
          results: { bucketName: string; accessible: boolean }[];
@@ -236,11 +232,10 @@ describe("connection confirmation snapshot", () => {
       const created = deferred<void>();
       h.post.mockReturnValue(checked.promise);
       h.create.mockReturnValue(created.promise);
-      await submit();
+      await submit(() => expect(h.post).toHaveBeenCalledOnce());
       expect(input("bucket-names").disabled).toBe(true);
       await type("bucket-names", "different-bucket");
-      await submit();
-      expect(h.post).toHaveBeenCalledOnce();
+      await submit(() => expect(h.post).toHaveBeenCalledOnce());
       expect(h.create).not.toHaveBeenCalled();
       await act(async () =>
          checked.resolve({
@@ -263,7 +258,7 @@ describe("connection confirmation snapshot", () => {
       const encryption = deferred<string>();
       h.encrypt.mockReturnValue(encryption.promise);
       await open("connect");
-      await submit();
+      await submit(() => expect(h.encrypt).toHaveBeenCalledOnce());
       await view.current.unmount();
       await act(async () => encryption.resolve("encrypted"));
       await flushRuntime();
@@ -272,13 +267,13 @@ describe("connection confirmation snapshot", () => {
 
    it("does not create a server after the modal unmounts during bucket validation", async () => {
       await open("connect");
-      await submit();
+      await submit(bucketNamesShown);
       await type("bucket-names", "original-bucket");
       const checked = deferred<{
          results: { bucketName: string; accessible: boolean }[];
       }>();
       h.post.mockReturnValue(checked.promise);
-      await submit();
+      await submit(() => expect(h.post).toHaveBeenCalledOnce());
       await view.current.unmount();
       await act(async () =>
          checked.resolve({

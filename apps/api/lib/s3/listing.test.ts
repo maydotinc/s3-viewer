@@ -114,29 +114,24 @@ describe("listPage", () => {
       expect(inputs[1]?.ContinuationToken).toBe("t1");
    });
 
-   it("ends the page when S3 repeats a continuation token", async () => {
-      const { client, inputs } = fakeClient([
-         {
-            Contents: [object("a")],
-            IsTruncated: true,
-            NextContinuationToken: "same",
-         },
-         {
-            Contents: [object("b")],
-            IsTruncated: true,
-            NextContinuationToken: "same",
-         },
-      ]);
-      const page = await listPage({
-         client,
-         bucket: "b",
-         prefix: "",
-         blockSize: 10,
-      });
-      expect(page.objects.map((o) => o.key)).toEqual(["a", "b"]);
-      expect(page.nextToken).toBeNull();
-      expect(inputs).toHaveLength(2);
-   });
+   it.each([
+      ["repeats a continuation token", ["t1", "t2", "t1"]],
+      ["truncates without a continuation token", ["t1", undefined]],
+   ])(
+      "refuses the page when S3 %s instead of ending the folder early",
+      async (_name, tokens) => {
+         const { client } = fakeClient(
+            tokens.map((token, index) => ({
+               Contents: [object(`k${index}`)],
+               IsTruncated: true,
+               NextContinuationToken: token,
+            }))
+         );
+         await expect(
+            listPage({ client, bucket: "b", prefix: "", blockSize: 10 })
+         ).rejects.toMatchObject({ status: 502 });
+      }
+   );
 });
 
 describe("existingKeys", () => {

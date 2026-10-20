@@ -6,7 +6,7 @@ import useServers from "@/lib/hooks/queries/server/useServers";
 import { auditPath, invitePeoplePath, membersPath } from "@/lib/server-paths";
 import { useUserId } from "@/lib/stores/session-store";
 import { Permission, ROLE_LABELS, hasPermission } from "@s3-viewer/permissions";
-import { Role, type ServerInfo } from "@s3-viewer/types";
+import { type ServerInfo } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import {
    DropdownMenu,
@@ -20,6 +20,7 @@ import {
    DropdownMenuSubTrigger,
    DropdownMenuTrigger,
 } from "@s3-viewer/ui/components/dropdown-menu";
+import { useSidebar } from "@s3-viewer/ui/components/sidebar";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -42,6 +43,86 @@ import ServerLogo from "./server-logo";
 
 const TRIGGER = `flex h-12 w-full cursor-pointer items-center gap-2.5 rounded-lg border border-viewerborder bg-viewerwhite px-3 text-left outline-none transition-colors duration-150 hover:bg-viewergray ${FOCUS_RING}`;
 
+const ServerOption = ({
+   server,
+   isCurrent,
+}: {
+   server: ServerInfo;
+   isCurrent: boolean;
+}) => (
+   <>
+      <ServerLogo provider={server.provider} />
+      <span className="flex min-w-0 flex-1 flex-col">
+         <span
+            title={server.name}
+            className="min-w-0 flex-1 truncate text-viewerblack"
+         >
+            {server.name}
+         </span>
+         <span className="truncate text-xs text-viewerlighttext">
+            {ROLE_LABELS[server.userRole]}
+         </span>
+      </span>
+      {isCurrent && (
+         <Check
+            aria-hidden="true"
+            className="size-4 shrink-0 text-viewerblue"
+         />
+      )}
+   </>
+);
+
+const ServerActions = ({ server }: { server: ServerInfo }) => {
+   const { open: openModal } = useModalActions();
+   const router = useRouter();
+   const canDelete = hasPermission(server.userRole, Permission.DELETE_SERVER);
+   return (
+      <>
+         {hasPermission(server.userRole, Permission.MANAGE_MEMBERS) && (
+            <>
+               <DropdownMenuItem
+                  onSelect={() => router.push(invitePeoplePath(server.id))}
+               >
+                  <UserRoundPlus aria-hidden="true" />
+                  Invite people
+               </DropdownMenuItem>
+               <DropdownMenuItem
+                  onSelect={() => router.push(membersPath(server.id))}
+               >
+                  <Users aria-hidden="true" />
+                  Members
+               </DropdownMenuItem>
+            </>
+         )}
+         {(server.audit.canView || server.audit.canManage) && (
+            <DropdownMenuItem
+               onSelect={() => router.push(auditPath(server.id))}
+            >
+               <ScrollText aria-hidden="true" />
+               Audit log
+            </DropdownMenuItem>
+         )}
+         {hasPermission(server.userRole, Permission.RENAME_SERVER) && (
+            <DropdownMenuItem onSelect={() => openModal("rename", { server })}>
+               <PenLine aria-hidden="true" />
+               Rename
+            </DropdownMenuItem>
+         )}
+         <DropdownMenuItem
+            variant="destructive"
+            onSelect={() => openModal("disconnect", { server })}
+         >
+            {canDelete ? (
+               <Trash2 aria-hidden="true" />
+            ) : (
+               <LogOut aria-hidden="true" />
+            )}
+            {canDelete ? "Delete server" : "Leave server"}
+         </DropdownMenuItem>
+      </>
+   );
+};
+
 const ServerSelect = () => {
    const { open: openModal } = useModalActions();
    const {
@@ -60,7 +141,7 @@ const ServerSelect = () => {
    } = useServers();
    const switchServer = useSwitchServer();
    const userId = useUserId();
-   const router = useRouter();
+   const { isDesktop } = useSidebar();
    const [open, setOpen] = useState(false);
    const pointerType = useRef("");
 
@@ -179,7 +260,22 @@ const ServerSelect = () => {
             <DropdownMenuGroup>
                {servers.map((server) => {
                   const isCurrent = server.id === currentServer?.id;
-                  const isOwner = server.userRole === Role.OWNER;
+                  if (!isDesktop) {
+                     return (
+                        <DropdownMenuItem
+                           key={server.id}
+                           textValue={server.name}
+                           aria-current={isCurrent ? "true" : undefined}
+                           className={cn(isCurrent && "bg-viewergray")}
+                           onSelect={() => switchTo(server)}
+                        >
+                           <ServerOption
+                              server={server}
+                              isCurrent={isCurrent}
+                           />
+                        </DropdownMenuItem>
+                     );
+                  }
                   return (
                      <DropdownMenuSub key={server.id}>
                         <DropdownMenuSubTrigger
@@ -202,24 +298,10 @@ const ServerSelect = () => {
                               switchTo(server);
                            }}
                         >
-                           <ServerLogo provider={server.provider} />
-                           <span className="flex min-w-0 flex-1 flex-col">
-                              <span
-                                 title={server.name}
-                                 className="min-w-0 flex-1 truncate text-viewerblack"
-                              >
-                                 {server.name}
-                              </span>
-                              <span className="truncate text-xs text-viewerlighttext">
-                                 {ROLE_LABELS[server.userRole]}
-                              </span>
-                           </span>
-                           {isCurrent && (
-                              <Check
-                                 aria-hidden="true"
-                                 className="size-4 shrink-0 text-viewerblue"
-                              />
-                           )}
+                           <ServerOption
+                              server={server}
+                              isCurrent={isCurrent}
+                           />
                         </DropdownMenuSubTrigger>
                         <DropdownMenuSubContent>
                            {isCurrent ? (
@@ -237,66 +319,7 @@ const ServerSelect = () => {
                               </DropdownMenuItem>
                            )}
                            <DropdownMenuSeparator />
-                           {hasPermission(
-                              server.userRole,
-                              Permission.MANAGE_MEMBERS
-                           ) && (
-                              <>
-                                 <DropdownMenuItem
-                                    onSelect={() =>
-                                       router.push(invitePeoplePath(server.id))
-                                    }
-                                 >
-                                    <UserRoundPlus aria-hidden="true" />
-                                    Invite people
-                                 </DropdownMenuItem>
-                                 <DropdownMenuItem
-                                    onSelect={() =>
-                                       router.push(membersPath(server.id))
-                                    }
-                                 >
-                                    <Users aria-hidden="true" />
-                                    Members
-                                 </DropdownMenuItem>
-                              </>
-                           )}
-                           {(server.audit.canView ||
-                              server.audit.canManage) && (
-                              <DropdownMenuItem
-                                 onSelect={() =>
-                                    router.push(auditPath(server.id))
-                                 }
-                              >
-                                 <ScrollText aria-hidden="true" />
-                                 Audit log
-                              </DropdownMenuItem>
-                           )}
-                           {hasPermission(
-                              server.userRole,
-                              Permission.RENAME_SERVER
-                           ) && (
-                              <DropdownMenuItem
-                                 onSelect={() =>
-                                    openModal("rename", { server })
-                                 }
-                              >
-                                 <PenLine aria-hidden="true" />
-                                 Rename
-                              </DropdownMenuItem>
-                           )}
-                           <DropdownMenuItem
-                              variant="destructive"
-                              onSelect={() =>
-                                 openModal("disconnect", { server })
-                              }
-                           >
-                              {isOwner ? (
-                                 <Trash2 aria-hidden="true" />
-                              ) : (
-                                 <LogOut aria-hidden="true" />
-                              )}
-                              {isOwner ? "Delete server" : "Leave server"}
-                           </DropdownMenuItem>
+                           <ServerActions server={server} />
                         </DropdownMenuSubContent>
                      </DropdownMenuSub>
                   );
@@ -326,6 +349,18 @@ const ServerSelect = () => {
                        ? "Try again"
                        : "Load more servers"}
                </DropdownMenuItem>
+            )}
+            {!isDesktop && currentServer && (
+               <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel
+                     title={currentServer.name}
+                     className="truncate"
+                  >
+                     {currentServer.name}
+                  </DropdownMenuLabel>
+                  <ServerActions server={currentServer} />
+               </>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => openModal("connect", {})}>

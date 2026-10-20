@@ -7,15 +7,17 @@ import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import {
    canCreateBucketOn,
+   objectPermissions,
    useEffectiveRoleState,
 } from "@/lib/hooks/usePermission";
 import { useStorageCapabilities } from "@/lib/hooks/useStorageCapabilities";
 import { invitePeoplePath, membersPath } from "@/lib/server-paths";
 import { useShortcutRegistry } from "@/lib/shortcuts";
-import { SUPPORT_URL } from "@/lib/site-config";
+import { supportUrl } from "@/lib/site-config";
 import { useServerId } from "@/lib/stores/session-scope";
-import { canActOnFolder } from "@/lib/utils/folder-access";
+import { reachOf, writeBlockReason } from "@/lib/utils/folder-access";
 import {
+   bucketEntryHref,
    bucketRoute,
    folderHref,
    prefixFromSegments,
@@ -23,7 +25,7 @@ import {
 } from "@/lib/utils/s3/paths";
 import { toastFailure } from "@/lib/utils/toast";
 import { Permission, ROLE_LABELS, hasPermission } from "@s3-viewer/permissions";
-import { Role, SITE_PATHS } from "@s3-viewer/types";
+import { SITE_PATHS } from "@s3-viewer/types";
 import { useSidebar } from "@s3-viewer/ui/components/sidebar";
 import {
    ArrowRightLeft,
@@ -50,7 +52,7 @@ import { useMemo } from "react";
 import type { CommandItem } from "./types";
 
 const openSupport = () =>
-   window.open(SUPPORT_URL, "_blank", "noopener,noreferrer");
+   window.open(supportUrl(), "_blank", "noopener,noreferrer");
 
 const useCommands = (): CommandItem[] => {
    const router = useRouter();
@@ -76,22 +78,15 @@ const useCommands = (): CommandItem[] => {
    const inFolder =
       Boolean(currentBucket) &&
       !route.isObjectView &&
-      canActOnFolder(currentServer?.userRole, currentBucket, folderPrefix);
+      writeBlockReason(reachOf(currentBucket), folderPrefix) === null;
    const capabilities = useStorageCapabilities();
    const { role: roleHere } = useEffectiveRoleState(route.bucketName);
    const serverRole = currentServer?.userRole ?? null;
-   const canUploadHere = hasPermission(roleHere, Permission.UPLOAD_OBJECT);
-   const canCreateFolder = inFolder && capabilities.upload && canUploadHere;
-   const canDownloadHere = hasPermission(roleHere, Permission.DOWNLOAD_OBJECT);
-   const canTransferFolder = inFolder && canDownloadHere && folderPrefix !== "";
-   const canDeleteHere = hasPermission(roleHere, Permission.DELETE_OBJECT);
+   const can = objectPermissions(roleHere, capabilities);
+   const canCreateFolder = inFolder && can.upload;
+   const canTransferFolder = inFolder && can.download && folderPrefix !== "";
    const canBulkRename =
-      inFolder &&
-      folderPrefix !== "" &&
-      capabilities.rename &&
-      capabilities.upload &&
-      canDeleteHere &&
-      canUploadHere;
+      inFolder && folderPrefix !== "" && can.rename && can.upload;
    const canCreateBucket = canCreateBucketOn(currentServer);
    const canManageMembers = hasPermission(
       serverRole,
@@ -146,7 +141,7 @@ const useCommands = (): CommandItem[] => {
                bucket.folders === null
                   ? ROLE_LABELS[bucket.userRole]
                   : `${ROLE_LABELS[bucket.userRole]} · Folders only`,
-            href: folderHref(bucket.name, []),
+            href: bucketEntryHref(bucket),
          });
       }
 
@@ -227,7 +222,7 @@ const useCommands = (): CommandItem[] => {
                   serverId,
                   bucketName: route.bucketName,
                   source: { folderKey: folderPrefix },
-                  onRenamed: notifyListingChanged,
+                  onRenamed: () => notifyListingChanged(),
                }),
          });
       }
@@ -308,7 +303,10 @@ const useCommands = (): CommandItem[] => {
       }
 
       if (currentServer) {
-         const isOwner = currentServer.userRole === Role.OWNER;
+         const isOwner = hasPermission(
+            currentServer.userRole,
+            Permission.DELETE_SERVER
+         );
          commands.push({
             id: "action:disconnect-server",
             group: "Actions",

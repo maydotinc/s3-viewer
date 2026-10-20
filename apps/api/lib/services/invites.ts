@@ -17,6 +17,7 @@ import {
    DAY_MS,
    INVITE_QUERY_PARAM,
    INVITE_TTL_DAYS,
+   MAX_PENDING_INVITES,
    Role,
    SITE_PATHS,
    normalizeEmail,
@@ -81,6 +82,13 @@ const receivedInvitePage = (
    take: number
 ): Promise<InviteRow[]> =>
    livePage(Prisma.sql`"email" = ${normalizeEmail(email)}`, position, take);
+
+const serverInvitePage = (serverId: string): Promise<InviteRow[]> =>
+   livePage(
+      Prisma.sql`"serverId" = ${serverId}`,
+      undefined,
+      MAX_PENDING_INVITES
+   );
 
 const toServerInvite = (row: InviteRow): ServerInvite => ({
    id: row.id,
@@ -163,5 +171,6 @@ export {
    inviteToken,
    invitesUrl,
    receivedInvitePage,
+   serverInvitePage,
    toServerInvite,
 };

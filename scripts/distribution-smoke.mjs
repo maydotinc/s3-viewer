@@ -92,6 +92,14 @@ const apiSuite = (file, env) =>
 
 const get = (url) => fetch(url, { signal: AbortSignal.timeout(10_000) });
 
+async function waitFor(ready, timeoutMs = 30_000) {
+   const deadline = Date.now() + timeoutMs;
+   while (!(await ready())) {
+      assert.ok(Date.now() < deadline, "timed out waiting for a service");
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+   }
+}
+
 async function json(url) {
    const response = await get(url);
    assert.equal(response.status, 200, url);
@@ -110,6 +118,11 @@ async function checkPages() {
    assert.equal(page.status, 200);
    assert.match(page.headers.get("content-type"), /text\/html/);
    assert.match(await page.text(), /__NEXT_DATA__/);
+   const landing = await get(`${await address("landing", 3001)}/`);
+   assert.equal(landing.status, 200);
+   assert.match(landing.headers.get("content-type"), /text\/html/);
+   const proxied = await get(`${web}/about`);
+   assert.equal(proxied.status, 200);
    return config.encryptionPublicKey;
 }
 
@@ -137,7 +150,7 @@ const db = new PrismaClient();
 async function main() {
    console.log(`Disposable distribution smoke: ${project}`);
    try {
-      await compose(["build", "api", "web"]);
+      await compose(["build", "api", "web", "landing"]);
       await compose(["up", "-d", "--wait", "--wait-timeout", "240"]);
       const publicKey = await checkPages();
       await compose([
@@ -165,7 +178,13 @@ console.log(JSON.stringify({
       });
 
       const endpoint = await address("rustfs", 9000);
-      assert.equal((await get(`${endpoint}/health`)).status, 200);
+      // the rustfs image has no healthcheck, so --wait returns before it listens
+      await waitFor(() =>
+         get(`${endpoint}/health`).then(
+            (r) => r.status === 200,
+            () => false
+         )
+      );
       await apiSuite("apps/api/lib/s3/provider.integration.test.ts", {
          S3_INTEGRATION_ENDPOINT: endpoint,
          S3_INTEGRATION_ACCESS_KEY: "smoke-access-key",

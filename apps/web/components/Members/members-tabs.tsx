@@ -5,8 +5,8 @@ import useMembers from "@/lib/hooks/queries/server/useMembers";
 import {
    MAX_PENDING_INVITES,
    type Role,
+   type ManagedInvite,
    type S3Bucket,
-   type ServerInvite,
 } from "@s3-viewer/types";
 import { TabButton, TabList } from "@s3-viewer/ui/components/tabs";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -15,13 +15,13 @@ import { useState } from "react";
 import Members from "./members";
 import PendingInvites from "./pending-invites";
 
-const NO_INVITES: ServerInvite[] = [];
+const NO_INVITES: ManagedInvite[] = [];
 
 type Tab = "members" | "invites";
 
 type MembersTabsProps = {
    serverId: string;
-   // null until the server loads: rows need the viewer's role, so both lists stay skeletons
+   // null until the server loads: member rows need the viewer's role, and the invites list waits with them so counts and errors land together
    myRole: Role | null;
    buckets: S3Bucket[];
    isBucketsLoading: boolean;
@@ -89,9 +89,8 @@ const MembersTabs = ({
          <>
             <PendingInvites
                serverId={serverId}
-               myRole={myRole}
                invites={inviteList}
-               isLoading={invites.isLoading}
+               isLoading={pending || invites.isLoading}
             />
             <p className="sticky left-0 flex h-8 items-center px-4 text-xs text-viewerlighttext tabular-nums">
                {inviteCount === null

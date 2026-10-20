@@ -178,6 +178,7 @@ type CreateHowToPageConfig = Omit<
    seoDescription: string;
    useCases: UseCaseSlug[];
    related: HowToSlug[];
+   updated?: string;
 };
 
 export const createHowToPage = ({
@@ -187,6 +188,7 @@ export const createHowToPage = ({
    seoDescription,
    useCases,
    related,
+   updated,
    ...props
 }: CreateHowToPageConfig): NextPage => {
    const entry = pickBySlug(HOW_TOS, slug);
@@ -201,6 +203,7 @@ export const createHowToPage = ({
       faqs: props.faqs,
       keyword: entry.keyword,
       datePublished: props.published,
+      dateModified: updated ?? props.published,
    });
 
    const Page: NextPage = () => (
@@ -211,7 +214,7 @@ export const createHowToPage = ({
             canonical={`/how-to/${slug}`}
             type="article"
             publishedTime={props.published}
-            modifiedTime={props.published}
+            modifiedTime={updated ?? props.published}
             jsonLd={jsonLd}
          />
          <HowToPage

@@ -13,7 +13,6 @@ import {
 type SendResultProps = {
    outcomes: readonly InviteOutcome[];
    servers: readonly ServerInfo[];
-   // the server whose invites are being resent, if any
    retrying: string | null;
    // false when the sender chose not to email, so a missing email is not a warning
    notified: boolean;

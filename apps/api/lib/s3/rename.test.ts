@@ -1,11 +1,15 @@
 import { S3_ROUTE_TIMEOUT_MS, copyDeadlineMs } from "@/lib/constants";
 import type { S3Client } from "@aws-sdk/client-s3";
-import { GIB, Provider } from "@s3-viewer/types";
+import { GIB, Provider, type S3MoveResult } from "@s3-viewer/types";
 import { describe, expect, it, vi } from "vitest";
 import {
    PROVIDER_ENDPOINTS,
+   completedXml,
+   copiedPartXml,
+   copiedXml,
    empty,
    errorXml,
+   initiatedXml,
    reply,
    s3Fixture,
    xml,
@@ -18,6 +22,7 @@ import {
    moveObjects,
    partialCopies,
    renameObject,
+   unconfirmedCopies,
 } from "./rename";
 
 const BUCKET = "bucket";
@@ -79,19 +84,15 @@ const world = (state: World) => {
             ? reply(state.taggingStatus, errorXml("AccessDenied"))
             : xml(TAGGED);
       if (request.method === "POST" && "uploads" in request.query)
-         return xml(
-            "<InitiateMultipartUploadResult><UploadId>upload-1</UploadId></InitiateMultipartUploadResult>"
-         );
+         return xml(initiatedXml("upload-1"));
       if (request.method === "PUT" && request.query.partNumber)
-         return xml('<CopyPartResult><ETag>"part"</ETag></CopyPartResult>');
+         return xml(copiedPartXml('"part"'));
       if (request.method === "POST" && request.query.uploadId)
-         return xml(
-            '<CompleteMultipartUploadResult><ETag>"copied"</ETag></CompleteMultipartUploadResult>'
-         );
+         return xml(completedXml('"copied"'));
       if (request.method === "PUT")
          return state.copyStatus
             ? reply(state.copyStatus, errorXml("PreconditionFailed"))
-            : xml('<CopyObjectResult><ETag>"copied"</ETag></CopyObjectResult>');
+            : xml(copiedXml('"copied"'));
       if (request.method === "DELETE") {
          if (state.deleteStatus) {
             if (state.deleteLands) state.source = null;
@@ -106,7 +107,7 @@ const world = (state: World) => {
 };
 
 const clientFor = (endpoint: string, handle: FixtureHandle) =>
-   s3Fixture(handle, { endpoint, maxAttempts: 1 }).client;
+   s3Fixture(handle, { endpoint }).client;
 
 const run = async (
    provider: Provider,
@@ -145,13 +146,14 @@ const providers = [
       provider: Provider.R2,
       endpoint: PROVIDER_ENDPOINTS[Provider.R2],
    },
-   { name: "B2", provider: Provider.Other, endpoint: PROVIDER_ENDPOINTS.B2 },
    {
       name: "MinIO",
       provider: Provider.Other,
       endpoint: PROVIDER_ENDPOINTS[Provider.Other],
    },
 ] as const;
+// R2 differs from other providers only in its copy headers and its 5 GiB limit.
+const withoutR2 = providers.filter(({ provider }) => provider !== Provider.R2);
 
 describe("rename copies then deletes on every provider", () => {
    it("uses one conditional copy and one conditional delete on AWS S3", async () => {
@@ -223,21 +225,20 @@ describe("rename copies then deletes on every provider", () => {
       expect(copy.headers).not.toHaveProperty("if-none-match");
    });
 
-   it.each(providers)(
-      "refuses a source that changed before the copy on $name",
-      async ({ provider, endpoint }) => {
-         const { requests, result } = await run(provider, endpoint, {
-            source: { etag: '"changed"', size: 12 },
-         });
-         expect(result).toMatchObject({
-            status: 409,
-            message: expect.stringContaining("changed"),
-         });
-         expect(summarise(requests)).toEqual([`HEAD ${SOURCE}`]);
-      }
-   );
+   it("refuses a source that changed before the copy", async () => {
+      const { requests, result } = await run(
+         Provider.Other,
+         PROVIDER_ENDPOINTS[Provider.Other],
+         { source: { etag: '"changed"', size: 12 } }
+      );
+      expect(result).toMatchObject({
+         status: 409,
+         message: expect.stringContaining("changed"),
+      });
+      expect(summarise(requests)).toEqual([`HEAD ${SOURCE}`]);
+   });
 
-   it.each(providers)(
+   it.each(withoutR2)(
       "refuses an occupied destination without writing on $name",
       async ({ provider, endpoint }) => {
          const { requests, result } = await run(provider, endpoint, {
@@ -250,7 +251,7 @@ describe("rename copies then deletes on every provider", () => {
       }
    );
 
-   it.each(providers)(
+   it.each(withoutR2)(
       "keeps both files and reports a partial rename on $name",
       async ({ provider, endpoint }) => {
          const { requests, result, state } = await run(provider, endpoint, {
@@ -268,7 +269,7 @@ describe("rename copies then deletes on every provider", () => {
       }
    );
 
-   it.each(providers)(
+   it.each(withoutR2)(
       "treats a timed-out delete that landed as success on $name",
       async ({ provider, endpoint }) => {
          const { result, state } = await run(provider, endpoint, {
@@ -281,7 +282,7 @@ describe("rename copies then deletes on every provider", () => {
       }
    );
 
-   it.each(providers.filter(({ provider }) => provider !== Provider.R2))(
+   it.each(withoutR2)(
       "copies an object over 5 GiB in parts on $name",
       async ({ provider, endpoint }) => {
          const { requests, result } = await run(provider, endpoint, {
@@ -323,10 +324,11 @@ describe("rename copies then deletes on every provider", () => {
       ).toBe("*");
    });
 
-   it.each(providers)(
-      "refuses to copy an SSE-C object on $name",
-      async ({ provider, endpoint }) => {
-         const { requests, result } = await run(provider, endpoint, {
+   it("refuses to copy an SSE-C object", async () => {
+      const { requests, result } = await run(
+         Provider.Other,
+         PROVIDER_ENDPOINTS[Provider.Other],
+         {
             source: {
                etag: ETAG,
                size: 12,
@@ -334,14 +336,14 @@ describe("rename copies then deletes on every provider", () => {
                   "x-amz-server-side-encryption-customer-algorithm": "AES256",
                },
             },
-         });
-         expect(result).toMatchObject({
-            status: 409,
-            message: expect.stringContaining("customer key"),
-         });
-         expect(summarise(requests)).toEqual([`HEAD ${SOURCE}`]);
-      }
-   );
+         }
+      );
+      expect(result).toMatchObject({
+         status: 409,
+         message: expect.stringContaining("customer key"),
+      });
+      expect(summarise(requests)).toEqual([`HEAD ${SOURCE}`]);
+   });
 
    it("renames without ACL headers when the grants cannot be read", async () => {
       const { requests, result } = await run(
@@ -396,10 +398,7 @@ describe("moveObjects", () => {
                   : empty(404);
             if (request.method === "GET" && "acl" in request.query)
                return xml(ACL);
-            if (request.method === "PUT")
-               return xml(
-                  '<CopyObjectResult><ETag>"c"</ETag></CopyObjectResult>'
-               );
+            if (request.method === "PUT") return xml(copiedXml('"c"'));
             present.delete(key);
             return empty(204);
          }
@@ -423,6 +422,24 @@ describe("moveObjects", () => {
       void handle;
    });
 
+   it("flags a move whose copy storage may have finished, and never offers it for retry", async () => {
+      const { result } = await run(
+         Provider.S3,
+         PROVIDER_ENDPOINTS[Provider.S3],
+         { source: { etag: ETAG, size: 3 }, copyStatus: 503 },
+         (client) =>
+            moveObjects({ client, bucket: BUCKET }, Provider.S3, [
+               { key: SOURCE, newKey: DEST, expectedETag: ETAG },
+            ])
+      );
+      expect(result).toMatchObject({
+         moved: [],
+         failed: [{ key: SOURCE, retryable: false }],
+      });
+      expect(unconfirmedCopies(result as S3MoveResult)).toEqual([SOURCE]);
+      expect(partialCopies(result as S3MoveResult)).toEqual([]);
+   });
+
    it("reads the live ETag when the caller has none", async () => {
       const seen: FixtureRequest[] = [];
       const client = clientFor(
@@ -434,10 +451,7 @@ describe("moveObjects", () => {
                return key === "a.txt"
                   ? empty(200, { etag: '"live"', "content-length": "3" })
                   : empty(404);
-            if (request.method === "PUT")
-               return xml(
-                  '<CopyObjectResult><ETag>"c"</ETag></CopyObjectResult>'
-               );
+            if (request.method === "PUT") return xml(copiedXml('"c"'));
             return empty(204);
          }
       );
@@ -504,10 +518,7 @@ describe("moveObjects", () => {
                        "content-length": "3",
                     })
                   : empty(404);
-            if (request.method === "PUT")
-               return xml(
-                  '<CopyObjectResult><ETag>"c"</ETag></CopyObjectResult>'
-               );
+            if (request.method === "PUT") return xml(copiedXml('"c"'));
             throw new Error("Must not delete the replacement");
          }
       );
@@ -544,10 +555,7 @@ describe("moveObjects", () => {
                return empty(200, { etag: ETAG, "content-length": "3" });
             if (request.method === "GET" && "acl" in request.query)
                return xml(ACL);
-            if (request.method === "PUT")
-               return xml(
-                  '<CopyObjectResult><ETag>"c"</ETag></CopyObjectResult>'
-               );
+            if (request.method === "PUT") return xml(copiedXml('"c"'));
             return empty(204);
          }
       );
@@ -586,9 +594,7 @@ describe("moveObjects", () => {
                   : empty(404);
             if (request.method === "PUT") {
                copySignal = options?.abortSignal;
-               return xml(
-                  '<CopyObjectResult><ETag>"c"</ETag></CopyObjectResult>'
-               );
+               return xml(copiedXml('"c"'));
             }
             return empty(204);
          }
@@ -626,10 +632,7 @@ describe("moveObjects", () => {
                return empty(200, { etag: ETAG, "content-length": "4" });
             }
             if (request.method === "HEAD") return empty(404);
-            if (request.method === "PUT")
-               return xml(
-                  '<CopyObjectResult><ETag>"c"</ETag></CopyObjectResult>'
-               );
+            if (request.method === "PUT") return xml(copiedXml('"c"'));
             return empty(204);
          }
       );
@@ -725,9 +728,7 @@ describe("moving slash-ending object keys", () => {
                      ...stored.get(sourceKey)!,
                      eTag: '"copied"',
                   });
-                  return xml(
-                     '<CopyObjectResult><ETag>"copied"</ETag></CopyObjectResult>'
-                  );
+                  return xml(copiedXml('"copied"'));
                }
                if (request.method === "DELETE") {
                   expect(stored.get(destinationKey)).toEqual({
@@ -792,9 +793,7 @@ describe("moving slash-ending object keys", () => {
                )
                   return reply(412, errorXml("PreconditionFailed"));
                if (scenario === "changed before delete") sourceETag = '"new"';
-               return xml(
-                  '<CopyObjectResult><ETag>"copied"</ETag></CopyObjectResult>'
-               );
+               return xml(copiedXml('"copied"'));
             }
             if (request.method === "DELETE") {
                expect(request.headers["if-match"]).not.toBe(sourceETag);

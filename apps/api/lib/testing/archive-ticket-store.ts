@@ -124,7 +124,10 @@ const archiveTicketStore = () => {
       ...store,
       $transaction: serialTransactions(store, {
          checkpoint: () => {
-            const snapshot = structuredClone(rows);
+            // rows are only edited in place through `failures`, so a shallow copy of each restores them.
+            const snapshot = new Map(
+               [...rows].map(([id, row]) => [id, { ...row }])
+            );
             return () => {
                rows = snapshot;
             };

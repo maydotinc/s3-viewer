@@ -10,10 +10,16 @@ import {
    OBJECT_MUTATION_PATH,
    objectSettingsQuerySchema,
    updateObjectSettingsBodySchema,
+   type AuditEntry,
    type UpdateObjectSettingsInput,
 } from "@s3-viewer/types";
 import { Router } from "express";
-import { copyScope, mutationScope, readScope } from "./scope";
+import {
+   copyScope,
+   mutationScope,
+   readScope,
+   recordedIfUnconfirmed,
+} from "./scope";
 
 const settingsRouter = Router({ mergeParams: true });
 const SETTINGS_PATH = `${OBJECT_MUTATION_PATH}/settings`;
@@ -77,23 +83,22 @@ settingsRouter.patch(
          const { scope, provider } = await mutationScope(bucketName, res);
          const source = await headReviewed(scope, objectKey, expectedETag);
          const attributes = settingsAttributes(settings);
-         const { eTag, size } = await copyObject(
-            copyScope(scope, res, source),
-            provider,
-            {
+         const changed: AuditEntry = {
+            action: "object.settings",
+            bucket: bucketName,
+            target: objectKey,
+            detail: { contentType },
+         };
+         const { eTag, size } = await recordedIfUnconfirmed(res, changed, () =>
+            copyObject(copyScope(scope, res, source), provider, {
                sourceKey: objectKey,
                destinationKey: objectKey,
                source,
                sourceETag: expectedETag,
                settings: attributes,
-            }
+            })
          );
-         await record(res, {
-            action: "object.settings",
-            bucket: bucketName,
-            target: objectKey,
-            detail: { contentType },
-         });
+         await record(res, changed);
          res.json(
             toSettings(
                {

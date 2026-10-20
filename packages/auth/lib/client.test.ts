@@ -66,6 +66,15 @@ describe("authenticated client actor binding", () => {
       ]);
    });
 
+   it("binds the password lookup to the signed-in account", async () => {
+      const { client, fetch } = setup();
+      fetch.mockResolvedValueOnce(
+         Response.json([{ providerId: "credential" }])
+      );
+      await expect(client.hasPassword()).resolves.toBe(true);
+      expect(header(fetch.mock.calls[0])).toBe("account-a");
+   });
+
    it("does not bind sign-in, sign-up or password recovery to the old account", async () => {
       const { client, fetch } = setup();
       await client.signInWithPassword("new@example.test", "password");

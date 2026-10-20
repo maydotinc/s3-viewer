@@ -9,9 +9,9 @@ export type TeamMember = {
    twitter?: string;
    linkedin?: string;
    website?: string;
-   /** canonical profile URL used as the Person's `url` in structured data. */
+   // canonical profile url, used as the Person's url in structured data
    profileUrl?: string;
-   /** extra `sameAs` links that have no social icon on the About page. */
+   // extra sameAs links that have no social icon on the About page
    alsoKnownAt?: string[];
    schemaId?: string;
    jobTitle?: string;

@@ -13,7 +13,9 @@ import {
    AWS_ENDPOINT,
    MINIO_ENDPOINT,
    R2_ENDPOINT,
+   completedXml,
    empty,
+   initiatedXml,
    reply,
    s3Fixture,
 } from "@/lib/testing/s3-fixture";
@@ -105,8 +107,7 @@ describe("conditional uploads", () => {
                      );
                      expect(request.headers["if-match"]).toBe(expectedETag);
                   }
-                  body =
-                     "<InitiateMultipartUploadResult><UploadId>upload1</UploadId></InitiateMultipartUploadResult>";
+                  body = initiatedXml("upload1");
                } else if (
                   !(request.method === "PUT" && request.query.partNumber)
                ) {
@@ -115,9 +116,7 @@ describe("conditional uploads", () => {
                      expectedETag === undefined ? "*" : undefined
                   );
                   expect(request.headers["if-match"]).toBe(expectedETag);
-                  if (request.method === "POST")
-                     body =
-                        '<CompleteMultipartUploadResult><ETag>"new"</ETag></CompleteMultipartUploadResult>';
+                  if (request.method === "POST") body = completedXml('"new"');
                }
                return reply(statusCode, body, {
                   etag: '"new"',

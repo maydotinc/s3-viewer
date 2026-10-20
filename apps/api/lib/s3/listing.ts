@@ -14,7 +14,6 @@ import {
    type S3Object,
    type S3ObjectListPage,
 } from "@s3-viewer/types";
-import { logger } from "@/lib/logger";
 import { ApiHttpError } from "@/lib/http";
 import { throwBucketError } from "./errors";
 import {
@@ -157,22 +156,14 @@ const listPage = async ({
                   size: object.Size ?? null,
                });
             }
-            token = page.IsTruncated
-               ? page.NextContinuationToken &&
-                 copyRetainedString(page.NextContinuationToken)
-               : undefined;
+            const next = nextListToken(page, token);
+            token = next && copyRetainedString(next);
          } finally {
             releaseBufferedResponse(page);
          }
 
          if (!token) break;
-         if (seenTokens.has(token)) {
-            logger.warn(
-               "S3 listing returned a repeated continuation token; ending page"
-            );
-            token = undefined;
-            break;
-         }
+         if (seenTokens.has(token)) throw incompleteListing();
          if (folders.length + objects.length >= blockSize) break;
       }
 
@@ -199,17 +190,18 @@ const pathToFoldersPage = (
    nextToken: null,
 });
 
+const incompleteListing = (): ApiHttpError =>
+   new ApiHttpError(
+      502,
+      "Storage returned an incomplete folder listing. Refresh before trying again."
+   );
+
 const nextListToken = (
    page: { IsTruncated?: boolean; NextContinuationToken?: string },
    token: string | undefined
 ): string | undefined => {
    const next = page.IsTruncated ? page.NextContinuationToken : undefined;
-   if (page.IsTruncated && (!next || next === token)) {
-      throw new ApiHttpError(
-         502,
-         "Storage returned an incomplete folder listing. Refresh before trying again."
-      );
-   }
+   if (page.IsTruncated && (!next || next === token)) throw incompleteListing();
    return next;
 };
 
@@ -339,5 +331,6 @@ export {
    listPage,
    nextListToken,
    pathToFoldersPage,
+   retainRow,
 };
 export type { S3Scope };

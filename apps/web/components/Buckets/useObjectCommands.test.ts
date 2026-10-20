@@ -49,16 +49,14 @@ vi.mock("@/lib/hooks/queries/server/useCurrentServer", () => ({
    default: () => ({
       currentServer: {
          capabilities: {
-            upload: h.capable,
-            replace: h.capable,
-            rename: h.capable,
-            delete: h.capable,
+            writable: h.capable,
             notice: null,
          },
       },
    }),
 }));
-vi.mock("@/lib/hooks/usePermission", () => ({
+vi.mock("@/lib/hooks/usePermission", async (original) => ({
+   ...(await original<typeof import("@/lib/hooks/usePermission")>()),
    useEffectiveRoleState: () => ({ role: h.role, pending: false }),
 }));
 vi.mock("@/lib/stores/session-store", () => ({
@@ -91,13 +89,13 @@ vi.mock("@s3-viewer/ui/components/toast", async () =>
 
 beforeEach(() => {
    vi.clearAllMocks();
+   h.role = Role.EDITOR;
    h.capable = true;
    h.preparing = false;
 });
 
 describe("object commands", () => {
    it("offers every mutation an editor is allowed to run", () => {
-      h.role = Role.EDITOR;
       const commands = useCreateObjectCommands("backups");
       expect(commands.can).toEqual({
          download: true,
@@ -139,7 +137,6 @@ describe("object commands", () => {
    });
 
    it("follows the provider's capabilities when storage cannot mutate", () => {
-      h.role = Role.EDITOR;
       h.capable = false;
       const commands = useCreateObjectCommands("backups");
       expect(commands.can).toEqual({
@@ -202,7 +199,6 @@ describe("object commands", () => {
    it.each([null, "*", '"*"', 'W/"old"', ""])(
       "does not rewrite an object without a valid observed ETag: %s",
       (expectedETag) => {
-         h.role = Role.EDITOR;
          useCreateObjectCommands("backups").rename("old.txt", expectedETag);
          useCreateObjectCommands("backups").copy("old.txt", expectedETag);
          useCreateObjectCommands("backups").editSettings(
@@ -222,10 +218,6 @@ describe("object commands", () => {
 describe("zipping a selection", () => {
    const keys = (total: number) =>
       Array.from({ length: total }, (_unused, index) => `photos/${index}.jpg`);
-
-   beforeEach(() => {
-      h.role = Role.EDITOR;
-   });
 
    it("asks for one ticket for the whole selection", () => {
       useCreateObjectCommands("backups").downloadZip(keys(MAX_BATCH_KEYS));
@@ -290,7 +282,6 @@ describe("browser-normalized object keys", () => {
 
 describe("after an object mutation settles", () => {
    it("reloads the listing without refetching the bucket list", () => {
-      h.role = Role.EDITOR;
       const done = vi.fn();
       useCreateObjectCommands("backups").remove(
          [{ key: "a.txt", expectedETag: null }],
@@ -308,7 +299,6 @@ describe("after an object mutation settles", () => {
 
 describe("moving objects", () => {
    it("reloads the listing once for a clean move and passes the destination on", () => {
-      h.role = Role.EDITOR;
       const onSuccess = vi.fn();
       useCreateObjectCommands("backups").moveMany(
          { folderKey: "reports/" },

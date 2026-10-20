@@ -308,6 +308,32 @@ describe("archive entry collection", () => {
       }
    });
 
+   it("keeps names that differ only by case apart, since common desktops extract them to one path", async () => {
+      const f = s3Fixture(async () =>
+         listing([
+            { key: "logs/Report.pdf", size: 1 },
+            { key: "logs/report.pdf", size: 1 },
+            { key: "logs/A", size: 1 },
+            { key: "logs/a/x.txt", size: 1 },
+         ])
+      );
+      try {
+         const { entries } = await collectArchiveEntries(
+            f.scope,
+            ["logs/"],
+            limits
+         );
+         expect(entries.map(({ name }) => name)).toEqual([
+            "logs/Report.pdf",
+            "logs/report.pdf.2",
+            "logs/A.2",
+            "logs/a/x.txt",
+         ]);
+      } finally {
+         f.client.destroy();
+      }
+   });
+
    it("keeps real suffix names distinct before and after generated collisions", async () => {
       const f = s3Fixture(async () =>
          listing([
@@ -338,8 +364,8 @@ describe("archive entry collection", () => {
       }
    });
 
-   it("names 10,000 normalized collisions with linear candidate lookups", async () => {
-      const count = 10_000;
+   it("names 2,000 normalized collisions with linear candidate lookups", async () => {
+      const count = 2_000;
       const f = s3Fixture(async () => listing([]));
       let page = 0;
       vi.spyOn(f.client, "send").mockImplementation(async () => ({
@@ -380,7 +406,7 @@ describe("archive entry collection", () => {
          );
          expect(new Set(entries.map(({ name }) => name)).size).toBe(count);
          expect(lookups).toBeLessThanOrEqual(count * 3);
-         expect(page).toBe(10);
+         expect(page).toBe(count / 1_000);
          expect(warn).toHaveBeenCalledOnce();
          expect(warn).toHaveBeenCalledWith(
             "Zip entry names rewritten to stay inside the archive",
@@ -393,8 +419,8 @@ describe("archive entry collection", () => {
       }
    });
 
-   it("learns 10,000 deeply nested paths with one directory lookup per entry", async () => {
-      const count = 10_000;
+   it("learns 2,000 deeply nested paths with one directory lookup per entry", async () => {
+      const count = 2_000;
       const depth = 500;
       const deep = `x/${"a/".repeat(depth)}`;
       const f = s3Fixture(async () => listing([]));

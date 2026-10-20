@@ -6,11 +6,9 @@ import {
    MAX_GRANT_FOLDERS,
    Role,
    canLimitToFolders,
-   folderScopeCovers,
    normalizeFolders,
    sameFolderScope,
    type BucketAccessEntry,
-   type FolderScope,
    type GrantableRole,
    type S3Bucket,
 } from "@s3-viewer/types";
@@ -31,37 +29,34 @@ type GrantRow = BucketAccessEntry & {
 const ADMIN_FOLDERS =
    "Admins can't be limited to folders. Choose Whole bucket or a different server role.";
 
-const heldFolders = (myRole: Role, bucket: S3Bucket): FolderScope =>
-   myRole === Role.OWNER ? null : bucket.folders;
+const heldGrant = (bucket: S3Bucket) => ({
+   role: bucket.userRole,
+   folders: bucket.folders,
+});
 
-const canLimit = (role: Role, serverRole?: Role): boolean =>
-   canLimitToFolders(role) &&
-   (serverRole === undefined || canLimitToFolders(serverRole));
-
-const newGrant = (
+// changing or unchecking a grant removes it first, which takes the same authority as granting it
+const isLocked = (
    myRole: Role,
    bucket: S3Bucket,
-   role: Role,
-   serverRole?: Role
-): GrantRow => {
-   const held = heldFolders(myRole, bucket);
-   return {
-      bucketName: bucket.name,
-      role,
-      folders: canLimit(role, serverRole) && held !== null ? [...held] : null,
-   };
-};
+   original: BucketAccessEntry | undefined
+): boolean =>
+   original !== undefined &&
+   !canGrantBucketAccess(myRole, heldGrant(bucket), original);
+
+const newGrant = (bucket: S3Bucket, role: Role): GrantRow => ({
+   bucketName: bucket.name,
+   role,
+   folders: null,
+});
 
 const checkedGrant = (
    original: BucketAccessEntry | undefined,
-   myRole: Role,
    bucket: S3Bucket,
-   role: Role,
-   serverRole?: Role
+   role: Role
 ): GrantRow =>
    original
       ? { ...original, folders: original.folders && [...original.folders] }
-      : newGrant(myRole, bucket, role, serverRole);
+      : newGrant(bucket, role);
 
 const withRole = (row: GrantRow, role: Role): GrantRow => {
    if (!canLimitToFolders(role))
@@ -94,11 +89,10 @@ const withWholeBucket = (row: GrantRow): GrantRow => ({
 
 const withSpecificFolders = (
    row: GrantRow,
-   held: FolderScope,
    original?: BucketAccessEntry
 ): GrantRow => ({
    ...row,
-   folders: [...(row.folders ?? row.parked ?? original?.folders ?? held ?? [])],
+   folders: [...(row.folders ?? row.parked ?? original?.folders ?? [])],
    parked: undefined,
    restoreOnRole: undefined,
 });
@@ -110,11 +104,6 @@ const unchanged = (
    original !== undefined &&
    entry.role === original.role &&
    sameFolderScope(entry.folders, original.folders);
-
-const canChooseWholeBucket = (
-   held: FolderScope,
-   original: BucketAccessEntry | undefined
-): boolean => held === null || original?.folders === null;
 
 type GrantContext = {
    myRole: Role;
@@ -144,17 +133,7 @@ const grantError = (
    if (unchanged(entry, original)) return null;
    if (entry.folders !== null && entry.folders.length > MAX_GRANT_FOLDERS)
       return `Choose at most ${MAX_GRANT_FOLDERS} folders.`;
-   if (
-      canGrantBucketAccess(
-         myRole,
-         { role: bucket.userRole, folders: bucket.folders },
-         entry
-      )
-   )
-      return null;
-   const held = heldFolders(myRole, bucket);
-   if (held !== null && !folderScopeCovers(held, entry.folders))
-      return `You can only give access inside ${folderList(held)}.`;
+   if (canGrantBucketAccess(myRole, heldGrant(bucket), entry)) return null;
    return `You can't give ${ROLE_LABELS[entry.role]} access to this bucket.`;
 };
 
@@ -163,12 +142,12 @@ const pendingDraft = (row: GrantRow): string | null =>
 
 type DraftCommit = { row: GrantRow; problem: string | null };
 
-const commitDraft = (row: GrantRow, held: FolderScope): DraftCommit => {
+const commitDraft = (row: GrantRow): DraftCommit => {
    const draft = pendingDraft(row);
    if (draft === null || row.folders === null) return { row, problem: null };
    if (row.folders.includes(normalizeFolderInput(draft)))
       return { row: { ...row, draft: "" }, problem: null };
-   const result = addGrantFolder(row.folders, draft, held);
+   const result = addGrantFolder(row.folders, draft);
    if (!result.ok)
       return {
          row,
@@ -217,11 +196,8 @@ const commitDrafts = (
    check: AccessCheck
 ): GrantRow[] => {
    const committed = new Map<string, GrantRow>();
-   forEachKnownRow(rows, check, (row, bucket) => {
-      committed.set(
-         row.bucketName,
-         commitDraft(row, heldFolders(check.myRole, bucket)).row
-      );
+   forEachKnownRow(rows, check, (row) => {
+      committed.set(row.bucketName, commitDraft(row).row);
    });
    return rows.map((row) => committed.get(row.bucketName) ?? row);
 };
@@ -234,9 +210,7 @@ const accessErrors = (
    forEachKnownRow(rows, check, (row, bucket, original) => {
       const error =
          serverRoleError(row, check.serverRole) ??
-         (check.drafts
-            ? commitDraft(row, heldFolders(check.myRole, bucket)).problem
-            : null) ??
+         (check.drafts ? commitDraft(row).problem : null) ??
          grantError(row, {
             myRole: check.myRole,
             bucket,
@@ -288,7 +262,6 @@ export {
    accessErrors,
    accessKey,
    accessSummaryError,
-   canChooseWholeBucket,
    commitDraft,
    commitDrafts,
    grantError,
@@ -296,7 +269,7 @@ export {
    hasDrafts,
    checkedGrant,
    tooManyBuckets,
-   heldFolders,
+   isLocked,
    newGrant,
    withRole,
    withSpecificFolders,

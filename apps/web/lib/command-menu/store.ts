@@ -37,7 +37,6 @@ const useCommandMenuStore = create<CommandMenuStore>()(
          name: "command-menu-storage",
          storage: createJSONStorage(() => window.localStorage),
          version: 1,
-         migrate: () => ({ recentIds: [], userId: null }),
          partialize: ({ recentIds, userId }) => ({ recentIds, userId }),
       }
    )

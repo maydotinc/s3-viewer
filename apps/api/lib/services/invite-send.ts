@@ -1,6 +1,5 @@
-import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { env } from "@/lib/env";
-import { ApiHttpError } from "@/lib/http";
+import { ApiHttpError, serverNotFound } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { LOCK_NAMESPACE, tryXactLock } from "@/lib/db-locks";
 import type { SessionUser } from "@/lib/middleware/auth";
@@ -226,7 +225,7 @@ const invitingRole = async (
 ): Promise<Role> => {
    const role = await memberRole(tx, scope.actorId, scope.serverId);
    // a stranger gets the same 404 as a missing server, so ids cannot be probed and no denial lands in a server's log
-   if (!role) throw new ApiHttpError(404, SERVER_NOT_FOUND);
+   if (!role) throw serverNotFound();
    const refused = (message: string, reason: "forbidden" | "member") =>
       denied(403, message, scope, Permission.MANAGE_MEMBERS, reason);
    if (!hasPermission(role, Permission.MANAGE_MEMBERS))

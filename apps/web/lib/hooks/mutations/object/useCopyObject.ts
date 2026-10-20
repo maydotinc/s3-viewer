@@ -11,7 +11,9 @@ const useCopyObject = () =>
          S3ObjectUploaded,
          KeyChangeInput & { expectedDestinationETag?: string }
       >("copy"),
-      settle: forgetTouched(({ newObjectKey }) => [newObjectKey]),
+      settle: forgetTouched(({ newObjectKey }) => ({
+         changed: [newObjectKey],
+      })),
    });
 
 export default useCopyObject;

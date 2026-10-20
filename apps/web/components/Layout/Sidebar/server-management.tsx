@@ -17,7 +17,7 @@ const ServerManagement = () => {
             <ServerSelect />
          </div>
          <div className="flex min-h-0 flex-1 flex-col gap-2">
-            <div className="flex h-8 shrink-0 items-center justify-between">
+            <div className="flex h-8 shrink-0 items-center justify-between pointer-coarse:h-11">
                <SectionLabel as="span">Buckets</SectionLabel>
                {canCreateBucket && (
                   <Button

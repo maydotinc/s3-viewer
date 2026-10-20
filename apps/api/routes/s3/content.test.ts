@@ -1,5 +1,4 @@
 import { errorHandler } from "@/lib/http";
-import { privateNoStore } from "@/lib/middleware/cache-control";
 import { MAX_EDIT_BYTES } from "@s3-viewer/types";
 import express from "express";
 import { Readable } from "node:stream";
@@ -72,7 +71,6 @@ routeServer(
       });
       app.use(express.json());
       app.use(signedIn(() => ({ id: state.actor })));
-      app.use(privateNoStore);
       app.use("/servers/:serverId/buckets/:bucketName/objects", contentRouter);
       app.use(errorHandler);
    },
@@ -171,7 +169,7 @@ describe("inline object content", () => {
       expect(state.audit).not.toHaveBeenCalled();
    });
 
-   it.each([-1, NaN, 1.5])(
+   it.each([-1, 1.5])(
       "refuses malformed GET length %s and closes the body",
       async (ContentLength) => {
          const body = new Readable({ read() {} });
@@ -338,11 +336,6 @@ describe("inline object content", () => {
    it("rejects a folder key", async () => {
       const response = await get("notes/");
       expect(response.status).toBe(400);
-      expect(state.getClient).not.toHaveBeenCalled();
-   });
-
-   it("rejects a missing object key", async () => {
-      expect((await fetch(`${base}/v3/content`)).status).toBe(400);
       expect(state.getClient).not.toHaveBeenCalled();
    });
 

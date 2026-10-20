@@ -136,6 +136,7 @@ export default createHowToPage({
    seoDescription:
       "Learn how multipart uploads split large files into parts, how S3 Viewer transfers them through its server, and which instance and provider limits apply.",
    published: "2026-04-28",
+   updated: "2026-10-12",
    visual: <UploadIllustration />,
    steps,
    underTheHood: (

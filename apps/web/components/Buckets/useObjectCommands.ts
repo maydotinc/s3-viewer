@@ -4,7 +4,11 @@ import type {
    TransferSource,
 } from "@/lib/contexts/modal-sources";
 import { useModalActions } from "@/lib/contexts/modal-context";
-import { useEffectiveRoleState } from "@/lib/hooks/usePermission";
+import {
+   objectPermissions,
+   useEffectiveRoleState,
+   type ObjectPermissions,
+} from "@/lib/hooks/usePermission";
 import { useStorageCapabilities } from "@/lib/hooks/useStorageCapabilities";
 import useArchiveDownload, {
    ARCHIVE_MUTATION_KEY,
@@ -15,7 +19,6 @@ import { copyToClipboard } from "@/lib/utils/clipboard";
 import { downloadFromStorage } from "@/lib/utils/download";
 import { getDownloadUrl } from "@/lib/utils/s3/presign";
 import { toastError } from "@/lib/utils/toast";
-import { Permission, hasPermission } from "@s3-viewer/permissions";
 import {
    MAX_BATCH_KEYS,
    PRESIGN_EXPIRY_SECONDS,
@@ -27,13 +30,6 @@ import { toast } from "@s3-viewer/ui/components/toast";
 import { useIsMutating } from "@tanstack/react-query";
 import { createContext, useContext, useMemo } from "react";
 import { useBucketContext } from "./Context";
-
-type ObjectPermissions = {
-   download: boolean;
-   rename: boolean;
-   upload: boolean;
-   delete: boolean;
-};
 
 type ObjectCommands = {
    can: ObjectPermissions;
@@ -98,13 +94,12 @@ const useCreateObjectCommands = (bucketName: string): ObjectCommands => {
    const { role, pending: isRolePending } = useEffectiveRoleState(bucketName);
    const capabilities = useStorageCapabilities();
    const isResolving = isRolePending || capabilities.pending;
-   const canDownload = hasPermission(role, Permission.DOWNLOAD_OBJECT);
-   const canDelete =
-      capabilities.delete && hasPermission(role, Permission.DELETE_OBJECT);
-   const canRename =
-      capabilities.rename && hasPermission(role, Permission.DELETE_OBJECT);
-   const canUpload =
-      capabilities.upload && hasPermission(role, Permission.UPLOAD_OBJECT);
+   const {
+      download: canDownload,
+      delete: canDelete,
+      rename: canRename,
+      upload: canUpload,
+   } = objectPermissions(role, capabilities);
 
    return useMemo(() => {
       const scope = { serverId, bucketName };

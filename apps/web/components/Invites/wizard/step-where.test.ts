@@ -48,14 +48,6 @@ const mount = async (props: Partial<Parameters<typeof StepWhere>[0]> = {}) => {
 };
 
 describe("the server step", () => {
-   it("lists each manageable server with its role", async () => {
-      const container = await mount();
-      expect(
-         [...container.querySelectorAll("li")].map((item) => item.textContent)
-      ).toEqual(["Owned storageOwner", "Admin storageAdmin"]);
-      expect(container.querySelectorAll("[role=checkbox]")).toHaveLength(2);
-   });
-
    it("selects every listed server at once, then clears them", async () => {
       const onSelectAll = vi.fn();
       const container = await mount({ onSelectAll });

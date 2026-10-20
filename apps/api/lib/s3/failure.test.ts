@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { uploadConflict } from "./conditions";
-import { deleteFailureMessage } from "./classify";
-import { deleteRequestFailure } from "./checked-delete";
 import { isConflict, isForbidden } from "./failure";
 
 describe("conditional write failure recognition", () => {
@@ -14,11 +12,6 @@ describe("conditional write failure recognition", () => {
    ])("recognizes a conflict consistently: %j", (failure) => {
       expect(isConflict(failure)).toBe(true);
       expect(uploadConflict(failure)).toBe(true);
-      expect(deleteRequestFailure(failure, "key", true, undefined)).toEqual({
-         key: "key",
-         retryable: false,
-         message: deleteFailureMessage("PreconditionFailed"),
-      });
    });
 
    it("keeps a bare HTTP 409 specific to uploads", () => {

@@ -40,11 +40,17 @@ import {
    multipartUploadsQuerySchema,
    uploadPartQuerySchema,
    uploadedPartsQuerySchema,
+   type AuditEntry,
    type S3AbortUploadsResult,
    type S3UploadedParts,
 } from "@s3-viewer/types";
 import { Router } from "express";
-import { awaitStorage, mutationScope, readScope } from "./scope";
+import {
+   awaitStorage,
+   mutationScope,
+   readScope,
+   recordedIfUnconfirmed,
+} from "./scope";
 
 const multipartRouter = Router({ mergeParams: true });
 
@@ -247,24 +253,30 @@ multipartRouter.post(
          const { bucketName, objectKey, parts, expectedETag } = input;
          const { scope } = await mutationScope(bucketName, res);
          awaitStorage(res);
-         const uploaded = await completeUpload(scope, {
-            serverId: input.serverId,
-            key: objectKey,
-            uploadId: input.uploadId,
-            parts,
-            expectedETag,
-            maxBytes: MAX_UPLOAD_OBJECT_BYTES,
-            commitSignal: (size) => requestSignal(res, copyDeadlineMs(size)),
-         });
-         await record(res, {
+         const detail = {
+            parts: parts.length,
+            replaced: Boolean(expectedETag),
+         };
+         const upload: AuditEntry = {
             action: "object.upload",
             bucket: bucketName,
             target: objectKey,
-            detail: {
-               size: uploaded.size,
-               parts: parts.length,
-               replaced: Boolean(expectedETag),
-            },
+            detail,
+         };
+         const uploaded = await recordedIfUnconfirmed(res, upload, () =>
+            completeUpload(scope, {
+               serverId: input.serverId,
+               key: objectKey,
+               uploadId: input.uploadId,
+               parts,
+               expectedETag,
+               maxBytes: MAX_UPLOAD_OBJECT_BYTES,
+               commitSignal: (size) => requestSignal(res, copyDeadlineMs(size)),
+            })
+         );
+         await record(res, {
+            ...upload,
+            detail: { size: uploaded.size, ...detail },
          });
          res.status(201).json(uploaded);
       }

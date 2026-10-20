@@ -11,10 +11,7 @@ const storageCapabilities = (
    provider: Provider,
    endpoint: string
 ): StorageCapabilities => ({
-   upload: true,
-   replace: true,
-   rename: true,
-   delete: true,
+   writable: true,
    deleteProtection: provider === Provider.S3 ? "conditional" : "checked",
    notice:
       provider === Provider.Other && backblazeRegion(endpoint)

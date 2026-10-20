@@ -17,21 +17,15 @@ describe("storage capabilities", () => {
       state.isLoading = false;
       state.currentServer = null;
       expect(useStorageCapabilities()).toMatchObject({
-         upload: false,
-         replace: false,
-         rename: false,
-         delete: false,
+         writable: false,
          pending: false,
       });
    });
-   it("uses the API's specific capability flags", () => {
+   it("uses the API's capabilities", () => {
       state.isLoading = false;
       const capabilities = {
-         upload: true,
-         replace: false,
-         rename: false,
-         delete: false,
-         deleteProtection: null,
+         writable: true,
+         deleteProtection: "checked",
          notice: "B2 is browse-only",
       };
       state.currentServer = { provider: "Other", capabilities };
@@ -44,10 +38,7 @@ describe("storage capabilities", () => {
       state.isLoading = true;
       state.currentServer = null;
       expect(useStorageCapabilities()).toEqual({
-         upload: false,
-         replace: false,
-         rename: false,
-         delete: false,
+         writable: false,
          deleteProtection: null,
          notice: null,
          pending: true,

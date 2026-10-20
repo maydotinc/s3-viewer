@@ -1,13 +1,8 @@
 import { QueryClient, QueryObserver } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import { queryKeys } from "./query-keys";
-import { refreshFolderScopes } from "./query-client";
-
-const deferred = () => {
-   let resolve!: () => void;
-   const promise = new Promise<void>((done) => (resolve = done));
-   return { promise, resolve };
-};
+import { refreshAccess } from "./query-client";
+import { deferred } from "./test/runtime";
 
 const watch = (client: QueryClient, queryKey: readonly unknown[]) => {
    const queryFn = vi.fn(async () => []);
@@ -20,18 +15,19 @@ const watch = (client: QueryClient, queryKey: readonly unknown[]) => {
    return { queryFn, stop };
 };
 
-describe("a folder refusal", () => {
-   it("reloads the bucket lists once for a burst of refusals", async () => {
+describe("an access refusal", () => {
+   it("reloads the bucket lists and server info once for a burst of refusals", async () => {
       const client = new QueryClient();
       const buckets = watch(client, queryKeys.buckets("user", "server"));
+      const server = watch(client, queryKeys.serverInfo("user", "server"));
       const members = watch(client, queryKeys.members("user", "server"));
       await vi.waitFor(() => expect(buckets.queryFn).toHaveBeenCalledOnce());
-      const gate = deferred();
+      const gate = deferred<void>();
       buckets.queryFn.mockImplementation(async () => {
          await gate.promise;
          return [];
       });
-      const refresh = refreshFolderScopes(client);
+      const refresh = refreshAccess(client);
       refresh();
       refresh();
       refresh();
@@ -44,11 +40,13 @@ describe("a folder refusal", () => {
          ).toBe("idle")
       );
       expect(buckets.queryFn).toHaveBeenCalledTimes(2);
+      expect(server.queryFn).toHaveBeenCalledTimes(2);
       expect(members.queryFn).toHaveBeenCalledOnce();
       await new Promise((resolve) => setTimeout(resolve, 0));
       refresh();
       await vi.waitFor(() => expect(buckets.queryFn).toHaveBeenCalledTimes(3));
       buckets.stop();
+      server.stop();
       members.stop();
    });
 });

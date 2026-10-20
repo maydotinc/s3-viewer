@@ -1,5 +1,6 @@
 import { prisma } from "@s3-viewer/db";
 import { hitRateLimit, sweepRateLimits } from "@s3-viewer/db/rate-limit";
+import { DAY_MS, SESSION_ABSOLUTE_TTL_DAYS } from "@s3-viewer/types";
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { contentOf, hashOf, setAuditChainKey } from "../audit/chain";
@@ -307,13 +308,26 @@ describe.skipIf(!integrationUrl)("disposable PostgreSQL invariants", () => {
       const expiryDates = [-1, 0, 1].map(
          (offset) => new Date(now.getTime() + offset)
       );
+      const capped = new Date(
+         now.getTime() - SESSION_ABSOLUTE_TTL_DAYS * DAY_MS
+      );
       await prisma.session.createMany({
-         data: expiryDates.map((expiresAt, index) => ({
-            id: `${run}-session-${index}`,
-            token: `${run}-token-${index}`,
-            userId: ownerId,
-            expiresAt,
-         })),
+         data: [
+            ...expiryDates.map((expiresAt, index) => ({
+               id: `${run}-session-${index}`,
+               token: `${run}-token-${index}`,
+               userId: ownerId,
+               expiresAt,
+               createdAt: now,
+            })),
+            ...[0, 1].map((offset, index) => ({
+               id: `${run}-capped-${index}`,
+               token: `${run}-capped-token-${index}`,
+               userId: ownerId,
+               expiresAt: new Date("2031-01-01T00:00:00.000Z"),
+               createdAt: new Date(capped.getTime() + offset),
+            })),
+         ],
       });
       await prisma.verification.createMany({
          data: expiryDates.map((expiresAt, index) => ({
@@ -364,8 +378,9 @@ describe.skipIf(!integrationUrl)("disposable PostgreSQL invariants", () => {
          await prisma.session.findMany({
             where: { userId: ownerId },
             select: { id: true },
+            orderBy: { id: "asc" },
          })
-      ).toEqual([{ id: `${run}-session-2` }]);
+      ).toEqual([{ id: `${run}-capped-1` }, { id: `${run}-session-2` }]);
       expect(
          await prisma.verification.findMany({
             where: { identifier: ownerId },

@@ -147,6 +147,7 @@ export default createHowToPage({
    seoDescription:
       "S3 has no UpdateObject call. Change a stored object's content type, cache headers or custom metadata with a self-copy and MetadataDirective REPLACE.",
    published: "2026-09-07",
+   updated: "2026-10-12",
    visual: <RenameIllustration />,
    steps,
    underTheHood: (

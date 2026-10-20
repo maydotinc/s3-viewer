@@ -1,4 +1,3 @@
-import { blurProps } from "@/components/blur-placeholder";
 import { team } from "@/lib/team";
 import Image from "next/image";
 import BasicBlock, { Eyebrow, SectionTitle } from "../basic-block";
@@ -33,17 +32,15 @@ const TeamLetter = () => {
             <div className="flex flex-wrap items-center gap-3 border-t border-viewerborder pt-6 lg:col-start-1 lg:row-start-2 lg:self-start">
                <div className="flex shrink-0 items-center -space-x-2">
                   {team.map((member, i) => {
-                     const src = `/landing/profiles/${member.profile}.png`;
                      return (
                         <Image
                            key={member.profile}
-                           src={src}
+                           src={`/landing/profiles/${member.profile}.png`}
                            alt={member.name}
                            width={36}
                            height={36}
                            style={{ zIndex: 10 - i }}
                            className="size-9 shrink-0 rounded-full border border-viewerwhite select-none"
-                           {...blurProps(src)}
                            draggable={false}
                         />
                      );

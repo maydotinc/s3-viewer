@@ -81,10 +81,12 @@ const emit = async (element: Element, event: string) =>
 beforeEach(() => {
    vi.clearAllMocks();
    h.provider = "S3";
+   // happy-dom plays nothing, and the preview only offers media the browser says it can play
+   vi.spyOn(HTMLMediaElement.prototype, "canPlayType").mockReturnValue("maybe");
    vi.stubGlobal(
       "HTMLMediaElement",
       class extends HTMLMediaElement {
-         static readonly HAVE_FUTURE_DATA = 3;
+         static override readonly HAVE_FUTURE_DATA = 3;
       }
    );
 });

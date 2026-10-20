@@ -2,16 +2,15 @@ import { ApiHttpError, noContent } from "@/lib/http";
 import { getAuth, lockedPermission, refuse } from "@/lib/middleware/authorize";
 import { memberRoute } from "@/lib/middleware/route";
 import { record } from "@/lib/middleware/audit-record";
-import { inviteSelect, toServerInvite } from "@/lib/services/invites";
+import { serverInvitePage, toServerInvite } from "@/lib/services/invites";
 import { withVisibleGrants } from "@/lib/services/bucket-grants";
 import {
    canRevokeInvite,
    revocableInviteSelect,
 } from "@/lib/services/invite-authority";
-import { loadGrantingActor, visibleBuckets } from "@/lib/services/members";
+import { loadGrantingActor, viewerGrants } from "@/lib/services/members";
 import { lockBucketScope } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
-import { liveInvite } from "@s3-viewer/db/invitations";
 import { Permission } from "@s3-viewer/permissions";
 import {
    revokeInviteSchema,
@@ -28,17 +27,14 @@ const INVITE_NOT_FOUND = "Invite not found";
 const getInvites = async (_req: Request, res: Response, input: ServerScope) => {
    const { serverId } = input;
    const { userId, serverRole } = getAuth(res);
-   const [rows, visible] = await Promise.all([
-      prisma.pendingInvitation.findMany({
-         where: { serverId, ...liveInvite() },
-         select: inviteSelect,
-         orderBy: { createdAt: "desc" },
-      }),
-      visibleBuckets(userId, serverId, serverRole),
+   const [rows, { visible, held }] = await Promise.all([
+      serverInvitePage(serverId),
+      viewerGrants(userId, serverId, serverRole),
    ]);
-   const invites = rows.map((row) =>
-      withVisibleGrants(visible, toServerInvite(row))
-   );
+   const invites = rows.map((row) => ({
+      ...withVisibleGrants(visible, toServerInvite(row)),
+      canRevoke: canRevokeInvite({ serverRole, bucketGrants: held }, row),
+   }));
    res.json({ invites } satisfies InvitesResponse);
 };
 

@@ -14,7 +14,10 @@ import {
    type MoveObjectsInput,
    type S3MoveResult,
 } from "@s3-viewer/types";
-import useObjectMutation, { forgetTouched } from "./object-mutation";
+import useObjectMutation, {
+   confirmedTargets,
+   forgetTouched,
+} from "./object-mutation";
 
 const MOVE_BATCH_KEYS = 50;
 
@@ -83,10 +86,20 @@ const useMoveObjects = () =>
             signal
          ),
       onSuccess: reportMoveResult,
-      settle: forgetTouched(
-         ({ objects }) => objects.map(({ newKey }) => newKey),
-         ({ objects }) => objects.map(({ key }) => key)
-      ),
+      settle: forgetTouched(({ objects }, outcome) => {
+         const { confirmed, unconfirmed } = confirmedTargets(
+            objects,
+            pairId,
+            outcome
+         );
+         return {
+            changed: [
+               ...objects.map(({ newKey }) => newKey),
+               ...unconfirmed.map(({ key }) => key),
+            ],
+            removed: confirmed.map(({ key }) => key),
+         };
+      }),
    });
 
 export default useMoveObjects;

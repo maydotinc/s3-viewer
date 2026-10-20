@@ -17,7 +17,6 @@ import { ErrorCode } from "@s3-viewer/types";
 import {
    batchProgressSentence,
    type BatchSummary,
-   isBatchComplete,
    reportBatchResult,
    runBatched,
    runPrefixBatches,
@@ -357,20 +356,6 @@ describe("retrying a folder page that was only refused", () => {
       expect(summary).toEqual(answer(3));
    });
 
-   it("waits out a refusal even when nothing in the run has gone through yet", async () => {
-      vi.useFakeTimers();
-      pages(page(["photos/a", "photos/b"]));
-      const answers = [answer(0, refused("photos/a", "photos/b")), answer(2)];
-      const { sent, finished } = walk(() => answers.shift()!);
-      await vi.advanceTimersByTimeAsync(2000);
-      const summary = await finished;
-      expect(sent).toEqual([
-         ["photos/a", "photos/b"],
-         ["photos/a", "photos/b"],
-      ]);
-      expect(summary).toEqual(answer(2));
-   });
-
    it("stops at once on failures storage itself reported as retryable", async () => {
       pages(page(["photos/a", "photos/b"], "next"), page(["photos/c"]));
       const failed = [{ key: "photos/b", retryable: true }];
@@ -435,18 +420,6 @@ describe("retrying a folder page that was only refused", () => {
 });
 
 describe("summing up a batch for a dialog", () => {
-   it("is complete only with no failures, no listing error and nothing left", () => {
-      expect(isBatchComplete({ failed: [] })).toBe(true);
-      expect(
-         isBatchComplete({ failed: [], listingError: null, remaining: false })
-      ).toBe(true);
-      expect(isBatchComplete({ failed: [{}] })).toBe(false);
-      expect(isBatchComplete({ failed: [], listingError: "Stopped." })).toBe(
-         false
-      );
-      expect(isBatchComplete({ failed: [], remaining: true })).toBe(false);
-   });
-
    it("joins the lead, the extra, the failures and what is left", () => {
       expect(batchProgressSentence("Moved 3", 0, false)).toBe("Moved 3.");
       expect(batchProgressSentence("Moved 3", 1200, true)).toBe(

@@ -27,7 +27,7 @@ const FolderLinks = ({
                href={folderHref(bucketName, segmentsFromKey(folder))}
                title={visibleText(folder)}
                className={cn(
-                  "flex max-w-full items-center gap-1.5 rounded-md border border-viewerborder bg-viewerwhite px-2 py-1 text-xs text-viewerblack outline-none transition-colors hover:text-viewerblue",
+                  "flex max-w-full items-center gap-1.5 rounded-md border border-viewerborder bg-viewerwhite px-2 py-1 text-xs text-viewerblack outline-none transition-colors pointer-coarse:min-h-10 hover:text-viewerblue",
                   FOCUS_RING
                )}
             >
@@ -49,7 +49,7 @@ const FolderAccessNotice = () => {
       return null;
    const { title, detail, folders } = accessNotice(reach.folders, prefix);
    return (
-      <Callout className="shrink-0 rounded-none border-b border-viewerborder">
+      <Callout className="shrink-0 rounded-none border-t border-viewerborder">
          <div className="flex min-w-0 flex-col gap-0.5">
             <p className="font-medium text-viewerblack">{title}</p>
             <p>{detail}</p>

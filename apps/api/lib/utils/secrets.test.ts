@@ -1,16 +1,31 @@
-import { createPrivateKey, generateKeyPairSync } from "node:crypto";
+import { createPrivateKey } from "node:crypto";
 import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ensureDataDirSecrets } from "./secrets";
 
-const KEY_GENERATION_TIMEOUT_MS = 120_000;
-
 const hooks = vi.hoisted(() => ({
    beforeWrite: null as ((path: string) => void) | null,
    failWith: null as Error | null,
+   modulusLengths: [] as number[],
 }));
+
+// a 4096-bit key takes most of a second to generate; record the size asked for and make a small one.
+vi.mock("node:crypto", async (importOriginal) => {
+   const actual = await importOriginal<typeof import("node:crypto")>();
+   const generateKeyPairSync = ((
+      type: "rsa",
+      options: { modulusLength: number }
+   ) => {
+      hooks.modulusLengths.push(options.modulusLength);
+      return actual.generateKeyPairSync(type, {
+         ...options,
+         modulusLength: 1024,
+      });
+   }) as typeof actual.generateKeyPairSync;
+   return { ...actual, generateKeyPairSync };
+});
 
 vi.mock("node:fs", async (importOriginal) => {
    const actual = await importOriginal<typeof import("node:fs")>();
@@ -24,14 +39,14 @@ vi.mock("node:fs", async (importOriginal) => {
 
 const tempDir = (): string => mkdtempSync(join(tmpdir(), "s3v-secrets-"));
 
-const rsaPem = (): string =>
-   generateKeyPairSync("rsa", { modulusLength: 2048 })
-      .privateKey.export({ type: "pkcs8", format: "pem" })
-      .toString();
+// the secrets are read back as opaque text, so any PEM-shaped value will do.
+const PEM =
+   "-----BEGIN PRIVATE KEY-----\npersisted\n-----END PRIVATE KEY-----\n";
 
 afterEach(() => {
    hooks.beforeWrite = null;
    hooks.failWith = null;
+   hooks.modulusLengths = [];
    vi.restoreAllMocks();
 });
 
@@ -55,49 +70,43 @@ describe("ensureDataDirSecrets", () => {
       expect(() => statSync(join(dir, "encryption-private-key.pem"))).toThrow();
    });
 
-   it(
-      "generates both secrets into DATA_DIR with mode 0600",
-      { timeout: KEY_GENERATION_TIMEOUT_MS },
-      () => {
-         const dir = join(tempDir(), "nested");
-         const env: NodeJS.ProcessEnv = { DATA_DIR: dir };
-         ensureDataDirSecrets(env);
+   it("generates both secrets into DATA_DIR with mode 0600", () => {
+      const dir = join(tempDir(), "nested");
+      const env: NodeJS.ProcessEnv = { DATA_DIR: dir };
+      ensureDataDirSecrets(env);
 
-         const secret = env.BETTER_AUTH_SECRET ?? "";
-         expect(Buffer.from(secret, "base64")).toHaveLength(32);
-         expect(secret.length).toBeGreaterThanOrEqual(32);
+      const secret = env.BETTER_AUTH_SECRET ?? "";
+      expect(Buffer.from(secret, "base64")).toHaveLength(32);
+      expect(secret.length).toBeGreaterThanOrEqual(32);
 
-         const key = createPrivateKey(env.ENCRYPTION_PRIVATE_KEY ?? "");
-         expect(key.asymmetricKeyType).toBe("rsa");
-         expect(key.asymmetricKeyDetails?.modulusLength).toBe(4096);
+      const key = createPrivateKey(env.ENCRYPTION_PRIVATE_KEY ?? "");
+      expect(key.asymmetricKeyType).toBe("rsa");
+      expect(hooks.modulusLengths).toEqual([4096]);
 
-         for (const [file, value] of [
-            ["auth-secret", secret],
-            ["encryption-private-key.pem", env.ENCRYPTION_PRIVATE_KEY],
-         ] as const) {
-            const path = join(dir, file);
-            expect(statSync(path).mode & 0o777).toBe(0o600);
-            expect(readFileSync(path, "utf8").trim()).toBe(value?.trim());
-         }
+      for (const [file, value] of [
+         ["auth-secret", secret],
+         ["encryption-private-key.pem", env.ENCRYPTION_PRIVATE_KEY],
+      ] as const) {
+         const path = join(dir, file);
+         expect(statSync(path).mode & 0o777).toBe(0o600);
+         expect(readFileSync(path, "utf8").trim()).toBe(value?.trim());
       }
-   );
+   });
 
    it("reads the persisted secrets back on the next boot", () => {
       const dir = tempDir();
-      const pem = rsaPem();
       writeFileSync(join(dir, "auth-secret"), "persisted-secret\n");
-      writeFileSync(join(dir, "encryption-private-key.pem"), pem);
+      writeFileSync(join(dir, "encryption-private-key.pem"), PEM);
 
       const env: NodeJS.ProcessEnv = { DATA_DIR: dir };
       ensureDataDirSecrets(env);
       expect(env.BETTER_AUTH_SECRET).toBe("persisted-secret");
-      expect(env.ENCRYPTION_PRIVATE_KEY).toBe(pem.trim());
+      expect(env.ENCRYPTION_PRIVATE_KEY).toBe(PEM.trim());
    });
 
    it("adopts the value another replica wrote when the create races", () => {
       const dir = tempDir();
-      const pem = rsaPem();
-      writeFileSync(join(dir, "encryption-private-key.pem"), pem);
+      writeFileSync(join(dir, "encryption-private-key.pem"), PEM);
       hooks.beforeWrite = (path) => {
          hooks.beforeWrite = null;
          writeFileSync(path, "the-other-replica\n");
@@ -109,7 +118,7 @@ describe("ensureDataDirSecrets", () => {
       expect(readFileSync(join(dir, "auth-secret"), "utf8")).toBe(
          "the-other-replica\n"
       );
-      expect(env.ENCRYPTION_PRIVATE_KEY).toBe(pem.trim());
+      expect(env.ENCRYPTION_PRIVATE_KEY).toBe(PEM.trim());
    });
 
    it("names DATA_DIR, the file and the uid when the volume is read-only", () => {

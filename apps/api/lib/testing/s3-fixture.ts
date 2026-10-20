@@ -34,13 +34,10 @@ type FixtureOptions = {
 const AWS_ENDPOINT = "https://s3.us-east-1.amazonaws.com";
 const MINIO_ENDPOINT = "https://minio.example.com";
 const R2_ENDPOINT = "https://account.r2.cloudflarestorage.com";
-const B2_ENDPOINT = "https://s3.us-west-004.backblazeb2.com";
-
-const PROVIDER_ENDPOINTS: Readonly<Record<Provider | "B2", string>> = {
+const PROVIDER_ENDPOINTS: Readonly<Record<Provider, string>> = {
    [Provider.S3]: AWS_ENDPOINT,
    [Provider.R2]: R2_ENDPOINT,
    [Provider.Other]: MINIO_ENDPOINT,
-   B2: B2_ENDPOINT,
 };
 
 const reply = (
@@ -62,6 +59,32 @@ const xml = (body: string, statusCode = 200): FixtureReply =>
 
 const errorXml = (code: string): string =>
    `<Error><Code>${code}</Code></Error>`;
+
+const initiatedXml = (uploadId: string): string =>
+   `<InitiateMultipartUploadResult><UploadId>${uploadId}</UploadId></InitiateMultipartUploadResult>`;
+
+const completedXml = (eTag: string): string =>
+   `<CompleteMultipartUploadResult><ETag>${eTag}</ETag></CompleteMultipartUploadResult>`;
+
+const copiedXml = (eTag: string): string =>
+   `<CopyObjectResult><ETag>${eTag}</ETag></CopyObjectResult>`;
+
+const copiedPartXml = (eTag: string): string =>
+   `<CopyPartResult><ETag>${eTag}</ETag></CopyPartResult>`;
+
+const deleteResultXml = (
+   deleted: readonly string[],
+   errors: readonly { key: string; code: string }[] = []
+): string =>
+   '<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/">' +
+   deleted.map((key) => `<Deleted><Key>${key}</Key></Deleted>`).join("") +
+   errors
+      .map(
+         ({ key, code }) =>
+            `<Error><Key>${key}</Key><Code>${code}</Code></Error>`
+      )
+      .join("") +
+   "</DeleteResult>";
 
 const empty = (
    statusCode = 200,
@@ -97,7 +120,8 @@ const s3Fixture = (handle: FixtureHandle, options: FixtureOptions = {}) => {
          accessKeyId: "test",
          secretAccessKey: "test",
       },
-      maxAttempts: options.maxAttempts ?? 3,
+      // retries wait through real SDK backoff, so a test opts in only when retrying is what it checks.
+      maxAttempts: options.maxAttempts ?? 1,
       ...(options.requestChecksumCalculation && {
          requestChecksumCalculation: options.requestChecksumCalculation,
       }),
@@ -118,7 +142,6 @@ const s3Fixture = (handle: FixtureHandle, options: FixtureOptions = {}) => {
    };
 };
 
-// the shape routes read off a client when they only need its endpoint and `send`.
 const endpointStub = <Send>(
    send: Send,
    hostname = "s3.us-east-1.amazonaws.com"
@@ -132,9 +155,14 @@ export {
    MINIO_ENDPOINT,
    PROVIDER_ENDPOINTS,
    R2_ENDPOINT,
+   completedXml,
+   copiedPartXml,
+   copiedXml,
+   deleteResultXml,
    empty,
    endpointStub,
    errorXml,
+   initiatedXml,
    listing,
    reply,
    s3Fixture,

@@ -2,7 +2,7 @@ import GithubIcon from "@/components/Auth/github-icon";
 import Avatar from "@/components/avatar";
 import { authClient, signOut } from "@/lib/auth";
 import usePrefetchSettings from "@/lib/hooks/queries/usePrefetchSettings";
-import { SUPPORT_URL } from "@/lib/site-config";
+import { supportUrl } from "@/lib/site-config";
 import { isModifiedClick } from "@/lib/utils/events";
 import { toastFailure } from "@/lib/utils/toast";
 import { GITHUB_URL, SITE_PATHS } from "@s3-viewer/types";
@@ -95,7 +95,7 @@ const ProfileDropdown = () => {
                </a>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-               <a href={SUPPORT_URL} target="_blank" rel="noreferrer">
+               <a href={supportUrl()} target="_blank" rel="noreferrer">
                   <LifeBuoy aria-hidden="true" />
                   Support
                </a>

@@ -78,7 +78,8 @@ describe("multipart upload listing", () => {
       );
    });
 
-   it("carries both markers into the next page", async () => {
+   it("carries both markers into the next page, and stops without a next key", async () => {
+      expect(useOptions().getNextPageParam(page(["a"], null))).toBeNull();
       const next = useOptions().getNextPageParam(page(["a"], "photos/b.bin"));
       expect(next).toEqual({
          keyMarker: "photos/b.bin",
@@ -105,16 +106,16 @@ describe("multipart upload listing", () => {
       expect(query.has("uploadIdMarker")).toBe(false);
    });
 
-   it("stops paging when storage reports no next key", () => {
-      expect(useOptions().getNextPageParam(page(["a"], null))).toBeNull();
-   });
-
    it("stays disabled without a signed-in user or when the dialog is closed", () => {
       h.userId = "";
       expect(useOptions().enabled).toBe(false);
       h.userId = "user1";
       expect(useOptions("photos/", false).enabled).toBe(false);
       expect(useOptions().enabled).toBe(true);
+   });
+
+   it("reads afresh every time the dialog opens", () => {
+      expect(useOptions()).toMatchObject({ staleTime: 0 });
    });
 
    it("scopes the cache by bucket and prefix", () => {

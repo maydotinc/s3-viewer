@@ -99,6 +99,7 @@ export default createHowToPage({
    seoDescription:
       "Three ways to download from S3 — browser via S3 Viewer, AWS CLI, or presigned URL. S3 Viewer signs server-side so your keys never reach the client.",
    published: "2026-04-28",
+   updated: "2026-10-12",
    visual: <DownloadIllustration />,
    steps,
    underTheHood: (

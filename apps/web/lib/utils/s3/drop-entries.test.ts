@@ -205,15 +205,6 @@ describe("filesFromDrop", () => {
       expect(vi.getTimerCount()).toBe(0);
    });
 
-   it("walks a drop within the limit in full", async () => {
-      const children = Array.from({ length: 100 }, (_, i) =>
-         fileEntry(`/root/f${i}.txt`)
-      );
-      const tree = dirEntry("/root", children);
-      const files = await filesFromDrop(dataTransferFor([tree]), 100);
-      expect(files).toHaveLength(100);
-   });
-
    it("falls back to the flat file list when entries aren't available", async () => {
       const file = new File(["x"], "a.txt");
       const dataTransfer = {

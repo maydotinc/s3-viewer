@@ -1,5 +1,6 @@
 import { api, field, serverPath, type ApiError } from "@/lib/api";
 import useApiMutation from "@/lib/hooks/mutations/useApiMutation";
+import { firstPageOnly } from "@/lib/hooks/queries/server/useAuditLog";
 import { queryKeys } from "@/lib/query-keys";
 import { toastError } from "@/lib/utils/toast";
 import {
@@ -23,10 +24,14 @@ const useUpdateAuditSettings = () =>
             queryKeys.auditSettings(scope.userId, serverId),
             data
          );
+         queryClient.setQueriesData(
+            { queryKey: queryKeys.auditLogs(scope.userId, serverId) },
+            firstPageOnly
+         );
       },
       invalidates: ({ variables: { serverId }, scope }) => [
          queryKeys.servers(scope.userId),
-         queryKeys.auditLog(scope.userId, serverId),
+         queryKeys.auditLogs(scope.userId, serverId),
       ],
       // the form asks for a fresh sign-in itself.
       failure: ({ error }) => {

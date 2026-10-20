@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { ApiHttpError, errorHandler } from "@/lib/http";
 import { plannedPartSize, streamedUploadCap } from "@/lib/s3/upload";
 import { routeServer, signedIn } from "@/lib/testing/route-harness";
+import { UnconfirmedWriteError } from "@/lib/s3/conditions";
 import { endpointStub } from "@/lib/testing/s3-fixture";
 import { authorizeScopeRows } from "@/lib/testing/scope-probe";
 import { transfersRouter } from "./transfers";
@@ -232,6 +233,19 @@ describe("copying between buckets on one server", () => {
       expect(state.getClient.mock.calls[0]?.[2].aborted).toBe(true);
       expect(state.copy).not.toHaveBeenCalled();
       expect(state.transfer).not.toHaveBeenCalled();
+   });
+
+   it("audits a server-side copy cut off after storage received it as unconfirmed", async () => {
+      state.copy.mockRejectedValue(new UnconfirmedWriteError());
+      expect((await post()).status).toBe(502);
+      expect(state.audit).toHaveBeenCalledWith(
+         expect.anything(),
+         expect.objectContaining({
+            action: "object.transfer",
+            target: "imported/q3.csv",
+            detail: expect.objectContaining({ confirmed: false }),
+         })
+      );
    });
 
    it("runs a server-side copy from the source bucket and audits it", async () => {

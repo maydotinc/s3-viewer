@@ -145,17 +145,10 @@ describe("copying selected objects to another bucket", () => {
          expect.objectContaining({ retryable: false }),
          expect.objectContaining({ retryable: true }),
       ]);
-      expect(summary.remaining).toBe(true);
-   });
-
-   it("closes the message before asking for a review", async () => {
-      h.post
-         .mockRejectedValueOnce(new FakeApiError(409, "Already exists"))
-         .mockResolvedValue({ key: "", size: 1, eTag: null });
-      const summary = await transferObjects(input());
       expect(summary.failed[0]?.message).toBe(
          "Already exists. Review this object at the destination before copying it again."
       );
+      expect(summary.remaining).toBe(true);
    });
 
    const LIMITED = "Your access to this bucket is limited to landing/";
@@ -344,10 +337,10 @@ describe("reviewed transfer continuations", () => {
             new FakeApiError(429, "Busy", "TRANSFER_NOT_STARTED")
          );
       const first = await transferObjects({ ...request, operation });
-      expect(first.failed.map(({ outcome }) => outcome)).toEqual([
-         "unknown",
-         "failed",
-         "failed",
+      expect(first.failed.map(({ retryable }) => retryable)).toEqual([
+         false,
+         false,
+         true,
       ]);
       h.post.mockReset().mockResolvedValue({ size: 1 });
       const resumed = await transferObjects({ ...request, operation });
@@ -367,7 +360,7 @@ describe("reviewed transfer continuations", () => {
          .mockResolvedValue({ size: 1 });
       const result = await transferObjects({ ...request, operation });
       expect(result.failed).toMatchObject([
-         { key: "raw/a.png", outcome: "unknown" },
+         { key: "raw/a.png", retryable: false },
       ]);
    });
 
@@ -386,7 +379,7 @@ describe("reviewed transfer continuations", () => {
       expect(operation.summary).toMatchObject({
          transferred: 1,
          remaining: true,
-         failed: [{ key: "raw/b.png", outcome: "unknown" }],
+         failed: [{ key: "raw/b.png", retryable: false }],
       });
       h.post.mockReset().mockResolvedValue({ size: 1 });
       const resumed = await transferObjects({ ...request, operation });
@@ -439,32 +432,22 @@ describe("reviewed transfer continuations", () => {
       });
    });
 
-   it.each(["raw/", ""])(
-      "rejects overlapping same-bucket prefix %s before listing a 1,001-object folder",
-      async (prefix) => {
-         h.get.mockResolvedValue({
-            objects: Array.from({ length: 1000 }, (_, n) => ({
-               key: `raw/deep/deep/item-${n}`,
-               expectedETag: "etag",
-            })),
-            nextToken: "page-2",
-         });
-         await expect(
-            transferObjects(
-               input({
-                  source: { folderKey: "raw/deep/" },
-                  destination: {
-                     serverId: "source-server",
-                     bucketName: "photos",
-                     prefix,
-                  },
-               })
-            )
-         ).rejects.toThrow("must not overlap");
-         expect(h.get).not.toHaveBeenCalled();
-         expect(h.post).not.toHaveBeenCalled();
-      }
-   );
+   it("rejects an overlapping same-bucket destination before listing anything", async () => {
+      await expect(
+         transferObjects(
+            input({
+               source: { folderKey: "raw/deep/" },
+               destination: {
+                  serverId: "source-server",
+                  bucketName: "photos",
+                  prefix: "raw/",
+               },
+            })
+         )
+      ).rejects.toThrow("must not overlap");
+      expect(h.get).not.toHaveBeenCalled();
+      expect(h.post).not.toHaveBeenCalled();
+   });
 
    it("allows overlapping textual prefixes in different buckets", async () => {
       h.get.mockResolvedValue({
@@ -539,7 +522,7 @@ describe("reviewed transfer continuations", () => {
       expect(continued).toMatchObject({
          transferred: 3,
          remaining: false,
-         failed: [{ key: "raw/1", retryable: false, outcome: "unknown" }],
+         failed: [{ key: "raw/1", retryable: false }],
       });
       expect(h.get).toHaveBeenCalledTimes(4);
       expect(

@@ -61,7 +61,8 @@ const route = (request: NextRequest, nonce: string): Routed => {
       return proxy(new URL("/api/llms", landingOrigin));
    }
 
-   const redirect = LEGAL_ALIAS_REDIRECTS[pathname];
+   // the legal pages live on the landing site, so without it these would redirect to a 404
+   const redirect = landingOrigin && LEGAL_ALIAS_REDIRECTS[pathname];
    if (redirect) {
       return own(NextResponse.redirect(new URL(redirect, request.url), 301));
    }

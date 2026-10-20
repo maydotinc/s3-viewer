@@ -208,6 +208,7 @@ export default createHowToPage({
    seoDescription:
       "The least-privilege IAM policy for read-only access to a single S3 bucket, the console and CLI steps to create the user and keys, and how to test it.",
    published: "2026-09-05",
+   updated: "2026-10-14",
    visual: <IamReadOnlyIllustration />,
    steps,
    underTheHood: (

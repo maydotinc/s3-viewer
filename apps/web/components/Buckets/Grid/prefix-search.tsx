@@ -51,7 +51,7 @@ const PrefixSearch = ({ className }: { className?: string }) => {
 
    return (
       <PathInput
-         className={cn("flex h-9 items-center", className)}
+         className={cn("flex h-9 items-center pointer-coarse:h-11", className)}
          sharedPaddingClassName={FILTER_PADDING}
          inputClassName="peer bg-transparent"
          id={inputId}

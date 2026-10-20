@@ -4,6 +4,7 @@ import {
 } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, rateLimited } from "@/lib/http";
+import { SECOND_MS } from "@s3-viewer/types";
 
 type UploadBudgetOptions = {
    maxUploads: number;
@@ -45,7 +46,7 @@ const slotLifetimeMs = (
            maxMs,
            Math.max(
               SLOT_MIN_LIFETIME_MS,
-              (bytes / SLOT_MIN_BYTES_PER_SECOND) * 1000
+              (bytes / SLOT_MIN_BYTES_PER_SECOND) * SECOND_MS
            )
         );
 

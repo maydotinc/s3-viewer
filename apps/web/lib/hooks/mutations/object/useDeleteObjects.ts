@@ -14,9 +14,14 @@ import {
    type S3DeleteResult,
    type S3DeleteTarget,
 } from "@s3-viewer/types";
-import useObjectMutation, { forgetTouched } from "./object-mutation";
+import useObjectMutation, {
+   confirmedTargets,
+   forgetTouched,
+} from "./object-mutation";
 
 type DeleteSummary = BatchSummary<BatchFailure<S3DeleteTarget>>;
+
+const keyOf = ({ key }: S3DeleteTarget) => key;
 
 const deleteObjects = async (
    path: string,
@@ -92,10 +97,17 @@ const useDeleteObjects = () =>
             signal
          ),
       onSuccess: reportDeleteResult,
-      settle: forgetTouched(
-         () => [],
-         ({ objects }) => objects.map(({ key }) => key)
-      ),
+      settle: forgetTouched(({ objects }, outcome) => {
+         const { confirmed, unconfirmed } = confirmedTargets(
+            objects,
+            keyOf,
+            outcome
+         );
+         return {
+            changed: unconfirmed.map(keyOf),
+            removed: confirmed.map(keyOf),
+         };
+      }),
    });
 
 export default useDeleteObjects;

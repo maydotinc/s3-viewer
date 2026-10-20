@@ -8,6 +8,7 @@ import {
 import { Page } from "@/components/Layout/page";
 import useObjectPreview from "@/lib/hooks/queries/s3/useObjectPreview";
 import useObjectSettings from "@/lib/hooks/queries/s3/useObjectSettings";
+import { useShortcut } from "@/lib/shortcuts";
 import { folderAccessAt } from "@/lib/utils/folder-access";
 import { baseName, canPresignObjectKey } from "@s3-viewer/types";
 import { useState } from "react";
@@ -40,12 +41,25 @@ const ObjectViewSession = () => {
 
    const preview = useObjectPreview(bucketName, objectKey, readable);
    const commands = useCreateObjectCommands(bucketName);
+   const presignable = canPresignObjectKey(objectKey);
    const settings = useObjectSettings(
       bucketName,
       objectKey,
-      readable && commands.can.download && !canPresignObjectKey(objectKey)
+      readable && commands.can.download && !presignable
    );
    const [isEditing, setIsEditing] = useState(false);
+   const metadataQuery = presignable ? preview : settings;
+   // refetch() ignores `enabled`, so a refresh must not reach a query that would be refused
+   const metadataEnabled = readable && (presignable || commands.can.download);
+   const refreshMetadata = () => void metadataQuery.refetch();
+
+   useShortcut({
+      keys: "r",
+      label: "Refresh object",
+      group: "Objects",
+      when: () => metadataEnabled,
+      handler: refreshMetadata,
+   });
 
    if (notFound) return <BucketUnavailable bucketName={bucketName} />;
    if (bucketsError && !reach)
@@ -71,11 +85,9 @@ const ObjectViewSession = () => {
       );
 
    const metadata = preview.data ?? settings.data;
-   const metadataQuery = canPresignObjectKey(objectKey) ? preview : settings;
    const detailsBlocked =
-      !commands.isResolving &&
-      !commands.can.download &&
-      !canPresignObjectKey(objectKey);
+      !commands.isResolving && !commands.can.download && !presignable;
+   const metadataFailed = !metadata && metadataQuery.isError;
 
    const metadataPending =
       !metadata && !detailsBlocked && metadataQuery.isPending;
@@ -96,6 +108,10 @@ const ObjectViewSession = () => {
                objectKey={objectKey}
                eTag={metadata?.eTag ?? null}
                metadataPending={metadataPending}
+               onRefresh={
+                  metadataEnabled && !metadataFailed ? refreshMetadata : null
+               }
+               refreshing={metadataQuery.isFetching && !metadataPending}
                path={path}
                canEdit={canEdit && !isEditing}
                editing={isEditing}
@@ -114,9 +130,7 @@ const ObjectViewSession = () => {
                           : metadataQuery.error
                   }
                   onRetry={
-                     metadata || detailsBlocked
-                        ? undefined
-                        : () => void metadataQuery.refetch()
+                     metadata || detailsBlocked ? undefined : refreshMetadata
                   }
                   retrying={metadataQuery.isFetching}
                />

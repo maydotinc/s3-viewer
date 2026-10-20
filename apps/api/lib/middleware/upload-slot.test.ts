@@ -81,6 +81,7 @@ describe("withUploadSlot", () => {
             return "done";
          })
       ).resolves.toBe("done");
+      expect(raw.res.headers).toEqual({});
       expect(state.release).toHaveBeenCalledOnce();
    });
 
@@ -226,17 +227,6 @@ describe("withUploadSlot", () => {
       expect(state.release).toHaveBeenCalledOnce();
    });
 
-   it("returns the run's value and hands the slot back", async () => {
-      state.acquire.mockReset().mockReturnValue(state.release);
-      state.release.mockReset();
-      const { req, res, raw } = fakes();
-      await expect(
-         withUploadSlot(req, res, options, async () => "done")
-      ).resolves.toBe("done");
-      expect(raw.res.headers).toEqual({});
-      expect(state.release).toHaveBeenCalledOnce();
-   });
-
    describe("lifetime", () => {
       afterEach(() => {
          vi.useRealTimers();
@@ -327,18 +317,11 @@ describe("withUploadSlot", () => {
       }
    });
 
-   it("admits by the server the authorize gate chose unless the caller names one", async () => {
+   it("admits by the server the authorize gate chose", async () => {
       state.acquire.mockReset().mockReturnValue(state.release);
       const { req, res } = fakes();
       Object.assign(res.locals, { auth: { serverId: "server-a" } });
       await withUploadSlot(req, res, options, async () => "done");
       expect(state.acquire.mock.calls[0]?.[4]).toBe("server-a");
-      await withUploadSlot(
-         req,
-         res,
-         { ...options, serverId: "server-b" },
-         async () => "done"
-      );
-      expect(state.acquire.mock.calls[1]?.[4]).toBe("server-b");
    });
 });

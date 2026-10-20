@@ -257,21 +257,32 @@ type ResumeCandidate = {
    expectedETag: string | null;
 };
 
+type SessionLookup = {
+   resumable: ResumedSession | null;
+   stale: MultipartSession | null;
+};
+
+const NO_SESSION: SessionLookup = { resumable: null, stale: null };
+
+// a saved session the new attempt can't resume is handed back so its parts can be aborted, never one from another account
 const resumableSessionUnlocked = ({
    userId,
    target,
    file,
    expectedETag,
-}: ResumeCandidate): ResumedSession | null => {
+}: ResumeCandidate): SessionLookup => {
    try {
       const storage = store();
-      if (!storage) return null;
+      if (!storage) return NO_SESSION;
       const session = readSessions(storage)[sessionKey(target)];
       if (
          !session ||
-         session.savedAt <= Date.now() - SESSION_TTL_MS ||
          useSessionStore.getState().userId !== userId ||
-         session.userId !== userId ||
+         session.userId !== userId
+      )
+         return NO_SESSION;
+      if (
+         session.savedAt <= Date.now() - SESSION_TTL_MS ||
          session.serverId !== target.serverId ||
          session.bucketName !== target.bucketName ||
          session.objectKey !== target.objectKey ||
@@ -280,13 +291,13 @@ const resumableSessionUnlocked = ({
          session.lastModified !== file.lastModified ||
          session.expectedETag !== expectedETag
       )
-         return null;
+         return { resumable: null, stale: session };
       const partDigests: Record<number, PartDigest> = {};
       for (let chunk = 0; chunk < chunkCount(session); chunk++)
          Object.assign(partDigests, readChunk(storage, session, chunk));
-      return { ...session, partDigests };
+      return { resumable: { ...session, partDigests }, stale: null };
    } catch {
-      return null;
+      return NO_SESSION;
    }
 };
 
@@ -346,10 +357,10 @@ const forgetSession = (
       forgetSessionUnlocked(target, uploadId)
    );
 
-const resumableSession = (
-   candidate: ResumeCandidate
-): Promise<ResumedSession | null> =>
-   withMultipartStorageLock(null, () => resumableSessionUnlocked(candidate));
+const resumableSession = (candidate: ResumeCandidate): Promise<SessionLookup> =>
+   withMultipartStorageLock(NO_SESSION, () =>
+      resumableSessionUnlocked(candidate)
+   );
 
 useSessionStore.subscribe((state, previous) => {
    if (state.userId !== previous.userId)

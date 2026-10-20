@@ -13,7 +13,7 @@ const useCreateFolder = () =>
          sendObjectMutation<{ key: string }>("post", target, "/folders", {
             folderKey,
          }),
-      settle: forgetTouched(({ folderKey }) => [folderKey]),
+      settle: forgetTouched(({ folderKey }) => ({ changed: [folderKey] })),
    });
 
 export default useCreateFolder;

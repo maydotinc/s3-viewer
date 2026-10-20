@@ -11,6 +11,7 @@ import {
    DAY_MS,
    HOUR_MS,
    MINUTE_MS,
+   SESSION_ABSOLUTE_TTL_DAYS,
    describeError,
 } from "@s3-viewer/types";
 
@@ -89,14 +90,27 @@ const VERIFICATION = Prisma.raw('"verification"');
 const ARCHIVE_TICKET = Prisma.raw('"archive_ticket"');
 const PENDING_INVITATION = Prisma.raw('"pending_invitation"');
 
-const pruneExpired = (table: Prisma.Sql, now: Date): Promise<number> =>
+const pruneExpired = (
+   table: Prisma.Sql,
+   now: Date,
+   orWhere: Prisma.Sql = Prisma.empty
+): Promise<number> =>
    deleteBatches(
       (limit) => prisma.$executeRaw`
          DELETE FROM ${table} WHERE "id" IN (
             SELECT "id" FROM ${table}
-            WHERE "expiresAt" <= ${now.toISOString()}::timestamp
+            WHERE "expiresAt" <= ${now.toISOString()}::timestamp ${orWhere}
             LIMIT ${limit}
          )`
+   );
+
+// the absolute cap only ends a session on its next request, so one that never returns would stay
+// listed until its rolling expiry.
+const pruneSessions = (now: Date): Promise<number> =>
+   pruneExpired(
+      SESSION,
+      now,
+      Prisma.sql`OR "createdAt" <= ${daysBefore(now, SESSION_ABSOLUTE_TTL_DAYS).toISOString()}::timestamp`
    );
 
 // a server's own retention, or the instance default when it is 0, raised to the floor; 0 after
@@ -238,7 +252,7 @@ const phasesOf = (now: Date): [string, () => Promise<number>][] => [
    ["auditRows", () => pruneAuditLog(now)],
    ["orphanedAuditRows", () => purgeOrphanedAudits(now)],
    ["orphanedChainHeads", purgeOrphanedChainHeads],
-   ["sessionRows", () => pruneExpired(SESSION, now)],
+   ["sessionRows", () => pruneSessions(now)],
    ["verificationRows", () => pruneExpired(VERIFICATION, now)],
    ["archiveTicketRows", () => pruneExpired(ARCHIVE_TICKET, now)],
    ["pendingInvitationRows", () => pruneExpired(PENDING_INVITATION, now)],

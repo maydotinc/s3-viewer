@@ -1,5 +1,4 @@
-import { MEMBER_NOT_FOUND } from "@/lib/constants";
-import { ApiHttpError, noContent, rethrowDbError } from "@/lib/http";
+import { memberNotFound, noContent, rethrowDbError } from "@/lib/http";
 import {
    assertMemberAuthority,
    denialScopeOf,
@@ -114,7 +113,7 @@ const updateRole = async (
          })
          .catch((err: unknown) =>
             rethrowDbError(err, {
-               missing: new ApiHttpError(404, MEMBER_NOT_FOUND),
+               missing: memberNotFound(),
             })
          );
       if (bucketAccess)
@@ -126,8 +125,17 @@ const updateRole = async (
             role: serverRole,
          });
       // read back inside the transaction so a concurrent removal rolls the change back instead of answering 404 after it committed.
-      const member = await findMember(serverId, userId, tx);
-      if (!member) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+      const member = await findMember(
+         serverId,
+         userId,
+         {
+            id: actorId,
+            role: serverRole,
+            held: grantsByBucket(actorGrants ?? []),
+         },
+         tx
+      );
+      if (!member) throw memberNotFound();
       return {
          member,
          visible,

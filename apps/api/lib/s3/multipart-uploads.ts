@@ -33,6 +33,7 @@ import {
    conditionalInitiation,
    conflictAs,
    enforcesConditions,
+   unconfirmedOnceSent,
    uploadConflict,
    uploadConflictError,
    writeCondition,
@@ -51,7 +52,7 @@ import {
    keyHash,
    utf8Before,
 } from "./keys";
-import type { S3Scope } from "./listing";
+import { retainRow, type S3Scope } from "./listing";
 import { forCancel, forCleanup, withoutRetries } from "./no-retry";
 import { clientProvider, clientSupportsMultipartPrefix } from "./provider";
 import {
@@ -91,65 +92,79 @@ const listStoredUploads = async (
          ? prefix
          : undefined;
    const localPrefix = prefix && !serverPrefix ? prefix : undefined;
-   const page = await client
-      .send(
-         new ListMultipartUploadsCommand({
-            Bucket: bucket,
-            Prefix: serverPrefix,
-            EncodingType: "url",
-            MaxUploads: S3_MAX_KEYS_PER_REQUEST,
-            KeyMarker: keyMarker ?? (localPrefix && justBefore(localPrefix)),
-            UploadIdMarker: uploadIdMarker,
-         }),
-         { abortSignal: signal }
-      )
-      .catch(throwBucketError);
+   return retainedRead(budgetServerOf(client), async (reservation) => {
+      const page = await client
+         .send(
+            new ListMultipartUploadsCommand({
+               Bucket: bucket,
+               Prefix: serverPrefix,
+               EncodingType: "url",
+               MaxUploads: S3_MAX_KEYS_PER_REQUEST,
+               KeyMarker: keyMarker ?? (localPrefix && justBefore(localPrefix)),
+               UploadIdMarker: uploadIdMarker,
+            }),
+            { abortSignal: signal }
+         )
+         .catch(throwBucketError);
+      try {
+         const uploads =
+            page.EncodingType === "url"
+               ? page.Uploads?.map((upload) => ({
+                    ...upload,
+                    Key: decodeOptionalKey(upload.Key),
+                 }))
+               : page.Uploads;
+         const nextKeyMarker =
+            page.EncodingType === "url"
+               ? decodeOptionalKey(page.NextKeyMarker)
+               : page.NextKeyMarker;
 
-   const uploads =
-      page.EncodingType === "url"
-         ? page.Uploads?.map((upload) => ({
-              ...upload,
-              Key: decodeOptionalKey(upload.Key),
-           }))
-         : page.Uploads;
-   const nextKeyMarker =
-      page.EncodingType === "url"
-         ? decodeOptionalKey(page.NextKeyMarker)
-         : page.NextKeyMarker;
+         // some gateways omit next-page markers; the last returned row supplies the cursor.
+         const fallback = nextKeyMarker ? undefined : uploads?.at(-1);
+         const nextKey =
+            page.IsTruncated === true
+               ? (nextKeyMarker ?? fallback?.Key ?? null)
+               : null;
+         const truncated =
+            page.IsTruncated === true &&
+            !(
+               localPrefix !== undefined &&
+               nextKey !== null &&
+               !nextKey.startsWith(localPrefix) &&
+               utf8Before(localPrefix, nextKey)
+            );
+         const nextUploadId = truncated
+            ? (page.NextUploadIdMarker ?? fallback?.UploadId ?? null)
+            : null;
 
-   // some gateways omit next-page markers; the last returned row supplies the cursor.
-   const fallback = nextKeyMarker ? undefined : uploads?.at(-1);
-   const nextKey =
-      page.IsTruncated === true
-         ? (nextKeyMarker ?? fallback?.Key ?? null)
-         : null;
-   const truncated =
-      page.IsTruncated === true &&
-      !(
-         localPrefix !== undefined &&
-         nextKey !== null &&
-         !nextKey.startsWith(localPrefix) &&
-         utf8Before(localPrefix, nextKey)
-      );
-
-   return {
-      uploads: (uploads ?? []).flatMap((upload) =>
-         upload.Key && upload.UploadId && upload.Key.startsWith(prefix)
-            ? [
-                 {
-                    key: upload.Key,
-                    uploadId: upload.UploadId,
-                    initiated: upload.Initiated?.toISOString() ?? null,
-                    storageClass: upload.StorageClass ?? null,
-                 },
-              ]
-            : []
-      ),
-      nextKeyMarker: truncated ? nextKey : null,
-      nextUploadIdMarker: truncated
-         ? (page.NextUploadIdMarker ?? fallback?.UploadId ?? null)
-         : null,
-   };
+         return {
+            uploads: (uploads ?? []).flatMap(
+               ({ Key, UploadId, Initiated, StorageClass }) => {
+                  if (!Key || !UploadId || !Key.startsWith(prefix)) return [];
+                  retainRow(reservation, Key, UploadId, StorageClass);
+                  return [
+                     {
+                        key: copyRetainedString(Key),
+                        uploadId: copyRetainedString(UploadId),
+                        initiated: Initiated?.toISOString() ?? null,
+                        storageClass: StorageClass
+                           ? copyRetainedString(StorageClass)
+                           : null,
+                     },
+                  ];
+               }
+            ),
+            nextKeyMarker:
+               truncated && nextKey !== null
+                  ? copyRetainedString(nextKey)
+                  : null,
+            nextUploadIdMarker:
+               nextUploadId === null ? null : copyRetainedString(nextUploadId),
+         };
+      } finally {
+         releaseBufferedResponse(page);
+      }
+   });
 };
 
 const MAX_FOLDER_UPLOAD_PAGES = 20;
@@ -756,25 +771,24 @@ const completeUpload = async (
          await abortForCleanup(scope, key, uploadId);
       throw error;
    }
+   const complete = new CompleteMultipartUploadCommand({
+      Bucket: scope.bucket,
+      Key: key,
+      UploadId: uploadId,
+      MultipartUpload: {
+         Parts: stored.map(({ partNumber, eTag }) => ({
+            PartNumber: partNumber,
+            ETag: eTag,
+         })),
+      },
+      ...writeCondition(plan.expectedETag),
+   });
+   const unconfirmed = unconfirmedOnceSent(complete);
    const completed = await withoutRetries(scope.client)
-      .send(
-         new CompleteMultipartUploadCommand({
-            Bucket: scope.bucket,
-            Key: key,
-            UploadId: uploadId,
-            MultipartUpload: {
-               Parts: stored.map(({ partNumber, eTag }) => ({
-                  PartNumber: partNumber,
-                  ETag: eTag,
-               })),
-            },
-            ...writeCondition(plan.expectedETag),
-         }),
-         { abortSignal: commitSignal?.(size) ?? scope.signal }
-      )
+      .send(complete, { abortSignal: commitSignal?.(size) ?? scope.signal })
       .catch(async (error: unknown) => {
          // preserve parts after transient completion failures so the caller can retry without re-uploading.
-         if (!uploadConflict(error)) return throwHttpError(error);
+         if (!uploadConflict(error)) return throwHttpError(unconfirmed(error));
          await abortForCleanup(scope, key, uploadId);
          throw uploadConflictError();
       });

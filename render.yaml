@@ -38,15 +38,6 @@ services:
           value: none
         - key: EMAIL_TRANSPORT
           value: none
-        # enable migrations on only one API replica.
-        - key: RUN_MIGRATIONS
-          sync: false
-        - key: RATE_LIMIT_STORE
-          sync: false
-        - key: SIGNUP_MODE
-          sync: false
-        - key: ALLOWED_EMAIL_DOMAINS
-          sync: false
         - key: AUDIT_RETENTION_DAYS
           value: "365"
 

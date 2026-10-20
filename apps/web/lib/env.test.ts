@@ -8,6 +8,7 @@ const SERVER = {
 const CLIENT = {
    siteUrl: "https://client.example.com",
    apiUrl: "https://api.client.example.com",
+   hasLanding: true,
 };
 
 const asBrowser = (nextData: unknown) => {
@@ -40,6 +41,13 @@ describe("publicEnv on the server", () => {
       expect(publicEnv.apiOrigin).toBe(SERVER.NEXT_PUBLIC_API_URL);
    });
 
+   it("knows whether a landing site is configured", async () => {
+      expect((await load()).publicEnv.hasLanding).toBe(true);
+      vi.resetModules();
+      vi.stubEnv("LANDING_ORIGIN", "");
+      expect((await load()).publicEnv.hasLanding).toBe(false);
+   });
+
    it("is empty when the process has no origins, and never throws", async () => {
       vi.stubEnv("NEXT_PUBLIC_SITE_URL", "");
       vi.stubEnv("NEXT_PUBLIC_API_URL", "");
@@ -55,13 +63,15 @@ describe("publicEnv in the browser", () => {
       const { publicEnv } = await load();
       expect(publicEnv.siteOrigin).toBe(CLIENT.siteUrl);
       expect(publicEnv.apiOrigin).toBe(CLIENT.apiUrl);
+      expect(publicEnv.hasLanding).toBe(true);
    });
 
-   it("falls back to empty origins when the page carries none", async () => {
+   it("falls back to empty origins and no landing site when the page carries none", async () => {
       asBrowser({ props: {} });
       const { publicEnv } = await load();
       expect(publicEnv.siteOrigin).toBe("");
       expect(publicEnv.apiOrigin).toBe("");
+      expect(publicEnv.hasLanding).toBe(false);
    });
 
    it("survives an unparseable __NEXT_DATA__", async () => {
@@ -80,6 +90,7 @@ describe("setRuntimeEnv", () => {
       setRuntimeEnv({
          siteUrl: "app.example.com",
          apiUrl: "http://api.example.com/base/",
+         hasLanding: false,
       });
       expect(publicEnv.siteOrigin).toBe("https://app.example.com");
       expect(publicEnv.apiOrigin).toBe("http://api.example.com");
@@ -90,7 +101,7 @@ describe("setRuntimeEnv", () => {
       const { publicEnv, setRuntimeEnv } = await load();
       setRuntimeEnv(CLIENT);
       setRuntimeEnv(undefined);
-      setRuntimeEnv({ siteUrl: "", apiUrl: "" });
+      setRuntimeEnv({ siteUrl: "", apiUrl: "", hasLanding: false });
       expect(publicEnv.apiOrigin).toBe(CLIENT.apiUrl);
       expect(publicEnv.siteOrigin).toBe(CLIENT.siteUrl);
    });

@@ -2,8 +2,7 @@ import { api, qs, serverPath } from "@/lib/api";
 import { useAbortableTask } from "@/lib/hooks/useAbortableTask";
 import useSessionStore, { useUserId } from "@/lib/stores/session-store";
 import { toastFailure } from "@/lib/utils/toast";
-import { isAtLeast } from "@s3-viewer/permissions";
-import { Role, type AuditVerification } from "@s3-viewer/types";
+import type { AuditVerification } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { ShieldCheck } from "lucide-react";
@@ -11,8 +10,6 @@ import { useRef, useState } from "react";
 import { verificationMessage } from "./labels";
 
 type VerifyProps = { serverId: string; disabled: boolean };
-
-const canVerifyAudit = (role: Role): boolean => isAtLeast(role, Role.ADMIN);
 
 const VerificationSession = ({
    userId,
@@ -26,6 +23,7 @@ const VerificationSession = ({
       null
    );
    const fromSeq = verification?.ok ? verification.nextFromSeq : null;
+   const message = verification ? verificationMessage(verification) : undefined;
    const isCurrent = () => {
       const current = useSessionStore.getState();
       return current.userId === userId && current.serverId === serverId;
@@ -76,7 +74,7 @@ const VerificationSession = ({
    };
 
    return (
-      <div className="flex max-w-full min-w-40 flex-1 flex-col items-start gap-2 sm:w-56 sm:flex-none">
+      <div className="flex max-w-full min-w-40 flex-1 flex-col items-start gap-1 sm:w-56 sm:flex-none">
          <Button
             type="button"
             variant="outline"
@@ -88,13 +86,13 @@ const VerificationSession = ({
             <ShieldCheck aria-hidden="true" />
             {fromSeq ? "Continue verification" : "Verify integrity"}
          </Button>
-         <div className="h-12 w-full overflow-y-auto [scrollbar-gutter:stable]">
-            {verification && (
-               <p role="status" className="text-xs break-words text-viewertext">
-                  {verificationMessage(verification)}
-               </p>
-            )}
-         </div>
+         <p
+            role="status"
+            title={message}
+            className="h-4 w-full truncate text-xs leading-4 text-viewertext"
+         >
+            {message}
+         </p>
       </div>
    );
 };
@@ -111,4 +109,3 @@ const VerifyButton = (props: VerifyProps) => {
 };
 
 export default VerifyButton;
-export { canVerifyAudit };

@@ -125,6 +125,7 @@ export default createHowToPage({
    seoDescription:
       "S3 has no edit API. Here's the read-change-write pattern behind editing a small text file in S3, and how S3 Viewer does it in the browser.",
    published: "2026-09-07",
+   updated: "2026-10-12",
    visual: <SearchIllustration />,
    steps,
    underTheHood: (

@@ -16,13 +16,14 @@ const h = vi.hoisted(() => ({
    refetch: vi.fn(),
    serverRole: "OWNER",
    bucketsLoading: false,
+   serverId: "server",
 }));
 vi.mock("@/lib/auth", () => ({
    authClient: { useSession: () => ({ data: { user: { id: "user" } } }) },
 }));
 vi.mock("@/lib/stores/session-store", () => ({
    default: (select: (state: { serverId: string }) => unknown) =>
-      select({ serverId: "server" }),
+      select({ serverId: h.serverId }),
    useUserId: () => "user",
 }));
 vi.mock("@/lib/hooks/queries/server/useServers", () => ({
@@ -42,7 +43,7 @@ vi.mock("@/lib/hooks/queries/s3/useBuckets", () => ({
 }));
 
 type Seen = { prefix: string; filter: string };
-const view = mountedRuntime();
+const view = mountedRuntime(() => vi.restoreAllMocks());
 let seen: Seen[] = [];
 let navigate!: (path: string[]) => void;
 let context!: ReturnType<typeof useBucketContext>;
@@ -75,10 +76,11 @@ beforeEach(() => {
    seen = [];
    h.serverRole = "OWNER";
    h.bucketsLoading = false;
+   h.serverId = "server";
 });
 
 describe("the prefix filter across navigation", () => {
-   it("is already empty on the first render of another folder", async () => {
+   it("is already empty on the first render of another folder and stays cleared on return", async () => {
       await mount();
       await act(async () => filter.setFilter("rep"));
       expect(filter.filter).toBe("rep");
@@ -87,12 +89,6 @@ describe("the prefix filter across navigation", () => {
       expect(seen.length).toBeGreaterThan(0);
       expect(seen).not.toContainEqual({ prefix: "a/reports/", filter: "rep" });
       expect(filter.filter).toBe("");
-   });
-
-   it("stays cleared when someone returns to the folder they filtered", async () => {
-      await mount();
-      await act(async () => filter.setFilter("rep"));
-      await act(async () => navigate(["a", "reports"]));
       seen = [];
       await act(async () => navigate(["a"]));
       expect(seen).not.toContainEqual({ prefix: "a/", filter: "rep" });
@@ -140,10 +136,25 @@ describe("refreshing", () => {
       context.refresh();
       expect(reload).toHaveBeenCalledTimes(2);
       expect(h.refetch).toHaveBeenCalledOnce();
-      expect(invalidate).toHaveBeenCalledExactlyOnceWith({
-         queryKey: queryKeys.serverInfo("user", "server"),
-      });
-      invalidate.mockRestore();
+      expect(invalidate.mock.calls).toEqual([
+         [{ queryKey: queryKeys.serverInfo("user", "server") }],
+         [
+            {
+               queryKey: queryKeys.bucket("user", "server", "bucket"),
+               refetchType: "none",
+            },
+         ],
+      ]);
+   });
+
+   it("does nothing before a server is chosen", async () => {
+      h.serverId = "";
+      await mount();
+      const reload = vi.fn();
+      context.registerRefresh(reload);
+      context.refresh();
+      expect(h.refetch).not.toHaveBeenCalled();
+      expect(reload).not.toHaveBeenCalled();
    });
 });
 

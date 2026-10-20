@@ -69,7 +69,7 @@ const ResetPasswordScreen = () => {
    return (
       <AuthLayout>
          <StepHeader title="Choose a new password">
-            You&apos;ll be signed out everywhere else once it changes.
+            You&apos;ll be signed out on every device once it changes.
          </StepHeader>
          <form
             onSubmit={(event) => void submit(event)}

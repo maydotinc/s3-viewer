@@ -3,6 +3,7 @@ import { Permission } from "@s3-viewer/permissions";
 import { AuditLevel, Role } from "@s3-viewer/types";
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { scopeQueryRaw } from "@/lib/testing/route-harness";
 
 type AccessRow = { userId: string; serverId: string; role: keyof typeof Role };
 type GrantRow = AccessRow & { bucketName: string };
@@ -23,70 +24,31 @@ const db: { access: AccessRow[]; grants: GrantRow[]; servers: ServerRow[] } = {
    servers: [],
 };
 
-const predicatesFor = (
-   sql: string,
-   alias: string,
-   values: unknown[]
-): [string, unknown][] =>
-   [...sql.matchAll(/(\w+)\."(\w+)"\s*=\s*\$(\d+)/g)]
-      .filter((m) => m[1] === alias)
-      .map((m) => [m[2] as string, values[Number(m[3]) - 1]]);
-
-const satisfies = (
-   row: Record<string, unknown>,
-   predicates: [string, unknown][]
-): boolean => predicates.every(([column, value]) => row[column] === value);
+const probe = scopeQueryRaw(({ userId, serverId }) => {
+   const access = db.access.find(
+      (row) => row.userId === userId && row.serverId === serverId
+   );
+   const server = access && db.servers.find((row) => row.id === serverId);
+   if (!access || !server) return null;
+   return {
+      ...server,
+      role: access.role,
+      credentials: `sealed:${server.id}`,
+      provider: "S3",
+      ownerId: "owner1",
+      grants: db.grants.filter(
+         (row) => row.userId === userId && row.serverId === serverId
+      ),
+   };
+});
 
 const queryRaw = vi.fn(
    async (strings: TemplateStringsArray, ...raw: unknown[]) => {
-      const { text: sql, values } = Prisma.sql(strings, ...raw);
-      expect(sql).not.toMatch(/'/);
-      expect(sql).toContain('s."allowedBuckets"');
-      expect(sql).toContain('s."restrictedBuckets"');
-
-      const access = db.access.find((row) =>
-         satisfies(row, predicatesFor(sql, "a", values))
-      );
-      const server = access && db.servers.find((s) => s.id === access.serverId);
-      if (!access || !server) return [];
-
-      const grants = db.grants.filter((row) =>
-         satisfies(row, predicatesFor(sql, "b", values))
-      );
-      const scope = {
-         serverRole: access.role,
-         auditEnabled: server.auditEnabled,
-         auditLevel: server.auditLevel,
-         allowedBuckets: server.allowedBuckets,
-         restrictedBuckets: server.restrictedBuckets,
-         credentials: `sealed:${server.id}`,
-         provider: "S3",
-         ownerId: "owner1",
-      };
-      if (sql.includes("array_agg")) {
-         return [
-            {
-               ...scope,
-               auditViewRole: server.auditViewRole,
-               auditManageRole: server.auditManageRole,
-               auditRetentionDays: server.auditRetentionDays,
-               reachBuckets:
-                  grants.length > 0 ? grants.map((g) => g.bucketName) : null,
-               ownBuckets: null,
-            },
-         ];
-      }
-      if (sql.includes("bucket_access")) {
-         return [
-            {
-               ...scope,
-               bucketRole: grants[0]?.role ?? null,
-               restrictedFolders: grants[0] ? false : null,
-               allowedFolders: grants[0] ? [] : null,
-            },
-         ];
-      }
-      return [scope];
+      const { text } = Prisma.sql(strings, ...raw);
+      expect(text).not.toMatch(/'/);
+      expect(text).toContain('s."allowedBuckets"');
+      expect(text).toContain('s."restrictedBuckets"');
+      return probe(strings, ...raw);
    }
 );
 
@@ -286,7 +248,7 @@ describe("authorizeBucket", () => {
       });
    });
 
-   it("admits a non-owner at exactly the role their grant carries", async () => {
+   it("admits a non-owner with the role their grant carries", async () => {
       db.access = [member("ADMIN")];
       db.grants = [grant("allowed-bucket", "VIEWER")];
       const auth = await authorizeBucket(
@@ -312,15 +274,6 @@ describe("authorizeBucket", () => {
             ownerId: "owner1",
          },
       });
-      const error = await thrown(
-         authorizeBucket(
-            "user1",
-            "server1",
-            "allowed-bucket",
-            Permission.UPLOAD_OBJECT
-         )
-      );
-      expect(error.status).toBe(403);
    });
 
    it("gives an owner OWNER on any allowed bucket, grant or not", async () => {

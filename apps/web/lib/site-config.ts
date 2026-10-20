@@ -1,4 +1,8 @@
-import { HOW_TO_SLUGS, USE_CASE_SLUGS } from "@s3-viewer/types";
+import {
+   GITHUB_ISSUES_URL,
+   HOW_TO_SLUGS,
+   USE_CASE_SLUGS,
+} from "@s3-viewer/types";
 import { publicEnv } from "./env";
 
 const LANDING_ROUTES: readonly string[] = [
@@ -27,12 +31,14 @@ const LEGAL_ALIAS_REDIRECTS: Readonly<Record<string, string>> = {
 
 const TERMS_URL = `${publicEnv.siteOrigin}/legal/terms-of-service`;
 const PRIVACY_URL = `${publicEnv.siteOrigin}/legal/privacy-policy`;
-const SUPPORT_URL = `${publicEnv.siteOrigin}/contact`;
+// without the landing site there is no contact page to send anyone to
+const supportUrl = (): string =>
+   publicEnv.hasLanding ? `${publicEnv.siteOrigin}/contact` : GITHUB_ISSUES_URL;
 
 export {
    LANDING_ROUTES,
    LEGAL_ALIAS_REDIRECTS,
    PRIVACY_URL,
-   SUPPORT_URL,
    TERMS_URL,
+   supportUrl,
 };

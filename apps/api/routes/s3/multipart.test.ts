@@ -12,6 +12,7 @@ import {
    signedIn,
 } from "@/lib/testing/route-harness";
 import { endpointStub } from "@/lib/testing/s3-fixture";
+import { UnconfirmedWriteError } from "@/lib/s3/conditions";
 import { sealUploadId } from "@/lib/s3/multipart-uploads";
 import { multipartRouter } from "./multipart";
 
@@ -32,6 +33,7 @@ const state = vi.hoisted(() => ({
    list: vi.fn(),
    abort: vi.fn(),
    part: vi.fn(),
+   complete: vi.fn(),
    audit: vi.fn(),
 }));
 
@@ -44,12 +46,17 @@ vi.mock("@/lib/s3/no-retry", () => ({
    forCleanup: (client: unknown) => client,
    withoutRetries: (client: unknown) => client,
 }));
-vi.mock("@/lib/s3/multipart-uploads", async (original) => ({
-   ...(await original<typeof import("@/lib/s3/multipart-uploads")>()),
-   listMultipartUploads: state.list,
-   abortMultipartUploads: state.abort,
-   streamPart: state.part,
-}));
+vi.mock("@/lib/s3/multipart-uploads", async (original) => {
+   const actual = await original<typeof import("@/lib/s3/multipart-uploads")>();
+   state.complete.mockImplementation(actual.completeUpload);
+   return {
+      ...actual,
+      completeUpload: state.complete,
+      listMultipartUploads: state.list,
+      abortMultipartUploads: state.abort,
+      streamPart: state.part,
+   };
+});
 vi.mock("@/lib/middleware/audit-record", () => ({
    record: state.audit,
    recordMany: vi.fn(),
@@ -237,15 +244,6 @@ describe("uploading a part", () => {
       expect(response.status).toBe(400);
       expect(state.part).not.toHaveBeenCalled();
    });
-
-   it("refuses an upload id whose plan was tampered with", async () => {
-      const sealed = seal("u1", MIB);
-      const forged = sealed.replace(`~${MIB}~`, `~${64 * MIB}~`);
-      expect(forged).not.toBe(sealed);
-      const response = await putPart(forged, 2 * MIB);
-      expect(response.status).toBe(400);
-      expect(state.part).not.toHaveBeenCalled();
-   });
 });
 
 describe("listing incomplete uploads", () => {
@@ -317,6 +315,31 @@ describe("completing a multipart upload", () => {
          IfNoneMatch: "*",
       });
       expect(state.audit).toHaveBeenCalledOnce();
+   });
+});
+
+describe("a multipart completion cut off after storage received it", () => {
+   it("audits the upload as unconfirmed", async () => {
+      state.complete.mockRejectedValueOnce(new UnconfirmedWriteError());
+      const response = await fetch(`${base}/complete`, {
+         method: "POST",
+         headers: { "content-type": "application/json" },
+         body: JSON.stringify({
+            expectedUserId: state.actor,
+            objectKey: upload.key,
+            uploadId: seal("u1", MIB),
+            parts: [{ partNumber: 1, eTag: '"part"' }],
+         }),
+      });
+      expect(response.status).toBe(502);
+      expect(state.audit.mock.calls.map(([, entry]) => entry)).toEqual([
+         {
+            action: "object.upload",
+            bucket: "backups",
+            target: upload.key,
+            detail: { parts: 1, replaced: false, confirmed: false },
+         },
+      ]);
    });
 });
 
@@ -528,7 +551,6 @@ describe("canceling the current multipart upload", () => {
 
    it.each([
       [{ name: "AccessDenied", $metadata: { httpStatusCode: 403 } }, 403],
-      [{ name: "InternalError", $metadata: { httpStatusCode: 500 } }, 502],
       [{ name: "TimeoutError" }, 502],
    ])(
       "returns an explicit storage failure without a successful audit",

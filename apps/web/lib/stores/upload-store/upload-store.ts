@@ -31,23 +31,37 @@ const jobs = new Map<string, Job>();
 const workers = new Set<Promise<void>>();
 
 type Settlement = (keys: string[]) => void;
-const batchCallbacks = new Map<
-   string,
-   { callback: Settlement; keys: Map<string, string> }
->();
+type ScopeBatch = {
+   callback: Settlement;
+   keys: Map<string, string>;
+   open: Set<string>;
+   enqueuing: number;
+};
+const batchCallbacks = new Map<string, ScopeBatch>();
 let enqueueGeneration = 0;
 let activeEnqueues = 0;
 
 const batchScope = (userId: string, serverId: string, bucketName: string) =>
    JSON.stringify([userId, serverId, bucketName]);
+const scopeOf = (job: Job) =>
+   batchScope(job.userId, job.serverId, job.bucketName);
+
+const settleScope = ({ callback, keys }: ScopeBatch) => {
+   if (keys.size) callback([...keys.values()]);
+};
 
 const flushBatchCallbacks = () => {
-   const callbacks = [...batchCallbacks.values()].map(({ callback, keys }) => ({
-      callback,
-      keys: [...keys.values()],
-   }));
+   const batches = [...batchCallbacks.values()];
    batchCallbacks.clear();
-   for (const { callback, keys } of callbacks) if (keys.length) callback(keys);
+   for (const batch of batches) settleScope(batch);
+};
+
+// a bucket's listing reloads once its own uploads finish, not when every bucket's have
+const flushScopeIfIdle = (scope: string) => {
+   const batch = batchCallbacks.get(scope);
+   if (!batch || batch.open.size > 0 || batch.enqueuing > 0) return;
+   batchCallbacks.delete(scope);
+   settleScope(batch);
 };
 
 const isOpen = (status: UploadEntry["status"]) =>
@@ -190,10 +204,9 @@ const useUploadStore = create<UploadStore>()((set, get) => {
          set({});
       };
 
+      const scope = scopeOf(job);
       try {
-         batchCallbacks
-            .get(batchScope(job.userId, job.serverId, job.bucketName))
-            ?.keys.set(id, job.objectKey);
+         batchCallbacks.get(scope)?.keys.set(id, job.objectKey);
          const handle = uploadObject({ ...job, onProgress });
          job.abort = handle.abort;
          await handle.done;
@@ -216,7 +229,11 @@ const useUploadStore = create<UploadStore>()((set, get) => {
                set({ batch: { ...batch, refusal: error.message } });
          }
       } finally {
-         if (owns()) jobs.delete(id);
+         if (owns()) {
+            jobs.delete(id);
+            batchCallbacks.get(scope)?.open.delete(id);
+            flushScopeIfIdle(scope);
+         }
          pump();
       }
    };
@@ -246,6 +263,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
    const cancelMany = (ids: readonly string[]) => {
       const aborts: Job[] = [];
       const { entries, progress } = get();
+      const dequeuedScopes = new Set<string>();
       let changed = false;
       let dequeued = false;
       for (const id of ids) {
@@ -255,6 +273,10 @@ const useUploadStore = create<UploadStore>()((set, get) => {
          if (entry.status === "pending") {
             jobs.delete(id);
             dequeued = true;
+            if (job) {
+               batchCallbacks.get(scopeOf(job))?.open.delete(id);
+               dequeuedScopes.add(scopeOf(job));
+            }
          } else if (job) aborts.push(job);
          entries[id] = {
             ...entry,
@@ -271,6 +293,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
          queueHead = 0;
       }
       if (changed) set({});
+      for (const scope of dequeuedScopes) flushScopeIfIdle(scope);
       for (const job of aborts) job.abort?.();
       pump();
    };
@@ -298,12 +321,17 @@ const useUploadStore = create<UploadStore>()((set, get) => {
             if (deduped.has(id)) collisions++;
             deduped.set(id, entry);
          }
-         if (onSettled) {
-            const scope = batchScope(userId, serverId, bucketName);
-            const keys =
-               batchCallbacks.get(scope)?.keys ?? new Map<string, string>();
-            batchCallbacks.set(scope, { callback: onSettled, keys });
-         }
+         const scope = batchScope(userId, serverId, bucketName);
+         const existing = batchCallbacks.get(scope);
+         if (onSettled && existing) existing.callback = onSettled;
+         else if (onSettled)
+            batchCallbacks.set(scope, {
+               callback: onSettled,
+               keys: new Map(),
+               open: new Set(),
+               enqueuing: 0,
+            });
+         const tracked = batchCallbacks.get(scope);
          if (collisions > 0) {
             toast.error(
                collisions === 1
@@ -315,6 +343,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
          const generation = enqueueGeneration;
          const inBatch = new Set<string>();
          activeEnqueues++;
+         if (tracked) tracked.enqueuing++;
          void (async () => {
             try {
                for (const slice of chunk(
@@ -373,6 +402,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
                         status: "pending",
                         error: null,
                      };
+                     tracked?.open.add(id);
                      if (!prev) order.push(id);
                      if (prev?.status !== "pending") queue.push(id);
                      if (!inBatch.has(id)) {
@@ -387,6 +417,10 @@ const useUploadStore = create<UploadStore>()((set, get) => {
                }
             } finally {
                activeEnqueues--;
+               if (tracked) {
+                  tracked.enqueuing--;
+                  flushScopeIfIdle(scope);
+               }
                pump();
             }
          })();

@@ -45,7 +45,7 @@ const budgetedClient = (serverId: string): S3Client =>
          async () => {
             throw new Error("network unavailable");
          },
-         { endpoint: AWS_ENDPOINT, maxAttempts: 1 }
+         { endpoint: AWS_ENDPOINT }
       ).client,
       serverId
    );
@@ -191,7 +191,7 @@ describe("in-flight storage request caps", () => {
                await gate.promise;
                throw new Error("network unavailable");
             },
-            { endpoint: AWS_ENDPOINT, maxAttempts: 1 }
+            { endpoint: AWS_ENDPOINT }
          ).client,
          serverId
       );

@@ -89,20 +89,37 @@ const BucketProvider = ({
 
    const reloadListing = useCallback(() => refreshHandler.current?.(), []);
    const refresh = useCallback(() => {
+      if (!userId || !serverId) return;
       void refetchBuckets();
       void queryClient.invalidateQueries({
          queryKey: queryKeys.serverInfo(userId, serverId),
       });
+      // object views, suggestions and incomplete uploads refetch when next shown; refetching now would audit views nobody opened
+      void queryClient.invalidateQueries({
+         queryKey: queryKeys.bucket(userId, serverId, bucketName),
+         refetchType: "none",
+      });
       reloadListing();
-   }, [refetchBuckets, reloadListing, queryClient, userId, serverId]);
+   }, [
+      refetchBuckets,
+      reloadListing,
+      queryClient,
+      userId,
+      serverId,
+      bucketName,
+   ]);
    const registerRefresh = useCallback((handler: (() => void) | null) => {
       refreshHandler.current = handler;
    }, []);
 
+   const reach = useMemo(
+      () => (isLoading ? undefined : reachOf(currentBucket)),
+      [isLoading, currentBucket]
+   );
    const value = useMemo<BucketContextValue>(
       () => ({
          bucketName,
-         reach: isLoading ? undefined : reachOf(currentBucket),
+         reach,
          awaitingReach: isLoading && !isOwner,
          path,
          prefix,
@@ -122,6 +139,7 @@ const BucketProvider = ({
       }),
       [
          bucketName,
+         reach,
          currentBucket,
          path,
          prefix,

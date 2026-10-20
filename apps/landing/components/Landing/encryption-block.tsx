@@ -20,7 +20,7 @@ const POINTS: Point[] = [
    {
       icon: AsteriskIcon,
       title: "Encrypted at rest",
-      body: "Credentials are encrypted with RSA-OAEP using your own key pair, plus AES-256-GCM.",
+      body: "Credentials are encrypted in your browser with RSA-OAEP and AES-256-GCM. Self-hosting means you hold the private key.",
    },
    {
       icon: ChevronsLeftRightIcon,

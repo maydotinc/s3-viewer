@@ -383,7 +383,7 @@ describe("with exactly one server", () => {
 });
 
 describe("while the server list loads", () => {
-   it("shows a stepper skeleton but already takes addresses", async () => {
+   it("leaves out the step list while servers load but already takes addresses", async () => {
       h.servers = { ...h.servers, servers: [], isServerListLoading: true };
       const container = await mount();
       expect(container.querySelector("ol")).toBeNull();

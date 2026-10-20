@@ -201,45 +201,7 @@ describe("shared bucket creation coordination", () => {
       ).toBe("another");
    });
 
-   it("bounds unresolved claims per actor while preserving another actor's capacity", async () => {
-      for (let index = 0; index < 20; index++) {
-         await expect(
-            withBucketCreation(
-               {
-                  endpoint: "https://storage.example.com",
-                  bucketName: `bucket-${index}`,
-                  userId: "actor",
-               },
-               async (lifecycle) => {
-                  await lifecycle.submitted();
-                  throw new Error("Lost response");
-               }
-            )
-         ).rejects.toThrow("Lost response");
-      }
-      await expect(
-         withBucketCreation(
-            {
-               endpoint: "https://storage.example.com",
-               bucketName: "overflow",
-               userId: "actor",
-            },
-            vi.fn()
-         )
-      ).rejects.toMatchObject({ status: 503 });
-      await expect(
-         withBucketCreation(
-            {
-               endpoint: "https://storage.example.com",
-               bucketName: "other",
-               userId: "another",
-            },
-            async () => "created"
-         )
-      ).resolves.toBe("created");
-   });
-
-   it("returns an actor's capacity once their unresolved claims age out", async () => {
+   it("bounds unresolved claims per actor, sparing another actor and returning once they age out", async () => {
       const create = (bucketName: string) =>
          withBucketCreation(
             {
@@ -258,6 +220,16 @@ describe("shared bucket creation coordination", () => {
          );
       }
       await expect(create("overflow")).rejects.toMatchObject({ status: 503 });
+      await expect(
+         withBucketCreation(
+            {
+               endpoint: "https://storage.example.com",
+               bucketName: "other",
+               userId: "another",
+            },
+            async () => "created"
+         )
+      ).resolves.toBe("created");
       for (const row of state.store.rows.values())
          row.createdAt = new Date(Date.now() - 16 * 60_000);
       await expect(create("overflow")).rejects.toThrow("Lost response");

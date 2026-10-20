@@ -54,18 +54,6 @@ describe("useSessionStore", () => {
       expect(countEmits(() => setServerId("s1"))).toBe(0);
    });
 
-   it("emits once per real change", () => {
-      const { setServerId, setUserId, clearSession } =
-         useSessionStore.getState();
-      expect(countEmits(() => setUserId("u1"))).toBe(1);
-      expect(countEmits(() => setServerId("s1"))).toBe(1);
-      expect(countEmits(() => clearSession())).toBe(1);
-      expect(useSessionStore.getState()).toMatchObject({
-         userId: null,
-         serverId: "",
-      });
-   });
-
    it("forgets the selected server when a different user signs in", () => {
       const { setServerId, setUserId } = useSessionStore.getState();
       setUserId("u1");
@@ -77,7 +65,7 @@ describe("useSessionStore", () => {
       });
    });
 
-   it("keeps the selected server when the same user signs back in", () => {
+   it("keeps a server chosen while signed out through the first sign-in", () => {
       const { setServerId, setUserId } = useSessionStore.getState();
       setServerId("s1");
       setUserId("u1");

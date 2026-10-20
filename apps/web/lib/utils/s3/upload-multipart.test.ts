@@ -282,6 +282,24 @@ describe("retrying one part instead of the file", () => {
       ]);
    });
 
+   it("discards the parts of a failed upload when the browser can't save it for resuming", async () => {
+      vi.stubGlobal("navigator", {});
+      const handle = start();
+      const failed = expect(handle.done).rejects.toMatchObject({ status: 0 });
+      await settle();
+      partsFor([2, 3]).forEach(ack);
+      for (let attempt = 0; attempt < 5; attempt++) {
+         FakeXHR.instances
+            .filter(
+               (xhr) => xhr.partNumber === 1 && xhr.readyState !== FakeXHR.DONE
+            )
+            .forEach((xhr) => xhr.fail());
+         await vi.advanceTimersByTimeAsync(10_000);
+      }
+      await failed;
+      expectDiscarded("u1");
+   });
+
    it("reports an unknown outcome when a retried completion finds the upload already committed", async () => {
       const completions = [
          new ApiError(0, "lost"),
@@ -687,31 +705,43 @@ describe("resuming an interrupted upload", () => {
       await expect(handle.done).resolves.toEqual(uploaded);
    });
 
-   it("starts a new upload when storage no longer knows the saved one", async () => {
+   it("sends every part to a new upload when storage no longer knows the saved one", async () => {
       await resumeAfterFailure();
       server.get.mockRejectedValue(new ApiError(404, "gone"));
+      openAs("u2");
       const handle = start();
       await settle();
       expect(FakeXHR.instances).toHaveLength(3);
       ackAll();
       await expect(handle.done).resolves.toEqual(uploaded);
+      expect(server.post.mock.calls.at(-1)?.[1]).toMatchObject({
+         uploadId: "u2",
+      });
    });
 
    it.each([
       ["a different size", makeFile(FILE_SIZE + 1, 1000)],
       ["a newer timestamp", makeFile(FILE_SIZE, 2000)],
-   ])("refuses to resume onto %s", async (_name, file) => {
-      await resumeAfterFailure();
-      server.get.mockResolvedValue({
-         parts: [{ partNumber: 1, eTag: '"p1"', size: 5 }],
-      });
-      const handle = start({ file });
-      await settle();
-      expect(server.get).not.toHaveBeenCalled();
-      expect(FakeXHR.instances).toHaveLength(3);
-      ackAll();
-      await expect(handle.done).resolves.toEqual(uploaded);
-   });
+   ])(
+      "refuses to resume onto %s and discards the old upload first",
+      async (_name, file) => {
+         await resumeAfterFailure();
+         server.get.mockResolvedValue({
+            parts: [{ partNumber: 1, eTag: '"p1"', size: 5 }],
+         });
+         openAs("u2");
+         const handle = start({ file });
+         await settle();
+         expect(server.get).not.toHaveBeenCalled();
+         expectDiscarded("u1");
+         expect(server.remove.mock.invocationCallOrder[0]).toBeLessThan(
+            server.post.mock.invocationCallOrder[0]!
+         );
+         expect(FakeXHR.instances).toHaveLength(3);
+         ackAll();
+         await expect(handle.done).resolves.toEqual(uploaded);
+      }
+   );
 });
 
 describe("cancelling", () => {
@@ -784,40 +814,28 @@ describe("cancelling", () => {
       }
    );
 
-   it.each(["cancel", "complete"])(
-      "keeps the owning session isolated when competing uploads %s",
-      async (outcome) => {
-         const older = start();
-         await settle();
-         openAs("u2");
-         const newer = start({ file: makeFile(FILE_SIZE, 2000) });
-         await settle();
-         ack(partsFor([1])[0]!);
-         await settle();
-         expect(Object.values(savedSessions())).toEqual([
-            expect.objectContaining({
-               uploadId: "u1",
-               partDigests: { 1: expect.any(Object) },
-            }),
-         ]);
-         if (outcome === "cancel") {
-            const failed = expect(older.done).rejects.toBeInstanceOf(
-               UploadCancelled
-            );
-            older.abort();
-            await failed;
-         } else {
-            partsFor([2, 3])
-               .filter((xhr) => xhr.readyState !== FakeXHR.DONE)
-               .forEach(ack);
-            await older.done;
-         }
-         expect(savedSessions()).toEqual({});
-         await settle();
-         ackAll();
-         await expect(newer.done).resolves.toEqual(uploaded);
-      }
-   );
+   it("keeps the owning session isolated when a competing upload is cancelled", async () => {
+      const older = start();
+      await settle();
+      openAs("u2");
+      const newer = start({ file: makeFile(FILE_SIZE, 2000) });
+      await settle();
+      ack(partsFor([1])[0]!);
+      await settle();
+      expect(Object.values(savedSessions())).toEqual([
+         expect.objectContaining({
+            uploadId: "u1",
+            partDigests: { 1: expect.any(Object) },
+         }),
+      ]);
+      const failed = expect(older.done).rejects.toBeInstanceOf(UploadCancelled);
+      older.abort();
+      await failed;
+      expect(savedSessions()).toEqual({});
+      await settle();
+      ackAll();
+      await expect(newer.done).resolves.toEqual(uploaded);
+   });
 
    it("sends nothing once the account changes", async () => {
       identity.userId = "user-b";
@@ -835,6 +853,7 @@ describe("cancelling", () => {
       const { uploadMultipart: otherTabUpload } = await import(
          "./upload-multipart"
       );
+      const { uploadSlot: otherTabSlot } = await import("./slot-pool");
       openAs("u2");
       const second = otherTabUpload({
          userId: "user-a",
@@ -872,6 +891,7 @@ describe("cancelling", () => {
       ackAll();
       await expect(first.done).resolves.toEqual(uploaded);
       expect(savedSessions()).toEqual({});
+      await expectUploadSlotsFree(otherTabSlot);
    });
 
    it("holds the resume lease until cancelled upload cleanup settles", async () => {

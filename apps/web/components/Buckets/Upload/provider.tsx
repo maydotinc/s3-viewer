@@ -1,18 +1,17 @@
 import { useBucketContext } from "@/components/Buckets/Context";
-import { usePermission } from "@/lib/hooks/usePermission";
+import useObjectCommands from "@/components/Buckets/useObjectCommands";
 import { useStorageCapabilities } from "@/lib/hooks/useStorageCapabilities";
-import { Permission } from "@s3-viewer/permissions";
 import { isAborted } from "@/lib/api";
 import { forgetKeys } from "@/lib/hooks/mutations/object/invalidate";
+import { notifyListingChanged } from "@/lib/listing-events";
 import type { BucketTarget } from "@/lib/types";
-import { useAbortableTask } from "@/lib/hooks/useAbortableTask";
 import { useServerId } from "@/lib/stores/session-scope";
 import useSessionStore, { useUserId } from "@/lib/stores/session-store";
 import useUploadStore from "@/lib/stores/upload-store/upload-store";
 import { MAX_UPLOAD_FILES, type UploadFile } from "@/lib/utils/s3/drop-entries";
 import { checkUploadConflicts } from "@/lib/utils/s3/upload-preflight";
 import { writeBlockReason } from "@/lib/utils/folder-access";
-import { formatCount } from "@/lib/utils/format";
+import { formatCount, visibleText } from "@/lib/utils/format";
 import { toastError } from "@/lib/utils/toast";
 import { MAX_BATCH_KEYS, chunk, fileKeySchema } from "@s3-viewer/types";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -64,24 +63,17 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
    const queryClient = useQueryClient();
    const userId = useUserId();
    const serverId = useServerId();
-   const { bucketName, prefix, reach, reloadListing } = useBucketContext();
+   const { bucketName, prefix, reach } = useBucketContext();
    const capabilities = useStorageCapabilities();
-   const permitted = usePermission(Permission.UPLOAD_OBJECT, bucketName);
+   const permitted = useObjectCommands().can.upload;
    const outsideFolders = writeBlockReason(reach, prefix);
-   const blockedReason =
-      permitted && capabilities.upload ? outsideFolders : null;
-   const canUpload = permitted && capabilities.upload && !outsideFolders;
+   const blockedReason = permitted ? outsideFolders : null;
+   const canUpload = permitted && !outsideFolders;
    const allowed = useRef(canUpload);
    allowed.current = canUpload;
-   const canReplace = canUpload && capabilities.replace;
-   const replacementAllowed = useRef(canReplace);
-   replacementAllowed.current = canReplace;
    const enqueue = useUploadStore((state) => state.enqueue);
    const [pending, setPending] = useState<PendingReplace | null>(null);
    const [isChecking, setIsChecking] = useState(false);
-   const task = useAbortableTask();
-   const currentRefresh = useRef(reloadListing);
-   currentRefresh.current = reloadListing;
    const checking = useRef<Preflight | null>(null);
    const currentTarget = useRef<UploadTarget>({
       userId,
@@ -125,8 +117,6 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
          eTags: Record<string, string>
       ) => {
          if (!allowed.current || !isCurrent(target)) return;
-         if (Object.keys(eTags).length > 0 && !replacementAllowed.current)
-            return;
          enqueue({
             files,
             serverId: target.serverId,
@@ -141,26 +131,26 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
                   target.bucketName,
                   keys
                );
-               task.ifMounted(() => {
-                  const current = currentTarget.current;
-                  if (
-                     isCurrent(current) &&
-                     target.userId === current.userId &&
-                     target.serverId === current.serverId &&
-                     target.bucketName === current.bucketName &&
-                     keys.some((key) => key.startsWith(current.prefix))
-                  )
-                     currentRefresh.current();
+               // whichever grid is open by then reloads, even if this provider has unmounted
+               notifyListingChanged({
+                  serverId: target.serverId,
+                  bucketName: target.bucketName,
+                  keys,
                });
             },
          });
       },
-      [enqueue, queryClient, isCurrent, task]
+      [enqueue, queryClient, isCurrent]
    );
 
    const upload = useCallback(
       async (files: UploadFile[]) => {
-         if (files.length === 0 || !allowed.current) return;
+         if (!allowed.current) return;
+         // nested empty folders are dropped silently; a drop of nothing else would otherwise look ignored
+         if (files.length === 0) {
+            toast.error("Nothing was uploaded because the folders are empty.");
+            return;
+         }
          if (files.length > MAX_UPLOAD_FILES) {
             toast.error(
                `Upload up to ${formatCount(MAX_UPLOAD_FILES)} files at a time.`
@@ -173,7 +163,7 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
          );
          if (invalid) {
             toast.error(
-               `Invalid upload key: ${prefix}${invalid.relativePath}. Use a valid file key of at most 1,024 UTF-8 bytes.`
+               `Invalid upload key: ${visibleText(`${prefix}${invalid.relativePath}`)}. Use a valid file key of at most 1,024 UTF-8 bytes.`
             );
             return;
          }
@@ -225,10 +215,6 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
                   start(slice, target, result.eTags);
                   continue;
                }
-               if (!replacementAllowed.current)
-                  throw new Error(
-                     "Storage capabilities are unavailable right now. Refresh and try the upload again."
-                  );
                held.files.push(...slice);
                held.existing.push(...existing);
                Object.assign(held.eTags, result.eTags);
@@ -263,7 +249,7 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
    );
 
    const visiblePending =
-      canReplace && pending && sameTarget(pending, currentTarget.current)
+      canUpload && pending && sameTarget(pending, currentTarget.current)
          ? pending
          : null;
    const replaceAll = () => {
@@ -272,7 +258,7 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
       setPending(null);
    };
    const skipExisting = () => {
-      if (!visiblePending || !replacementAllowed.current) return;
+      if (!visiblePending) return;
       const collisions = new Set(visiblePending.existing);
       const fresh = visiblePending.files.filter(
          (file) => !collisions.has(file.relativePath)

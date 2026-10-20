@@ -11,8 +11,8 @@ import {
    type S3DeleteTarget,
 } from "@s3-viewer/types";
 import { HEAD_CONCURRENCY } from "@/lib/constants";
-import { classifyS3Error, deleteFailureMessage } from "./classify";
-import { onBuild } from "./conditions";
+import { classifyS3Error } from "./classify";
+import { sentMarker } from "./conditions";
 import { refusedFailure } from "./errors";
 import { isConflict, isConflictCode } from "./failure";
 import { sendHead } from "./head";
@@ -47,6 +47,8 @@ const deleteResponse = (
    };
 };
 
+const DELETE_CONFLICT =
+   "The object changed. Refresh and review it before deleting.";
 const UNCONFIRMED =
    "Deletion was not confirmed. Refresh and check this object before trying again.";
 // a request that may have removed the object leaves the audit log unable to say it did not.
@@ -74,16 +76,6 @@ const throttleFailure = (
       ? { key, message: THROTTLED, retryable: true }
       : undefined;
 
-const sentMarker = <T extends { middlewareStack: unknown }>(
-   command: T
-): (() => boolean) => {
-   let sent = false;
-   onBuild(command, "sentMarker", () => {
-      sent = true;
-   });
-   return () => sent;
-};
-
 const objectMissing = (error: unknown): boolean => {
    const { status, name } = classifyS3Error(error);
    return status === 404 && name !== "NoSuchBucket";
@@ -104,7 +96,7 @@ const deleteRequestFailure = (
    return {
       key,
       message: isConflict(error)
-         ? deleteFailureMessage("PreconditionFailed")
+         ? DELETE_CONFLICT
          : deleteSent && (signal?.aborted || status >= 500 || status === 404)
            ? UNCONFIRMED
            : signal?.aborted
@@ -137,7 +129,7 @@ const headCheckedObject = async (
             key,
             failure: {
                key,
-               message: deleteFailureMessage("PreconditionFailed"),
+               message: DELETE_CONFLICT,
                retryable: false,
             },
          };
@@ -267,11 +259,5 @@ const deleteCheckedKeys = async (
    ];
 };
 
-export {
-   deleteCheckedKeys,
-   deleteRequestFailure,
-   deleteTargets,
-   isUnconfirmed,
-   objectMissing,
-};
+export { deleteCheckedKeys, deleteTargets, isUnconfirmed, objectMissing };
 export type { Outcome };

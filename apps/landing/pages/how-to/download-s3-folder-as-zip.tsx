@@ -123,6 +123,7 @@ export default createHowToPage({
    seoDescription:
       "S3 has no folder-download or server-side zip API. Here's how S3 Viewer streams a folder into a single zip file, with object-count and size limits.",
    published: "2026-09-07",
+   updated: "2026-10-12",
    visual: <DownloadIllustration />,
    steps,
    underTheHood: (

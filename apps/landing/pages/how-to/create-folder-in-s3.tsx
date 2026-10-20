@@ -178,6 +178,7 @@ export default createHowToPage({
    seoDescription:
       "S3 has no folders, only key prefixes. Create one from the AWS console, the CLI, an SDK or S3 Viewer, and learn why an empty folder can vanish.",
    published: "2026-09-05",
+   updated: "2026-10-12",
    visual: <CreateFolderIllustration />,
    steps,
    underTheHood: (

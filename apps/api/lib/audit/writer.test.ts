@@ -416,15 +416,13 @@ describe("record", () => {
       expect(h.warn).not.toHaveBeenCalled();
    });
 
-   it.each(["object.download", "object.archive"] as const)(
-      "refuses with 503 when %s cannot be recorded, so nothing is issued",
-      async (action) => {
-         h.createMany.mockRejectedValue(new Error("connection reset"));
-         await expect(
-            record(fakeRes(true), { action, bucket: "photos" })
-         ).rejects.toMatchObject({ status: 503 });
-      }
-   );
+   // every durable action shares this path (audit-record.test.ts lists them); one proves the real writer feeds it.
+   it("refuses with 503 when a download cannot be recorded, so nothing is issued", async () => {
+      h.createMany.mockRejectedValue(new Error("connection reset"));
+      await expect(
+         record(fakeRes(true), { action: "object.download", bucket: "photos" })
+      ).rejects.toMatchObject({ status: 503 });
+   });
 
    it("does not refuse a download while the server's log is off", async () => {
       h.createMany.mockRejectedValue(new Error("connection reset"));

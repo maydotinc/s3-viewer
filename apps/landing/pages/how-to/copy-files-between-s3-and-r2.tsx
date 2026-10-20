@@ -151,6 +151,7 @@ export default createHowToPage({
    seoDescription:
       "Copy objects from AWS S3 to Cloudflare R2 in-app with S3 Viewer's Copy to another bucket…, or with rclone sync and the AWS CLI for large migrations.",
    published: "2026-04-28",
+   updated: "2026-10-14",
    visual: <SideBySideIllustration />,
    steps,
    underTheHood: (

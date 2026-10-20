@@ -21,6 +21,7 @@ type BuildArgs = {
    faqs: Faq[];
    keyword: string;
    datePublished: string;
+   dateModified: string;
 };
 
 export const buildHowToJsonLd = ({
@@ -31,6 +32,7 @@ export const buildHowToJsonLd = ({
    faqs,
    keyword,
    datePublished,
+   dateModified,
 }: BuildArgs) => {
    const url = `${SITE_URL}/how-to/${slug}`;
 
@@ -50,7 +52,7 @@ export const buildHowToJsonLd = ({
          publisher: organizationRef,
          copyrightHolder: organizationRef,
          datePublished,
-         dateModified: datePublished,
+         dateModified,
       },
       section: { name: "How-to", path: "/how-to" },
       name: title,

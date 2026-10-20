@@ -51,10 +51,7 @@ vi.mock("@/lib/hooks/queries/s3/useBuckets", () => ({
 }));
 vi.mock("@/lib/hooks/useStorageCapabilities", () => ({
    useStorageCapabilities: () => ({
-      upload: true,
-      replace: true,
-      rename: true,
-      delete: true,
+      writable: true,
       deleteProtection: null,
       notice: null,
       pending: false,
@@ -163,6 +160,18 @@ describe("commands follow the roles the API enforces", () => {
          "nav:members",
          "action:rename-server",
          "action:update-credentials",
+      ]);
+   });
+
+   it("offers no folder actions outside a member's folders", async () => {
+      h.serverRole = Role.VIEWER;
+      h.buckets = [{ ...bucket(Role.EDITOR), folders: ["landing/"] }];
+      expect(await offered()).toEqual([]);
+      h.query = { slug: ["site", "landing"] };
+      expect(await offered()).toEqual([
+         "action:create-folder",
+         "action:bulk-rename",
+         "action:transfer-folder",
       ]);
    });
 

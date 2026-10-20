@@ -1,6 +1,5 @@
-import { MEMBER_NOT_FOUND } from "@/lib/constants";
 import { decodeCursor, keysetAfter, pageOf, type Position } from "@/lib/cursor";
-import { ApiHttpError } from "@/lib/http";
+import { ApiHttpError, memberNotFound } from "@/lib/http";
 import {
    bucketGrantSelect,
    bucketGrantsLateral,
@@ -26,8 +25,8 @@ import { prisma } from "@s3-viewer/db";
 import {
    ROLE_LABELS,
    canGrantBucketAccess,
-   canGrantBucketRole,
    canManageRole,
+   canRemoveAccess,
    rolesAbove,
 } from "@s3-viewer/permissions";
 import {
@@ -106,12 +105,27 @@ type MemberRow = Prisma.ServerAccessGetPayload<{
    select: ReturnType<typeof memberSelect>;
 }>;
 
-const toServerUser = (row: MemberRow): ServerUser => ({
+type Actor = { id: string; role: Role };
+
+type Viewer = Actor & { held: ReadonlyMap<string, ScopedGrant> };
+
+// mirrors removeMembership's checks over every grant, hidden ones included, so the web never offers a refused removal.
+const canRemoveMember = (viewer: Viewer, row: MemberRow): boolean =>
+   viewer.id !== row.user.id &&
+   canRemoveAccess(
+      viewer.role,
+      Role[row.role],
+      row.user.bucketAccess.map((grant) => Role[grant.role])
+   ) &&
+   !findUnremovableGrant(viewer.role, viewer.held, row.user.bucketAccess);
+
+const toServerUser = (row: MemberRow, viewer: Viewer): ServerUser => ({
    id: row.user.id,
    name: row.user.name,
    email: row.user.email,
    role: Role[row.role],
    bucketAccess: row.user.bucketAccess.map(toBucketEntry),
+   canRemove: canRemoveMember(viewer, row),
 });
 
 const memberPage = (
@@ -144,8 +158,6 @@ const memberPage = (
       )}
       ORDER BY page."createdAt" ASC, page."id" ASC`;
 
-type Actor = { id: string; role: Role };
-
 const listMembers = async (
    serverId: string,
    cursor: string | undefined,
@@ -153,13 +165,15 @@ const listMembers = async (
    viewer: Actor
 ): Promise<MemberPage> => {
    const position = cursor ? decodeCursor(cursor) : undefined;
-   const [rows, visible] = await Promise.all([
+   const [rows, { visible, held }] = await Promise.all([
       memberPage(serverId, position, limit + 1),
-      visibleBuckets(viewer.id, serverId, viewer.role),
+      viewerGrants(viewer.id, serverId, viewer.role),
    ]);
    const { page, nextCursor } = pageOf(rows, limit);
    return {
-      members: page.map((row) => withVisibleGrants(visible, toServerUser(row))),
+      members: page.map((row) =>
+         withVisibleGrants(visible, toServerUser(row, { ...viewer, held }))
+      ),
       nextCursor,
    };
 };
@@ -167,13 +181,14 @@ const listMembers = async (
 const findMember = async (
    serverId: string,
    userId: string,
+   viewer: Viewer,
    db: Prisma.TransactionClient = prisma
 ): Promise<ServerUser | null> => {
    const row = await db.serverAccess.findUnique({
       where: { userId_serverId: { userId, serverId } },
       select: memberSelect(serverId),
    });
-   return row ? toServerUser(row) : null;
+   return row ? toServerUser(row, viewer) : null;
 };
 
 const memberRole = async (
@@ -193,12 +208,7 @@ type GrantingActor = {
    bucketGrants: ReadonlyMap<string, ScopedGrant>;
 };
 
-type GrantRefusal = (
-   message: string,
-   reason: "member" | "folder",
-   bucket: string | null,
-   code?: ErrorCode
-) => Error;
+type GrantRefusal = (message: string, bucket: string | null) => Error;
 
 // only a bucket the actor holds is named in the audit row; any other name is whatever the caller typed.
 const heldBucket = (
@@ -241,21 +251,26 @@ const loadBucketGrants = (
 const heldBucketNames = (held: readonly BucketRow[]): Set<string> =>
    new Set(held.map((row) => row.bucketName));
 
-// a bucket-limited admin would otherwise learn the names and folders of buckets it can't open.
-const visibleBuckets = async (
-   viewerId: string,
-   serverId: string,
-   serverRole: Role,
-   db: Prisma.TransactionClient = prisma
-): Promise<VisibleBuckets> =>
-   serverRole === Role.OWNER
-      ? null
-      : heldBucketNames(await loadBucketGrants(viewerId, serverId, db));
-
 const grantsByBucket = (
    rows: readonly BucketRow[]
 ): ReadonlyMap<string, ScopedGrant> =>
    new Map(rows.map((row) => [row.bucketName, toScopedGrant(row)]));
+
+type ViewerGrants = {
+   visible: VisibleBuckets;
+   held: ReadonlyMap<string, ScopedGrant>;
+};
+
+// a bucket-limited admin would otherwise learn the names and folders of buckets it can't open.
+const viewerGrants = async (
+   viewerId: string,
+   serverId: string,
+   serverRole: Role
+): Promise<ViewerGrants> => {
+   if (serverRole === Role.OWNER) return { visible: null, held: new Map() };
+   const rows = await loadBucketGrants(viewerId, serverId);
+   return { visible: heldBucketNames(rows), held: grantsByBucket(rows) };
+};
 
 const holdsExactly = (
    held: ReadonlyMap<string, ScopedGrant>,
@@ -321,18 +336,10 @@ const assertBucketGrants = (
       if (!canManageRole(actor.serverRole, Role[role])) {
          throw refuse(
             `You can't grant ${ROLE_LABELS[Role[role]]} on ${bucketName}`,
-            "member",
             audited
          );
       }
       const held = actor.bucketGrants.get(bucketName);
-      if (!canGrantBucketRole(actor.serverRole, held?.role, Role[role])) {
-         throw refuse(
-            `You don't have ${ROLE_LABELS[Role[role]]} access to ${bucketName}, so you can't grant it`,
-            "member",
-            audited
-         );
-      }
       if (
          !canGrantBucketAccess(actor.serverRole, held, {
             role: Role[role],
@@ -340,10 +347,8 @@ const assertBucketGrants = (
          })
       ) {
          throw refuse(
-            `Your access to ${bucketName} is limited to folders, so you can only grant access inside them`,
-            "folder",
-            audited,
-            ErrorCode.FOLDER_ACCESS
+            `You don't have ${ROLE_LABELS[Role[role]]} access to ${bucketName}, so you can't grant it`,
+            audited
          );
       }
    }
@@ -378,7 +383,6 @@ const assertBucketGrantChanges = (
    if (unremovable) {
       throw refuse(
          `You can't change ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`,
-         "member",
          heldBucket(actor.bucketGrants, unremovable.bucketName)
       );
    }
@@ -523,13 +527,11 @@ const assertGrantsRemovable = async (
    if (serverRole !== Role.OWNER && !bucketGrants.has(unremovable.bucketName)) {
       throw refuse(
          "You can't remove a member with access to buckets you don't hold",
-         "member",
          null
       );
    }
    throw refuse(
       `You can't remove a member with ${ROLE_LABELS[Role[unremovable.role]]} access to ${unremovable.bucketName}`,
-      "member",
       heldBucket(bucketGrants, unremovable.bucketName)
    );
 };
@@ -569,12 +571,11 @@ const removeMembership = (
       } else if (targetRole === Role.OWNER) {
          throw new ApiHttpError(403, "Owners can't leave their server");
       }
-      if (!target) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
-      await tx.bucketAccess.deleteMany({ where: { userId, serverId } });
+      if (!target) throw memberNotFound();
       const removed = await tx.serverAccess.deleteMany({
          where: { userId, serverId },
       });
-      if (removed.count === 0) throw new ApiHttpError(404, MEMBER_NOT_FOUND);
+      if (removed.count === 0) throw memberNotFound();
       const revokedInvites = await revokeInvalidInvites(tx, serverId);
       return { email: target.user.email, revokedInvites };
    });
@@ -596,6 +597,6 @@ export {
    memberRole,
    removeMembership,
    replaceBucketAccess,
-   visibleBuckets,
+   viewerGrants,
 };
 export type { GrantRefusal, GrantingActor };

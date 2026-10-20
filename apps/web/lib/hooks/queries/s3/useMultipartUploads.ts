@@ -45,6 +45,8 @@ const useMultipartUploads = (
       nextCursor: nextMarker,
       enabled: enabled && Boolean(userId && serverId && bucketName),
       retry: false,
+      // uploads fail and finish outside this list, so each opening reads it afresh
+      staleTime: 0,
    });
 
    return { uploads, ...query };

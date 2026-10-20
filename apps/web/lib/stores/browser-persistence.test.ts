@@ -57,8 +57,5 @@ describe("browser persistence", () => {
          recentIds: ["bucket:photos"],
          open: false,
       });
-      expect(reloaded.session.persist.hasHydrated()).toBe(true);
-      expect(reloaded.preferences.persist.hasHydrated()).toBe(true);
-      expect(reloaded.commands.persist.hasHydrated()).toBe(true);
    });
 });

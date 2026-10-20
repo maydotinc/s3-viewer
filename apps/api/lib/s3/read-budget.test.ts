@@ -18,6 +18,7 @@ import {
 } from "./buffered-body";
 import { copyObject, MIN_COPY_PART_BYTES } from "./copy";
 import { existingKeys, listKeysPage, listPage } from "./listing";
+import { listMultipartUploads } from "./multipart-uploads";
 import {
    createReadBudget,
    retainedRead,
@@ -48,11 +49,7 @@ const budgetedClient = (
    handle: FixtureHandle,
    serverId: string,
    endpoint = CUSTOM_ENDPOINT
-) =>
-   withRequestBudget(
-      s3Fixture(handle, { endpoint, maxAttempts: 1 }).client,
-      serverId
-   );
+) => withRequestBudget(s3Fixture(handle, { endpoint }).client, serverId);
 
 const pageClient = (page: () => string, serverId: string, endpoint?: string) =>
    budgetedClient(async () => reply(200, page()), serverId, endpoint);
@@ -60,6 +57,19 @@ const pageClient = (page: () => string, serverId: string, endpoint?: string) =>
 afterEach(() => vi.restoreAllMocks());
 
 describe("buffered storage read budget", () => {
+   it("accounts for a committed response without ever refusing it", () => {
+      const budget = createReadBudget(limits);
+      const held = [0, 1, 2, 3].map(() =>
+         budget.acquire({ userId: "a", serverId: "one", committed: true })
+      );
+      held[0]!.retain(64);
+      expect(() => budget.acquire({ userId: "b", serverId: "two" })).toThrow(
+         /capacity is busy/
+      );
+      for (const reservation of held) reservation.release();
+      budget.acquire({ userId: "b", serverId: "two" }).retain(16);
+   });
+
    it("accounts for retained bytes globally and releases reservations exactly once", () => {
       const budget = createReadBudget(limits);
       const first = budget.acquire({ userId: "a", serverId: "one" });
@@ -306,7 +316,7 @@ describe("buffered copy response lifetimes", () => {
       return copied;
    };
 
-   it("keeps parts through completion and only the result ETag until the HTTP response finishes", async () => {
+   it("keeps parts through completion and holds nothing once the copy has landed", async () => {
       const maxBytes = 4 * MIB;
       const budget = installReadBudget(maxBytes);
       const completing = Promise.withResolvers<void>();
@@ -345,10 +355,7 @@ describe("buffered copy response lifetimes", () => {
          );
          const after = budget.acquire({ serverId, userId });
          try {
-            after.retain(maxBytes - 1024);
-            expect(() => after.retain(1024)).toThrow(/capacity/);
-            response.emit("finish");
-            after.retain(1024);
+            after.retain(maxBytes);
          } finally {
             after.release();
          }
@@ -420,7 +427,6 @@ describe("SDK buffered response admission", () => {
       withBufferedResponses(
          s3Fixture(async () => reply(200, page()), {
             endpoint: CUSTOM_ENDPOINT,
-            maxAttempts: 1,
          }).client,
          "server"
       );
@@ -522,6 +528,35 @@ describe("SDK buffered response admission", () => {
          }
       }
    );
+
+   it("returns an uploads page to the pool once its rows are copied, before the response ends", async () => {
+      const budget = installBudget(1_200_000);
+      const response = fakeResponse();
+      const client = bufferedClient(
+         () =>
+            `<ListMultipartUploadsResult><EncodingType>url</EncodingType><IsTruncated>false</IsTruncated><Upload><Key>wanted</Key><UploadId>u1</UploadId></Upload><Upload><Key>${"z".repeat(990)}</Key><UploadId>u2</UploadId></Upload></ListMultipartUploadsResult>`
+      );
+      try {
+         const page = await withReadResponse("alice", response, () =>
+            listMultipartUploads({ client, bucket: "bucket" }, "server", {
+               prefix: "",
+            })
+         );
+         expect(page.uploads.map((upload) => upload.key)).toEqual([
+            "wanted",
+            "z".repeat(990),
+         ]);
+         const remaining = budget.acquire({ serverId: "other" });
+         try {
+            remaining.retain(1_100_000);
+         } finally {
+            remaining.release();
+         }
+      } finally {
+         response.emit("finish");
+         client.destroy();
+      }
+   });
 
    it("keeps active parsing reserved across disconnect, then releases on completion", async () => {
       installBudget();

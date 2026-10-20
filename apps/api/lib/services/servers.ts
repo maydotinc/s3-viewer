@@ -1,11 +1,11 @@
 import {
    CURSOR_ID_MAX,
    decodeCursorText,
+   encodeCursorText,
    invalidCursor,
    pageWith,
 } from "@/lib/cursor";
-import { SERVER_NOT_FOUND } from "@/lib/constants";
-import { ApiHttpError } from "@/lib/http";
+import { ApiHttpError, serverNotFound } from "@/lib/http";
 import { detectProvider } from "@/lib/utils/detect-provider";
 import { assertPublicEndpoint } from "@/lib/utils/endpoint";
 import { decryptCredentials } from "@/lib/utils/encryption";
@@ -75,20 +75,14 @@ type ServerRow = AuditSettingsRow & {
 };
 
 const UNREADABLE_CAPABILITIES: StorageCapabilities = {
-   upload: false,
-   replace: false,
-   rename: false,
-   delete: false,
+   writable: false,
    deleteProtection: null,
    notice:
       "Storage credentials could not be read. Ask the owner to update them.",
 };
 
 const storedCapabilities = z.object({
-   upload: z.boolean(),
-   replace: z.boolean(),
-   rename: z.boolean(),
-   delete: z.boolean(),
+   writable: z.boolean(),
    deleteProtection: z.enum(["conditional", "checked"]).nullable(),
    notice: z.string().nullable(),
 }) satisfies z.ZodType<StorageCapabilities>;
@@ -108,19 +102,27 @@ const toServerInfo = (row: ServerRow, userRole: Role): ServerInfo => ({
    canCreateBucket:
       hasPermission(userRole, Permission.CREATE_BUCKET) &&
       (!row.restrictedBuckets || userRole === Role.OWNER),
+   canRemoveBuckets: row.restrictedBuckets,
    audit: auditAccess(userRole, auditSettingsOf(row)),
 });
+
+type ServerAccessRow = ServerRow & { role: $Enums.Role };
+
+const SERVER_INFO_COLUMNS = Prisma.sql`a."role", s."id", s."name", s."provider", s."capabilities",
+   s."restrictedBuckets", s."auditEnabled", s."auditLevel", s."auditViewRole",
+   s."auditManageRole", s."auditRetentionDays"`;
 
 const getServerInfo = async (
    userId: string,
    serverId: string
 ): Promise<ServerInfo> => {
-   const access = await prisma.serverAccess.findUnique({
-      where: { userId_serverId: { userId, serverId } },
-      select: { role: true, server: { select: serverInfoSelect } },
-   });
-   if (!access) throw new ApiHttpError(404, SERVER_NOT_FOUND);
-   return toServerInfo(access.server, Role[access.role]);
+   const [row] = await prisma.$queryRaw<ServerAccessRow[]>`
+      SELECT ${SERVER_INFO_COLUMNS}
+      FROM "server_access" a
+      JOIN "server" s ON s."id" = a."serverId"
+      WHERE a."userId" = ${userId} AND a."serverId" = ${serverId}`;
+   if (!row) throw serverNotFound();
+   return toServerInfo(row, Role[row.role]);
 };
 
 const SERVER_PAGE_SIZE = 100;
@@ -128,7 +130,7 @@ const SERVER_PAGE_SIZE = 100;
 type ServerPosition = { name: string; id: string };
 
 const encodeServerCursor = ({ name, id }: ServerPosition): string =>
-   Buffer.from(`${name}|${id}`, "utf8").toString("base64url");
+   encodeCursorText(`${name}|${id}`);
 
 // names may contain "|" but cuids can't, so split on the last one.
 const decodeServerCursor = (cursor: string): ServerPosition => {
@@ -147,18 +149,13 @@ const decodeServerCursor = (cursor: string): ServerPosition => {
    return { name, id };
 };
 
-type ServerAccessRow = ServerRow & { role: $Enums.Role };
-
 const serverPageRows = (
    userId: string,
    position: ServerPosition | undefined,
    take: number
 ): Promise<ServerAccessRow[]> =>
    prisma.$queryRaw<ServerAccessRow[]>`
-      SELECT a."role", s."id", s."name", s."provider", s."capabilities",
-             s."restrictedBuckets", s."auditEnabled",
-             s."auditLevel", s."auditViewRole", s."auditManageRole",
-             s."auditRetentionDays"
+      SELECT ${SERVER_INFO_COLUMNS}
       FROM "server_access" a
       JOIN "server" s ON s."id" = a."serverId"
       WHERE a."userId" = ${userId} ${
@@ -211,7 +208,7 @@ const lockServerRow = async <Column extends keyof Server>(
       FOR UPDATE
    `;
    const row = rows[0];
-   if (!row) throw new ApiHttpError(404, SERVER_NOT_FOUND);
+   if (!row) throw serverNotFound();
    return row;
 };
 
@@ -275,7 +272,7 @@ const readCredentials = (
 
 type OpenedCredentials = { credentials: ServerCredentials; provider: Provider };
 
-// every route that takes credentials from a request opens them the same way: unseal for the caller, refuse private endpoints, then classify the provider.
+// every route that takes credentials from a request opens them here, so none can skip the private-endpoint check
 const openCredentials = async (
    encrypted: string,
    userId: string

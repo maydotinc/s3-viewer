@@ -1,13 +1,23 @@
 import { api, objectMutationPath } from "@/lib/api";
 import type { BucketTarget, KeyChangeInput } from "@/lib/types";
+import type { BatchSummary } from "@/lib/utils/s3/batch";
 import {
    useMutation,
    useQueryClient,
    type QueryClient,
 } from "@tanstack/react-query";
-import { forgetKeys, forgetObjects, type KeyMatch } from "./invalidate";
+import { forgetKeys, forgetObjects, noKey, type KeyMatch } from "./invalidate";
 
-type Settle<TInput> = (input: TInput, queryClient: QueryClient) => void;
+// undefined when the request failed, so nothing it touched is known to be gone
+type Outcome<TData> = { data: TData } | undefined;
+
+type Settle<TInput, TData> = (
+   input: TInput,
+   queryClient: QueryClient,
+   outcome: Outcome<TData>
+) => void;
+
+type Touched<TKey> = { changed?: TKey; removed?: TKey };
 
 const useObjectMutation = <TInput extends BucketTarget, TData>({
    mutationFn,
@@ -16,47 +26,73 @@ const useObjectMutation = <TInput extends BucketTarget, TData>({
 }: {
    mutationFn: (input: TInput) => Promise<TData>;
    onSuccess?: (data: TData, input: TInput, queryClient: QueryClient) => void;
-   settle?: Settle<TInput>;
+   settle?: Settle<TInput, TData>;
 }) => {
    const queryClient = useQueryClient();
    return useMutation({
       mutationFn,
       onSuccess: (data: TData, input: TInput) =>
          onSuccess?.(data, input, queryClient),
-      onSettled: (_result: TData | undefined, _error: Error | null, input) =>
-         settle?.(input, queryClient),
+      onSettled: (data: TData | undefined, error: Error | null, input) =>
+         settle?.(
+            input,
+            queryClient,
+            error ? undefined : { data: data as TData }
+         ),
    });
 };
 
 const forgetTouched =
-   <TInput extends BucketTarget>(
-      touched: (input: TInput) => readonly string[],
-      removed?: (input: TInput) => readonly string[]
-   ): Settle<TInput> =>
-   (input, queryClient) =>
+   <TInput extends BucketTarget, TData>(
+      touched: (
+         input: TInput,
+         outcome: Outcome<TData>
+      ) => Touched<readonly string[]>
+   ): Settle<TInput, TData> =>
+   (input, queryClient, outcome) => {
+      const { changed = [], removed } = touched(input, outcome);
       forgetKeys(
          queryClient,
          input.userId,
          input.serverId,
          input.bucketName,
-         touched(input),
-         removed?.(input)
+         changed,
+         removed
       );
+   };
 
 const forgetMatching =
-   <TInput extends BucketTarget>(
-      matches: (input: TInput) => KeyMatch,
-      removed?: (input: TInput) => KeyMatch
-   ): Settle<TInput> =>
-   (input, queryClient) =>
+   <TInput extends BucketTarget, TData>(
+      touched: (input: TInput, outcome: Outcome<TData>) => Touched<KeyMatch>
+   ): Settle<TInput, TData> =>
+   (input, queryClient, outcome) => {
+      const { changed = noKey, removed } = touched(input, outcome);
       forgetObjects(
          queryClient,
          input.userId,
          input.serverId,
          input.bucketName,
-         matches(input),
-         removed?.(input)
+         changed,
+         removed
       );
+   };
+
+// targets storage did not confirm are reset rather than removed, so an open view of one refetches
+const confirmedTargets = <TTarget>(
+   targets: readonly TTarget[],
+   idOf: (target: TTarget) => string,
+   outcome: Outcome<BatchSummary<TTarget>>
+) => {
+   const missed = new Set(
+      outcome
+         ? [...outcome.data.failed, ...outcome.data.unsent].map(idOf)
+         : targets.map(idOf)
+   );
+   return {
+      confirmed: targets.filter((target) => !missed.has(idOf(target))),
+      unconfirmed: targets.filter((target) => missed.has(idOf(target))),
+   };
+};
 
 const sendObjectMutation = <TResult>(
    method: "post" | "patch",
@@ -82,4 +118,10 @@ const postKeyChange =
       );
 
 export default useObjectMutation;
-export { forgetMatching, forgetTouched, postKeyChange, sendObjectMutation };
+export {
+   confirmedTargets,
+   forgetMatching,
+   forgetTouched,
+   postKeyChange,
+   sendObjectMutation,
+};

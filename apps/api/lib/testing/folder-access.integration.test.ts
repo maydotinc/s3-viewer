@@ -25,6 +25,7 @@ const run = randomUUID().replaceAll("-", "");
 const owner = `${run}u0`;
 const contractor = `${run}u1`;
 const admin = `${run}u2`;
+const outsider = `${run}u4`;
 const serverId = `${run}s0`;
 const recipient = `${run}@example.com`;
 const BUCKET = "company";
@@ -38,7 +39,7 @@ const grantOf = (userId: string, bucketName = BUCKET) =>
 describe.skipIf(!integrationUrl)("folder access in PostgreSQL", () => {
    beforeAll(async () => {
       assertDisposableDatabase("Folder access tests");
-      await seedUsers([owner, contractor, admin]);
+      await seedUsers([owner, contractor, admin, outsider]);
       await prisma.server.create({
          data: {
             id: serverId,
@@ -89,7 +90,7 @@ describe.skipIf(!integrationUrl)("folder access in PostgreSQL", () => {
       await prisma.auditLog.deleteMany({ where: { serverId } });
       await prisma.server.deleteMany({ where: { id: serverId } });
       await prisma.user.deleteMany({
-         where: { id: { in: [owner, contractor, admin] } },
+         where: { id: { in: [owner, contractor, admin, outsider] } },
       });
       await prisma.$disconnect();
    });
@@ -159,6 +160,73 @@ describe.skipIf(!integrationUrl)("folder access in PostgreSQL", () => {
             },
          })
       ).rejects.toThrow();
+   });
+
+   it("refuses OWNER on a grant, an invite and an invite grant", async () => {
+      await expect(
+         prisma.bucketAccess.create({
+            data: {
+               userId: contractor,
+               serverId,
+               bucketName: "rejected",
+               role: "OWNER",
+            },
+         })
+      ).rejects.toThrow();
+      const invite = (id: string, role: "OWNER" | "EDITOR") =>
+         prisma.pendingInvitation.create({
+            data: {
+               id,
+               token: `${id}token`,
+               serverId,
+               invitedById: owner,
+               email: `${id}-${recipient}`,
+               role,
+               expiresAt: new Date("2099-01-01"),
+            },
+         });
+      await expect(invite(`${run}owner`, "OWNER")).rejects.toThrow();
+      await invite(`${run}editor`, "EDITOR");
+      try {
+         await expect(
+            prisma.invitationBucketAccess.create({
+               data: {
+                  invitationId: `${run}editor`,
+                  bucketName: "rejected",
+                  role: "OWNER",
+               },
+            })
+         ).rejects.toThrow();
+      } finally {
+         await prisma.pendingInvitation.delete({
+            where: { id: `${run}editor` },
+         });
+      }
+   });
+
+   it("keeps one owner row per server", async () => {
+      await expect(
+         prisma.serverAccess.update({
+            where: { userId_serverId: { userId: admin, serverId } },
+            data: { role: "OWNER" },
+         })
+      ).rejects.toThrow();
+   });
+
+   it("ties every grant to a membership and drops it with the membership", async () => {
+      const grant = () =>
+         prisma.bucketAccess.create({
+            data: { userId: outsider, serverId, bucketName: "open" },
+         });
+      await expect(grant()).rejects.toThrow();
+      await prisma.serverAccess.create({
+         data: { userId: outsider, serverId },
+      });
+      await grant();
+      await prisma.serverAccess.delete({
+         where: { userId_serverId: { userId: outsider, serverId } },
+      });
+      expect(await grantOf(outsider, "open")).toBeNull();
    });
 
    it("refuses to promote a limited grant to admin in place", async () => {

@@ -1,3 +1,3 @@
-const liveInvite = (now = new Date()) => ({ expiresAt: { gt: now } });
+const liveInvite = () => ({ expiresAt: { gt: new Date() } });
 
 export { liveInvite };

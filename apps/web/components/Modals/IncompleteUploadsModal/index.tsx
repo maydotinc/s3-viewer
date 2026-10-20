@@ -45,17 +45,17 @@ const UploadsTable = ({
 }) => (
    <div
       className={cn(
-         "max-h-96 min-h-0 overflow-auto rounded-md border border-viewerborder [scrollbar-gutter:stable]",
+         "@container max-h-96 min-h-0 overflow-auto rounded-md border border-viewerborder [scrollbar-gutter:stable]",
          className
       )}
    >
-      <Table>
+      <Table className="table-fixed">
          <TableHeader>
             <TableRow>
                <TableHead className="w-10" />
                <TableHead>Key</TableHead>
-               <TableHead className="w-44">Started</TableHead>
-               <TableHead className="w-28">Age</TableHead>
+               <TableHead className="w-44 @max-md:hidden">Started</TableHead>
+               <TableHead className="w-24">Age</TableHead>
             </TableRow>
          </TableHeader>
          <TableBody>{children}</TableBody>
@@ -66,7 +66,7 @@ const UploadsTable = ({
 const SKELETON_COLUMNS = [
    { checkbox: true },
    {},
-   {},
+   { className: "@max-md:hidden" },
    { align: "left" },
 ] as const;
 
@@ -261,18 +261,21 @@ const IncompleteUploadsModal = ({
                               onCheckedChange={() => toggle(upload)}
                            />
                         </TableCell>
-                        <TableCell className="break-all whitespace-normal">
+                        <TableCell className="whitespace-normal [overflow-wrap:anywhere]">
                            {visibleText(upload.key)}
+                           <span className="block text-xs text-viewertext @md:hidden">
+                              {formatDate(upload.initiated)}
+                           </span>
                            {message && (
                               <span className="block text-xs text-viewertextred">
                                  {message}
                               </span>
                            )}
                         </TableCell>
-                        <TableCell className="text-viewertext">
+                        <TableCell className="text-viewertext @max-md:hidden">
                            {formatDate(upload.initiated)}
                         </TableCell>
-                        <TableCell className="text-viewertext">
+                        <TableCell className="whitespace-normal text-viewertext">
                            {formatRelativeDay(upload.initiated)}
                         </TableCell>
                      </TableRow>

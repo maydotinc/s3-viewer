@@ -4,7 +4,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buttonByText, mountedRuntime } from "@/components/test-helpers";
 import ObjectHeader from "./header";
 
-const h = vi.hoisted(() => ({ remove: vi.fn() }));
+const h = vi.hoisted(() => ({
+   remove: vi.fn(),
+   can: { download: false, rename: false, upload: false, delete: true },
+}));
 vi.mock("next/router", () => ({
    useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
 }));
@@ -16,7 +19,7 @@ vi.mock("@/components/Buckets/Context", () => ({
 }));
 vi.mock("@/components/Buckets/useObjectCommands", () => ({
    default: () => ({
-      can: { download: false, rename: false, upload: false, delete: true },
+      can: h.can,
       isPreparingZip: false,
       remove: h.remove,
    }),
@@ -44,6 +47,8 @@ const mount = async (eTag: string | null, metadataPending: boolean) => {
          path: ["logs", "app.log"],
          eTag,
          metadataPending,
+         onRefresh: null,
+         refreshing: false,
          canEdit: false,
          editing: false,
          onEdit: () => {},
@@ -53,7 +58,10 @@ const mount = async (eTag: string | null, metadataPending: boolean) => {
 const deleteButton = () =>
    buttonByText(view.current.container, "Delete", "includes")!;
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+   vi.clearAllMocks();
+   h.can = { download: false, rename: false, upload: false, delete: true };
+});
 
 describe("deleting from the object page", () => {
    it("waits for the object's ETag while its metadata is still loading", async () => {
@@ -81,5 +89,16 @@ describe("deleting from the object page", () => {
          [{ key: "logs/app.log", expectedETag: null }],
          expect.any(Function)
       );
+   });
+});
+
+describe("other actions that send the object's ETag", () => {
+   it("wait for the metadata like Delete does", async () => {
+      h.can = { download: false, rename: true, upload: true, delete: false };
+      await mount(null, true);
+      for (const label of ["Edit settings", "Rename", "Copy to…"])
+         expect(
+            buttonByText(view.current.container, label, "includes")!.disabled
+         ).toBe(true);
    });
 });

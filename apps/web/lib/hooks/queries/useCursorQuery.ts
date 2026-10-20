@@ -16,6 +16,7 @@ type CursorQueryOptions<Page, Item, Cursor> = {
    nextCursor: (page: Page) => Cursor | null;
    enabled: boolean;
    retry?: boolean;
+   staleTime?: number;
    refetchOnWindowFocus?: boolean;
    // a previous key's rows stay up while the next loads, only under this prefix so never another account's or server's.
    keepPreviousWithin?: QueryKey;
@@ -91,4 +92,3 @@ const useCursorQuery = <Page, Item, Cursor = string>({
 
 export default useCursorQuery;
 export { pageCursor, prefetchCursorQuery };
-export type { CursorQuerySource };

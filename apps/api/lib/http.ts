@@ -1,3 +1,4 @@
+import { MEMBER_NOT_FOUND, SERVER_NOT_FOUND } from "./constants";
 import { logger } from "./logger";
 import { isMissingRow } from "@s3-viewer/db/errors";
 import {
@@ -29,6 +30,12 @@ class ApiHttpError extends Error {
 
 const rateLimited = (message: string): ApiHttpError =>
    new ApiHttpError(429, message, ErrorCode.RATE_LIMITED);
+
+const serverNotFound = (): ApiHttpError =>
+   new ApiHttpError(404, SERVER_NOT_FOUND);
+
+const memberNotFound = (): ApiHttpError =>
+   new ApiHttpError(404, MEMBER_NOT_FOUND);
 
 const isRateLimited = (err: unknown): err is ApiHttpError =>
    err instanceof ApiHttpError && err.status === 429;
@@ -281,6 +288,7 @@ export {
    fail,
    isAuthApiError,
    isRateLimited,
+   memberNotFound,
    noContent,
    rateLimited,
    requestId,
@@ -288,5 +296,6 @@ export {
    rethrowDbError,
    retryReason,
    sendPartialResult,
+   serverNotFound,
    watchDisconnect,
 };

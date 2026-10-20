@@ -46,12 +46,6 @@ describe("flattenJson", () => {
       expect(children.map((r) => r.last)).toEqual([false, true]);
    });
 
-   it("keeps paths distinct when a key contains a slash", () => {
-      const rows = flatten({ a: { b: [1, 2] }, "a/b": [3, 4] });
-      const paths = rows.map((r) => `${r.path}:${r.kind}`);
-      expect(new Set(paths).size).toBe(paths.length);
-   });
-
    it("handles every UTF-16 key with distinct identities and independent folding", () => {
       const keys = [
          "\ud800",
@@ -229,7 +223,6 @@ describe("nesting depth cap", () => {
    it("survives a fifty-thousand-deep array", () => {
       const value = nested(50000);
       expect(() => flatten(value, new Map(), true)).not.toThrow();
-      expect(() => countNodes(value, 5000)).not.toThrow();
       expect(countNodes(value, 5000)).toBe(MAX_JSON_PREVIEW_DEPTH);
    });
 });

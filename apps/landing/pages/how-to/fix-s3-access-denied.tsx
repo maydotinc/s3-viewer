@@ -227,6 +227,7 @@ export default createHowToPage({
    seoDescription:
       "S3 returned 403 AccessDenied? Check the identity, IAM ARNs, bucket-policy denies, Block Public Access, KMS keys, object ownership and the 403 that hides a 404.",
    published: "2026-09-05",
+   updated: "2026-10-12",
    visual: <AccessDeniedIllustration />,
    steps,
    underTheHood: (

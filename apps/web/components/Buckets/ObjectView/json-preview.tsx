@@ -5,7 +5,7 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, ChevronsDownUp, ChevronsUpDown } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
    countEntries,
@@ -20,6 +20,8 @@ import {
 import {
    BodyPreview,
    type BodyPreviewProps,
+   COMPACT_ACTION,
+   COMPACT_LABEL,
    CopyButton,
    Panel,
    RawText,
@@ -211,8 +213,25 @@ const ExpandAllButton = ({
    onClick: () => void;
 }) => {
    const button = (
-      <Button variant="ghost" size="sm" disabled={blocked} onClick={onClick}>
-         <span className="grid">
+      <Button
+         variant="ghost"
+         size="sm"
+         className={COMPACT_ACTION}
+         disabled={blocked}
+         onClick={onClick}
+      >
+         {collapsing ? (
+            <ChevronsDownUp
+               aria-hidden="true"
+               className="@min-[22rem]:hidden"
+            />
+         ) : (
+            <ChevronsUpDown
+               aria-hidden="true"
+               className="@min-[22rem]:hidden"
+            />
+         )}
+         <span className={cn("grid", COMPACT_LABEL)}>
             <span className="col-start-1 row-start-1">
                {collapsing ? "Collapse all" : "Expand all"}
             </span>

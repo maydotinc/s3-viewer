@@ -34,7 +34,6 @@ const digitsOnly = (value: string) =>
 const resendDeadline = () =>
    Date.now() + VERIFICATION_CODE_RESEND_SECONDS * 1000;
 
-// counts down to a deadline once a second; null once it has passed
 const useCountdown = (deadline: number): number | null => {
    const [left, setLeft] = useState(() =>
       Math.max(0, Math.ceil((deadline - Date.now()) / 1000))

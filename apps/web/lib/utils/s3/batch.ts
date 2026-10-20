@@ -1,7 +1,12 @@
 import { walkPrefix } from "./walk-prefix";
 import { cancelledError, errorMessage, isAborted } from "@/lib/api";
 import { isFolderRefusal } from "@/lib/utils/folder-refusal";
-import { formatCount, joinSentences, pluralize } from "@/lib/utils/format";
+import {
+   formatCount,
+   joinSentences,
+   pluralize,
+   visibleText,
+} from "@/lib/utils/format";
 import {
    NEVER_ABORTED,
    RATE_LIMIT_RETRY,
@@ -201,7 +206,7 @@ const reportBatchResult = (
    }
    const names = failed
       .slice(0, NAMED_FAILURES)
-      .map((failure) => failure.key)
+      .map((failure) => visibleText(failure.key))
       .join(", ");
    const more =
       failed.length > NAMED_FAILURES

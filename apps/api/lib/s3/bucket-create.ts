@@ -9,8 +9,15 @@ import {
 import { Provider } from "@s3-viewer/types";
 import { isNotFound, throwBucketError } from "./errors";
 import type { BucketCreationLifecycle } from "./bucket-creation-coordination";
+import { sentMarker } from "./conditions";
 import { bucketRegionHeader } from "./failure";
 import { withoutRetries } from "./no-retry";
+
+class BucketExistsError extends ApiHttpError {
+   constructor(bucketName: string) {
+      super(409, `${bucketName} already exists`);
+   }
+}
 
 const createNewBucket = async (
    client: S3Client,
@@ -30,42 +37,40 @@ const createNewBucket = async (
          if (provider === Provider.S3 && bucketRegionHeader(err)) return true;
          return throwBucketError(err);
       });
-   if (exists) throw new ApiHttpError(409, `${bucketName} already exists`);
+   if (exists) throw new BucketExistsError(bucketName);
 
    const region = await once.config.region();
    signal.throwIfAborted();
    await lifecycle?.submitted();
-   await once
-      .send(
-         new CreateBucketCommand({
-            Bucket: bucketName,
-            CreateBucketConfiguration:
-               provider === Provider.S3 && region !== "us-east-1"
-                  ? { LocationConstraint: region as BucketLocationConstraint }
-                  : undefined,
-         }),
-         { abortSignal: signal }
-      )
-      .catch((err: unknown) => {
-         if (
-            err instanceof S3ServiceException &&
+   const create = new CreateBucketCommand({
+      Bucket: bucketName,
+      CreateBucketConfiguration:
+         provider === Provider.S3 && region !== "us-east-1"
+            ? { LocationConstraint: region as BucketLocationConstraint }
+            : undefined,
+   });
+   const sent = sentMarker(create);
+   await once.send(create, { abortSignal: signal }).catch((err: unknown) => {
+      if (
+         !sent() ||
+         (err instanceof S3ServiceException &&
             (err.$metadata.httpStatusCode ?? 0) >= 400 &&
             (err.$metadata.httpStatusCode ?? 0) < 500 &&
             err.$metadata.httpStatusCode !== 408 &&
-            err.name !== "RequestTimeout"
-         ) {
-            lifecycle?.settled();
-         }
-         if (
-            err instanceof S3ServiceException &&
-            (err.name === "BucketAlreadyOwnedByYou" ||
-               err.name === "BucketAlreadyExists")
-         ) {
-            throw new ApiHttpError(409, `${bucketName} already exists`);
-         }
-         throwBucketError(err);
-      });
+            err.name !== "RequestTimeout")
+      ) {
+         lifecycle?.settled();
+      }
+      if (
+         err instanceof S3ServiceException &&
+         (err.name === "BucketAlreadyOwnedByYou" ||
+            err.name === "BucketAlreadyExists")
+      ) {
+         throw new BucketExistsError(bucketName);
+      }
+      throwBucketError(err);
+   });
    lifecycle?.settled();
 };
 
-export { createNewBucket };
+export { BucketExistsError, createNewBucket };

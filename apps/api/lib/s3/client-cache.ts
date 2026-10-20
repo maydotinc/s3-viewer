@@ -1,12 +1,16 @@
 import { S3Client } from "@aws-sdk/client-s3";
 import { prisma } from "@s3-viewer/db";
-import { MINUTE_MS, Provider, type ServerCredentials } from "@s3-viewer/types";
+import {
+   MINUTE_MS,
+   Provider,
+   type ServerCredentials,
+   SECOND_MS,
+} from "@s3-viewer/types";
 import { createHash } from "node:crypto";
 import { Agent as HttpAgent } from "node:http";
 import { Agent as HttpsAgent } from "node:https";
-import { SERVER_NOT_FOUND } from "@/lib/constants";
 import { env } from "@/lib/env";
-import { ApiHttpError } from "@/lib/http";
+import { ApiHttpError, serverNotFound } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { waitForSharedOperation } from "@/lib/utils/abort";
 import { assertPublicEndpoint, publicOnlyLookup } from "@/lib/utils/endpoint";
@@ -29,10 +33,10 @@ const CACHE_TTL_MS = 10 * MINUTE_MS;
 const CACHE_MAX_ENTRIES = 500;
 const MAX_CREDENTIAL_READ_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT_MS = 5000;
-const SOCKET_QUEUE_WARNING_MS = 35_000;
+const SOCKET_QUEUE_WARNING_MS = 35 * SECOND_MS;
 const MAX_ATTEMPTS = 2;
 const AGENT_MAX_FREE_SOCKETS = 64;
-const AGENT_IDLE_TIMEOUT_MS = 60_000;
+const AGENT_IDLE_TIMEOUT_MS = MINUTE_MS;
 
 type CredentialSnapshot = {
    credentials: string;
@@ -168,7 +172,7 @@ const readCredentialSnapshot = async (serverId: string) => {
    });
    if (!server) {
       removeCachedClient(serverId);
-      throw new ApiHttpError(404, SERVER_NOT_FOUND);
+      throw serverNotFound();
    }
    return server;
 };

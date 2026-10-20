@@ -7,10 +7,11 @@ import { throwHttpError } from "./errors";
 import { describeFailure, isForbiddenFailure } from "./failure";
 import type { S3Scope } from "./listing";
 import { releaseBufferedResponse } from "./response-collector";
+import { SECOND_MS } from "@s3-viewer/types";
 
 type Answer = { acceptsAcl: boolean; expiresAt: number };
 
-const ANSWER_TTL_MS = 10_000;
+const ANSWER_TTL_MS = 10 * SECOND_MS;
 
 const answers = new WeakMap<S3Client, Map<string, Answer>>();
 

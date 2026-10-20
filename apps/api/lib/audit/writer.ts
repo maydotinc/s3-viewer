@@ -12,13 +12,14 @@ import {
    type AuditAction,
    type AuditEntry,
    describeError,
+   SECOND_MS,
 } from "@s3-viewer/types";
 
 const INSERT_CHUNK = 1000;
 const APPEND_SLICE = 5000;
 const MAX_APPEND_ATTEMPTS = 64;
-const WRITE_TIMEOUT_MS = 30_000;
-const WRITE_MAX_WAIT_MS = 10_000;
+const WRITE_TIMEOUT_MS = 30 * SECOND_MS;
+const WRITE_MAX_WAIT_MS = 10 * SECOND_MS;
 const FLUSH_INTERVAL_MS = 250;
 const FLUSH_AT_ENTRIES = 500;
 const MAX_BUFFERED_ENTRIES = 50_000;

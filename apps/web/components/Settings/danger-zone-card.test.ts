@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { api } from "@/lib/api";
-import { flushRuntime } from "@/lib/test/runtime";
+import { flushUntil } from "@/lib/test/runtime";
 import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buttonByText, mountedRuntime } from "@/components/test-helpers";
@@ -22,19 +22,17 @@ vi.mock("@s3-viewer/ui/components/toast", async () =>
 import DangerZoneCard from "./danger-zone-card";
 
 const view = mountedRuntime();
-const settle = async () => {
-   await flushRuntime();
-   await flushRuntime();
-};
 const open = async () => {
    await view.mount(createElement(DangerZoneCard));
-   await settle();
+   await flushUntil(() =>
+      expect(view.current.queryClient.isFetching()).toBe(0)
+   );
    return view.current.container;
 };
-const press = async (container: HTMLElement) => {
+const press = async (container: HTMLElement, until: () => void) => {
    const button = buttonByText(container, "Delete account");
    await act(async () => button!.click());
-   await settle();
+   await flushUntil(until);
 };
 
 beforeEach(() => {
@@ -55,13 +53,14 @@ describe("deleting an account whose summary failed to load", () => {
          sentInvites: 0,
          receivedInvites: 0,
       });
-      await press(container);
+      await press(container, () => expect(h.error).toHaveBeenCalled());
       expect(get).toHaveBeenCalledTimes(loaded + 1);
       expect(h.error).toHaveBeenCalledExactlyOnceWith("Still unavailable");
       expect(container.textContent).not.toContain("delete-account-modal");
-      await press(container);
+      await press(container, () =>
+         expect(container.textContent).toContain("delete-account-modal")
+      );
       expect(get).toHaveBeenCalledTimes(loaded + 2);
       expect(h.error).toHaveBeenCalledOnce();
-      expect(container.textContent).toContain("delete-account-modal");
    });
 });

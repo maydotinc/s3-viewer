@@ -15,7 +15,7 @@ vi.mock("@/lib/api", async (original) => ({
    api: { delete: h.remove },
 }));
 
-import { abortUploads, reportAbortResult } from "./useAbortMultipartUploads";
+import { abortUploads } from "./useAbortMultipartUploads";
 
 const targets = (count: number): S3UploadRef[] =>
    Array.from({ length: count }, (_unused, index) => ({
@@ -88,14 +88,5 @@ describe("abortUploads", () => {
          abortUploads("/uploads", targets(1500), "user1", controller.signal)
       ).resolves.toEqual({ aborted: 100, failed: [], cancelled: true });
       expect(h.remove).toHaveBeenCalledOnce();
-   });
-});
-
-describe("reportAbortResult", () => {
-   it("counts the aborted uploads", () => {
-      reportAbortResult({ aborted: 1, failed: [], cancelled: false });
-      expect(h.success).toHaveBeenCalledWith("1 incomplete upload aborted.");
-      reportAbortResult({ aborted: 4, failed: [], cancelled: false });
-      expect(h.success).toHaveBeenCalledWith("4 incomplete uploads aborted.");
    });
 });

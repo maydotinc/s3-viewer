@@ -14,7 +14,7 @@ type StepperProps = {
    onSelect: (step: StepId) => void;
 };
 
-const ROW = "flex h-9 items-center gap-2";
+const ROW = "flex h-9 items-center gap-2 pointer-coarse:h-10";
 
 const CIRCLE =
    "flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-medium tabular-nums";
@@ -106,7 +106,7 @@ const Stepper = memo(function Stepper({
                            type="button"
                            onClick={() => onSelect(step)}
                            className={cn(
-                              "group flex cursor-pointer items-center gap-2 rounded-md outline-none",
+                              "group flex cursor-pointer items-center justify-center gap-2 rounded-md outline-none pointer-coarse:min-h-10 pointer-coarse:min-w-10",
                               FOCUS_RING,
                               "focus-visible:-outline-offset-2"
                            )}

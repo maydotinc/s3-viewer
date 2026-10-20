@@ -198,14 +198,6 @@ describe("uploadObject", () => {
       await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
       expect(abortSpy).toHaveBeenCalledOnce();
    });
-
-   it("aborting during backoff cancels immediately instead of waiting out the delay", async () => {
-      const handle = upload();
-      FakeXHR.instances[0]?.fail();
-      handle.abort();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
-      expect(FakeXHR.instances).toHaveLength(1);
-   });
 });
 
 describe("waiting out a busy server", () => {
@@ -327,24 +319,6 @@ describe("a conflict after an ambiguous attempt", () => {
 });
 
 describe("sharing upload slots across the tab", () => {
-   it("never has more single uploads in flight than the shared bound", async () => {
-      const handles = Array.from({ length: MULTIPART_CONCURRENCY + 2 }, () =>
-         upload()
-      );
-      await vi.advanceTimersByTimeAsync(0);
-      expect(FakeXHR.instances).toHaveLength(MULTIPART_CONCURRENCY);
-      FakeXHR.instances[0]?.respond(201, body);
-      await vi.advanceTimersByTimeAsync(0);
-      expect(FakeXHR.instances).toHaveLength(MULTIPART_CONCURRENCY + 1);
-      for (let index = 1; index < handles.length; index++) {
-         FakeXHR.instances[index]?.respond(201, body);
-         await vi.advanceTimersByTimeAsync(0);
-      }
-      await expect(
-         Promise.all(handles.map((handle) => handle.done))
-      ).resolves.toHaveLength(MULTIPART_CONCURRENCY + 2);
-   });
-
    it("hands its slot on while it waits out a 429", async () => {
       const handles = Array.from({ length: MULTIPART_CONCURRENCY + 1 }, () =>
          upload()

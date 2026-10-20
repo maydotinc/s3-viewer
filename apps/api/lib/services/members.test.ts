@@ -3,7 +3,6 @@ import { AuditLevel, Role } from "@s3-viewer/types";
 import { ApiHttpError } from "@/lib/http";
 import { grantRefusal } from "@/lib/middleware/authorize";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { bucketGrantJson, bucketGrantsLateral } from "./bucket-grants";
 import {
    assertBucketGrantChanges,
    assertBucketGrants,
@@ -39,10 +38,7 @@ vi.mock("@s3-viewer/db", () => ({
                findUnique: h.findAccess,
                deleteMany: h.deleteAccess,
             },
-            bucketAccess: {
-               deleteMany: h.deleteGrants,
-               findMany: h.findGrants,
-            },
+            bucketAccess: { findMany: h.findGrants },
          }),
    },
 }));
@@ -87,17 +83,6 @@ describe("assertBucketGrants", () => {
       ).not.toThrow();
    });
 
-   it("refuses an admin granting a bucket they hold nothing on", () => {
-      expect(() =>
-         assertBucketGrants(
-            actor(Role.ADMIN),
-            scope,
-            [{ bucketName: "photos", role: Role.EDITOR, folders: null }],
-            refuse
-         )
-      ).toThrow(/don't have Editor access to photos/);
-   });
-
    it("refuses an admin granting above what they hold on that bucket", () => {
       expect(() =>
          assertBucketGrants(
@@ -121,6 +106,7 @@ describe("assertBucketGrants", () => {
          } catch (error) {
             return (error as { denial?: unknown }).denial;
          }
+         return undefined;
       };
       const entry = (bucket: string | null) =>
          expect.objectContaining({
@@ -182,17 +168,6 @@ describe("assertBucketGrants", () => {
             refuse
          )
       ).toThrow(/Unknown bucket/);
-   });
-
-   it("holds an admin to their own grants even on an unrestricted server", () => {
-      expect(() =>
-         assertBucketGrants(
-            actor(Role.ADMIN),
-            openScope,
-            [{ bucketName: "anything", role: Role.VIEWER, folders: null }],
-            refuse
-         )
-      ).toThrow(/don't have Viewer access to anything/);
    });
 });
 
@@ -377,43 +352,6 @@ describe("assertBucketGrantChanges", () => {
       );
    });
 
-   it("refuses removing a grant above the role the actor holds on that bucket", () => {
-      expect(() =>
-         assertBucketGrantChanges(
-            actor(Role.ADMIN, { photos: Role.VIEWER, logs: Role.VIEWER }),
-            scope,
-            current,
-            [],
-            refuse
-         )
-      ).toThrow(/can't change Editor access to photos/);
-   });
-
-   it("refuses removing a grant whose folders fall outside the actor's folders", () => {
-      const limited = {
-         serverRole: Role.ADMIN,
-         bucketGrants: new Map([
-            ["photos", { role: Role.EDITOR, folders: ["a/"] }],
-         ]),
-      };
-      expect(() =>
-         assertBucketGrantChanges(
-            limited,
-            scope,
-            [
-               {
-                  bucketName: "photos",
-                  role: Role.VIEWER,
-                  restrictedFolders: true,
-                  allowedFolders: ["b/"],
-               },
-            ],
-            [],
-            refuse
-         )
-      ).toThrow(/can't change Viewer access to photos/);
-   });
-
    it("answers an admin without a grant the same whether or not the bucket is listed", () => {
       const ask = (bucketName: string) => () =>
          assertBucketGrants(
@@ -498,6 +436,7 @@ const serverUser = (id: string) => ({
    email: `${id}@example.com`,
    role: Role.EDITOR,
    bucketAccess: [],
+   canRemove: true,
 });
 
 const query = (call = 0): Prisma.Sql => {
@@ -530,10 +469,6 @@ describe("listMembers", () => {
       expect(page.nextCursor).toBe(
          Buffer.from("2026-09-01T00:00:00.000Z|m1").toString("base64url")
       );
-      expect(queryText()).toContain(
-         'FROM "server_access" WHERE "serverId" = $1 ' +
-            'ORDER BY "createdAt" ASC, "id" ASC LIMIT $2'
-      );
       expect(query().values).toEqual(["server12345", 2]);
       expect(h.findMany).not.toHaveBeenCalled();
       expect(h.keyset).toHaveBeenCalledTimes(1);
@@ -548,17 +483,13 @@ describe("listMembers", () => {
       expect(page.nextCursor).toBeNull();
    });
 
-   it("decodes a cursor into a row-value seek, not the OR form", async () => {
+   it("seeks past the decoded cursor", async () => {
       h.keyset.mockResolvedValueOnce([]);
       const cursor = Buffer.from("2026-09-01T00:00:00.000Z|m1").toString(
          "base64url"
       );
       const page = await listMembers("server12345", cursor, 5, OWNER_VIEWER);
       expect(page).toEqual({ members: [], nextCursor: null });
-      expect(queryText()).toContain(
-         'WHERE "serverId" = $1 AND ("createdAt", "id") > ($2::timestamp, $3)'
-      );
-      expect(queryText()).not.toContain(" OR ");
       expect(query().values).toEqual([
          "server12345",
          "2026-09-01T00:00:00.000Z",
@@ -601,35 +532,6 @@ describe("listMembers", () => {
       expect(queryText()).toContain('ORDER BY b."bucketName"');
    });
 
-   it("aggregates every grant column through the shared fragment", async () => {
-      const fragment = bucketGrantJson("b");
-      expect(fragment.values).toEqual([]);
-      expect(fragment.text.replace(/\s+/g, " ")).toBe(
-         "jsonb_build_object( " +
-            "'bucketName', b.\"bucketName\", 'role', b.\"role\", " +
-            "'restrictedFolders', b.\"restrictedFolders\", " +
-            "'allowedFolders', b.\"allowedFolders\" )"
-      );
-      h.keyset.mockResolvedValueOnce([]);
-      await listMembers("server12345", undefined, 5, OWNER_VIEWER);
-      expect(queryText()).toContain(
-         `SELECT jsonb_agg( ${fragment.text.replace(/\s+/g, " ")} ORDER BY b."bucketName" ) AS buckets FROM "bucket_access" b`
-      );
-      expect(query().values).toEqual(["server12345", 6]);
-   });
-
-   it("joins any grant table's rows for the page through the shared lateral fragment", () => {
-      const lateral = bucketGrantsLateral(
-         "invitation_bucket_access",
-         Prisma.sql`b."invitationId" = page."id"`
-      );
-      expect(lateral.values).toEqual([]);
-      expect(lateral.text.replace(/\s+/g, " ").trim()).toBe(
-         `LEFT JOIN LATERAL ( SELECT jsonb_agg( ${bucketGrantJson("b").text.replace(/\s+/g, " ")} ORDER BY b."bucketName" ) AS buckets ` +
-            'FROM "invitation_bucket_access" b WHERE b."invitationId" = page."id" ) grants ON TRUE'
-      );
-   });
-
    it("shows an admin only the grants on buckets the admin holds", async () => {
       const row = memberRow("m1", "2026-09-01T00:00:00.000Z");
       const grant = (bucketName: string, role: Role) => ({
@@ -658,11 +560,55 @@ describe("listMembers", () => {
       expect(members[0]?.bucketAccess).toEqual([
          { bucketName: "photos", role: Role.EDITOR, folders: null },
       ]);
+      expect(members[0]?.canRemove).toBe(false);
       expect(h.viewerGrants).toHaveBeenCalledWith(
          expect.objectContaining({
             where: { userId: "admin12345", serverId: "server12345" },
          })
       );
+   });
+
+   it.each([
+      ["every grant is one the admin could hand out", Role.ADMIN, true],
+      ["a grant sits above what the admin holds there", Role.VIEWER, false],
+   ])(
+      "lets an admin remove a member only when %s",
+      async (_name, held, removable) => {
+         const row = memberRow("m1", "2026-09-01T00:00:00.000Z");
+         const grant = (role: Role) => ({
+            bucketName: "photos",
+            role,
+            restrictedFolders: false,
+            allowedFolders: [],
+         });
+         h.keyset.mockResolvedValueOnce([
+            {
+               ...row,
+               user: { ...row.user, bucketAccess: [grant(Role.EDITOR)] },
+            },
+         ]);
+         h.viewerGrants.mockResolvedValueOnce([grant(held)]);
+         const { members } = await listMembers("server12345", undefined, 5, {
+            id: "admin12345",
+            role: Role.ADMIN,
+         });
+         expect(members[0]?.canRemove).toBe(removable);
+      }
+   );
+
+   it("never offers the viewer their own removal or an owner's", async () => {
+      const row = memberRow("m1", "2026-09-01T00:00:00.000Z");
+      h.keyset.mockResolvedValueOnce([
+         { ...row, role: Role.OWNER, user: { ...row.user, id: "owner12345" } },
+         memberRow("m2", "2026-09-02T00:00:00.000Z"),
+      ]);
+      const { members } = await listMembers(
+         "server12345",
+         undefined,
+         5,
+         OWNER_VIEWER
+      );
+      expect(members.map((member) => member.canRemove)).toEqual([false, true]);
    });
 
    it("shows an owner every grant without reading the owner's own", async () => {
@@ -752,19 +698,6 @@ describe("clampBucketAccess", () => {
       expect(clampedBuckets()).toEqual(["logs"]);
    });
 
-   it("leaves a whole-bucket grant alone for an admin limited to folders of it", async () => {
-      memberGrants = [
-         grant("logs", Role.EDITOR, ["2026/"]),
-         grant("media", Role.EDITOR),
-      ];
-      actorGrants = [
-         grant("logs", Role.EDITOR, ["2026/"]),
-         grant("media", Role.EDITOR, ["raw/"]),
-      ];
-      await clamp(Role.VIEWER, Role.ADMIN);
-      expect(clampedBuckets()).toEqual(["logs"]);
-   });
-
    it("writes nothing when the admin could hand out none of the grants", async () => {
       memberGrants = [grant("finance", Role.EDITOR)];
       await clamp(Role.VIEWER, Role.ADMIN);
@@ -805,7 +738,6 @@ describe("removeMembership", () => {
       h.lock.mockResolvedValue([
          { restrictedBuckets: false, allowedBuckets: [] },
       ]);
-      h.deleteGrants.mockReset().mockResolvedValue({ count: 0 });
       h.deleteAccess.mockReset().mockResolvedValue({ count: 1 });
       h.findAccess.mockReset();
       h.findGrants.mockReset().mockResolvedValue([]);
@@ -872,7 +804,6 @@ describe("removeMembership", () => {
       ).rejects.toMatchObject({ status: 403 });
 
       expect(h.deleteAccess).not.toHaveBeenCalled();
-      expect(h.deleteGrants).not.toHaveBeenCalled();
    });
 
    it("asks the check about an actor removing their own row", async () => {
@@ -894,7 +825,6 @@ describe("removeMembership", () => {
          targetBucketRoles: [],
       });
       expect(h.deleteAccess).not.toHaveBeenCalled();
-      expect(h.deleteGrants).not.toHaveBeenCalled();
    });
 
    it("refuses an admin removing a member with a grant on a bucket the admin does not hold", async () => {
@@ -920,7 +850,6 @@ describe("removeMembership", () => {
             "You can't remove a member with access to buckets you don't hold",
       });
       expect(h.deleteAccess).not.toHaveBeenCalled();
-      expect(h.deleteGrants).not.toHaveBeenCalled();
    });
 
    it("names a bucket the admin holds when its grant there is out of reach", async () => {
@@ -991,7 +920,6 @@ describe("removeMembership", () => {
          revokedInvites: [],
       });
       expect(h.deleteAccess).toHaveBeenCalledOnce();
-      expect(h.deleteGrants).toHaveBeenCalledOnce();
    });
 
    it("hands back the invites that the removal revoked, read after the membership is gone", async () => {

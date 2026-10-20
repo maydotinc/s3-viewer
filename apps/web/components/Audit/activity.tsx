@@ -53,7 +53,7 @@ import {
    type Option,
 } from "./labels";
 import { TIME_PRESET_LABELS, type TimePreset } from "./time";
-import VerifyButton, { canVerifyAudit } from "./verify";
+import VerifyButton from "./verify";
 
 const COLUMNS = 4;
 
@@ -276,6 +276,7 @@ const ExportButton = ({ serverId, filters, disabled }: ExportProps) => {
 type ToolbarProps = {
    serverId: string;
    myRole: Role;
+   canVerify: boolean;
    filters: AuditLogFilters;
    applied: AuditLogFilters;
    onChange: (filters: AuditLogFilters) => void;
@@ -288,6 +289,7 @@ type ToolbarProps = {
 const Toolbar = ({
    serverId,
    myRole,
+   canVerify,
    filters,
    applied,
    onChange,
@@ -393,7 +395,7 @@ const Toolbar = ({
          )}
          <div className="flex w-full min-w-0 flex-wrap items-start gap-2 sm:ml-auto sm:w-auto">
             <RefreshButton spinning={fetching} onClick={onRefresh} />
-            {canVerifyAudit(myRole) && (
+            {canVerify && (
                <VerifyButton serverId={serverId} disabled={!hasActivity} />
             )}
             <ExportButton
@@ -421,9 +423,9 @@ const ToolbarSkeleton = () => (
       <Skeleton className={`${HALF_ON_MOBILE} sm:w-40 ${CONTROL_SKELETON}`} />
       <div className="flex w-full min-w-0 flex-wrap items-start gap-2 sm:ml-auto sm:w-auto">
          <Skeleton className="size-9 rounded-lg pointer-coarse:size-11" />
-         <div className="flex max-w-full min-w-40 flex-1 flex-col items-start gap-2 sm:w-56 sm:flex-none">
+         <div className="flex max-w-full min-w-40 flex-1 flex-col items-start gap-1 sm:w-56 sm:flex-none">
             <Skeleton className={`w-full ${CONTROL_SKELETON}`} />
-            <div className="h-12 w-full" />
+            <div className="h-4" />
          </div>
          <Skeleton className={`w-34 ${CONTROL_SKELETON}`} />
       </div>
@@ -455,6 +457,7 @@ const Activity = ({
          <Toolbar
             serverId={serverId}
             myRole={myRole}
+            canVerify={audit.canVerify}
             filters={filters}
             applied={applied}
             onChange={setFilters}

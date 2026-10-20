@@ -52,7 +52,7 @@ describe("typing a folder", () => {
 
 describe("adding a folder to a grant", () => {
    it("normalizes and sorts what was typed", () => {
-      expect(addGrantFolder(["landing/"], "/blog", null)).toEqual({
+      expect(addGrantFolder(["landing/"], "/blog")).toEqual({
          ok: true,
          folder: "blog/",
          folders: ["blog/", "landing/"],
@@ -62,14 +62,14 @@ describe("adding a folder to a grant", () => {
    });
 
    it("refuses a folder already in the list", () => {
-      expect(addGrantFolder(["landing/"], "landing", null)).toEqual({
+      expect(addGrantFolder(["landing/"], "landing")).toEqual({
          ok: false,
          error: "landing/ is already in the list.",
       });
    });
 
    it("narrows a broader folder in the list and says so", () => {
-      expect(addGrantFolder(["landing/", "z/"], "landing/hero", null)).toEqual({
+      expect(addGrantFolder(["landing/", "z/"], "landing/hero")).toEqual({
          ok: true,
          folder: "landing/hero/",
          folders: ["landing/hero/", "z/"],
@@ -80,7 +80,7 @@ describe("adding a folder to a grant", () => {
    });
 
    it("collapses the folders a new parent covers and says so", () => {
-      expect(addGrantFolder(["a/b/", "a/c/", "z/"], "a", null)).toEqual({
+      expect(addGrantFolder(["a/b/", "a/c/", "z/"], "a")).toEqual({
          ok: true,
          folder: "a/",
          folders: ["a/", "z/"],
@@ -89,88 +89,53 @@ describe("adding a folder to a grant", () => {
       });
    });
 
-   it("keeps an actor limited to folders inside them", () => {
-      expect(addGrantFolder([], "private", ["landing/"])).toEqual({
-         ok: false,
-         error: "You can only share folders inside landing/.",
-      });
-      expect(addGrantFolder([], "landing/hero", ["landing/"])).toMatchObject({
-         ok: true,
-         folders: ["landing/hero/"],
-      });
-   });
-
    it(`stops at ${MAX_GRANT_FOLDERS} folders, counted after merging`, () => {
       const full = Array.from(
          { length: MAX_GRANT_FOLDERS },
          (_, index) => `f/${String(index).padStart(2, "0")}/`
       );
-      expect(addGrantFolder(full, "zz", null)).toEqual({
+      expect(addGrantFolder(full, "zz")).toEqual({
          ok: false,
          error: `You can add up to ${MAX_GRANT_FOLDERS} folders.`,
       });
-      expect(addGrantFolder(full, "f", null)).toMatchObject({
+      expect(addGrantFolder(full, "f")).toMatchObject({
          ok: true,
          folders: ["f/"],
       });
-      expect(addGrantFolder(full, "f/03/deep", null)).toMatchObject({
+      expect(addGrantFolder(full, "f/03/deep")).toMatchObject({
          ok: true,
          replaced: ["f/03/"],
       });
    });
 
    it("spells out bidi and zero-width characters in what it says", () => {
-      expect(addGrantFolder(["a\u202Eb/"], "a\u202Eb", null)).toEqual({
+      expect(addGrantFolder(["a\u202Eb/"], "a\u202Eb")).toEqual({
          ok: false,
          error: "a[U+202E]b/ is already in the list.",
       });
-      expect(addGrantFolder(["x/"], "y", ["x\u200B/"])).toEqual({
-         ok: false,
-         error: "You can only share folders inside x[U+200B]/.",
-      });
-      expect(
-         addGrantFolder(["a\u202E/"], "a\u202E/b\u2066", null)
-      ).toMatchObject({
+      expect(addGrantFolder(["a\u202E/"], "a\u202E/b\u2066")).toMatchObject({
          ok: true,
          folder: "a\u202E/b\u2066/",
          replaced: ["a\u202E/"],
          notice:
             "Replaced a[U+202E]/ with a[U+202E]/b[U+2066]/, so only a[U+202E]/b[U+2066]/ is shared.",
       });
-      expect(addGrantFolder(["a/\u200Fb/", "a/c/"], "a", null)).toMatchObject({
+      expect(addGrantFolder(["a/\u200Fb/", "a/c/"], "a")).toMatchObject({
          notice: "Removed a/[U+200F]b/ and a/c/, since a/ includes them.",
       });
-      expect(
-         hintFor({
-            folders: [],
-            draft: "",
-            held: ["\u202Ex/"],
-            hasSuggestion: false,
-         })
-      ).toBe("Inside [U+202E]x/ only. A folder doesn't have to exist yet.");
    });
 });
 
 describe("what shows under the folder field", () => {
-   const hint = (
-      folders: string[],
-      draft = "",
-      held: string[] | null = null,
-      hasSuggestion = false
-   ) => hintFor({ folders, draft, held, hasSuggestion });
+   const hint = (folders: string[], draft = "", hasSuggestion = false) =>
+      hintFor({ folders, draft, hasSuggestion });
 
    it("says how to add what was typed", () => {
       expect(hint([], "landing")).toBe("Press Enter or Add to add it.");
-      expect(hint([], "land", null, true)).toBe(
+      expect(hint([], "land", true)).toBe(
          "→ to autocomplete. Press Enter or Add to add it."
       );
       expect(hint([])).toBe("A folder doesn't have to exist yet.");
-   });
-
-   it("tells a limited sharer where they can share up front", () => {
-      expect(hint([], "", ["landing/"])).toBe(
-         "Inside landing/ only. A folder doesn't have to exist yet."
-      );
    });
 
    it("keeps the field open at the limit, since a parent can merge", () => {

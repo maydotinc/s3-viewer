@@ -15,6 +15,7 @@ import {
    PASSWORD_MAX_LENGTH,
    PASSWORD_MIN_LENGTH,
    SECOND_MS,
+   SESSION_ABSOLUTE_TTL_DAYS,
    SESSION_TTL_DAYS,
    SITE_PATHS,
    VERIFICATION_CODE_ATTEMPTS,
@@ -157,8 +158,6 @@ const passwordCheckThrottle = makeThrottle(
 const SESSION_THROTTLES: Readonly<Record<string, Throttle>> = {
    "/change-password": passwordCheckThrottle,
    "/delete-user": passwordCheckThrottle,
-   // disabled over HTTP below; kept so a server-side auth.api.verifyPassword caller stays bounded.
-   "/verify-password": passwordCheckThrottle,
 };
 
 const DISABLED_PATHS: string[] = [
@@ -389,10 +388,10 @@ const auth = betterAuth({
    session: {
       expiresIn: SESSION_TTL_DAYS * DAY_SECONDS,
       updateAge: DAY_SECONDS,
-      // better auth would refuse /list-sessions and revokes after a day ("Session is not fresh");
-      // a fresh age as long as the session itself never trips, whatever a release makes of 0. the
-      // actions that need a recent sign-in (password, server and account deletion) check isSessionFresh.
-      freshAge: SESSION_TTL_DAYS * DAY_SECONDS,
+      // Better Auth refuses /list-sessions once a session outlives freshAge ("Session is not fresh");
+      // sessions end at the absolute TTL, so matching it never trips. actions that need a recent
+      // sign-in check isSessionFresh.
+      freshAge: SESSION_ABSOLUTE_TTL_DAYS * DAY_SECONDS,
       cookieCache: { enabled: false },
    },
    user: {

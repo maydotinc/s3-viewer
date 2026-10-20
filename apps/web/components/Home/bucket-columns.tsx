@@ -5,8 +5,11 @@ import {
    RIGHT_ALIGNED,
 } from "@/components/DataGrid/context";
 import { formatDate } from "@/lib/utils/format";
-import { folderHref } from "@/lib/utils/s3/paths";
-import { Permission, ROLE_LABELS, hasPermission } from "@s3-viewer/permissions";
+import useServerInfo from "@/lib/hooks/queries/server/useServerInfo";
+import { canRemoveBucket } from "@/lib/hooks/usePermission";
+import { useServerId } from "@/lib/stores/session-scope";
+import { bucketEntryHref } from "@/lib/utils/s3/paths";
+import { ROLE_LABELS } from "@s3-viewer/permissions";
 import type { S3Bucket } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -32,7 +35,7 @@ const BucketNameCell = (params: ICellRendererParams<S3Bucket, string>) => {
    if (!data) return null;
    const link = (
       <Link
-         href={folderHref(data.name, [])}
+         href={bucketEntryHref(data)}
          className="flex h-full min-w-0 items-center gap-2.5 text-viewerblack transition-colors hover:text-viewerblue focus-visible:text-viewerblue"
       >
          <Folder
@@ -92,9 +95,10 @@ const BucketActionsMenu = ({ bucketName }: { bucketName: string }) => {
 };
 
 const BucketRowActions = (params: ICellRendererParams<S3Bucket>) => {
+   const { data: server } = useServerInfo(useServerId());
    const data = params.data;
    if (!data) return null;
-   return hasPermission(data.userRole, Permission.DELETE_BUCKET) ? (
+   return canRemoveBucket(server, data) ? (
       <BucketActionsMenu bucketName={data.name} />
    ) : null;
 };

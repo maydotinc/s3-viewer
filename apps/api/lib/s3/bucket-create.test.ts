@@ -1,5 +1,5 @@
 import { Provider } from "@s3-viewer/types";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
    empty,
    errorXml,
@@ -8,6 +8,8 @@ import {
    type FixtureReply,
 } from "@/lib/testing/s3-fixture";
 import { createNewBucket } from "./bucket-create";
+import { installReadBudget } from "./read-budget.fixture";
+import { withRequestBudget } from "./request-budget";
 
 const clientFor = (
    handle: (request: {
@@ -21,6 +23,8 @@ const clientFor = (
       region,
       maxAttempts: 2,
    }).client;
+
+afterEach(() => vi.restoreAllMocks());
 
 describe("createNewBucket", () => {
    it("rejects an existing bucket without sending CreateBucket", async () => {
@@ -163,6 +167,31 @@ describe("createNewBucket", () => {
          expect(lifecycle.settled).toHaveBeenCalledTimes(settled ? 1 : 0);
       }
    );
+
+   it("settles a create refused before it was sent", async () => {
+      const lifecycle = { submitted: vi.fn(async () => {}), settled: vi.fn() };
+      const handle = vi.fn(async () => empty(404));
+      const held = installReadBudget(1_000_000, {
+         total: 1,
+         user: 1,
+         server: 1,
+      }).acquire({ serverId: "other" });
+      try {
+         await expect(
+            createNewBucket(
+               withRequestBudget(clientFor(handle), "busy-create"),
+               Provider.S3,
+               "new-bucket",
+               new AbortController().signal,
+               lifecycle
+            )
+         ).rejects.toMatchObject({ status: 429 });
+      } finally {
+         held.release();
+      }
+      expect(handle).toHaveBeenCalledOnce();
+      expect(lifecycle.settled).toHaveBeenCalledOnce();
+   });
 
    it("creates a new regional bucket with the required location constraint", async () => {
       const handle = vi.fn(

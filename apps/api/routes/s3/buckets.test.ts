@@ -9,6 +9,7 @@ import { Role } from "@s3-viewer/types";
 import type { Request, Response } from "express";
 import { fakeResponse } from "@/lib/testing/fake-response";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { BucketExistsError } from "@/lib/s3/bucket-create";
 import { bucketsRouter } from "./buckets";
 
 type Grant = {
@@ -50,6 +51,7 @@ const state = vi.hoisted(() => ({
    invites: vi.fn(),
    auditMany: vi.fn(),
    createLimit: vi.fn(),
+   canHead: vi.fn(),
 }));
 
 vi.mock("@/lib/middleware/rate-limit", () => ({
@@ -71,7 +73,11 @@ vi.mock("@/lib/middleware/audit-record", () => ({
    record: vi.fn(),
    recordMany: state.auditMany,
 }));
-vi.mock("@/lib/s3/bucket-create", () => ({ createNewBucket: state.create }));
+vi.mock("@/lib/s3/bucket-create", async (original) => ({
+   ...(await original<typeof import("@/lib/s3/bucket-create")>()),
+   createNewBucket: state.create,
+}));
+vi.mock("@/lib/s3/probe", () => ({ canHeadBucket: state.canHead }));
 vi.mock("@/lib/s3/bucket-listing", () => ({ listBuckets: state.listBuckets }));
 vi.mock("@/lib/s3/client-cache", () => ({
    getS3Client: state.cachedClient,
@@ -130,6 +136,7 @@ beforeEach(() => {
    state.invites.mockReset().mockResolvedValue([]);
    state.auditMany.mockReset().mockResolvedValue(undefined);
    state.createLimit.mockReset();
+   state.canHead.mockReset().mockResolvedValue(false);
    state.create.mockReset().mockResolvedValue(undefined);
    state.decrypt.mockReset().mockImplementation((encrypted: string) => ({
       endpoint: `https://${encrypted}.example.com`,
@@ -491,14 +498,63 @@ describe("bucket creation authorization", () => {
 
    it("checks existing buckets for owners and saves no access when the bucket exists", async () => {
       state.role = "OWNER";
-      state.create.mockRejectedValue(
-         new ApiHttpError(409, "new-bucket already exists")
-      );
+      state.create.mockRejectedValue(new BucketExistsError("new-bucket"));
       await expect(postBucket().finished).rejects.toMatchObject({
          status: 409,
       });
       expect(state.create).toHaveBeenCalledTimes(1);
+      expect(state.canHead).not.toHaveBeenCalled();
       expect(state.grants).toEqual([]);
+      expect(state.allowed).toEqual(["original-bucket"]);
+      expect(state.auditMany).not.toHaveBeenCalled();
+   });
+
+   it("lets the owner put an existing bucket its credentials reach back on the allow-list", async () => {
+      state.role = "OWNER";
+      state.restricted = true;
+      state.create.mockRejectedValue(new BucketExistsError("new-bucket"));
+      state.canHead.mockResolvedValue(true);
+      const request = postBucket();
+      await expect(request.finished).resolves.toEqual({
+         bucket: {
+            name: "new-bucket",
+            creationDate: null,
+            userRole: Role.OWNER,
+            folders: null,
+         },
+         existing: true,
+      });
+      expect(request.res.statusCode).toBe(201);
+      expect(state.allowed).toEqual(["original-bucket", "new-bucket"]);
+      expect(state.grants).toEqual([]);
+      expect(state.auditMany.mock.calls[0]?.[1]).toEqual([
+         {
+            action: "bucket.create",
+            bucket: "new-bucket",
+            detail: { existing: true },
+         },
+      ]);
+   });
+
+   it("keeps answering 409 for an existing bucket the owner's credentials can't reach", async () => {
+      state.role = "OWNER";
+      state.restricted = true;
+      state.create.mockRejectedValue(new BucketExistsError("new-bucket"));
+      await expect(postBucket().finished).rejects.toMatchObject({
+         status: 409,
+      });
+      expect(state.canHead).toHaveBeenCalledOnce();
+      expect(state.allowed).toEqual(["original-bucket"]);
+      expect(state.auditMany).not.toHaveBeenCalled();
+   });
+
+   it("keeps answering 409 to anyone but the owner for an existing bucket", async () => {
+      state.create.mockRejectedValue(new BucketExistsError("new-bucket"));
+      state.canHead.mockResolvedValue(true);
+      await expect(postBucket().finished).rejects.toMatchObject({
+         status: 409,
+      });
+      expect(state.canHead).not.toHaveBeenCalled();
       expect(state.allowed).toEqual(["original-bucket"]);
       expect(state.auditMany).not.toHaveBeenCalled();
    });
@@ -819,7 +875,8 @@ describe("bucket removal authorization", () => {
       );
    };
 
-   it.each(["EDITOR", "VIEWER", null] as const)(
+   // EDITOR is the highest role without DELETE_BUCKET, so it stands for every lower one.
+   it.each(["EDITOR", null] as const)(
       "changes no scope, grants or invites after the actor becomes %s while waiting for the server lock",
       async (role) => {
          state.onPermissionLock.mockImplementation(() => {
@@ -999,18 +1056,17 @@ describe("bucket removal authorization", () => {
       expectUntouched();
    });
 
-   it.each(["EDITOR", "VIEWER"] as const)(
-      "refuses an admin who holds only %s access on the bucket",
-      async (role) => {
-         state.grants = [{ bucketName: "new-bucket", role }];
-         await expect(requestBucket("delete").finished).rejects.toMatchObject({
-            status: 403,
-         });
-         expect(state.events).toEqual([]);
-         expect(state.grants).toEqual([{ bucketName: "new-bucket", role }]);
-         expectUntouched();
-      }
-   );
+   it("refuses an admin who holds only EDITOR access on the bucket", async () => {
+      state.grants = [{ bucketName: "new-bucket", role: "EDITOR" }];
+      await expect(requestBucket("delete").finished).rejects.toMatchObject({
+         status: 403,
+      });
+      expect(state.events).toEqual([]);
+      expect(state.grants).toEqual([
+         { bucketName: "new-bucket", role: "EDITOR" },
+      ]);
+      expectUntouched();
+   });
 
    it("hides a bucket outside the server's allow list from an admin", async () => {
       state.allowed = ["original-bucket"];

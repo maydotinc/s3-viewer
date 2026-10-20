@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
    AWS_ENDPOINT,
+   deleteResultXml,
    empty,
    s3Fixture,
    xml,
@@ -18,8 +19,7 @@ const clientFor = (
 ) => s3Fixture(handle, { endpoint: AWS_ENDPOINT, maxAttempts: 2 }).client;
 const encoded = (key: string) =>
    key.split("/").map(encodeURIComponent).join("/");
-const success =
-   '<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Deleted><Key>report.csv</Key></Deleted></DeleteResult>';
+const success = deleteResultXml(["report.csv"]);
 
 describe("conditional deletion without SDK replay", () => {
    it("requires the reviewed ETag on AWS S3", async () => {
@@ -181,7 +181,10 @@ describe("conditional deletion without SDK replay", () => {
       const client = clientFor(async (request) => {
          expect(String(request.body)).toContain("<ETag>original</ETag>");
          return xml(
-            '<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Error><Key>report.csv</Key><Code>PreconditionFailed</Code></Error></DeleteResult>'
+            deleteResultXml(
+               [],
+               [{ key: "report.csv", code: "PreconditionFailed" }]
+            )
          );
       });
       try {
@@ -208,7 +211,13 @@ describe("conditional deletion without SDK replay", () => {
    it("accounts for every key and permits retry only for confirmed provider failures", async () => {
       const client = clientFor(async () =>
          xml(
-            '<DeleteResult xmlns="http://s3.amazonaws.com/doc/2006-03-01/"><Deleted><Key>ok</Key></Deleted><Deleted><Key>both</Key></Deleted><Deleted><Key>unsolicited</Key></Deleted><Error><Key>both</Key><Code>AccessDenied</Code></Error><Error><Key>denied</Key><Code>AccessDenied</Code></Error></DeleteResult>'
+            deleteResultXml(
+               ["ok", "both", "unsolicited"],
+               [
+                  { key: "both", code: "AccessDenied" },
+                  { key: "denied", code: "AccessDenied" },
+               ]
+            )
          )
       );
       try {

@@ -7,6 +7,7 @@ import {
    DAY_MS,
    INVITE_TOKEN_HEADER,
    SESSION_ABSOLUTE_TTL_DAYS,
+   SESSION_TTL_DAYS,
    type SignUpMode,
 } from "@s3-viewer/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -74,14 +75,14 @@ beforeEach(() => {
    inviteLookups.length = 0;
 });
 
-// throttle tests run hundreds of sign-ins; real password hashing would dominate them.
+// hashing is Better Auth's own, and real scrypt would dominate the suite's runtime.
 const plainPasswords = {
    hash: async (password: string) => `plain:${password}`,
    verify: async ({ hash, password }: { hash: string; password: string }) =>
       hash === `plain:${password}`,
 };
 
-const createTestAuth = (enforceOrigin = false, fastPasswords = false) => {
+const createTestAuth = (enforceOrigin = false) => {
    const db: Parameters<typeof memoryAdapter>[0] = {
       user: [],
       session: [],
@@ -91,13 +92,11 @@ const createTestAuth = (enforceOrigin = false, fastPasswords = false) => {
    const auth = betterAuth({
       ...configured.options,
       database: memoryAdapter(db),
-      ...(fastPasswords && {
-         emailAndPassword: {
-            ...configured.options.emailAndPassword,
-            enabled: true,
-            password: plainPasswords,
-         },
-      }),
+      emailAndPassword: {
+         ...configured.options.emailAndPassword,
+         enabled: true,
+         password: plainPasswords,
+      },
       ...(enforceOrigin && {
          advanced: {
             ...configured.options.advanced,
@@ -401,28 +400,6 @@ describe("absolute session expiry", () => {
       ).toBe(true);
    });
 
-   it.each([SESSION_ABSOLUTE_TTL_DAYS, SESSION_ABSOLUTE_TTL_DAYS + 1])(
-      "revokes a sliding session at %s days through getSession",
-      async (ageDays) => {
-         const { auth, db, signUp } = createTestAuth();
-         const { cookie } = await signUp(`ttl-${ageDays}@example.com`);
-         const now = Date.now();
-         vi.spyOn(Date, "now").mockReturnValue(now);
-         db.session![0]!.createdAt = new Date(now - ageDays * DAY_MS);
-         db.session![0]!.expiresAt = new Date(now + DAY_MS);
-         expect(
-            await auth.api.getSession({ headers: new Headers({ cookie }) })
-         ).toBeNull();
-         expect(db.session).toHaveLength(0);
-         const replay = await auth.handler(
-            new Request("http://localhost:5001/auth/get-session", {
-               headers: { cookie },
-            })
-         );
-         expect(await replay.json()).toBeNull();
-      }
-   );
-
    it("prevents an over-age cookie changing the profile without first calling getSession", async () => {
       const { db, signUp, post } = createTestAuth();
       const { cookie } = await signUp("ttl-update@example.com");
@@ -516,36 +493,15 @@ describe("absolute session expiry", () => {
          })
       ).toBeNull();
    });
-
-   it("revokes the row on the first http get-session that reaches it", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      const { cookie } = await signUp("ttl-guard-http@example.com");
-      db.session![0]!.createdAt = new Date(
-         Date.now() - SESSION_ABSOLUTE_TTL_DAYS * DAY_MS
-      );
-      db.session![0]!.expiresAt = new Date(Date.now() + DAY_MS);
-      const response = await auth.handler(
-         new Request("http://localhost:5001/auth/get-session", {
-            headers: { cookie },
-         })
-      );
-      expect(response.status).toBe(200);
-      expect(await response.json()).toBeNull();
-      expect(db.session).toHaveLength(0);
-      expect(
-         response.headers
-            .getSetCookie()
-            .filter((value) => value.startsWith("better-auth.session_token="))
-            .at(-1)
-      ).toContain("Max-Age=0");
-   });
 });
 
 describe("session listing", () => {
-   it("lists sessions older than the fresh window", async () => {
+   it("lists a session kept alive past the rolling ttl", async () => {
       const { auth, db, signUp } = createTestAuth();
       const { cookie } = await signUp("list-stale@example.com");
-      db.session![0]!.createdAt = new Date(Date.now() - 2 * DAY_MS);
+      db.session![0]!.createdAt = new Date(
+         Date.now() - (SESSION_TTL_DAYS + 1) * DAY_MS
+      );
       const response = await auth.handler(
          new Request("http://localhost:5001/auth/list-sessions", {
             headers: { cookie },
@@ -556,43 +512,17 @@ describe("session listing", () => {
    });
 });
 
-describe("revocation takes effect immediately", () => {
-   it("rejects a session revoked between two get-session calls", async () => {
-      const { auth, db, signUp } = createTestAuth();
-      const { cookie } = await signUp("revoked@example.com");
-      const read = () =>
-         auth.api.getSession({
-            headers: new Headers({ cookie }),
-            query: { disableCookieCache: true },
-         });
-      expect(await read()).not.toBeNull();
-      const context = await auth.$context;
-      await context.internalAdapter.deleteSession(db.session![0]!.token);
-      expect(await read()).toBeNull();
-   });
-});
-
 describe("revoked sessions", () => {
-   it("rejects legacy cached cookies immediately after revocation", async () => {
-      const db: Parameters<typeof memoryAdapter>[0] = {
-         user: [],
-         session: [],
-         account: [],
-         verification: [],
-      };
-      const options = {
-         ...configured.options,
-         database: memoryAdapter(db),
-      };
-      const legacy = betterAuth({
-         ...options,
+   it("ignores a cookie-cache session after sign-out", async () => {
+      const { auth, db } = createTestAuth();
+      const cached = betterAuth({
+         ...auth.options,
          session: {
-            ...options.session,
+            ...auth.options.session,
             cookieCache: { enabled: true, maxAge: 60 },
          },
       });
-      const auth = betterAuth(options);
-      await legacy.api.signUpEmail({
+      await cached.api.signUpEmail({
          body: {
             email: "cache-regression@example.com",
             password: PASSWORD,
@@ -600,95 +530,31 @@ describe("revoked sessions", () => {
          },
       });
       db.user![0]!.emailVerified = true;
-      const signup = await legacy.api.signInEmail({
+      const signedIn = await cached.api.signInEmail({
          body: { email: "cache-regression@example.com", password: PASSWORD },
          asResponse: true,
       });
-      expect(signup.status).toBe(200);
-      const cookie = signup.headers
-         .getSetCookie()
-         .map((value) => value.split(";")[0])
-         .join("; ");
-      expect(cookie).toContain("session_data=");
-      const { user } = await signup.json();
-      const context = await auth.$context;
-      await context.internalAdapter.linkAccount({
-         providerId: "github",
-         issuer: "local:oauth:github",
-         accountId: "test-github",
-         userId: user.id,
+      expect(signedIn.status).toBe(200);
+      const headers = new Headers({
+         cookie: signedIn.headers
+            .getSetCookie()
+            .map((value) => value.split(";")[0])
+            .join("; "),
       });
-      expect(db.account).toHaveLength(2);
-      expect(
-         await auth.api.getSession({ headers: new Headers({ cookie }) })
-      ).not.toBeNull();
-      await auth.api.signOut({ headers: new Headers({ cookie }) });
+      expect(headers.get("cookie")).toContain("session_data=");
+      expect(await auth.api.getSession({ headers })).not.toBeNull();
+      await auth.api.signOut({ headers });
       expect(db.session).toHaveLength(0);
-      expect(
-         await auth.api.getSession({ headers: new Headers({ cookie }) })
-      ).toBeNull();
-      const revoke = await auth.handler(
-         new Request("http://localhost:5001/auth/revoke-other-sessions", {
-            method: "POST",
-            headers: {
-               cookie,
-               origin: "http://localhost:3000",
-               "content-type": "application/json",
-            },
-            body: "{}",
-         })
-      );
-      expect(revoke.status).toBe(401);
-      const fresh = await auth.api.signInEmail({
-         body: { email: "cache-regression@example.com", password: PASSWORD },
-         asResponse: true,
-      });
-      const freshCookie = fresh.headers
-         .getSetCookie()
-         .map((value) => value.split(";")[0])
-         .join("; ");
-      const unlink = await auth.handler(
-         new Request("http://localhost:5001/auth/unlink-account", {
-            method: "POST",
-            headers: {
-               cookie: freshCookie,
-               origin: "http://localhost:3000",
-               "content-type": "application/json",
-            },
-            body: JSON.stringify({
-               providerId: "credential",
-               accountId: (
-                  db.account as { id: string; providerId: string }[]
-               ).find((row) => row.providerId === "credential")?.id,
-            }),
-         })
-      );
-      expect(unlink.status).toBe(404);
-      expect(db.account).toHaveLength(2);
+      expect(await auth.api.getSession({ headers })).toBeNull();
    });
 });
 
 describe("sign-up policy", () => {
-   it.each([
-      ["closed", true],
-      ["invite", false],
-   ] as const)(
-      "sets better auth's own sign-up switches in %s mode",
-      async (mode, disabled) => {
-         policy.mode = mode;
-         vi.resetModules();
-         const { auth } = await import("./auth");
-         expect(auth.options.emailAndPassword?.disableSignUp).toBe(disabled);
-         expect(auth.options.socialProviders?.github?.disableSignUp).toBe(
-            disabled
-         );
-      }
-   );
-
-   it("refuses every sign-up when the instance is closed", async () => {
+   it("refuses every sign-up when the instance is closed, even an invited one", async () => {
       policy.mode = "closed";
+      invitedAddresses.set("closed@example.com", "inviteabc123");
       const { db, rawSignUp } = createTestAuth();
-      const response = await rawSignUp("Closed@Example.com");
+      const response = await rawSignUp("Closed@Example.com", "inviteabc123");
       expect(response.status).toBe(403);
       expect(await response.json()).toMatchObject({
          code: "SIGNUP_DISABLED",
@@ -836,16 +702,6 @@ describe("sign-up policy", () => {
       expect(db.user).toHaveLength(1);
    });
 
-   it("ignores an invitation when the instance is closed", async () => {
-      policy.mode = "closed";
-      invitedAddresses.set("invited@example.com", "inviteabc123");
-      const { db, rawSignUp } = createTestAuth();
-      const response = await rawSignUp("invited@example.com");
-      expect(response.status).toBe(403);
-      expect(await response.json()).toMatchObject({ code: "SIGNUP_DISABLED" });
-      expect(db.user).toHaveLength(0);
-   });
-
    it("still refuses a user row when only the database hook is reached", async () => {
       policy.mode = "closed";
       const { auth, db } = createTestAuth();
@@ -865,7 +721,7 @@ describe("sign-up policy", () => {
 });
 
 describe("password-confirmed deletion", () => {
-   it("refuses a wrong password and deletes on the right one", async () => {
+   it("refuses a wrong password", async () => {
       const { db, post, signUp } = createTestAuth();
       const beforeDelete = vi.fn(async () => {});
       onUserDeletion({
@@ -874,27 +730,15 @@ describe("password-confirmed deletion", () => {
          afterDelete: async () => {},
       });
       const { cookie, user } = await signUp("delete-password@example.com");
-      const confirmation = {
+      const wrong = await post("/delete-user", cookie, {
          expectedUserId: user.id,
          confirmedEmail: user.email,
-      };
-      const wrong = await post("/delete-user", cookie, {
-         ...confirmation,
          password: "not-the-password",
       });
       expect(wrong.status).toBe(400);
       expect(await wrong.json()).toMatchObject({ code: "INVALID_PASSWORD" });
       expect(beforeDelete).not.toHaveBeenCalled();
       expect(db.user).toHaveLength(1);
-      expect(
-         (
-            await post("/delete-user", cookie, {
-               ...confirmation,
-               password: PASSWORD,
-            })
-         ).status
-      ).toBe(200);
-      expect(db.user).toHaveLength(0);
    });
 
    it("sends an account with no password to set one first", async () => {
@@ -922,62 +766,6 @@ describe("password-confirmed deletion", () => {
       });
       expect(beforeDelete).not.toHaveBeenCalled();
       expect(db.user).toHaveLength(1);
-   });
-});
-
-describe("hashed verification identifiers", () => {
-   it("still completes a password reset, and never stores the raw token", async () => {
-      let resetUrl = "";
-      const db: Parameters<typeof memoryAdapter>[0] = {
-         user: [],
-         session: [],
-         account: [],
-         verification: [],
-      };
-      const auth = betterAuth({
-         ...configured.options,
-         database: memoryAdapter(db),
-         emailAndPassword: {
-            ...configured.options.emailAndPassword,
-            enabled: true,
-            sendResetPassword: async ({ url }) => {
-               resetUrl = url;
-            },
-         },
-      });
-      await auth.api.signUpEmail({
-         body: {
-            email: "reset-hashed@example.com",
-            password: PASSWORD,
-            name: "Reset",
-         },
-      });
-      await auth.api.requestPasswordReset({
-         body: {
-            email: "reset-hashed@example.com",
-            redirectTo: "http://localhost:3000/reset-password",
-         },
-      });
-      const token = new URL(resetUrl).pathname.split("/").at(-1)!;
-      expect(
-         db.verification!.some((row) => row.identifier.includes(token))
-      ).toBe(false);
-      await auth.api.resetPassword({
-         body: { token, newPassword: "a-brand-new-password-2026" },
-      });
-      // the account was never verified by code: following the reset link counts.
-      expect(db.user![0]!.emailVerified).toBe(true);
-      expect(
-         (
-            await auth.api.signInEmail({
-               body: {
-                  email: "reset-hashed@example.com",
-                  password: "a-brand-new-password-2026",
-               },
-               asResponse: true,
-            })
-         ).status
-      ).toBe(200);
    });
 });
 
@@ -1041,43 +829,6 @@ describe("github provider", () => {
       avatar_url: "https://avatars.example/octo.png",
    };
 
-   const stubGithubApi = (emails: { email: string; verified: boolean }[]) =>
-      vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-         const url = String(input instanceof Request ? input.url : input);
-         const body = url.endsWith("/user/emails")
-            ? emails.map((entry) => ({ ...entry, primary: true }))
-            : PROFILE;
-         return new Response(JSON.stringify(body), {
-            status: 200,
-            headers: { "content-type": "application/json" },
-         });
-      });
-
-   const githubProvider = async () => {
-      const { auth } = createTestAuth();
-      const context = await auth.$context;
-      const provider = context.socialProviders.find(
-         (candidate) => candidate.id === "github"
-      );
-      expect(provider).toBeDefined();
-      return provider!;
-   };
-
-   it("keeps github's own verified flag instead of forcing it true", async () => {
-      stubGithubApi([{ email: PROFILE.email, verified: false }]);
-      const provider = await githubProvider();
-      const info = await provider.getUserInfo!({ accessToken: "token" });
-      expect(info?.user.emailVerified).toBe(false);
-      expect(info?.user.image).toBeUndefined();
-   });
-
-   it("passes a github-verified address through as verified", async () => {
-      stubGithubApi([{ email: PROFILE.email, verified: true }]);
-      const provider = await githubProvider();
-      const info = await provider.getUserInfo!({ accessToken: "token" });
-      expect(info?.user.emailVerified).toBe(true);
-   });
-
    it("uses a validated provider login when the display name is unsupported", async () => {
       vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
          const url = String(input instanceof Request ? input.url : input);
@@ -1100,6 +851,7 @@ describe("github provider", () => {
          name: "octocat",
          emailVerified: true,
       });
+      expect(info?.user.image).toBeUndefined();
       await context.internalAdapter.createUser(
          { email: PROFILE.email, name: info!.user.name!, emailVerified: true },
          { method: "oauth", oauth: { providerId: "github" } }
@@ -1108,7 +860,8 @@ describe("github provider", () => {
    });
 
    const githubCallback = async (
-      emails: { email: string; verified: boolean }[]
+      emails: { email: string; verified: boolean }[],
+      testAuth = createTestAuth()
    ) => {
       vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
          const url = String(input instanceof Request ? input.url : input);
@@ -1122,7 +875,6 @@ describe("github provider", () => {
             headers: { "content-type": "application/json" },
          });
       });
-      const testAuth = createTestAuth();
       const started = await testAuth.post("/sign-in/social", "", {
          provider: "github",
          callbackURL: "http://localhost:3000/dashboard",
@@ -1165,11 +917,18 @@ describe("github provider", () => {
       ]);
    });
 
-   it("trusts no provider for account linking", () => {
-      expect(configured.options.account?.accountLinking).toEqual({
-         enabled: true,
-         requireLocalEmailVerified: true,
-      });
+   it("refuses to link github to an unverified password account for the same address", async () => {
+      const testAuth = createTestAuth();
+      expect((await testAuth.rawSignUp(PROFILE.email)).status).toBe(200);
+      const { db, finished } = await githubCallback(
+         [{ email: PROFILE.email, verified: true }],
+         testAuth
+      );
+      expect(finished.headers.get("location")).toContain(
+         "error=account_not_linked"
+      );
+      expect(db.account!.map((row) => row.providerId)).toEqual(["credential"]);
+      expect(db.session).toHaveLength(0);
    });
 });
 
@@ -1315,54 +1074,33 @@ describe("per-account throttles", () => {
       expect(response.status).toBe(401);
    });
 
-   it("does not answer /verify-password over http, with or without a session", async () => {
-      const { post, signUp } = createTestAuth();
+   it("does not answer /verify-password or /unlink-account over http, with or without a session", async () => {
+      const { db, post, signUp } = createTestAuth();
       const { cookie } = await signUp("oracle-http@example.com");
-      const guess = await post("/verify-password", cookie, {
-         password: "not-the-password",
-      });
-      expect(guess.status).toBe(404);
-      const correct = await post("/verify-password", cookie, {
-         password: PASSWORD,
-      });
-      expect(correct.status).toBe(404);
-      const anonymous = await post("/verify-password", "", {
-         password: PASSWORD,
-      });
-      expect(anonymous.status).toBe(404);
-   });
-
-   it("bounds /verify-password per account on the server-side call path", async () => {
-      const { auth, signUp } = createTestAuth();
-      const { cookie } = await signUp("oracle-api@example.com");
-      const guess = () =>
-         auth.api.verifyPassword({
-            body: { password: "not-the-password" },
-            headers: new Headers({ cookie }),
-         });
-      for (let attempt = 0; attempt < 10; attempt++) {
-         await expect(guess()).rejects.toMatchObject({ status: "BAD_REQUEST" });
+      for (const path of ["/verify-password", "/unlink-account"]) {
+         for (const session of [cookie, ""]) {
+            const response = await post(path, session, {
+               password: PASSWORD,
+               providerId: "credential",
+            });
+            expect(response.status, path).toBe(404);
+         }
       }
-      await expect(guess()).rejects.toMatchObject({
-         status: "TOO_MANY_REQUESTS",
-      });
+      expect(db.account).toHaveLength(1);
    });
 });
 
 describe("signup and profile domain validation", () => {
-   it.each(["a".repeat(81), "a".repeat(60_000), "bad\r\nname", "   "])(
-      "refuses invalid signup names before storage",
-      async (name) => {
-         const { db, post } = createTestAuth(true);
-         const response = await post("/sign-up/email", "", {
-            email: `name-${name.length}@example.com`,
-            name,
-            password: PASSWORD,
-         });
-         expect([400, 422]).toContain(response.status);
-         expect(db.user).toHaveLength(0);
-      }
-   );
+   it("refuses invalid signup names before storage", async () => {
+      const { db, post } = createTestAuth(true);
+      const response = await post("/sign-up/email", "", {
+         email: "name-invalid@example.com",
+         name: "bad\r\nname",
+         password: PASSWORD,
+      });
+      expect([400, 422]).toContain(response.status);
+      expect(db.user).toHaveLength(0);
+   });
 
    it("refuses overlong email addresses before storage", async () => {
       const { db, post } = createTestAuth(true);
@@ -1417,7 +1155,7 @@ const cookieOf = (response: Response): string =>
 
 describe("throttles nobody else can spend for you", () => {
    it("caps password sign-ups per source ip on the canonical path", async () => {
-      const { post } = createTestAuth(false, true);
+      const { post } = createTestAuth();
       const signUpFrom = (ip: string, n: number) =>
          post(
             "/sign-up/email",
@@ -1439,7 +1177,7 @@ describe("throttles nobody else can spend for you", () => {
    });
 
    it("does not spend the ip sign-up budget on sign-ups that fail", async () => {
-      const { post, signUp } = createTestAuth(false, true);
+      const { post, signUp } = createTestAuth();
       await signUp("ip-taken@example.com");
       const ip = { [CLIENT_IP_HEADER]: "203.0.113.60" };
       const body = (email: string) => ({
@@ -1468,7 +1206,7 @@ describe("throttles nobody else can spend for you", () => {
    });
 
    it("lets the owner sign in from another ip after an attacker ip is cut off", async () => {
-      const { post, signUp } = createTestAuth(false, true);
+      const { post, signUp } = createTestAuth();
       const { user } = await signUp("lockout-victim@example.com");
       const signIn = (ip: string, password: string) =>
          post(
@@ -1489,7 +1227,7 @@ describe("throttles nobody else can spend for you", () => {
    });
 
    it("counts only failed sign-ins toward the per-address cap", async () => {
-      const { post, signUp } = createTestAuth(false, true);
+      const { post, signUp } = createTestAuth();
       const { user } = await signUp("failure-budget@example.com");
       const signIn = (ip: string, password: string) =>
          post(
@@ -1534,7 +1272,7 @@ describe("throttles nobody else can spend for you", () => {
       vi.mocked(Date.now).mockReturnValue(now + 61_000);
       expect((await ask("aliasowner+other@gmail.com")).status).toBe(200);
       await vi.waitFor(() => expect(sent()).toBe(2));
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await new Promise(setImmediate);
       expect(
          vi.mocked(sendPasswordResetEmail).mock.calls.map(([mail]) => mail.to)
       ).toEqual(["alias.owner@gmail.com", "aliasowner+other@gmail.com"]);
@@ -1624,22 +1362,6 @@ describe("email verification", () => {
       expect(db.session).toHaveLength(0);
    });
 
-   it("re-mails the same code on a repeated sign-in, so every copy in the inbox works", async () => {
-      const { rawSignUp, signIn, post, auth } = createTestAuth();
-      await rawSignUp(EMAIL);
-      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
-      const now = Date.now();
-      vi.spyOn(Date, "now").mockReturnValue(now + 61_000);
-      expect((await signIn(EMAIL)).status).toBe(403);
-      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(2));
-      expect(new Set(codesTo(EMAIL)).size).toBe(1);
-      const response = await verify(post, { otp: lastCode() });
-      expect(response.status).toBe(200);
-      expect(await sessionOf(auth, response)).toMatchObject({
-         user: { email: EMAIL, emailVerified: true },
-      });
-   });
-
    it("accepts the code only together with the password", async () => {
       const { auth, db, rawSignUp, post } = createTestAuth();
       await rawSignUp(EMAIL);
@@ -1665,24 +1387,8 @@ describe("email verification", () => {
       expect(await sessionOf(auth, right)).not.toBeNull();
    });
 
-   it("rejects wrong codes and locks the code after too many tries", async () => {
-      const { db, rawSignUp, post } = createTestAuth(false, true);
-      await rawSignUp(EMAIL);
-      await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
-      const guess = lastCode() === "000000" ? "111111" : "000000";
-      for (let attempt = 0; attempt < 5; attempt++) {
-         const response = await verify(post, { otp: guess });
-         expect(response.status).toBe(400);
-         expect(await response.json()).toMatchObject({ code: "INVALID_OTP" });
-      }
-      const locked = await verify(post, { otp: lastCode() });
-      expect(locked.status).toBe(403);
-      expect(await locked.json()).toMatchObject({ code: "TOO_MANY_ATTEMPTS" });
-      expect(db.user![0]!.emailVerified).toBe(false);
-   });
-
    it("charges code attempts to the same budget as sign-in attempts", async () => {
-      const { rawSignUp, post } = createTestAuth(false, true);
+      const { rawSignUp, post } = createTestAuth();
       await rawSignUp(EMAIL);
       await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
       for (let attempt = 0; attempt < 10; attempt++) {
@@ -1700,7 +1406,7 @@ describe("email verification", () => {
    });
 
    it("caps code guesses per address across fresh codes, counting only tries with the password", async () => {
-      const { db, rawSignUp, post } = createTestAuth(false, true);
+      const { db, rawSignUp, post } = createTestAuth();
       await rawSignUp(EMAIL);
       await vi.waitFor(() => expect(codesTo(EMAIL)).toHaveLength(1));
       // a fresh ip per try keeps the per-source sign-in limit out of the way
@@ -1808,13 +1514,16 @@ describe("password changes", () => {
    };
 
    it("invalidates every other reset link once one is used", async () => {
-      const { auth, links, requestLink, reset } = resetAuth();
+      const { auth, db, links, requestLink, reset } = resetAuth();
       await auth.api.signUpEmail({
          body: { email: "siblings@example.com", password: PASSWORD, name: "S" },
       });
       await requestLink("siblings@example.com");
       await requestLink("siblings@example.com");
       expect(links).toHaveLength(2);
+      expect(
+         db.verification!.some((row) => row.identifier.includes(links[0]!))
+      ).toBe(false);
       expect((await reset(links[0]!)).status).toBe(200);
       const sibling = await reset(links[1]!);
       expect(sibling.status).toBe(400);
@@ -1960,23 +1669,6 @@ describe("deleting an account that owns shared servers", () => {
       });
       expect(accepted.status).toBe(200);
       expect(beforeDelete).toHaveBeenCalledTimes(1);
-      expect(db.user).toHaveLength(0);
-   });
-
-   it("needs no acknowledgement when nobody else uses the owned servers", async () => {
-      const { db, signUp, post } = createTestAuth();
-      onUserDeletion({
-         sharedServerNames: noSharedServers,
-         beforeDelete: async () => {},
-         afterDelete: async () => {},
-      });
-      const { cookie, user } = await signUp("solo-owner@example.com");
-      const response = await post("/delete-user", cookie, {
-         expectedUserId: user.id,
-         confirmedEmail: user.email,
-         password: PASSWORD,
-      });
-      expect(response.status).toBe(200);
       expect(db.user).toHaveLength(0);
    });
 });

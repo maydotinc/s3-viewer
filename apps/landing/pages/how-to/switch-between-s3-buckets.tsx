@@ -94,6 +94,7 @@ export default createHowToPage({
    seoDescription:
       "Two patterns for switching between AWS S3 buckets without losing context: one sidebar of servers and buckets in S3 Viewer, or named profiles in the AWS CLI.",
    published: "2026-04-28",
+   updated: "2026-10-12",
    visual: <SwitchBucketsIllustration />,
    steps,
    underTheHood: (

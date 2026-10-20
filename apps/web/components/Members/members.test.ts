@@ -38,15 +38,24 @@ vi.mock("@/components/Modals/confirm-dialog", () => ({
 vi.mock("@/components/Invites/bucket-access-dialog", () => ({
    default: () => null,
 }));
-vi.mock("@/components/Invites/role-select", () => ({ default: () => null }));
+vi.mock("@/components/Invites/role-select", () => ({
+   default: ({ roles }: { roles: Role[] }) =>
+      createElement("span", { "data-roles": roles.join(" ") }),
+}));
 import Members from "./members";
 
-const member = (id: string, role: Role): ServerUser => ({
+const member = (
+   id: string,
+   role: Role,
+   overrides: Partial<ServerUser> = {}
+): ServerUser => ({
    id,
    name: `Person ${id}`,
    email: `${id}@example.test`,
    role,
    bucketAccess: [],
+   canRemove: role !== Role.OWNER,
+   ...overrides,
 });
 
 const props = ({
@@ -99,6 +108,31 @@ describe("the members table", () => {
       expect(html).toContain("a@example.test");
       expect(html).not.toContain("Load more");
       expect(html).not.toContain('role="alert"');
+   });
+});
+
+describe("member rows", () => {
+   const render = (members: ServerUser[]) =>
+      renderToStaticMarkup(createElement(Members, props({ members })));
+
+   it("offer removal only where the API says it would succeed", () => {
+      const html = render([
+         member("a", Role.EDITOR),
+         member("b", Role.EDITOR, { canRemove: false }),
+      ]);
+      expect(html).toContain('aria-label="Remove Person a"');
+      expect(html).not.toContain('aria-label="Remove Person b"');
+   });
+
+   it("don't offer Admin to a member limited to folders", () => {
+      const html = render([
+         member("a", Role.EDITOR, {
+            bucketAccess: [
+               { bucketName: "site", role: Role.EDITOR, folders: ["docs/"] },
+            ],
+         }),
+      ]);
+      expect(html).toContain('data-roles="VIEWER EDITOR"');
    });
 });
 

@@ -6,7 +6,7 @@ Please **do not** open a public issue for security problems.
 
 Email [info@may.inc](mailto:info@may.inc?subject=S3%20viewer%20security). Reports
 must include **S3 viewer** in the subject line. You can also use GitHub's
-[private vulnerability reporting](../../security/advisories/new) on this repository.
+[private vulnerability reporting](https://github.com/maydotinc/s3-viewer/security/advisories/new) on this repository.
 
 Supported versions: the `main` branch and the latest release.
 

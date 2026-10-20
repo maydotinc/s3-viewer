@@ -6,10 +6,11 @@ type Position = { createdAt: Date; id: string };
 
 const CURSOR_ID_MAX = 64;
 
+const encodeCursorText = (text: string): string =>
+   Buffer.from(text, "utf8").toString("base64url");
+
 const encodeCursor = ({ createdAt, id }: Position): string =>
-   Buffer.from(`${createdAt.toISOString()}|${id}`, "utf8").toString(
-      "base64url"
-   );
+   encodeCursorText(`${createdAt.toISOString()}|${id}`);
 
 const invalidCursor = (): never => {
    throw new ApiHttpError(400, "Invalid cursor", ErrorCode.VALIDATION);
@@ -85,6 +86,7 @@ export {
    decodeCursor,
    decodeCursorText,
    encodeCursor,
+   encodeCursorText,
    invalidCursor,
    keysetAfter,
    pageOf,

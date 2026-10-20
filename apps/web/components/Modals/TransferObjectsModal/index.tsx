@@ -9,6 +9,7 @@ import type { ModalProps } from "@/lib/contexts/modal-props";
 import { errorMessage, isAborted } from "@/lib/api";
 import { useAbortableTask } from "@/lib/hooks/useAbortableTask";
 import { useBeforeUnload } from "@/lib/hooks/useBeforeUnload";
+import { objectPermissions } from "@/lib/hooks/usePermission";
 import useTransferObjects, {
    createTransferOperation,
    folderTransferOverlaps,
@@ -30,11 +31,7 @@ import {
    joinSentences,
    visibleText,
 } from "@/lib/utils/format";
-import {
-   Permission,
-   effectiveBucketRole,
-   hasPermission,
-} from "@s3-viewer/permissions";
+import { effectiveBucketRole } from "@s3-viewer/permissions";
 import type { S3Bucket, ServerInfo } from "@s3-viewer/types";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import { Label } from "@s3-viewer/ui/components/label";
@@ -58,12 +55,13 @@ const writableBuckets = (
    server: ServerInfo | undefined,
    buckets: readonly S3Bucket[]
 ): S3Bucket[] =>
-   server?.capabilities.upload
-      ? buckets.filter((bucket) =>
-           hasPermission(
-              effectiveBucketRole(server.userRole, bucket.userRole),
-              Permission.UPLOAD_OBJECT
-           )
+   server
+      ? buckets.filter(
+           (bucket) =>
+              objectPermissions(
+                 effectiveBucketRole(server.userRole, bucket.userRole),
+                 server.capabilities
+              ).upload
         )
       : [];
 

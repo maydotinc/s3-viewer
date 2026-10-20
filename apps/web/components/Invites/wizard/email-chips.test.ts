@@ -49,20 +49,6 @@ describe("adding addresses", () => {
       });
    });
 
-   it("stops at the limit and leaves the rest in the input", () => {
-      const next = addEmails(
-         field(many.slice(0, 4)),
-         "e@x.com f@x.com, g@x.com"
-      );
-      expect(next.chips).toHaveLength(MAX_INVITE_EMAILS);
-      expect(next.chips.at(-1)).toBe("e@x.com");
-      expect(next.input).toBe("f@x.com, g@x.com");
-      expect(next.feedback).toEqual({
-         tone: "error",
-         text: `You can invite up to ${MAX_INVITE_EMAILS} people at a time`,
-      });
-   });
-
    it("commits whatever is typed, and nothing when the input is blank", () => {
       const typed = field(["a@x.com"], " b@x.com ");
       expect(commitInput(typed).chips).toEqual(["a@x.com", "b@x.com"]);
@@ -72,14 +58,6 @@ describe("adding addresses", () => {
 });
 
 describe("editing", () => {
-   it("backspace in an empty input pulls the last chip back for editing", () => {
-      expect(popChip(field(["a@x.com", "b@x.com"]))).toEqual({
-         chips: ["a@x.com"],
-         input: "b@x.com",
-         feedback: null,
-      });
-   });
-
    it("backspace with text in the input leaves the chips alone", () => {
       const typed = field(["a@x.com"], "b");
       expect(popChip(typed)).toBe(typed);

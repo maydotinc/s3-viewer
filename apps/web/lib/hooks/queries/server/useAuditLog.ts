@@ -11,6 +11,13 @@ const PAGE_SIZE = 50;
 
 const pageEntries = (page: AuditLogPage) => page.entries;
 
+// a plain refetch re-requests every loaded page against the 60/min audit read limit
+const firstPageOnly = (current?: InfiniteData<AuditLogPage, string | null>) =>
+   current && {
+      pages: current.pages.slice(0, 1),
+      pageParams: current.pageParams.slice(0, 1),
+   };
+
 type AuditLogFilters = AuditFilters & { preset?: TimePreset };
 
 const nonemptyFilters = (filters: AuditLogFilters): AuditLogFilters =>
@@ -71,16 +78,8 @@ const useAuditLog = (serverId: string, filters: AuditLogFilters) => {
       if (isBadCursor) void queryClient.resetQueries({ queryKey, exact: true });
    }, [isBadCursor, queryClient, queryKey]);
 
-   // a plain refetch re-requests every loaded page against the 60/min audit read limit
    const refresh = () => {
-      queryClient.setQueryData<InfiniteData<AuditLogPage, string | null>>(
-         queryKey,
-         (current) =>
-            current && {
-               pages: current.pages.slice(0, 1),
-               pageParams: current.pageParams.slice(0, 1),
-            }
-      );
+      queryClient.setQueryData(queryKey, firstPageOnly);
       return pages.refetch();
    };
 
@@ -88,5 +87,5 @@ const useAuditLog = (serverId: string, filters: AuditLogFilters) => {
 };
 
 export default useAuditLog;
-export { nonemptyFilters, auditParams };
+export { auditParams, firstPageOnly, nonemptyFilters };
 export type { AuditLogFilters };

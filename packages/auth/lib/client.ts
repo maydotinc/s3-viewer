@@ -182,7 +182,9 @@ const makeAuthClient = ({
       );
 
    const hasPassword = async (): Promise<boolean> => {
-      const { data, error } = await authClient.listAccounts();
+      const { data, error } = await authClient.listAccounts({
+         fetchOptions: accountFetchOptions(),
+      });
       if (error) throw new Error(authErrorMessage(error));
       return data.some((account) => account.providerId === PASSWORD_PROVIDER);
    };
@@ -230,4 +232,5 @@ export {
    INVALID_EMAIL_MESSAGE,
    INVALID_NAME_MESSAGE,
    SHARED_SERVERS_CODE,
+   SIGN_UPS_CLOSED,
 } from "./errors";

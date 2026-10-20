@@ -4,7 +4,7 @@ import {
    type S3Client,
 } from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
-import { whichExist, whichExistInFolders } from "./existence";
+import { whichExistInFolders } from "./existence";
 
 describe("upload existence and ETag snapshot", () => {
    it("captures HEAD ETags and distinguishes absent keys from existing keys without an ETag", async () => {
@@ -15,8 +15,9 @@ describe("upload existence and ETag snapshot", () => {
             ? {}
             : { ETag: '"before-confirmation"' };
       });
-      const result = await whichExist(
+      const result = await whichExistInFolders(
          { client: { send } as unknown as S3Client, bucket: "bucket" },
+         null,
          ["existing", "missing", "untagged", "__proto__"]
       );
       expect(result.existing).toEqual(["existing", "untagged", "__proto__"]);
@@ -35,8 +36,9 @@ describe("upload existence and ETag snapshot", () => {
             IsTruncated: false,
          };
       });
-      const result = await whichExist(
+      const result = await whichExistInFolders(
          { client: { send } as unknown as S3Client, bucket: "bucket" },
+         null,
          keys
       );
       expect(result.existing).toHaveLength(60);
@@ -62,8 +64,9 @@ describe("upload existence and ETag snapshot", () => {
       const keys = numbered(1000);
       const present = new Set(keys.filter((_, i) => i % 2 === 0));
       const send = unlistable((key) => present.has(key));
-      const result = await whichExist(
+      const result = await whichExistInFolders(
          { client: { send } as unknown as S3Client, bucket: "bucket" },
+         null,
          keys
       );
       expect(result.existing).toEqual([...present]);
@@ -124,7 +127,7 @@ describe("upload existence and ETag snapshot", () => {
             ),
       } as unknown as S3Client;
       await expect(
-         whichExist({ client, bucket: "bucket" }, ["private"])
+         whichExistInFolders({ client, bucket: "bucket" }, null, ["private"])
       ).rejects.toMatchObject({ status: 403 });
    });
 });

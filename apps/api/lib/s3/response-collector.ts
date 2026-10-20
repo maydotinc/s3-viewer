@@ -1,4 +1,5 @@
 import type { S3Client, S3ClientConfig } from "@aws-sdk/client-s3";
+import { MIB } from "@s3-viewer/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Readable } from "node:stream";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
@@ -16,9 +17,23 @@ import {
 
 type StreamCollector = NonNullable<S3ClientConfig["streamCollector"]>;
 
-const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+const MAX_RESPONSE_BYTES = 16 * MIB;
+// commands storage acts on as soon as it receives them.
+const COMMITTING_COMMANDS: ReadonlySet<string> = new Set([
+   "AbortMultipartUploadCommand",
+   "CompleteMultipartUploadCommand",
+   "CopyObjectCommand",
+   "CreateBucketCommand",
+   "CreateMultipartUploadCommand",
+   "DeleteObjectCommand",
+   "DeleteObjectsCommand",
+   "PutObjectCommand",
+   "UploadPartCommand",
+   "UploadPartCopyCommand",
+]);
 const operationContext = new AsyncLocalStorage<{
    serverId: string;
+   committing: boolean;
    reservations: Set<ReadReservation>;
 }>();
 const bufferedResponses = new WeakMap<object, (() => void)[]>();
@@ -61,6 +76,7 @@ const cappedStreamCollector: StreamCollector = async (stream) => {
    try {
       reservation = readBudget.acquire({
          serverId: operation?.serverId ?? "unscoped",
+         committed: operation?.committing,
       });
       operation?.reservations.add(reservation);
       if (!readable) {
@@ -101,15 +117,26 @@ const cappedStreamCollector: StreamCollector = async (stream) => {
    }
 };
 
+// a write refused only once its response arrives has already landed, so a budgeted client admits it
+// before sending; an abort is cleanup, and the unbudgeted clones carry tails of writes already committed.
+const admitCommittingWrite = (serverId: string, command = ""): void => {
+   if (
+      COMMITTING_COMMANDS.has(command) &&
+      command !== "AbortMultipartUploadCommand"
+   )
+      readBudget.acquire({ serverId }).release();
+};
+
 const withBufferedResponses = (
    client: S3Client,
    serverId: string
 ): S3Client => {
    client.config.streamCollector = cappedStreamCollector;
    client.middlewareStack.add(
-      (next) => (args) =>
-         operationContext.run(
-            { serverId, reservations: new Set() },
+      (next, context) => (args) => {
+         const committing = COMMITTING_COMMANDS.has(context.commandName ?? "");
+         return operationContext.run(
+            { serverId, committing, reservations: new Set() },
             async () => {
                const operation = operationContext.getStore()!;
                let output: object | undefined;
@@ -126,13 +153,15 @@ const withBufferedResponses = (
                      bufferedResponses.set(output, releases);
                }
             }
-         ),
+         );
+      },
       { step: "initialize", name: "bufferedResponses", override: true }
    );
    return client;
 };
 
 export {
+   admitCommittingWrite,
    cappedStreamCollector,
    MAX_RESPONSE_BYTES,
    releaseBufferedResponse,

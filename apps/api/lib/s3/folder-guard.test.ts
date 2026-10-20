@@ -1,5 +1,4 @@
 import {
-   AbortMultipartUploadCommand,
    CopyObjectCommand,
    DeleteObjectsCommand,
    GetObjectCommand,
@@ -52,7 +51,6 @@ const reached = async (sent: Promise<unknown>, fixture = storage) => {
 describe("folder guard", () => {
    it.each([
       ["a read", new GetObjectCommand({ Bucket: "company", Key: "private/x" })],
-      ["a head", new HeadObjectCommand({ Bucket: "company", Key: "private" })],
       [
          "a write",
          new PutObjectCommand({ Bucket: "company", Key: "landing-2/x" }),
@@ -60,14 +58,6 @@ describe("folder guard", () => {
       [
          "a dot-segment key",
          new GetObjectCommand({ Bucket: "company", Key: "landing/../x" }),
-      ],
-      [
-         "a multipart abort",
-         new AbortMultipartUploadCommand({
-            Bucket: "company",
-            Key: "private/x",
-            UploadId: "u",
-         }),
       ],
       [
          "a batch delete with one key outside",
@@ -219,6 +209,13 @@ describe("folder guard", () => {
    });
 
    it("keeps one request's folders from another running alongside it", async () => {
+      // both requests are inside their own guard before either sends.
+      const bothInside = Promise.withResolvers<void>();
+      let inside = 0;
+      const enter = () => {
+         if (++inside === 2) bothInside.resolve();
+         return bothInside.promise;
+      };
       const other = guardFolders(
          [
             {
@@ -229,7 +226,7 @@ describe("folder guard", () => {
             },
          ],
          async () => {
-            await new Promise((resolve) => setTimeout(resolve, 5));
+            await enter();
             return storage.client.send(
                new HeadObjectCommand({ Bucket: "company", Key: "private/x" })
             );
@@ -237,7 +234,7 @@ describe("folder guard", () => {
       );
       await expect(
          limited(async () => {
-            await new Promise((resolve) => setTimeout(resolve, 10));
+            await enter();
             return storage.client.send(
                new GetObjectCommand({ Bucket: "company", Key: "private/x" })
             );

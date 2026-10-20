@@ -38,6 +38,7 @@ model Session {
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([createdAt])
   @@map("session")
 }
 
@@ -116,6 +117,9 @@ model ServerAccess {
   serverId String
   server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
 
+  bucketAccess BucketAccess[]
+
+  // the migration's partial unique index allows one OWNER row per server.
   @@unique([userId, serverId])
   @@index([serverId, createdAt, id])
   @@map("server_access")
@@ -125,6 +129,7 @@ model PendingInvitation {
   id        String   @id @default(cuid())
   token     String   @unique @default(dbgenerated("replace(((gen_random_uuid())::text || (gen_random_uuid())::text), '-'::text, ''::text)"))
   email     String
+  // a migration CHECK refuses OWNER.
   role      Role
   expiresAt DateTime
   createdAt DateTime @default(now())
@@ -149,16 +154,18 @@ model BucketAccess {
   id                String   @id @default(cuid())
   bucketName        String
   role              Role     @default(VIEWER)
-  // the migration's CHECK constraints keep these consistent and admins bucket-wide.
+  // the migration's CHECK constraints keep these consistent, admins bucket-wide and role never OWNER.
   restrictedFolders Boolean  @default(false)
   allowedFolders    String[] @default([])
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   userId   String
-  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   serverId String
-  server   Server @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  server   Server       @relation(fields: [serverId], references: [id], onDelete: Cascade)
+  // a grant cannot outlive the membership it hangs off.
+  access   ServerAccess @relation(fields: [userId, serverId], references: [userId, serverId], onDelete: Cascade)
 
   @@unique([userId, serverId, bucketName])
   @@index([serverId])
@@ -168,6 +175,7 @@ model BucketAccess {
 model InvitationBucketAccess {
   id                String   @id @default(cuid())
   bucketName        String
+  // a migration CHECK refuses OWNER.
   role              Role     @default(VIEWER)
   restrictedFolders Boolean  @default(false)
   allowedFolders    String[] @default([])

@@ -48,9 +48,7 @@ const state = vi.hoisted(() => ({
    busy: new Set<string>(),
    tokens: new Map<string, string>(),
    grantRows: [] as GrantRow[],
-   held: new Map<string, { role: string; folders: string[] | null }>(),
-   loadGrantingActor: vi.fn(),
-   assertBucketGrants: vi.fn(),
+   held: new Map<string, { role: DbRole; folders: string[] | null }>(),
    recordManyFor: vi.fn(),
    sendEmail: vi.fn(),
    lockRaw: vi.fn(),
@@ -116,13 +114,6 @@ vi.mock("@/lib/services/servers", async (original) => ({
          throw new ApiHttpError(404, SERVER_NOT_FOUND);
       return SERVER_ROW;
    },
-}));
-
-vi.mock("@/lib/services/members", async (original) => ({
-   ...(await original<typeof import("@/lib/services/members")>()),
-   loadGrantingActor: state.loadGrantingActor,
-   assertBucketGrants: (...args: unknown[]) =>
-      state.assertBucketGrants(...args),
 }));
 
 const inviteId = (serverId: string, email: string) =>
@@ -278,6 +269,25 @@ vi.mock("@s3-viewer/db", () => {
          findMany: async ({ where }: { where: { serverId: string } }) =>
             on(where.serverId).members.map((email) => ({ user: { email } })),
       },
+      bucketAccess: {
+         findMany: async ({
+            where,
+         }: {
+            where: { userId: string; bucketName: { in: string[] } };
+         }) =>
+            [...state.held]
+               .filter(
+                  ([bucketName]) =>
+                     where.userId === state.actor &&
+                     where.bucketName.in.includes(bucketName)
+               )
+               .map(([bucketName, { role, folders }]) => ({
+                  bucketName,
+                  role,
+                  restrictedFolders: folders !== null,
+                  allowedFolders: folders ?? [],
+               })),
+      },
       pendingInvitation,
       invitationBucketAccess: {
          deleteMany: state.deleteGrants,
@@ -323,14 +333,8 @@ beforeEach(() => {
    state.tokens.clear();
    state.grantRows = [];
    state.held.clear();
-   state.loadGrantingActor
-      .mockReset()
-      .mockImplementation(
-         async (_userId: string, _serverId: string, role: string) => ({
-            serverRole: role,
-            bucketGrants: state.held,
-         })
-      );
+   // the admin cases invite onto photos, so they hold it unless a test says otherwise.
+   state.held.set("photos", { role: "VIEWER", folders: null });
    state.recordManyFor.mockReset().mockResolvedValue(undefined);
    state.sendEmail.mockReset().mockResolvedValue(undefined);
    state.lockRaw.mockReset();
@@ -603,11 +607,7 @@ describe("POST /invites on one server", () => {
 
    it("takes the invite-send lock rather than the shared single-key one", async () => {
       await sent({ emails: ["one@example.com"], targets: [viewerOn(SERVER)] });
-      const sql = lockSql();
-      expect(sql.text.replace(/\s+/g, " ").trim()).toBe(
-         "SELECT pg_try_advisory_xact_lock( $1::int4, hashtext($2) ) AS locked"
-      );
-      expect(sql.values).toEqual([LOCK_NAMESPACE.INVITE_SEND, SERVER]);
+      expect(lockSql().values).toEqual([LOCK_NAMESPACE.INVITE_SEND, SERVER]);
    });
 
    it("reports a server whose invite lock another send holds", async () => {
@@ -654,22 +654,29 @@ describe("POST /invites on one server", () => {
       expect(state.writeAudit).not.toHaveBeenCalled();
    });
 
-   it("refuses a bucket grant the sender cannot hand out and saves nothing", async () => {
-      state.assertBucketGrants.mockImplementationOnce(() => {
-         throw new ApiHttpError(
-            403,
-            "You don't have Viewer access to finance, so you can't grant it"
-         );
-      });
+   it("refuses an admin granting a role above the one held and saves nothing", async () => {
+      on(SERVER).role = "ADMIN";
+      state.held.set("photos", { role: "VIEWER", folders: null });
       const result = await outcome({
          emails: ["one@example.com"],
-         targets: [viewerOn(SERVER, "finance")],
+         targets: [
+            {
+               serverId: SERVER,
+               role: "EDITOR",
+               bucketAccess: [
+                  { bucketName: "photos", role: "EDITOR", folders: null },
+               ],
+            },
+         ],
       });
       expect(result.error).toBe(
-         "You don't have Viewer access to finance, so you can't grant it"
+         "You don't have Editor access to photos, so you can't grant it"
       );
-      expect(on(SERVER).written).toHaveLength(0);
+      expect(on(SERVER).written).toEqual([]);
       expect(state.recordManyFor).not.toHaveBeenCalled();
+      expect(denials()).toMatchObject([
+         { serverId: SERVER, entry: { action: "access.denied" } },
+      ]);
    });
 
    it("records a denial for an EDITOR who cannot manage members", async () => {
@@ -701,7 +708,7 @@ describe("POST /invites on one server", () => {
 
    it("hides an unexpected failure behind a generic message and logs it", async () => {
       vi.spyOn(console, "error").mockImplementation(() => {});
-      state.loadGrantingActor.mockRejectedValue(new Error("pool exhausted"));
+      state.beforeServerLock.mockRejectedValue(new Error("pool exhausted"));
       const result = await outcome({
          emails: ["one@example.com"],
          targets: [viewerOn(SERVER)],

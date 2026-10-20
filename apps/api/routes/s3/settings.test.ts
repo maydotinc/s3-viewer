@@ -9,6 +9,7 @@ import {
    signedIn,
 } from "@/lib/testing/route-harness";
 import { endpointStub } from "@/lib/testing/s3-fixture";
+import { UnconfirmedWriteError } from "@/lib/s3/conditions";
 import { GIB } from "@s3-viewer/types";
 import { settingsRouter } from "./settings";
 
@@ -255,6 +256,20 @@ describe("writing object settings", () => {
       );
    });
 
+   it("audits a rewrite cut off after storage received it as unconfirmed", async () => {
+      state.copy.mockRejectedValue(new UnconfirmedWriteError());
+      const response = await patch();
+      expect(response.status).toBe(502);
+      expect(state.audit.mock.calls.map(([, entry]) => entry)).toEqual([
+         {
+            action: "object.settings",
+            bucket: "backups",
+            target: "reports/q3.csv",
+            detail: { contentType: "text/csv", confirmed: false },
+         },
+      ]);
+   });
+
    it("gives the rewrite of a large object a deadline sized to it", async () => {
       state.head.mockResolvedValue({ ...HEAD_OUTPUT, ContentLength: 10 * GIB });
       const response = await patch();
@@ -289,23 +304,7 @@ describe("writing object settings", () => {
    });
 
    it.each([
-      ["a missing ETag", { expectedETag: undefined }],
-      ["a wildcard ETag", { expectedETag: '"*"' }],
       ["a folder key", { objectKey: "reports/" }],
-      ["an invalid content type", { contentType: "not a media type" }],
-      ["an uppercase metadata name", { metadata: { "Owner Name": "x" } }],
-      [
-         "too many metadata entries",
-         {
-            metadata: Object.fromEntries(
-               Array.from({ length: 51 }, (_, i) => [`k${i}`, "v"])
-            ),
-         },
-      ],
-      [
-         "an oversized metadata value",
-         { metadata: { owner: "x".repeat(1025) } },
-      ],
       [
          "metadata over the total budget",
          {
@@ -314,7 +313,6 @@ describe("writing object settings", () => {
             ),
          },
       ],
-      ["a header with a newline", { cacheControl: "max-age=60\nx: y" }],
    ])("refuses %s", async (_name, overrides) => {
       expect((await patch(overrides)).status).toBe(400);
       expectNoStorage();

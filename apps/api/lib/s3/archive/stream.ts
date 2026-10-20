@@ -7,7 +7,7 @@ import {
 import { ApiHttpError } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { abortReason, noop } from "@/lib/utils/abort";
-import { MIB, describeError } from "@s3-viewer/types";
+import { MIB, describeError, SECOND_MS } from "@s3-viewer/types";
 import {
    GetObjectCommand,
    type GetObjectCommandOutput,
@@ -21,7 +21,7 @@ import { progressFloor } from "../progress-floor";
 import type { ArchiveEntry } from "./entries";
 
 const archiveWorkMs = (bytes: number, objects: number): number =>
-   (bytes / ARCHIVE_MIN_BYTES_PER_SECOND) * 1000 +
+   (bytes / ARCHIVE_MIN_BYTES_PER_SECOND) * SECOND_MS +
    objects * ARCHIVE_MS_PER_OBJECT;
 
 // the time the drain floor itself allows: a client holding exactly the floor must be able to finish.

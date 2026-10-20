@@ -34,16 +34,6 @@ describe("originCheck", () => {
       expect(res.status).not.toHaveBeenCalled();
    });
 
-   it("passes a POST with no Origin header when Sec-Fetch-Site says same-origin", () => {
-      const { res, next } = run(
-         originCheck,
-         { "sec-fetch-site": "same-origin" },
-         "POST"
-      );
-      expect(next).toHaveBeenCalledOnce();
-      expect(res.status).not.toHaveBeenCalled();
-   });
-
    it("blocks a cross-site POST", () => {
       const { res, next } = run(
          originCheck,

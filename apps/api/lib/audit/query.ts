@@ -18,12 +18,12 @@ import {
    type AuditLogEntry,
    type AuditLogPage,
    type AuditVerification,
+   SECOND_MS,
 } from "@s3-viewer/types";
 
 const EXPORT_BATCH = 1000;
 const VERIFY_BATCH = 1000;
 const VERIFY_MAX_ROWS = 100_000;
-const VERIFY_CONCURRENCY = 4;
 // each read holds a pooled connection for up to the statement timeout, so audit keeps most of the pool free.
 const READ_CONCURRENCY = 4;
 // exports never fill the last slot, so a burst of slow downloads cannot shut every search out.
@@ -31,8 +31,8 @@ const EXPORT_READ_CONCURRENCY = READ_CONCURRENCY - 1;
 // aborting a request does not cancel its query, so quick filter changes from one person pile up.
 const USER_READ_CONCURRENCY = 2;
 // outlives the statement timeout so Postgres cancels the query before Prisma gives up.
-const SEARCH_TRANSACTION_MS = 10_000;
-const VERIFY_TRANSACTION_MS = 30_000;
+const SEARCH_TRANSACTION_MS = 10 * SECOND_MS;
+const VERIFY_TRANSACTION_MS = 30 * SECOND_MS;
 const QUERY_CANCELED = "57014";
 
 type AuditRow = Omit<AuditLog, "serverId">;
@@ -189,7 +189,7 @@ const searchesBy = new Map<string, number>();
 const waitingExports: (() => void)[] = [];
 
 const readsBusy = (): ApiHttpError =>
-   rateLimited("Too many audit searches are running. Try again shortly.");
+   rateLimited("Too many audit log reads are running. Try again shortly.");
 
 const exportFits = (): boolean =>
    reads < READ_CONCURRENCY && exportReads < EXPORT_READ_CONCURRENCY;
@@ -486,15 +486,14 @@ const listAuditPage = async ({
 
 async function* iterateAudit(
    filters: AuditFilters
-): AsyncGenerator<AuditExportRow> {
+): AsyncGenerator<AuditExportRow[]> {
    let position: Position | undefined;
    for (;;) {
       const rows = await timedRows(filters, position, EXPORT_BATCH, true);
       const entries = rows.map(toEntry);
       const foreign = await reachableForeignEnds(entries, filters);
-      for (const [index, row] of rows.entries()) {
-         const { seq, prevHash, hash } = row;
-         yield {
+      if (rows.length > 0) {
+         yield rows.map(({ seq, prevHash, hash }, index) => ({
             ...withReachableGrants(
                withReachableEnds(entries[index]!, filters, foreign),
                filters
@@ -502,7 +501,7 @@ async function* iterateAudit(
             seq,
             prevHash,
             hash,
-         };
+         }));
       }
       const last = rows.at(-1);
       if (rows.length < EXPORT_BATCH || !last) return;
@@ -534,6 +533,9 @@ const verdict = (fields: Verdict): AuditVerification => ({
    ...fields,
 });
 
+// a check pins a pooled connection like a search does, so it draws on the same read slots.
+const VERIFY_SLOT: ReadSlot = { exporting: false, reader: undefined };
+
 // one check per server and per person, so neither a long check nor someone with many servers
 // can hold every slot.
 const verifying = new Set<string>();
@@ -551,11 +553,6 @@ const enterVerification = (
    if (viewerId && verifyingBy.has(viewerId)) {
       throw rateLimited(
          "Your earlier integrity check is still running. Try again once it finishes."
-      );
-   }
-   if (verifying.size >= VERIFY_CONCURRENCY) {
-      throw rateLimited(
-         "Too many integrity checks are running. Try again shortly."
       );
    }
    verifying.add(serverId);
@@ -665,10 +662,15 @@ const verifyAuditChain = async (
 ): Promise<AuditVerification> => {
    const release = enterVerification(serverId, viewerId);
    try {
-      return await prisma.$transaction(
-         (tx) => verifySnapshot(tx, serverId, caller, window),
-         { isolationLevel: "RepeatableRead", timeout: VERIFY_TRANSACTION_MS }
-      );
+      await enterRead(VERIFY_SLOT);
+      try {
+         return await prisma.$transaction(
+            (tx) => verifySnapshot(tx, serverId, caller, window),
+            { isolationLevel: "RepeatableRead", timeout: VERIFY_TRANSACTION_MS }
+         );
+      } finally {
+         leaveRead(VERIFY_SLOT);
+      }
    } finally {
       release();
    }

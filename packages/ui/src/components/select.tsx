@@ -8,13 +8,13 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 function Select({
    ...props
 }: React.ComponentProps<typeof SelectPrimitive.Root>) {
-   return <SelectPrimitive.Root data-slot="select" {...props} />;
+   return <SelectPrimitive.Root {...props} />;
 }
 
 function SelectValue({
    ...props
 }: React.ComponentProps<typeof SelectPrimitive.Value>) {
-   return <SelectPrimitive.Value data-slot="select-value" {...props} />;
+   return <SelectPrimitive.Value {...props} />;
 }
 
 function SelectTrigger({
@@ -27,7 +27,6 @@ function SelectTrigger({
 }) {
    return (
       <SelectPrimitive.Trigger
-         data-slot="select-trigger"
          data-size={size}
          className={cn(
             "flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewerwhite px-3 text-sm text-viewerblack transition-colors outline-none",
@@ -90,9 +89,8 @@ function SelectItem({
 }) {
    return (
       <SelectPrimitive.Item
-         data-slot="select-item"
          className={cn(
-            "relative flex w-full cursor-pointer flex-col gap-0.5 rounded-md py-2 pr-8 pl-2.5 text-sm text-viewerblack transition-colors outline-none select-none",
+            "relative flex w-full cursor-pointer flex-col gap-0.5 rounded-md py-2 pr-8 pl-2.5 text-sm text-viewerblack transition-colors outline-none select-none pointer-coarse:min-h-11 pointer-coarse:justify-center",
             "data-[highlighted]:bg-viewergray data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
             "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
             className
@@ -118,7 +116,6 @@ function SelectScrollUpButton({
 }: React.ComponentProps<typeof SelectPrimitive.ScrollUpButton>) {
    return (
       <SelectPrimitive.ScrollUpButton
-         data-slot="select-scroll-up-button"
          className={cn(
             "flex cursor-default items-center justify-center py-1 text-viewertext",
             className
@@ -136,7 +133,6 @@ function SelectScrollDownButton({
 }: React.ComponentProps<typeof SelectPrimitive.ScrollDownButton>) {
    return (
       <SelectPrimitive.ScrollDownButton
-         data-slot="select-scroll-down-button"
          className={cn(
             "flex cursor-default items-center justify-center py-1 text-viewertext",
             className

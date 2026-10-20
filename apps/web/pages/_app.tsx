@@ -44,9 +44,10 @@ const App = ({
    runtimeEnv,
 }: AppPropsWithLayout) => {
    setRuntimeEnv(runtimeEnv);
-   useEffect(() => {
-      if (Router.router) return installNavigationGuard(Router.router);
-   }, []);
+   useEffect(
+      () => (Router.router ? installNavigationGuard(Router.router) : undefined),
+      []
+   );
    const [queryClient] = useState(getQueryClient);
    const getLayout = Component.getLayout ?? ((page) => page);
    const { dehydratedState } = pageProps as InstanceConfigProps;
@@ -57,8 +58,9 @@ const App = ({
             <meta charSet="utf-8" />
             <meta
                name="viewport"
-               content="width=device-width, initial-scale=1"
+               content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
             />
+            <meta name="color-scheme" content="only light" />
             <meta name="theme-color" content="#3658c1" />
             <meta name="application-name" content={PRODUCT_NAME} />
             <meta name="apple-mobile-web-app-title" content={PRODUCT_NAME} />

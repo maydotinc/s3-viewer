@@ -1,20 +1,23 @@
 import { origin } from "./origin";
 
-type RuntimeEnv = { siteUrl: string; apiUrl: string };
+type RuntimeEnv = { siteUrl: string; apiUrl: string; hasLanding: boolean };
 
-type PublicEnv = { siteOrigin: string; apiOrigin: string };
+type PublicEnv = { siteOrigin: string; apiOrigin: string; hasLanding: boolean };
 
 type NextData = { props?: { runtimeEnv?: Partial<RuntimeEnv> } };
 
-const EMPTY: RuntimeEnv = { siteUrl: "", apiUrl: "" };
+const EMPTY: RuntimeEnv = { siteUrl: "", apiUrl: "", hasLanding: false };
 
 // a literal `process.env.NEXT_PUBLIC_*` is inlined at build time; a dynamic name stays runtime.
 const fromProcess = (name: string): string =>
    (typeof process === "undefined" ? undefined : process.env[name]) ?? "";
 
+const landingOrigin = origin(fromProcess("LANDING_ORIGIN")) || undefined;
+
 const serverRuntimeEnv = (): RuntimeEnv => ({
    siteUrl: fromProcess("NEXT_PUBLIC_SITE_URL"),
    apiUrl: fromProcess("NEXT_PUBLIC_API_URL"),
+   hasLanding: Boolean(landingOrigin),
 });
 
 const nextData = (): NextData | undefined => {
@@ -27,16 +30,26 @@ const nextData = (): NextData | undefined => {
 // module constants are computed before `_app` renders, so read __NEXT_DATA__ directly.
 const clientRuntimeEnv = (): RuntimeEnv => {
    try {
-      const { siteUrl, apiUrl } = nextData()?.props?.runtimeEnv ?? {};
-      return { siteUrl: siteUrl ?? "", apiUrl: apiUrl ?? "" };
+      const { siteUrl, apiUrl, hasLanding } =
+         nextData()?.props?.runtimeEnv ?? {};
+      return {
+         siteUrl: siteUrl ?? "",
+         apiUrl: apiUrl ?? "",
+         hasLanding: hasLanding === true,
+      };
    } catch {
       return EMPTY;
    }
 };
 
-const toPublicEnv = ({ siteUrl, apiUrl }: RuntimeEnv): PublicEnv => ({
+const toPublicEnv = ({
+   siteUrl,
+   apiUrl,
+   hasLanding,
+}: RuntimeEnv): PublicEnv => ({
    siteOrigin: origin(siteUrl),
    apiOrigin: origin(apiUrl),
+   hasLanding,
 });
 
 let resolved: PublicEnv | null = null;
@@ -57,9 +70,10 @@ const publicEnv: PublicEnv = {
    get apiOrigin() {
       return resolve().apiOrigin;
    },
+   get hasLanding() {
+      return resolve().hasLanding;
+   },
 };
-
-const landingOrigin = origin(fromProcess("LANDING_ORIGIN")) || undefined;
 
 export { landingOrigin, publicEnv, serverRuntimeEnv, setRuntimeEnv };
 export type { RuntimeEnv };

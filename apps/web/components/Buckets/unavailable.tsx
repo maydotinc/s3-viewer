@@ -1,8 +1,10 @@
 import { GridErrorState, GridLoadError } from "@/components/DataGrid/overlays";
 import { RetryButton, type RetryProps } from "@/components/status-message";
 import { ApiError } from "@/lib/api";
-import { usePermission } from "@/lib/hooks/usePermission";
-import { Permission } from "@s3-viewer/permissions";
+import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
+import useServerInfo from "@/lib/hooks/queries/server/useServerInfo";
+import { canRemoveBucket } from "@/lib/hooks/usePermission";
+import { useServerId } from "@/lib/stores/session-scope";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { FolderX } from "lucide-react";
@@ -27,7 +29,11 @@ const NotFoundState = ({
    retrying,
 }: BucketUnavailableProps) => {
    const router = useRouter();
-   const canRemove = usePermission(Permission.DELETE_BUCKET, bucketName);
+   const { data: server } = useServerInfo(useServerId());
+   const canRemove = canRemoveBucket(
+      server,
+      useBuckets(bucketName).currentBucket
+   );
    const [confirming, setConfirming] = useState(false);
 
    return (

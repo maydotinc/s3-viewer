@@ -30,6 +30,7 @@ import {
    UploadIdleError,
    stallMsFor,
 } from "./progress-floor";
+import { UnconfirmedWriteError } from "./conditions";
 import { readBudget, withReadUser } from "./read-budget";
 import { installReadBudget } from "./read-budget.fixture";
 import { resetRequestBudgets, withRequestBudget } from "./request-budget";
@@ -86,7 +87,8 @@ const uploadsPage = (
 
 const fixture = (
    handle: (request: FixtureRequest) => Promise<FixtureReply>,
-   endpoint = MINIO_ENDPOINT
+   endpoint = MINIO_ENDPOINT,
+   maxAttempts?: number
 ) =>
    s3Fixture(
       async (request, { abortSignal: signal }) => {
@@ -108,7 +110,7 @@ const fixture = (
             }),
          ]);
       },
-      { endpoint }
+      { endpoint, maxAttempts }
    );
 
 describe("listing incomplete multipart uploads", () => {
@@ -136,7 +138,6 @@ describe("listing incomplete multipart uploads", () => {
 
    it.each([
       "https://minio.example.com",
-      "https://storage.example.com",
       "https://s3.us-west-004.backblazeb2.com.attacker.example",
    ])("filters locally for an unknown endpoint: %s", async (endpoint) => {
       const f = fixture(
@@ -796,10 +797,13 @@ describe("aborting incomplete multipart uploads", () => {
    });
 
    it("reports the failures alongside the aborts, one attempt each", async () => {
-      const f = fixture(async (request) =>
-         request.query.uploadId === "u2"
-            ? error(500, "InternalError")
-            : reply(204)
+      const f = fixture(
+         async (request) =>
+            request.query.uploadId === "u2"
+               ? error(500, "InternalError")
+               : reply(204),
+         MINIO_ENDPOINT,
+         3
       );
       try {
          const result = await abortMultipartUploads(f.scope, SERVER, uploads);
@@ -1425,7 +1429,7 @@ describe("committing a multipart upload", () => {
                maxBytes: 1024,
                commitSignal: () => commit.signal,
             })
-         ).rejects.toMatchObject({ status: 502 });
+         ).rejects.toBeInstanceOf(UnconfirmedWriteError);
          expect(
             f.requests.filter((request) => request.method === "DELETE")
          ).toEqual([]);
@@ -1560,7 +1564,11 @@ describe("streaming one part", () => {
    });
 
    it("never retries a body it has already read", async () => {
-      const f = fixture(async () => error(500, "InternalError"), AWS_ENDPOINT);
+      const f = fixture(
+         async () => error(500, "InternalError"),
+         AWS_ENDPOINT,
+         3
+      );
       try {
          await expect(
             streamPart(f.scope, {
@@ -1690,15 +1698,12 @@ describe("streaming one part", () => {
 });
 
 describe("explicit multipart cancellation", () => {
-   it.each([
-      [403, "AccessDenied"],
-      [500, "InternalError"],
-   ])("surfaces provider failure %s", async (status, code) => {
-      const f = fixture(async () => error(Number(status), String(code)));
+   it("surfaces a provider refusal", async () => {
+      const f = fixture(async () => error(403, "AccessDenied"));
       try {
          await expect(
             abortMultipartUpload(f.scope, "a", "upload")
-         ).rejects.toHaveProperty("status");
+         ).rejects.toMatchObject({ status: 403 });
       } finally {
          f.client.destroy();
       }

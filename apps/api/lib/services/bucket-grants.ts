@@ -103,7 +103,6 @@ const findUnremovableGrant = <Row extends BucketRow>(
    rows.find((row) => !canRemoveGrant(serverRole, held, row));
 
 export {
-   bucketGrantJson,
    bucketGrantSelect,
    bucketGrantsLateral,
    canRemoveGrant,

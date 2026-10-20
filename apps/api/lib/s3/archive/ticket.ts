@@ -5,14 +5,14 @@ import type {
    Prisma,
 } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
-import { ARCHIVE_TOKEN_TTL_MS } from "@s3-viewer/types";
+import { ARCHIVE_TOKEN_TTL_MS, MIB } from "@s3-viewer/types";
 import { createHash, randomBytes } from "node:crypto";
 import { archiveFilename, namedFiles, type ManifestEntry } from "./entries";
 
 const MAX_TICKETS_PER_USER = 5;
 const MAX_RETAINED_TICKETS = 1_000;
-const MAX_RETAINED_TICKET_BYTES = 64 * 1024 * 1024;
-const MAX_TICKET_PAYLOAD_BYTES = 2 * 1024 * 1024;
+const MAX_RETAINED_TICKET_BYTES = 64 * MIB;
+const MAX_TICKET_PAYLOAD_BYTES = 2 * MIB;
 // a ticket's manifest is the same order of size as the 1,000 keys a selection may already carry, about 2,000 entries;
 // longer listings are re-collected on redemption, behind the zip slot and the collection cap.
 const MAX_MANIFEST_BYTES = 256 * 1024;

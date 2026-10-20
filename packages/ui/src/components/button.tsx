@@ -79,7 +79,6 @@ function Button({
       return (
          <Slot
             ref={ref}
-            data-slot="button"
             data-loading={loading || undefined}
             aria-busy={loading || undefined}
             className={cn(buttonVariants({ variant, size, className }))}
@@ -107,7 +106,6 @@ function Button({
    return (
       <button
          ref={ref}
-         data-slot="button"
          data-loading={loading || undefined}
          aria-busy={loading || undefined}
          disabled={disabled || loading}

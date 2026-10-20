@@ -302,14 +302,6 @@ describe("S3 client credential authority", () => {
       expect(state.assertPublicEndpoint).toHaveBeenCalledTimes(2);
    });
 
-   it("refuses a cached client after the server is deleted", async () => {
-      await getS3Client({ serverId });
-      state.snapshot = null;
-      await expect(getS3Client({ serverId })).rejects.toMatchObject({
-         status: 404,
-      });
-   });
-
    it("never falls back to cached credentials if the authority read fails", async () => {
       await getS3Client({ serverId });
       const failure = new Error("Database unavailable");

@@ -12,6 +12,8 @@ const h = vi.hoisted(() => ({
    moveMany: vi.fn(),
    downloadZip: vi.fn(),
    toastError: vi.fn(),
+   refresh: vi.fn(),
+   isResolving: false,
 }));
 
 vi.mock("next/router", () => ({ useRouter: () => ({ push: vi.fn() }) }));
@@ -66,7 +68,7 @@ vi.mock("./Context", () => ({
       bucketName: "bucket",
       prefix: "logs/",
       reach: h.reach,
-      refresh: vi.fn(),
+      refresh: h.refresh,
       isLoading: false,
    }),
 }));
@@ -82,7 +84,7 @@ vi.mock("@/components/Buckets/Upload/provider", () => ({
 vi.mock("./useObjectCommands", () => ({
    default: () => ({
       can: { download: true, rename: true, upload: true, delete: true },
-      isResolving: false,
+      isResolving: h.isResolving,
       isPreparingZip: false,
       remove: h.remove,
       moveMany: h.moveMany,
@@ -107,6 +109,16 @@ beforeEach(() => {
    vi.clearAllMocks();
    h.reach = { folders: null, owner: false };
    h.selectedIds = ["logs/a.txt", "logs/../b.txt"];
+   h.isResolving = false;
+});
+
+describe("while the caller's permissions are still resolving", () => {
+   it("already offers Refresh", async () => {
+      h.isResolving = true;
+      await mount();
+      await click("Refresh");
+      expect(h.refresh).toHaveBeenCalledOnce();
+   });
 });
 
 describe("acting on a selection with a row the caller can't act on", () => {
