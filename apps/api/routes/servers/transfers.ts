@@ -1,7 +1,7 @@
 import { S3_ROUTE_TIMEOUT_MS, uploadMemoryFor } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, asyncHandler, requestSignal } from "@/lib/http";
-import { record, recordFor } from "@/lib/middleware/audit-record";
+import { record, recordManyFor } from "@/lib/middleware/audit-record";
 import {
    assertInFolders,
    authorizeBucket,
@@ -206,16 +206,18 @@ const runTransfer = async (req: Request, res: Response): Promise<void> => {
    requireExpectedUser(res, scope.expectedUserId);
    const { sourceAuth, source, destination } = scope;
    const sourceServerId = sourceAuth.serverId;
-   await recordFor(requireUser(req), sourceServerId, sourceAuth.audit, {
-      action: "object.download",
-      bucket: source.bucketName,
-      target: source.objectKey,
-      detail: {
-         outcome: "attempt",
-         toServerId: destination.serverId,
-         toBucket: destination.bucketName,
+   await recordManyFor(requireUser(req), sourceServerId, sourceAuth.audit, [
+      {
+         action: "object.download",
+         bucket: source.bucketName,
+         target: source.objectKey,
+         detail: {
+            outcome: "attempt",
+            toServerId: destination.serverId,
+            toBucket: destination.bucketName,
+         },
       },
-   });
+   ]);
    const transferred: AuditEntry = {
       action: "object.transfer",
       bucket: destination.bucketName,

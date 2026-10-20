@@ -4,6 +4,7 @@ import {
 } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, rateLimited } from "@/lib/http";
+import { bump, countOf } from "@/lib/utils/counter-map";
 import { SECOND_MS } from "@s3-viewer/types";
 
 type UploadBudgetOptions = {
@@ -50,12 +51,6 @@ const slotLifetimeMs = (
            )
         );
 
-const decrement = (counts: Map<string, number>, key: string): void => {
-   const remaining = (counts.get(key) ?? 1) - 1;
-   if (remaining) counts.set(key, remaining);
-   else counts.delete(key);
-};
-
 const UPLOAD_POOL: Pool = { name: "Upload", share: 1 };
 const ARCHIVE_POOL: Pool = { name: "Zip", share: 1 / 2 };
 
@@ -94,14 +89,14 @@ const createUploadBudget = ({
                `This ${pool.name.toLowerCase()} needs more buffer memory than this instance allows`
             );
          const slots = poolFor(pool.name);
-         const held = slots.users.get(userId) ?? 0;
+         const held = countOf(slots.users, userId);
          const crowded = slots.active >= Math.ceil(maxUploads / 2);
          // accounts are cheap to mint, so once the pool is crowded an address gets no more slots than one account would;
          // while it is quiet, a team behind one NAT is bound only by the per-account and per-server caps.
-         const fromIp = ip ? (slots.ips.get(ip) ?? 0) : 0;
+         const fromIp = ip ? countOf(slots.ips, ip) : 0;
          const ipCap = crowded ? maxPerIp : Infinity;
          // a server's members share its storage, so no server may crowd the others out by spreading across accounts.
-         const fromServer = serverId ? (slots.servers.get(serverId) ?? 0) : 0;
+         const fromServer = serverId ? countOf(slots.servers, serverId) : 0;
          const serverCap = crowded ? Math.ceil(maxUploads / 2) : Infinity;
          // an empty pool always admits one reservation, so a small share can't lock it out.
          const overShare =
@@ -122,9 +117,9 @@ const createUploadBudget = ({
          slots.active++;
          slots.bytes += reservation;
          bytes += reservation;
-         slots.users.set(userId, held + 1);
-         if (ip) slots.ips.set(ip, fromIp + 1);
-         if (serverId) slots.servers.set(serverId, fromServer + 1);
+         bump(slots.users, userId, 1);
+         if (ip) bump(slots.ips, ip, 1);
+         if (serverId) bump(slots.servers, serverId, 1);
          let released = false;
          return () => {
             if (released) return;
@@ -132,9 +127,9 @@ const createUploadBudget = ({
             slots.active--;
             slots.bytes -= reservation;
             bytes -= reservation;
-            decrement(slots.users, userId);
-            if (ip) decrement(slots.ips, ip);
-            if (serverId) decrement(slots.servers, serverId);
+            bump(slots.users, userId, -1);
+            if (ip) bump(slots.ips, ip, -1);
+            if (serverId) bump(slots.servers, serverId, -1);
          };
       },
    };

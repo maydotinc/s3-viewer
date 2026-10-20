@@ -3,7 +3,6 @@ import {
    CredentialsFields,
    CredentialsFieldsSkeleton,
    EMPTY_CREDENTIALS,
-   withoutSecrets,
    type CredentialFields,
 } from "@/components/Modals/ConnectModal/credentials-fields";
 import { EncryptionStatus } from "@/components/Modals/ConnectModal/encryption-status";
@@ -11,6 +10,7 @@ import { sealCredentialFields } from "@/components/Modals/ConnectModal/seal-cred
 import { FormDialog } from "@/components/Modals/form-dialog";
 import FormError from "@/components/Modals/form-error";
 import StaleSignIn, { isSessionStale } from "@/components/stale-sign-in";
+import { errorMessage } from "@/lib/api";
 import useUpdateCredentials from "@/lib/hooks/mutations/server/useUpdateCredentials";
 import useInstanceConfig, {
    encryptionState,
@@ -39,11 +39,6 @@ const UpdateCredentialsModal = ({
       setError(null);
    };
 
-   const close = () => {
-      setFields(withoutSecrets);
-      onClose();
-   };
-
    const submit = async (e: FormEvent) => {
       e.preventDefault();
       if (encrypting || update.isPending) return;
@@ -59,17 +54,17 @@ const UpdateCredentialsModal = ({
          {
             onSuccess: () => {
                onUpdated?.();
-               close();
+               onClose();
             },
             onError: (err) =>
-               setError(isSessionStale(err) ? null : err.message),
+               setError(isSessionStale(err) ? null : errorMessage(err)),
          }
       );
    };
 
    return (
       <FormDialog
-         onClose={close}
+         onClose={onClose}
          isPending={encrypting || update.isPending}
          title="Update credentials"
          description={

@@ -1,9 +1,10 @@
+import { BUCKETS_PATH, underAnyServer } from "@/lib/constants";
 import { MULTIPART_PARTS_PATH, OBJECT_MUTATION_PATH } from "@s3-viewer/types";
 import type { Request } from "express";
 
 type UploadRequest = Pick<Request, "method" | "baseUrl" | "path">;
 
-const BUCKET_OBJECTS = "^/servers/[^/]+/buckets/[^/]+/objects";
+const BUCKET_OBJECTS = `${underAnyServer(BUCKETS_PATH)}/[^/]+/objects`;
 const OBJECT_UPLOAD_PATH = new RegExp(
    `${BUCKET_OBJECTS}${OBJECT_MUTATION_PATH}/upload/?$`,
    "i"

@@ -8,9 +8,11 @@ import {
    CONTACT_EMAIL,
    GITHUB_ISSUES_URL,
    GITHUB_URL,
+   MAY_HOST,
    MAY_NAME,
    MAY_URL,
 } from "@/lib/site-config";
+import { PRODUCT_NAME } from "@s3-viewer/types/constants";
 import { Building2, Mail } from "lucide-react";
 
 type Channel = {
@@ -41,8 +43,8 @@ const CHANNELS: Channel[] = [
    {
       href: MAY_URL,
       title: MAY_NAME,
-      description: "The studio behind S3 Viewer. See what else we build.",
-      cta: "may.inc",
+      description: `The studio behind ${PRODUCT_NAME}. See what else we build.`,
+      cta: MAY_HOST,
       icon: Building2,
    },
 ];
@@ -54,8 +56,8 @@ const Contact = () => {
             <div className="flex flex-col gap-4 max-w-[760px]">
                <PageTitle>Contact</PageTitle>
                <p className="text-viewertext max-w-[620px]">
-                  S3 Viewer is built by May Inc. Email us, open an issue, or
-                  read about the studio.
+                  {PRODUCT_NAME} is built by {MAY_NAME}. Email us, open an
+                  issue, or read about the studio.
                </p>
             </div>
          </PageHero>

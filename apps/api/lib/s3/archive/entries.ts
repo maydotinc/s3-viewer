@@ -9,6 +9,7 @@ import { HEAD_CONCURRENCY, S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { ApiHttpError, rateLimited } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { withDeadline } from "@/lib/utils/abort";
+import { bump, countOf } from "@/lib/utils/counter-map";
 import { headObject } from "../head";
 import { assertObjectSize, keyHash } from "../keys";
 import {
@@ -330,13 +331,8 @@ const collectingKeys = ({ userId, serverId }: CollectionTenant): string[] => [
    `user:${userId}`,
    `server:${serverId}`,
 ];
-const countOf = (key: string): number => collecting.get(key) ?? 0;
 const adjust = (keys: readonly string[], delta: number): void => {
-   for (const key of keys) {
-      const next = countOf(key) + delta;
-      if (next > 0) collecting.set(key, next);
-      else collecting.delete(key);
-   }
+   for (const key of keys) bump(collecting, key, delta);
 };
 
 // a manifest from the ticket replays what the selection listed, so only fresh listings count as collections.
@@ -352,8 +348,10 @@ const collectArchiveEntries = async (
       ? ["all", ...(tenant ? collectingKeys(tenant) : [])]
       : [];
    const busy =
-      countOf("all") >= MAX_CONCURRENT_COLLECTIONS ||
-      keys.slice(1).some((key) => countOf(key) >= MAX_TENANT_COLLECTIONS);
+      countOf(collecting, "all") >= MAX_CONCURRENT_COLLECTIONS ||
+      keys
+         .slice(1)
+         .some((key) => countOf(collecting, key) >= MAX_TENANT_COLLECTIONS);
    if (listing && busy)
       throw rateLimited("Zip preparation is busy. Try again shortly.");
    adjust(keys, 1);

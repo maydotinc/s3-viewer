@@ -1,3 +1,5 @@
+import { Wordmark } from "@/components/wordmark";
+import { KEY_CLASS } from "@s3-viewer/ui/components/kbd";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import {
    ChevronDown,
@@ -12,7 +14,6 @@ import {
    UserIcon,
    UserRoundPlus,
 } from "lucide-react";
-import Image from "next/image";
 import { ReactNode, useState } from "react";
 import { ScaledFrame } from "./frame";
 import type { ProviderId } from "@/lib/provider-paths";
@@ -67,9 +68,7 @@ const CHIP =
    "flex h-9 items-center justify-center gap-2 rounded-lg border border-viewerborder px-3 text-sm text-viewerblack";
 
 const Key = ({ children }: { children: ReactNode }) => (
-   <kbd className="inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-viewerborder bg-viewerwhite px-1 font-sans text-[11px] leading-none font-medium text-viewertext">
-      {children}
-   </kbd>
+   <kbd className={KEY_CLASS}>{children}</kbd>
 );
 
 const NAME_COL = "min-w-0 flex-1 px-4";
@@ -92,13 +91,9 @@ export const AppHeroFigure = () => {
          <div className="flex size-full cursor-default flex-col bg-viewerwhite text-sm text-viewertext">
             <div className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-viewerborder bg-viewerwhite px-6 @max-lg/frame:px-3">
                <div className="flex items-center gap-3">
-                  <Image
-                     src="/icons/viewer.svg"
+                  <Wordmark
                      alt=""
-                     width={150}
-                     height={32}
                      priority
-                     draggable={false}
                      className="h-8 w-auto shrink-0 @max-lg/frame:h-auto @max-lg/frame:w-28"
                   />
                   <span className="grid size-9 place-items-center rounded-lg text-viewertext">

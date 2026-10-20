@@ -1,8 +1,8 @@
 import { CellBar, nameBarWidth } from "@/components/DataGrid/skeleton";
 import InlineAlert from "@/components/inline-alert";
+import FormError from "@/components/Modals/form-error";
 import StatusMessage, { RetryButton } from "@/components/status-message";
 import type { BucketAccessEntry, Role, S3Bucket } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -25,6 +25,7 @@ import {
    type GrantRow,
 } from "./bucket-grants";
 import GrantScope from "./grant-scope";
+import LinkButton from "./link-button";
 import RoleSelect from "./role-select";
 import { grantableBucketRoles, lowestRole } from "./roles";
 
@@ -153,31 +154,6 @@ const BucketSkeletonRows = () => (
          </li>
       ))}
    </ul>
-);
-
-const LinkButton = ({
-   hidden,
-   disabled,
-   onClick,
-   children,
-}: {
-   hidden: boolean;
-   disabled?: boolean;
-   onClick: () => void;
-   children: ReactNode;
-}) => (
-   <Button
-      type="button"
-      variant="link"
-      size="sm"
-      className={cn("h-auto shrink-0 px-0", hidden && "invisible")}
-      onClick={onClick}
-      disabled={disabled || hidden}
-      aria-hidden={hidden || undefined}
-      tabIndex={hidden ? -1 : undefined}
-   >
-      {children}
-   </Button>
 );
 
 const BucketAccessPicker = ({
@@ -361,19 +337,15 @@ const BucketAccessPicker = ({
             role="group"
             aria-label={label}
             aria-busy={isLoading || undefined}
-            aria-describedby={errorId}
+            aria-describedby={error ? errorId : undefined}
             className="relative flex max-h-80 min-h-40 min-w-0 flex-col overflow-y-auto rounded-lg border border-viewerborder [scrollbar-gutter:stable]"
          >
             {list}
          </div>
          <div className="flex min-h-5 min-w-0 items-start justify-between gap-3">
-            <p
-               id={errorId}
-               role={error ? "alert" : undefined}
-               className="min-w-0 break-words text-xs leading-5 text-viewertextred"
-            >
-               {error}
-            </p>
+            <div className="min-w-0 flex-1">
+               <FormError id={errorId}>{error}</FormError>
+            </div>
             {errorAction}
          </div>
       </div>

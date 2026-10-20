@@ -4,16 +4,13 @@ import {
    emailSchema,
    normalizeEmail,
 } from "@s3-viewer/types";
-
-type Tone = "error" | "notice";
-
-type Feedback = { tone: Tone; text: string };
+import type { Message } from "../message";
 
 type EmailField = {
    chips: string[];
    input: string;
    // transient message from the last action; cleared by the next edit
-   feedback: Feedback | null;
+   feedback: Message | null;
 };
 
 const EMPTY_EMAIL_FIELD: EmailField = { chips: [], input: "", feedback: null };
@@ -84,7 +81,7 @@ const requireEmails = (field: EmailField): EmailField => ({
 const hasInvalidChip = (field: EmailField): boolean =>
    field.chips.some((chip) => !isValidEmail(chip));
 
-const helperMessage = (field: EmailField): Feedback => {
+const helperMessage = (field: EmailField): Message => {
    if (field.feedback?.tone === "error") return field.feedback;
    if (hasInvalidChip(field)) return { tone: "error", text: INVALID_EMAILS };
    return field.feedback ?? { tone: "notice", text: EMAIL_HINT };

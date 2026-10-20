@@ -1,3 +1,4 @@
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ArrowUpRight } from "lucide-react";
 import { SiteLink } from "@/components/external-link";
@@ -52,7 +53,8 @@ const LinkCard = ({
          href={href}
          aria-label={ariaLabel}
          className={cn(
-            "group flex flex-col gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-5 outline-none transition-colors hover:border-viewerblue/40 focus-visible:border-viewerblue focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-viewerblue",
+            "group flex flex-col gap-3 rounded-xl border border-viewerborder bg-viewerwhite p-5 outline-none transition-colors hover:border-viewerblue/40 focus-visible:border-viewerblue",
+            FOCUS_RING,
             className
          )}
       >

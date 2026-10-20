@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
    session: { userId: "user-a", serverId: "server-a" },
    mutate: vi.fn(),
    data: { text: "original", eTag: '"v1"' },
+   refetch: vi.fn(),
    saving: false,
 }));
 vi.mock("@/lib/stores/session-store", () => ({
@@ -23,7 +24,12 @@ vi.mock("@/lib/stores/session-store", () => ({
    useUserId: () => h.session.userId,
 }));
 vi.mock("@/lib/hooks/queries/s3/useObjectContent", () => ({
-   default: () => ({ data: h.data, isPending: false }),
+   default: () => ({
+      data: h.data,
+      isPending: false,
+      isFetching: false,
+      refetch: h.refetch,
+   }),
 }));
 vi.mock("@/lib/hooks/mutations/object/useSaveObjectContent", () => ({
    default: () => ({ mutate: h.mutate, isPending: h.saving }),
@@ -73,9 +79,16 @@ beforeEach(async () => {
    vi.clearAllMocks();
    h.session = { userId: "user-a", serverId: "server-a" };
    h.data = { text: "original", eTag: '"v1"' };
+   h.refetch.mockImplementation(async () => ({ data: h.data }));
    h.saving = false;
    await view.mount(createElement(Harness));
 });
+
+const conflictOnSave = () =>
+   h.mutate.mockImplementation(
+      (_input, callbacks: { onError: (error: unknown) => void }) =>
+         callbacks.onError(new ApiError(409, "Precondition failed"))
+   );
 
 describe("editor target identity", () => {
    it("saves the reviewed draft and ETag to its original target", async () => {
@@ -146,14 +159,36 @@ describe("editor saving", () => {
    });
 
    it("keeps a save conflict visible while the user keeps editing", async () => {
-      h.mutate.mockImplementation(
-         (_input, callbacks: { onError: (error: unknown) => void }) =>
-            callbacks.onError(new ApiError(409, "Precondition failed"))
-      );
+      conflictOnSave();
       await edit("updated");
       await save();
       await edit("updated again");
       expect(alert()?.textContent).toContain("Changed since you opened it");
+   });
+
+   it("reloads the latest version after a conflict and saves against its ETag", async () => {
+      conflictOnSave();
+      expect(buttonByText(view.current.container, "Reload")).toBeUndefined();
+      await edit("updated");
+      await save();
+      h.data = { text: "theirs", eTag: '"v2"' };
+      const confirm = vi.fn(() => false);
+      vi.stubGlobal("confirm", confirm);
+      await act(async () => button("Reload").click());
+      expect(confirm).toHaveBeenCalledOnce();
+      expect(textarea().value).toBe("updated");
+      confirm.mockReturnValue(true);
+      await act(async () => button("Reload").click());
+      expect(textarea().value).toBe("theirs");
+      expect(alert()).toBeNull();
+      expect(buttonByText(view.current.container, "Reload")).toBeUndefined();
+      h.mutate.mockReset();
+      await edit("mine on top of theirs");
+      await save();
+      expect(h.mutate).toHaveBeenCalledWith(
+         expect.objectContaining({ expectedETag: '"v2"' }),
+         expect.any(Object)
+      );
    });
 });
 

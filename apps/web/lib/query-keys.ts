@@ -5,6 +5,12 @@ type AuditFilters = Pick<AuditQuery, "action" | "actor" | "bucket" | "q"> & {
    to?: string;
 };
 
+const servers = (userId: string) => ["user", userId, "servers"] as const;
+
+// under the list on purpose: every mutation that invalidates the list expects each server's info to refetch with it
+const serverInfo = (userId: string, serverId: string) =>
+   [...servers(userId), serverId] as const;
+
 const server = (userId: string, serverId: string) =>
    ["user", userId, "server", serverId] as const;
 
@@ -35,9 +41,8 @@ const sentInvites = (userId: string, serverId: string) =>
 
 const queryKeys = {
    instanceConfig: ["instance-config"] as const,
-   servers: (userId: string) => ["user", userId, "servers"] as const,
-   serverInfo: (userId: string, serverId: string) =>
-      ["user", userId, "servers", serverId] as const,
+   servers,
+   serverInfo,
    server,
    members: (userId: string, serverId: string) =>
       [...server(userId, serverId), "members"] as const,

@@ -2,21 +2,20 @@ import type { Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
-   writeAudit: vi.fn(),
    writeAudits: vi.fn(),
    appendAuditWithin: vi.fn(),
    error: vi.fn(),
 }));
 
 vi.mock("@/lib/audit/writer", () => ({
-   writeAudit: h.writeAudit,
    writeAudits: h.writeAudits,
    appendAuditWithin: h.appendAuditWithin,
 }));
 vi.mock("@/lib/logger", () => ({ logger: { error: h.error } }));
 
-const { auditUnavailable, record, recordAlways, recordFor, recordWithin } =
-   await import("./audit-record");
+const { auditUnavailable, record, recordManyFor, recordWithin } = await import(
+   "./audit-record"
+);
 
 const res = (enabled = false) =>
    ({
@@ -29,7 +28,6 @@ const res = (enabled = false) =>
 
 beforeEach(() => {
    vi.clearAllMocks();
-   h.writeAudit.mockResolvedValue(undefined);
    h.writeAudits.mockResolvedValue(undefined);
    h.appendAuditWithin.mockResolvedValue(undefined);
 });
@@ -48,7 +46,11 @@ describe("after the action", () => {
    });
 
    it("writes always-recorded entries as if the log were on", async () => {
-      await recordAlways(res(false), { action: "credentials.update" });
+      await record(
+         res(false),
+         { action: "credentials.update" },
+         { always: true }
+      );
       expect(h.writeAudits).toHaveBeenCalledWith(
          expect.objectContaining({
             audit: { enabled: true, level: "ALL" },
@@ -57,14 +59,14 @@ describe("after the action", () => {
       );
    });
 
-   it("settles a recordFor the same way", async () => {
-      h.writeAudit.mockRejectedValue(new Error("connection reset"));
+   it("settles a recordManyFor the same way", async () => {
+      h.writeAudits.mockRejectedValue(new Error("connection reset"));
       await expect(
-         recordFor(
+         recordManyFor(
             { id: "invitee", email: "invitee@example.com" },
             "server12345",
             { enabled: true, level: "ALL" } as never,
-            { action: "invite.accept" }
+            [{ action: "invite.accept" }]
          )
       ).resolves.toBeUndefined();
       expect(h.error).toHaveBeenCalledOnce();
@@ -85,13 +87,13 @@ describe("before the action", () => {
    );
 
    it("applies to a transfer's download attempt too", async () => {
-      h.writeAudit.mockRejectedValue(new Error("connection reset"));
+      h.writeAudits.mockRejectedValue(new Error("connection reset"));
       await expect(
-         recordFor(
+         recordManyFor(
             { id: "actor12345", email: "actor@example.com" },
             "server12345",
             { enabled: true, level: "ALL" } as never,
-            { action: "object.download" }
+            [{ action: "object.download" }]
          )
       ).rejects.toMatchObject({ status: 503 });
    });

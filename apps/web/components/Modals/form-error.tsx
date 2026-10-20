@@ -11,7 +11,8 @@ const FormError = ({
    size?: "xs" | "sm";
    children?: string | null;
 }) => {
-   if (!children && !hint) return null;
+   // inputs point aria-describedby at the id up front, so it has to resolve even while there is nothing to say
+   if (!children && !hint) return id ? <p id={id} hidden /> : null;
    return (
       <p
          id={id}

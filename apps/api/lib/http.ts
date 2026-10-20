@@ -127,11 +127,19 @@ class RetryableError extends Error {
    }
 }
 
-const DATABASE_RETRY_REASONS: Readonly<Record<string, string>> = {
+// a timed-out transaction is known to have rolled back; a write conflict is only retried by request handlers.
+const DATABASE_TIMEOUT_REASONS: Readonly<Record<string, string>> = {
    P2024: "Database pool timeout",
    P2028: "Database transaction timeout",
+};
+
+const DATABASE_RETRY_REASONS: Readonly<Record<string, string>> = {
+   ...DATABASE_TIMEOUT_REASONS,
    P2034: "Database write conflict",
 };
+
+const isDatabaseTimeout = (code: string): boolean =>
+   Object.hasOwn(DATABASE_TIMEOUT_REASONS, code);
 
 const databaseRetryReason = (err: unknown): string | null => {
    let current = err;
@@ -287,6 +295,7 @@ export {
    errorHandler,
    fail,
    isAuthApiError,
+   isDatabaseTimeout,
    isRateLimited,
    memberNotFound,
    noContent,

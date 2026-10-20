@@ -13,6 +13,7 @@ import { GitHubMark, LinkedInMark, XMark } from "@/components/social-marks";
 import {
    GITHUB_ISSUES_URL,
    MAY_GITHUB_URL,
+   MAY_HOST,
    MAY_LOGO_URL,
    MAY_NAME,
    MAY_URL,
@@ -97,7 +98,7 @@ const About = () => {
                         <ExternalLink href={MAY_URL} className={ORG_LINK}>
                            <span className="inline-flex items-center gap-2">
                               <Globe className="size-3.5" />
-                              may.inc
+                              {MAY_HOST}
                            </span>
                            <ArrowUpRight className="size-3.5 text-viewertext" />
                         </ExternalLink>

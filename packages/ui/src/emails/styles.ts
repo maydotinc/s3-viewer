@@ -1,15 +1,17 @@
+import { PALETTE } from "@s3-viewer/ui/lib/palette";
+
 const fontStack =
    "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
 const colors = {
-   page: "#f7f7f7",
-   card: "#ffffff",
-   border: "#e1e4ea",
-   heading: "#0e121b",
-   body: "#525866",
-   muted: "#636c7e",
-   brand: "#3658c1",
-   onBrand: "#ffffff",
+   page: PALETTE.viewergray,
+   card: PALETTE.viewerwhite,
+   border: PALETTE.viewerborder,
+   heading: PALETTE.viewerblack,
+   body: PALETTE.viewertext,
+   muted: PALETTE.viewerlighttext,
+   brand: PALETTE.viewerblue,
+   onBrand: PALETTE.viewerwhite,
 };
 
 const main = {

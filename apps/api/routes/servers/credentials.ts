@@ -8,14 +8,14 @@ import {
    invalidateS3Client,
 } from "@/lib/s3/client-cache";
 import { assertCredentialsWork } from "@/lib/s3/probe";
-import { recordAlways } from "@/lib/middleware/audit-record";
+import { record } from "@/lib/middleware/audit-record";
 import {
    openCredentials,
    serverInfoSelect,
    toServerInfo,
 } from "@/lib/services/servers";
 import { storageCapabilities } from "@/lib/services/storage-capabilities";
-import { decryptCredentials } from "@/lib/utils/encryption";
+import { tryDecryptCredentials } from "@/lib/s3/stored-credentials";
 import { prisma } from "@s3-viewer/db";
 import { Permission } from "@s3-viewer/permissions";
 import {
@@ -27,17 +27,6 @@ import {
 import { Router, type Request, type Response } from "express";
 
 const credentialsRouter: Router = Router();
-
-const readStored = (
-   blob: string,
-   ownerId: string
-): ServerCredentials | null => {
-   try {
-      return decryptCredentials(blob, ownerId);
-   } catch {
-      return null;
-   }
-};
 
 const keySuffix = (accessKey: string): string => {
    const length = Math.min(4, Math.floor(accessKey.length / 4));
@@ -77,7 +66,7 @@ const updateCredentials = async (
       encryptedCredentials,
       userId
    );
-   const previous = readStored(stored.credentials, stored.ownerId);
+   const previous = tryDecryptCredentials(stored.credentials, stored.ownerId);
    await assertCredentialsWork(
       getS3ClientFromCredentials(credentials, provider, serverId),
       bucketScope.allowedBuckets,
@@ -100,10 +89,14 @@ const updateCredentials = async (
          })
       );
    invalidateS3Client(serverId);
-   await recordAlways(res, {
-      action: "credentials.update",
-      detail: changeDetail(previous, credentials),
-   });
+   await record(
+      res,
+      {
+         action: "credentials.update",
+         detail: changeDetail(previous, credentials),
+      },
+      { always: true }
+   );
    res.json({ server: toServerInfo(server, serverRole) });
 };
 

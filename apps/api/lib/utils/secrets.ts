@@ -12,6 +12,8 @@ type Secret = {
    file: string;
    generate: () => string;
    warning: string;
+   // a reader that validates what it finds, for secrets a stray file must not silently replace.
+   read?: (path: string) => string | undefined;
 };
 
 const SECRETS: readonly Secret[] = [
@@ -74,13 +76,12 @@ const persistSecretFile = <T>(
 };
 
 const ensureSecret = (dir: string, secret: Secret): string => {
+   const read = secret.read ?? readSecret;
    const path = join(dir, secret.file);
-   const existing = readSecret(path);
+   const existing = read(path);
    if (existing) return existing;
    const value = secret.generate().trim();
-   const raced = persistSecretFile(dir, path, `${value}\n`, () =>
-      readSecret(path)
-   );
+   const raced = persistSecretFile(dir, path, `${value}\n`, () => read(path));
    if (raced !== undefined) return raced;
    logger.warn(`generated ${secret.variable} into ${path} — ${secret.warning}`);
    return value;
@@ -95,4 +96,5 @@ const ensureDataDirSecrets = (env: NodeJS.ProcessEnv = process.env): void => {
    }
 };
 
-export { ensureDataDirSecrets, persistSecretFile };
+export { ensureDataDirSecrets, ensureSecret };
+export type { Secret };

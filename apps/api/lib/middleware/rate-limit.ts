@@ -1,3 +1,4 @@
+import { BUCKETS_PATH, SERVER_MOUNT, underAnyServer } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { postgresStore } from "./rate-limit-store";
 import {
@@ -15,10 +16,16 @@ import rateLimit, {
    type RateLimitInfo,
 } from "express-rate-limit";
 
-const BUCKET_MOUNT = "/servers/:serverId/buckets";
-const TRANSFER_MOUNT = `/servers/:serverId${TRANSFERS_PATH}`;
-const TRANSFER_ROUTE = /^\/servers\/[^/]+\/transfers(\/|$)/i;
-const OBJECT_ROUTE = /^\/servers\/[^/]+\/(buckets|transfers)(\/|$)/i;
+const BUCKET_MOUNT = `${SERVER_MOUNT}${BUCKETS_PATH}`;
+const TRANSFER_MOUNT = `${SERVER_MOUNT}${TRANSFERS_PATH}`;
+const TRANSFER_ROUTE = new RegExp(
+   `${underAnyServer(TRANSFERS_PATH)}(/|$)`,
+   "i"
+);
+const OBJECT_ROUTE = new RegExp(
+   `${underAnyServer(BUCKETS_PATH, TRANSFERS_PATH)}(/|$)`,
+   "i"
+);
 
 const RATE_LIMITED = {
    message: "Too many requests. Please try again later.",

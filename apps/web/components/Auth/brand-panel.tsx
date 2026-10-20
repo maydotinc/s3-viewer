@@ -67,15 +67,14 @@ const MockCheckbox = ({ checked }: { checked?: boolean }) => (
 
 const RowMenu = () => (
    <div className="absolute right-3 top-9 z-10 w-40 rounded-lg border border-viewerborder bg-viewerwhite p-1 text-left shadow-[0_12px_32px_-12px_rgba(14,18,27,0.35)]">
-      {MENU_ITEMS.map(({ icon: Icon, label, active, destructive }, index) => (
+      {MENU_ITEMS.map(({ icon: Icon, label, active, destructive }) => (
          <div key={label}>
             {destructive && <div className="my-1 h-px bg-viewerborder" />}
             <div
                className={cn(
                   "flex h-8 items-center gap-2 rounded-md px-2 text-[13px]",
                   active && "bg-viewergray text-viewerblack",
-                  destructive ? "text-viewertextred" : "text-viewertext",
-                  index === 0 && !active && "text-viewertext"
+                  destructive ? "text-viewertextred" : "text-viewertext"
                )}
             >
                <Icon

@@ -1,5 +1,6 @@
 import { SITE_PATHS } from "@s3-viewer/types";
 import type { NextConfig } from "next";
+import { STATIC_PUBLIC_FILE_PATTERN } from "./lib/static-public-files";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -24,9 +25,9 @@ const securityHeaders = [
 ];
 
 // public/ files are not content-hashed, so revalidate daily rather than marking them immutable.
-const STATIC_PUBLIC_FILES = [
+const STATIC_PUBLIC_ROUTES = [
    "/icons/:path*",
-   "/:file(favicon\\.ico|favicon\\.svg|favicon-96x96\\.png|apple-touch-icon\\.png|icon-192\\.png|icon-512\\.png|icon-maskable-192\\.png|icon-maskable-512\\.png|site\\.webmanifest|social-card\\.png)",
+   `/:file(${STATIC_PUBLIC_FILE_PATTERN})`,
 ];
 
 const staticAssetHeaders = [
@@ -65,7 +66,7 @@ const nextConfig: NextConfig = {
          source,
          headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
       })),
-      ...STATIC_PUBLIC_FILES.map((source) => ({
+      ...STATIC_PUBLIC_ROUTES.map((source) => ({
          source,
          headers: staticAssetHeaders,
       })),

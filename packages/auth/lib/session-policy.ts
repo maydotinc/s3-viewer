@@ -11,6 +11,7 @@ import {
 import { APIError, getSessionFromCtx } from "better-auth/api";
 import { deleteSessionCookie } from "better-auth/cookies";
 import { AuthErrorCode, PASSWORD_NOT_SET_MESSAGE } from "./errors";
+import { DELETE_USER_PATH } from "./paths";
 import { assertSharedServersAcknowledged } from "./user-deletion";
 
 const ABSOLUTE_TTL_MS = SESSION_ABSOLUTE_TTL_DAYS * DAY_MS;
@@ -62,10 +63,10 @@ const enforceSessionPolicy = async (
       });
    }
 
-   if (ctx.path === "/delete-user/callback") {
+   if (ctx.path === `${DELETE_USER_PATH}/callback`) {
       throw new APIError("NOT_FOUND", { message: "Not found" });
    }
-   if (ctx.path !== "/delete-user") return expired;
+   if (ctx.path !== DELETE_USER_PATH) return expired;
 
    // check binding before Better Auth strips the extra confirmation fields.
    const confirmation = deleteAccountSchema.safeParse(ctx.body);

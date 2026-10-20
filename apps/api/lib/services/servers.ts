@@ -8,7 +8,7 @@ import {
 import { ApiHttpError, serverNotFound } from "@/lib/http";
 import { detectProvider } from "@/lib/utils/detect-provider";
 import { assertPublicEndpoint } from "@/lib/utils/endpoint";
-import { decryptCredentials } from "@/lib/utils/encryption";
+import { tryDecryptCredentials } from "@/lib/s3/stored-credentials";
 import { $Enums, Prisma, type Server } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import { Permission, auditAccess, hasPermission } from "@s3-viewer/permissions";
@@ -263,11 +263,10 @@ const readCredentials = (
    encrypted: string,
    userId: string
 ): ServerCredentials => {
-   try {
-      return decryptCredentials(encrypted, userId);
-   } catch {
+   const credentials = tryDecryptCredentials(encrypted, userId);
+   if (!credentials)
       throw new ApiHttpError(400, "Could not read those credentials");
-   }
+   return credentials;
 };
 
 type OpenedCredentials = { credentials: ServerCredentials; provider: Provider };

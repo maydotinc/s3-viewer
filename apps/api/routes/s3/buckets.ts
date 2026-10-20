@@ -20,10 +20,8 @@ import { BucketExistsError, createNewBucket } from "@/lib/s3/bucket-create";
 import { listBuckets } from "@/lib/s3/bucket-listing";
 import { canHeadBucket } from "@/lib/s3/probe";
 import { getS3Client, getS3ClientFromCredentials } from "@/lib/s3/client-cache";
-import {
-   credentialsUnreadableError,
-   throwListBucketsError,
-} from "@/lib/s3/errors";
+import { throwListBucketsError } from "@/lib/s3/errors";
+import { openStoredCredentials } from "@/lib/s3/stored-credentials";
 import {
    canRevokeInvite,
    revocableInviteSelect,
@@ -40,8 +38,6 @@ import {
    isBucketAllowed,
    lockBucketScope,
 } from "@/lib/services/servers";
-import { assertPublicEndpoint } from "@/lib/utils/endpoint";
-import { decryptCredentials } from "@/lib/utils/encryption";
 import { prisma } from "@s3-viewer/db";
 import { liveInvite } from "@s3-viewer/db/invitations";
 import { Permission, ROLE_LABELS } from "@s3-viewer/permissions";
@@ -53,7 +49,6 @@ import {
    serverScope,
    type CreatedBucket,
    type S3Bucket,
-   type ServerCredentials,
 } from "@s3-viewer/types";
 import { Router } from "express";
 
@@ -135,16 +130,11 @@ bucketsRouter.post(
                "Only the server owner can create a bucket on a server restricted to an allow-list."
             );
          }
-         let credentials: ServerCredentials;
-         try {
-            credentials = decryptCredentials(
-               snapshot.credentials,
-               snapshot.ownerId
-            );
-         } catch {
-            throw credentialsUnreadableError();
-         }
-         await assertPublicEndpoint(credentials.endpoint);
+         const credentials = await openStoredCredentials(
+            serverId,
+            snapshot.credentials,
+            snapshot.ownerId
+         );
          const provider = Provider[snapshot.provider];
          const client = getS3ClientFromCredentials(
             credentials,

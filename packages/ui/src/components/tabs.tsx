@@ -72,6 +72,7 @@ function TabButton({
          role="tab"
          data-state={active ? "active" : "inactive"}
          aria-selected={active}
+         tabIndex={active ? 0 : -1}
          className={cn(
             ITEM,
             FOCUS_RING,

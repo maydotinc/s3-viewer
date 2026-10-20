@@ -1,6 +1,7 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import { MINUTE_MS } from "@s3-viewer/types";
 import { env } from "@/lib/env";
+import { bump, countOf } from "@/lib/utils/counter-map";
 import { rateLimited } from "./errors";
 import { readUserId } from "./read-budget";
 import {
@@ -103,20 +104,13 @@ const spendRequest = (serverId: string): void => {
       windows.set(serverId, open);
    }
    if (userId !== undefined) {
-      const spent = (open.users.get(userId) ?? 0) + 1;
-      open.users.set(userId, spent);
+      const spent = bump(open.users, userId, 1);
       if (open.users.size > 1) open.sharedUntil = now + SHARE_HOLD_MS;
       if (open.sharedUntil > now && spent > userShare())
          throw userBudgetExhausted();
    }
    open.count += 1;
    if (open.count > env.S3_REQUESTS_PER_MINUTE) throw budgetExhausted();
-};
-
-const bump = (counts: Map<string, number>, key: string, by: 1 | -1): void => {
-   const next = (counts.get(key) ?? 0) + by;
-   if (next > 0) counts.set(key, next);
-   else counts.delete(key);
 };
 
 // counts calls still waiting on storage's response head, the phase a tarpit endpoint can stretch.
@@ -128,9 +122,9 @@ const acquireInFlight = (
    serverId: string
 ): (() => void) => {
    const userId = readUserId();
-   if ((pool.byServer.get(serverId) ?? 0) >= pool.serverCap())
+   if (countOf(pool.byServer, serverId) >= pool.serverCap())
       throw pool.serverBusy();
-   if (userId !== undefined && (pool.byUser.get(userId) ?? 0) >= pool.userCap())
+   if (userId !== undefined && countOf(pool.byUser, userId) >= pool.userCap())
       throw pool.userBusy();
    bump(pool.byServer, serverId, 1);
    if (userId !== undefined) bump(pool.byUser, userId, 1);

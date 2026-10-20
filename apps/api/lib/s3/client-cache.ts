@@ -11,18 +11,14 @@ import { Agent as HttpAgent } from "node:http";
 import { Agent as HttpsAgent } from "node:https";
 import { env } from "@/lib/env";
 import { ApiHttpError, serverNotFound } from "@/lib/http";
-import { logger } from "@/lib/logger";
 import { waitForSharedOperation } from "@/lib/utils/abort";
-import { assertPublicEndpoint, publicOnlyLookup } from "@/lib/utils/endpoint";
-import { decryptCredentials } from "@/lib/utils/encryption";
-import {
-   CREDENTIALS_CHANGED_MESSAGE,
-   credentialsUnreadableError,
-   toBucketHttpError,
-} from "./errors";
+import { bump } from "@/lib/utils/counter-map";
+import { publicOnlyLookup } from "@/lib/utils/endpoint";
+import { CREDENTIALS_CHANGED_MESSAGE, toBucketHttpError } from "./errors";
 import { withFolderGuard } from "./folder-guard";
 import { withRequestBudget } from "./request-budget";
 import { cappedStreamCollector } from "./response-collector";
+import { openStoredCredentials } from "./stored-credentials";
 import {
    BucketClientInvalidatedError,
    invalidateBucketClients,
@@ -64,17 +60,11 @@ const generationOf = (serverId: string): number =>
    generations.get(serverId) ?? 0;
 
 const beginFill = (serverId: string): void => {
-   inFlightFills.set(serverId, (inFlightFills.get(serverId) ?? 0) + 1);
+   bump(inFlightFills, serverId, 1);
 };
 
 const endFill = (serverId: string): void => {
-   const remaining = (inFlightFills.get(serverId) ?? 1) - 1;
-   if (remaining > 0) {
-      inFlightFills.set(serverId, remaining);
-      return;
-   }
-   inFlightFills.delete(serverId);
-   generations.delete(serverId);
+   if (bump(inFlightFills, serverId, -1) === 0) generations.delete(serverId);
 };
 
 const agentOptions = {
@@ -140,19 +130,6 @@ const getS3ClientFromCredentials = (
    return serverId ? withFolderGuard(client, serverId) : client;
 };
 
-const readStoredCredentials = (
-   serverId: string,
-   blob: string,
-   ownerId: string
-): ServerCredentials => {
-   try {
-      return decryptCredentials(blob, ownerId);
-   } catch {
-      logger.warn("Could not decrypt server credentials", { serverId });
-      throw credentialsUnreadableError();
-   }
-};
-
 const makeRoom = (): void => {
    if (cache.size < CACHE_MAX_ENTRIES) return;
    const now = Date.now();
@@ -208,12 +185,11 @@ const fillCachedClient = async (
             return hit.client;
          }
          removeCachedClient(serverId);
-         const credentials = readStoredCredentials(
+         const credentials = await openStoredCredentials(
             serverId,
             snapshot.credentials,
             snapshot.ownerId
          );
-         await assertPublicEndpoint(credentials.endpoint);
          const current = await readCredentialSnapshot(serverId);
          if (
             generationOf(serverId) !== generation ||

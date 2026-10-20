@@ -74,7 +74,7 @@ vi.mock("@/lib/s3/no-retry", () => ({
 }));
 vi.mock("@/lib/middleware/audit-record", () => ({
    record: async () => undefined,
-   recordFor: async () => undefined,
+   recordManyFor: async () => undefined,
    recordMany: async () => undefined,
 }));
 vi.mock("@/lib/audit/writer", () => ({

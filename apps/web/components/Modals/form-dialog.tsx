@@ -10,7 +10,6 @@ type FormDialogProps = {
    title: ReactNode;
    description: ReactNode;
    contentClassName?: string;
-   headerClassName?: string;
    bodyClassName?: string;
    formAutoComplete?: string;
    onSubmit: (event: FormEvent) => void;
@@ -26,7 +25,6 @@ const FormDialog = ({
    title,
    description,
    contentClassName,
-   headerClassName,
    bodyClassName = "flex flex-col gap-1.5",
    formAutoComplete,
    onSubmit,
@@ -37,12 +35,10 @@ const FormDialog = ({
 }: FormDialogProps) => (
    <ModalShell
       closable={!isPending}
-      showCloseButton
       onClose={onClose}
       title={title}
       description={description}
       className={contentClassName}
-      headerClassName={headerClassName}
    >
       <form
          onSubmit={onSubmit}

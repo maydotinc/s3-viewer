@@ -8,7 +8,7 @@ import useSessionStore from "@/lib/stores/session-store";
 import { deferred, flushRuntime, mountRuntime } from "@/lib/test/runtime";
 import useCreateBucket from "./bucket/useCreateBucket";
 import useRemoveBucket from "./bucket/useRemoveBucket";
-import useDeleteServer from "./server/useDeleteServer";
+import useServerExit from "./server/useServerExit";
 import useApiMutation from "./useApiMutation";
 
 const h = vi.hoisted(() => ({
@@ -210,7 +210,7 @@ describe("per-invocation mutation scope", () => {
    it("removes a deleted server from the account that requested deletion", async () => {
       const response = deferred<void>();
       h.remove.mockReturnValue(response.promise);
-      const runtime = await mountHook(useDeleteServer);
+      const runtime = await mountHook(() => useServerExit("delete"));
       const remove = vi.spyOn(runtime.queryClient, "removeQueries");
       const invalidate = vi.spyOn(runtime.queryClient, "invalidateQueries");
       let pending!: Promise<unknown>;

@@ -84,7 +84,8 @@ const middleware = (request: NextRequest): NextResponse => {
    return response;
 };
 
-// static public files need neither a nonce nor a document CSP; keep in sync with next.config.ts
+// static public files need neither a nonce nor a document CSP. Next only reads a literal matcher,
+// so this spells out lib/static-public-files.ts; middleware.test.ts keeps the two aligned.
 export const config = {
    matcher: [
       "/((?!_next/static|_next/image|icons/|(?:favicon\\.ico|favicon\\.svg|favicon-96x96\\.png|apple-touch-icon\\.png|icon-192\\.png|icon-512\\.png|icon-maskable-192\\.png|icon-maskable-512\\.png|site\\.webmanifest|social-card\\.png)$).*)",

@@ -84,6 +84,18 @@ describe("per-server access", () => {
       expect(next.expanded).toBe("a");
       expect(next.focusRequest).toBe(1);
    });
+
+   it("opening another section by hand drops the pending focus request", () => {
+      const failed = wizardReducer(INITIAL_WIZARD_STATE, {
+         type: "accessChecked",
+         committed: {},
+         failing: "a",
+      });
+      const next = wizardReducer(failed, { type: "expand", serverId: "b" });
+      expect(next.expanded).toBe("b");
+      expect(next.focusRequest).toBe(0);
+      expect(next.accessSubmitted).toBe(true);
+   });
 });
 
 describe("after sending", () => {
@@ -134,6 +146,18 @@ describe("after sending", () => {
       expect(next.result).toBeNull();
       expect(next.selected).toEqual(["a"]);
       expect(next.access.a?.rows).toEqual([row("site")]);
+   });
+
+   it("inviting more people starts the access checks afresh", () => {
+      const checked = wizardReducer(sent, {
+         type: "accessChecked",
+         committed: {},
+         failing: "a",
+      });
+      const next = wizardReducer(checked, { type: "inviteMore" });
+      expect(next.accessSubmitted).toBe(false);
+      expect(next.focusRequest).toBe(0);
+      expect(next.expanded).toBeNull();
    });
 });
 

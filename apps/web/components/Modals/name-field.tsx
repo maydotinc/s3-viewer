@@ -2,6 +2,7 @@ import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { useId, useState, type ChangeEvent } from "react";
 import FormError from "./form-error";
+import useRequestError from "./use-request-error";
 
 const useNameField = (
    validate: (name: string) => string | null,
@@ -9,22 +10,22 @@ const useNameField = (
 ) => {
    const [name, setName] = useState(initial);
    const [touched, setTouched] = useState(false);
-   const [requestError, setRequestError] = useState<string | null>(null);
+   const request = useRequestError();
    const trimmed = name.trim();
    const validation = validate(trimmed);
    return {
       trimmed,
       valid: validation === null,
       error:
-         requestError ??
+         request.error ??
          (touched && (!hideEmptyError || trimmed) ? validation : null),
-      setRequestError,
+      attempt: request.attempt,
       inputProps: {
          value: name,
          onChange: (event: ChangeEvent<HTMLInputElement>) => {
             setName(event.target.value);
             setTouched(true);
-            setRequestError(null);
+            request.clear();
          },
          onBlur: () => setTouched(true),
       },

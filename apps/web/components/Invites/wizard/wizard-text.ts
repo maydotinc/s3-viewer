@@ -133,7 +133,6 @@ export {
    peopleText,
    resultTitle,
    sendLabel,
-   serversText,
    stepAnnouncement,
    unemailedAddresses,
    unemailedText,

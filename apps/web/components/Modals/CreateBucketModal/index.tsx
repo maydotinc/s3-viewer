@@ -20,18 +20,17 @@ const CreateBucketModal = ({ onClose }: CreateBucketModalProps) => {
    const submit = (event: FormEvent) => {
       event.preventDefault();
       if (createBucket.isPending || !field.valid) return;
-      field.setRequestError(null);
-      createBucket.mutate(field.trimmed, {
-         onSuccess: ({ bucket, existing }) => {
+      createBucket.mutate(
+         field.trimmed,
+         field.attempt(({ bucket, existing }) => {
             toast.success(
                existing
                   ? `Bucket ${bucket.name} added to this server.`
                   : `Bucket ${bucket.name} created.`
             );
             onClose();
-         },
-         onError: (failure) => field.setRequestError(failure.message),
-      });
+         })
+      );
    };
 
    return (

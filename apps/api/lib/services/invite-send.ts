@@ -208,7 +208,8 @@ const writeInvites = async (
    const byEmail = new Map(rows.map((row) => [row.email, row]));
    return emails.map((email) => {
       const row = byEmail.get(email);
-      if (!row) throw new ApiHttpError(500, "Invite could not be saved");
+      // a row vanishing between the insert and this read is a bug worth a logged 500, not a quiet reply.
+      if (!row) throw new Error("Invite row vanished after creation");
       return {
          invite: toServerInvite(row),
          token: row.token,

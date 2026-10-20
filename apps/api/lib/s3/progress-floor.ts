@@ -17,10 +17,10 @@ class UploadIdleError extends Error {
 
 // subclassing the idle error lets every streaming path surface it as the abort reason.
 class SlotExpiredError extends UploadIdleError {
-   constructor() {
-      super(
-         "Upload took too long. Try again on a faster connection or in smaller parts."
-      );
+   constructor(
+      message = "Upload took too long. Try again on a faster connection or in smaller parts."
+   ) {
+      super(message);
       this.name = "SlotExpiredError";
    }
 }

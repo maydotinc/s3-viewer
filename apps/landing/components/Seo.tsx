@@ -2,6 +2,7 @@ import Head from "next/head";
 import type { JsonLdNode } from "@/lib/jsonld";
 import { MAY_NAME, OG_IMAGE_URL, SITE_URL } from "@/lib/site-config";
 import { siteTitle } from "@/lib/site-title";
+import { PRODUCT_NAME } from "@s3-viewer/types/constants";
 
 type SeoProps = {
    title: string;
@@ -18,7 +19,7 @@ export default function Seo({
    title,
    description,
    canonical,
-   imageAlt = "S3 Viewer - Fast, open-source S3 object storage browser",
+   imageAlt = `${PRODUCT_NAME} - Fast, open-source S3 object storage browser`,
    type = "website",
    publishedTime,
    modifiedTime,
@@ -41,7 +42,7 @@ export default function Seo({
          <meta property="og:description" content={description} />
          <meta property="og:image" content={OG_IMAGE_URL} />
          <meta property="og:image:alt" content={imageAlt} />
-         <meta property="og:site_name" content="S3 Viewer" />
+         <meta property="og:site_name" content={PRODUCT_NAME} />
          <meta property="og:locale" content="en_US" />
          {publishedTime && (
             <meta property="article:published_time" content={publishedTime} />

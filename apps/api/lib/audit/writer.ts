@@ -1,5 +1,6 @@
 import { auditRow, type ChainLink, type Queued } from "./chain";
 import { LOCK_NAMESPACE, xactLock } from "@/lib/db-locks";
+import { isDatabaseTimeout } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import type { AuditScope } from "@/lib/services/servers";
 import { Prisma } from "@prisma/client";
@@ -205,9 +206,10 @@ const isDataError = (error: unknown): boolean => {
    );
 };
 
+// the chain is appended under an advisory lock, so a write conflict is a bug to surface, not a transient to retry.
 const isRolledBack = (error: unknown): boolean =>
    error instanceof Prisma.PrismaClientKnownRequestError &&
-   ["P2024", "P2028"].includes(error.code);
+   isDatabaseTimeout(error.code);
 
 const markUnwritten = (items: Queued[]): void => {
    for (const item of items) {

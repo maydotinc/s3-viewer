@@ -14,6 +14,7 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import { ServerIcon } from "lucide-react";
 import Link from "next/link";
 import { memo, useId } from "react";
+import LinkButton from "../link-button";
 
 type StepWhereProps = {
    servers: readonly ServerInfo[];
@@ -84,14 +85,8 @@ const StepWhere = ({
       <div className="flex min-w-0 flex-col gap-2">
          <div className="flex h-5 items-center justify-between gap-2">
             <h3 className="text-sm font-medium text-viewerblack">Servers</h3>
-            <Button
-               type="button"
-               variant="link"
-               size="sm"
-               className={cn("h-auto px-0", !canToggleAll && "invisible")}
-               disabled={!canToggleAll}
-               aria-hidden={!canToggleAll || undefined}
-               tabIndex={canToggleAll ? undefined : -1}
+            <LinkButton
+               hidden={!canToggleAll}
                onClick={() =>
                   onSelectAll(
                      allSelected ? [] : servers.map((server) => server.id)
@@ -99,7 +94,7 @@ const StepWhere = ({
                }
             >
                {allSelected ? "Clear" : "Select all"}
-            </Button>
+            </LinkButton>
          </div>
          <ul
             role="group"

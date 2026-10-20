@@ -1,9 +1,11 @@
 import "@/styles/globals.css";
 import { withLayout } from "@/components/Layout";
 import { inter } from "@/lib/fonts";
+import { PRODUCT_NAME } from "@s3-viewer/types/constants";
 import { FAVICON_LINKS } from "@s3-viewer/ui/components/favicon-links";
 import ErrorBoundary from "@s3-viewer/ui/error-boundary";
 import ErrorPage from "@s3-viewer/ui/error-page";
+import { PALETTE } from "@s3-viewer/ui/lib/palette";
 import { NextPage } from "next";
 import type { AppProps } from "next/app";
 import Head from "next/head";
@@ -33,10 +35,10 @@ export default function App({
                name="viewport"
                content="width=device-width, initial-scale=1"
             />
-            <meta name="theme-color" content="#3658C1" />
+            <meta name="theme-color" content={PALETTE.viewerblue} />
             {FAVICON_LINKS}
-            <meta name="application-name" content="S3 Viewer" />
-            <meta name="apple-mobile-web-app-title" content="S3 Viewer" />
+            <meta name="application-name" content={PRODUCT_NAME} />
+            <meta name="apple-mobile-web-app-title" content={PRODUCT_NAME} />
             <meta name="apple-mobile-web-app-capable" content="yes" />
          </Head>
          <ErrorBoundary

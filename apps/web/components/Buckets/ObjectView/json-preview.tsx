@@ -1,4 +1,3 @@
-import ErrorBoundary from "@s3-viewer/ui/error-boundary";
 import { JSON_STRING_PREVIEW_CHARS } from "@/lib/utils/file-utils";
 import { pluralize } from "@/lib/utils/format";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -22,12 +21,9 @@ import {
    type BodyPreviewProps,
    COMPACT_ACTION,
    COMPACT_LABEL,
-   CopyButton,
-   Panel,
    RawText,
-   RawTextBody,
-   type ViewMode,
-   ViewTabs,
+   RenderedBody,
+   ViewPanel,
 } from "./preview-panel";
 
 const INDENT = 14;
@@ -318,7 +314,6 @@ const JsonTree = ({ value, nodes, text }: ParsedJson & { text: string }) => {
    const small = nodes < SMALL_DOCUMENT;
    const canExpandAll = nodes < EXPAND_ALL_LIMIT;
 
-   const [mode, setMode] = useState<ViewMode>("preview");
    const [expandAll, setExpandAll] = useState<boolean | null>(null);
    const [overrides, setOverrides] = useState<ReadonlyMap<string, boolean>>(
       () => new Map()
@@ -348,28 +343,19 @@ const JsonTree = ({ value, nodes, text }: ParsedJson & { text: string }) => {
       : "One value";
 
    return (
-      <Panel
+      <ViewPanel
+         text={text}
          summary={summary}
          actions={
-            <>
-               <ViewTabs mode={mode} onChange={setMode} />
-               {mode === "preview" && (
-                  <ExpandAllButton
-                     collapsing={collapsing}
-                     blocked={!collapsing && !canExpandAll}
-                     onClick={toggleAll}
-                  />
-               )}
-               <CopyButton text={text} />
-            </>
+            <ExpandAllButton
+               collapsing={collapsing}
+               blocked={!collapsing && !canExpandAll}
+               onClick={toggleAll}
+            />
          }
       >
-         {mode === "preview" ? (
-            <VirtualRows rows={rows} onToggle={onToggle} />
-         ) : (
-            <RawTextBody text={text} />
-         )}
-      </Panel>
+         <VirtualRows rows={rows} onToggle={onToggle} />
+      </ViewPanel>
    );
 };
 
@@ -380,17 +366,9 @@ const JsonBody = ({ text, version }: { text: string; version: string }) => {
          <RawText text={text} summary="Not valid JSON — showing the raw file" />
       );
    return (
-      <ErrorBoundary
-         key={version}
-         fallback={
-            <RawText
-               text={text}
-               summary="Couldn't render this JSON — showing the raw file"
-            />
-         }
-      >
+      <RenderedBody text={text} version={version} label="JSON">
          <JsonTree value={parsed.value} nodes={parsed.nodes} text={text} />
-      </ErrorBoundary>
+      </RenderedBody>
    );
 };
 

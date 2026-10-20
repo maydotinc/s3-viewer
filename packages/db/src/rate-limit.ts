@@ -45,9 +45,7 @@ const SWEEP_EVERY = 1000;
 
 // the same fixed window as the rate_limit table: it starts at the first hit, counts refused hits
 // too and resets on the first hit after it ends, so RATE_LIMIT_STORE=memory behaves the same.
-const memoryWindowCounter = (
-   maxKeys: number
-): WindowCounter & { size: () => number } => {
+const memoryWindowCounter = (maxKeys: number): WindowCounter => {
    const windows = new Map<string, { hits: number; resetAt: number }>();
    let calls = 0;
 
@@ -78,7 +76,6 @@ const memoryWindowCounter = (
          const window = windows.get(key);
          if (window) window.hits = Math.max(window.hits - 1, 0);
       },
-      size: () => windows.size,
    };
 };
 

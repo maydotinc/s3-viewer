@@ -1,6 +1,8 @@
 import { ApiError, errorMessage } from "@/lib/api";
 import useSaveObjectContent from "@/lib/hooks/mutations/object/useSaveObjectContent";
-import useObjectContent from "@/lib/hooks/queries/s3/useObjectContent";
+import useObjectContent, {
+   type ObjectContent,
+} from "@/lib/hooks/queries/s3/useObjectContent";
 import { useUnsavedChangesGuard } from "@/lib/hooks/useUnsavedChangesGuard";
 import { useServerId } from "@/lib/stores/session-scope";
 import useSessionStore, { useUserId } from "@/lib/stores/session-store";
@@ -10,7 +12,7 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { Save, X } from "lucide-react";
+import { RefreshCw, Save, X } from "lucide-react";
 import {
    useCallback,
    useEffect,
@@ -39,6 +41,8 @@ type ObjectEditorProps = {
 
 const UNSAVED_MESSAGE =
    "This file has unsaved changes. Leave without saving them?";
+const RELOAD_MESSAGE =
+   "Reloading throws away your unsaved changes. Reload anyway?";
 const CONFLICT_MESSAGE =
    "Changed since you opened it. Reload to see the latest version.";
 
@@ -100,6 +104,7 @@ const ObjectEditor = ({
    const { mutate: save, isPending: saving } = useSaveObjectContent();
    const [value, setValue] = useState("");
    const [baseline, setBaseline] = useState("");
+   const [reloading, setReloading] = useState(false);
    const [eTag, setETag] = useState<string | null>(null);
    const [error, setError] = useState<string | null>(null);
    const gutterRef = useRef<HTMLDivElement | null>(null);
@@ -108,18 +113,37 @@ const ObjectEditor = ({
    const lineEnding = useRef<LineEnding>("\n");
    const loaded = useRef(false);
 
-   const data = content.data;
-   useEffect(() => {
-      if (!data || loaded.current) return;
+   const seed = useCallback((loadedContent: ObjectContent) => {
       loaded.current = true;
-      lineEnding.current = dominantLineEnding(data.text);
-      const text = toEditorText(data.text);
+      lineEnding.current = dominantLineEnding(loadedContent.text);
+      const text = toEditorText(loadedContent.text);
       setValue(text);
       setBaseline(text);
-      setETag(data.eTag);
-   }, [data]);
+      setETag(loadedContent.eTag);
+   }, []);
+
+   const data = content.data;
+   useEffect(() => {
+      if (data && !loaded.current) seed(data);
+   }, [data, seed]);
 
    const dirty = loaded.current && value !== baseline;
+
+   // a refetch alone can't re-seed: the load effect runs once, and unchanged text keeps the same reference
+   const reload = () => {
+      if (dirty && !window.confirm(RELOAD_MESSAGE)) return;
+      setReloading(true);
+      void content.refetch().then((result) => {
+         setReloading(false);
+         if (!scopeMatches()) return;
+         if (result.error || !result.data) {
+            setError(errorMessage(result.error));
+            return;
+         }
+         seed(result.data);
+         setError(null);
+      });
+   };
 
    const commit = useCallback(() => {
       if (saving || !loaded.current || value === baseline) return;
@@ -224,9 +248,21 @@ const ObjectEditor = ({
             <span
                className={`size-2 shrink-0 rounded-full bg-viewerblue ${dirty ? "" : "invisible"}`}
                title="Unsaved changes"
+               role="img"
                aria-label={dirty ? "Unsaved changes" : undefined}
             />
             <div className="ml-auto flex shrink-0 items-center gap-2">
+               {(error === CONFLICT_MESSAGE || reloading) && (
+                  <Button
+                     variant="ghost"
+                     size="sm"
+                     loading={reloading}
+                     onClick={reload}
+                  >
+                     <RefreshCw aria-hidden="true" />
+                     Reload
+                  </Button>
+               )}
                <Button
                   variant="ghost"
                   size="sm"

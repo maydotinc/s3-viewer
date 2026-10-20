@@ -15,13 +15,22 @@ vi.mock("@/lib/csp", () => ({
    contentSecurityPolicy: () => "",
 }));
 
-import middleware from "./middleware";
+import { STATIC_PUBLIC_FILE_PATTERN } from "@/lib/static-public-files";
+import middleware, { config } from "./middleware";
 
 const visit = (path: string) =>
    middleware(new NextRequest(`https://app.test${path}`));
 
 beforeEach(() => {
    h.landingOrigin = undefined;
+});
+
+describe("matcher", () => {
+   it("skips every static public file", () => {
+      expect(config.matcher.join("\n")).toContain(
+         `(?:${STATIC_PUBLIC_FILE_PATTERN})$`
+      );
+   });
 });
 
 describe("legal page aliases", () => {

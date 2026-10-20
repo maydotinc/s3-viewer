@@ -30,4 +30,3 @@ const changeReaches = (
       change.keys.some((key) => key.startsWith(scope.prefix)));
 
 export { changeReaches, notifyListingChanged, onListingChanged };
-export type { ListingChange };

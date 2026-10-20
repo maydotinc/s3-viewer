@@ -9,6 +9,7 @@ import {
    normalizeFolders,
    utf8ByteLength,
 } from "@s3-viewer/types";
+import type { Message, Tone } from "./message";
 
 const MAX_FOLDER_BYTES = 1024;
 
@@ -79,9 +80,6 @@ const addGrantFolder = (
         : null;
    return { ok: true, folder, folders, replaced, notice };
 };
-
-type Tone = "error" | "notice";
-type Message = { tone: Tone; text: string };
 
 type Feedback = Message & { folders: string };
 

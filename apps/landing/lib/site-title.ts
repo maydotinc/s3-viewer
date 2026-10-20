@@ -1,4 +1,6 @@
-const SITE_NAME = "S3 Viewer";
+import { PRODUCT_NAME } from "@s3-viewer/types/constants";
+
+const SITE_NAME = PRODUCT_NAME;
 
 const siteTitle = (title: string) =>
    title.trim().endsWith(SITE_NAME) ? title : `${title} | ${SITE_NAME}`;

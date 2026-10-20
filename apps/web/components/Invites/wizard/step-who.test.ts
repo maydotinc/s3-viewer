@@ -67,6 +67,9 @@ describe("typing addresses", () => {
       await press("Enter");
       expect(helper().textContent).toBe("Enter at least one email address");
       expect(helper().getAttribute("role")).toBe("alert");
+      const group = view.current.container.querySelector("[role=group]")!;
+      expect(group.getAttribute("data-invalid")).toBe("true");
+      expect(group.getAttribute("aria-invalid")).toBeNull();
    });
 
    it("continues on Enter once there are chips and the input is empty", async () => {

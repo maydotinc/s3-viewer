@@ -26,15 +26,14 @@ const state = vi.hoisted(() => ({
    grantable: true,
    ungrantable: new Set<string>(),
    deleted: 1,
-   writeAudit: vi.fn(),
+   writeAudits: vi.fn(),
    grantServerRole: vi.fn(),
    findReceived: vi.fn(async () => [] as unknown[]),
 }));
 
 vi.mock("@/lib/audit/writer", () => ({
    recentlySeen: vi.fn(() => false),
-   writeAudit: state.writeAudit,
-   writeAudits: vi.fn(),
+   writeAudits: state.writeAudits,
 }));
 
 vi.mock("@/lib/services/servers", async (original) => ({
@@ -147,7 +146,7 @@ beforeEach(() => {
    state.grantable = true;
    state.ungrantable = new Set();
    state.deleted = 1;
-   state.writeAudit.mockReset().mockResolvedValue(undefined);
+   state.writeAudits.mockReset().mockResolvedValue(undefined);
    state.grantServerRole.mockReset().mockResolvedValue(Role.EDITOR);
    state.findReceived.mockReset().mockResolvedValue([]);
 });
@@ -155,7 +154,7 @@ beforeEach(() => {
 const post = (action: "accept" | "reject") =>
    fetch(`${base}/${action}`, { method: "POST" });
 
-const written = () => state.writeAudit.mock.calls[0]?.[0];
+const written = () => state.writeAudits.mock.calls[0]?.[0];
 
 const receivedRow = (id: string, createdAt: string) => ({
    id,
@@ -286,19 +285,21 @@ describe("POST /invites/:inviteId/accept", () => {
          serverId: SERVER,
          actor: { id: USER, email: INVITEE },
          audit: { enabled: true, level: "ALL" },
-         entry: {
-            action: "invite.accept",
-            detail: {
-               role: Role.EDITOR,
-               buckets: "alpha:EDITOR,beta:VIEWER",
+         entries: [
+            {
+               action: "invite.accept",
+               detail: {
+                  role: Role.EDITOR,
+                  buckets: "alpha:EDITOR,beta:VIEWER",
+               },
             },
-         },
+         ],
       });
    });
 
    it("leaves buckets out of the detail when the invite carries no grant", async () => {
       expect((await post("accept")).status).toBe(200);
-      expect(written().entry).toEqual({
+      expect(written().entries[0]).toEqual({
          action: "invite.accept",
          detail: { role: Role.EDITOR },
       });
@@ -313,7 +314,7 @@ describe("POST /invites/:inviteId/accept", () => {
    it("records the role actually granted, not the invited one", async () => {
       state.grantServerRole.mockResolvedValue(Role.ADMIN);
       expect((await post("accept")).status).toBe(200);
-      expect(written().entry.detail).toEqual({ role: Role.ADMIN });
+      expect(written().entries[0].detail).toEqual({ role: Role.ADMIN });
    });
 
    it("refuses an invite that would make a folder-limited member an admin", async () => {
@@ -331,7 +332,7 @@ describe("POST /invites/:inviteId/accept", () => {
       await expect(res.json()).resolves.toMatchObject({
          message: expect.stringContaining("company is limited to folders"),
       });
-      expect(state.writeAudit).not.toHaveBeenCalled();
+      expect(state.writeAudits).not.toHaveBeenCalled();
    });
 
    it("records the folders an accepted grant is limited to", async () => {
@@ -344,7 +345,7 @@ describe("POST /invites/:inviteId/accept", () => {
          },
       ];
       expect((await post("accept")).status).toBe(200);
-      expect(written().entry.detail).toMatchObject({
+      expect(written().entries[0].detail).toMatchObject({
          buckets: 'company:EDITOR["landing/","a b, c/"]',
       });
    });
@@ -352,13 +353,13 @@ describe("POST /invites/:inviteId/accept", () => {
    it("records nothing for an invite addressed to another account", async () => {
       state.email = "someone@example.com";
       expect((await post("accept")).status).toBe(404);
-      expect(state.writeAudit).not.toHaveBeenCalled();
+      expect(state.writeAudits).not.toHaveBeenCalled();
    });
 
    it("records nothing when the sender can no longer grant it", async () => {
       state.grantable = false;
       expect((await post("accept")).status).toBe(404);
-      expect(state.writeAudit).not.toHaveBeenCalled();
+      expect(state.writeAudits).not.toHaveBeenCalled();
    });
 });
 
@@ -369,13 +370,13 @@ describe("POST /invites/:inviteId/reject", () => {
          serverId: SERVER,
          actor: { id: USER, email: INVITEE },
          audit: { enabled: true, level: "ALL" },
-         entry: { action: "invite.reject" },
+         entries: [{ action: "invite.reject" }],
       });
    });
 
    it("records nothing when no invite of that id is addressed here", async () => {
       state.deleted = 0;
       expect((await post("reject")).status).toBe(404);
-      expect(state.writeAudit).not.toHaveBeenCalled();
+      expect(state.writeAudits).not.toHaveBeenCalled();
    });
 });

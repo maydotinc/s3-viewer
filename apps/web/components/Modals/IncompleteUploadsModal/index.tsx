@@ -99,7 +99,7 @@ const IncompleteUploadsModal = ({
    const [confirmAll, setConfirmAll] = useState(false);
    const [failed, setFailed] = useState<S3UploadFailure[]>([]);
    const [error, setError] = useState<string | null>(null);
-   const [busy, setBusy] = useState(false);
+   const busy = abortUploads.isPending;
    const task = useAbortableTask();
 
    const chosen = new Set(selected);
@@ -121,7 +121,6 @@ const IncompleteUploadsModal = ({
    const run = (targets: S3MultipartUpload[]) => {
       if (busy || targets.length === 0) return;
       setError(null);
-      setBusy(true);
       abortUploads.mutate(
          {
             userId,
@@ -133,7 +132,6 @@ const IncompleteUploadsModal = ({
          {
             onSuccess: (summary) =>
                task.ifMounted(() => {
-                  setBusy(false);
                   setConfirmAll(false);
                   setFailed(summary.failed);
                   if (summary.aborted > 0) onAborted?.();
@@ -151,7 +149,6 @@ const IncompleteUploadsModal = ({
                }),
             onError: (failure) =>
                task.ifMounted(() => {
-                  setBusy(false);
                   setError(
                      isAborted(failure) ? CANCELLED : errorMessage(failure)
                   );

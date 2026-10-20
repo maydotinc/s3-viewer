@@ -15,7 +15,6 @@ type ModalShellProps = {
    title: ReactNode;
    description: ReactNode;
    className?: string;
-   headerClassName?: string;
    children?: ReactNode;
 };
 
@@ -27,7 +26,6 @@ const ModalShell = ({
    title,
    description,
    className,
-   headerClassName,
    children,
 }: ModalShellProps) => (
    <Dialog
@@ -37,7 +35,7 @@ const ModalShell = ({
       }}
    >
       <DialogContent className={className} showCloseButton={showCloseButton}>
-         <DialogHeader className={headerClassName}>
+         <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
          </DialogHeader>

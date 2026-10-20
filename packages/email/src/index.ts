@@ -1,6 +1,6 @@
 import { render } from "@react-email/render";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
-import { PRODUCT_NAME, type Role } from "@s3-viewer/types";
+import { DAY_MS, PRODUCT_NAME, type Role } from "@s3-viewer/types";
 import {
    AccountDeletedEmail,
    accountDeletedEmailSubject,
@@ -142,12 +142,15 @@ type SendServerInviteEmailInput = {
    invitesUrl: string;
 };
 
-const expiryFormatter = new Intl.DateTimeFormat("en-US", {
-   month: "long",
-   day: "numeric",
-   year: "numeric",
-   timeZone: "UTC",
-});
+// a calendar date would read a day off in most time zones and hide the hour, so the
+// deadline is given as the days left at send time (always whole days: the ttl is in days).
+const daysUntil = (date: Date): number =>
+   Math.max(1, Math.ceil((date.getTime() - Date.now()) / DAY_MS));
+
+const expiryLabel = (expiresAt: Date): string => {
+   const days = daysUntil(expiresAt);
+   return `in ${days} ${days === 1 ? "day" : "days"}`;
+};
 
 const sendServerInviteEmail = async ({
    to,
@@ -164,7 +167,7 @@ const sendServerInviteEmail = async ({
             roleLabel: ROLE_LABELS[role],
          })
       ),
-      expiresAtLabel: `on ${expiryFormatter.format(expiresAt)}`,
+      expiresAtLabel: expiryLabel(expiresAt),
    };
    await send({
       kind: "invite",

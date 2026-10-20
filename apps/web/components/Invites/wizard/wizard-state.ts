@@ -103,7 +103,8 @@ const wizardReducer = (
          };
       }
       case "expand":
-         return { ...state, expanded: action.serverId };
+         // opening a section by hand consumes the pending request, or the section would steal focus from the header
+         return { ...state, expanded: action.serverId, focusRequest: 0 };
       case "accessChecked": {
          const access = { ...state.access };
          for (const [serverId, rows] of Object.entries(action.committed)) {
@@ -138,10 +139,14 @@ const wizardReducer = (
               }
             : state;
       case "inviteMore":
+         // servers and their access carry over; the checks from the last round must not
          return {
             ...state,
             step: "who",
             emails: EMPTY_EMAIL_FIELD,
+            expanded: null,
+            accessSubmitted: false,
+            focusRequest: 0,
             result: null,
          };
    }

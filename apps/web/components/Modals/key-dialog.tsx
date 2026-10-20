@@ -69,6 +69,7 @@ type KeyDialogProps = BucketTarget & {
    hint?: string;
    onEdit?: () => void;
    onSubmit: (value: string) => void;
+   onAbort?: () => void;
    children?: ReactNode;
 };
 
@@ -90,6 +91,7 @@ const KeyDialog = ({
    hint,
    onEdit,
    onSubmit,
+   onAbort,
    children,
 }: KeyDialogProps) => {
    const inputId = useId();
@@ -119,6 +121,7 @@ const KeyDialog = ({
          onSubmit={submit}
          submitLabel={submitLabel}
          submitDisabled={submitDisabled || validation !== null}
+         onAbort={onAbort}
       >
          <PathField
             id={inputId}

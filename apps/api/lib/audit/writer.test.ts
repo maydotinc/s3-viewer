@@ -38,9 +38,7 @@ const {
    writeAudits,
 } = await import("./writer");
 const { verifyAuditChain } = await import("./query");
-const { record, recordAlways, recordMany } = await import(
-   "@/lib/middleware/audit-record"
-);
+const { record, recordMany } = await import("@/lib/middleware/audit-record");
 
 const stored = (): Stored[] => storedRows(h);
 
@@ -306,16 +304,21 @@ describe("record", () => {
 
    it("records settings changes even while the log is off", async () => {
       await written(
-         recordAlways(fakeRes(false), {
-            action: "audit.settings_change",
-            detail: { enabled: false },
-         })
+         record(
+            fakeRes(false),
+            { action: "audit.settings_change", detail: { enabled: false } },
+            { always: true }
+         )
       );
       expect(h.createMany).toHaveBeenCalledOnce();
       h.createMany.mockRejectedValue(new Error("connection reset"));
       await expect(
          written(
-            recordAlways(fakeRes(false), { action: "audit.settings_change" })
+            record(
+               fakeRes(false),
+               { action: "audit.settings_change" },
+               { always: true }
+            )
          )
       ).resolves.toBeUndefined();
       expect(h.error).toHaveBeenCalledWith(

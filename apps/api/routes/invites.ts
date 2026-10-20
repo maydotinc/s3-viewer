@@ -1,6 +1,6 @@
 import { decodeCursor, encodeCursor, pageOf } from "@/lib/cursor";
 import { ApiHttpError, noContent } from "@/lib/http";
-import { recordFor } from "@/lib/middleware/audit-record";
+import { recordManyFor } from "@/lib/middleware/audit-record";
 import { requireUser } from "@/lib/middleware/authorize";
 import { inviteLimit } from "@/lib/middleware/rate-limit";
 import { validatedRoute } from "@/lib/middleware/route";
@@ -147,10 +147,9 @@ const acceptInvite = async (
          };
       }
    );
-   await recordFor(user, server.id, audit, {
-      action: "invite.accept",
-      detail: { role, ...bucketDetail(grants) },
-   });
+   await recordManyFor(user, server.id, audit, [
+      { action: "invite.accept", detail: { role, ...bucketDetail(grants) } },
+   ]);
    res.json({ server });
 };
 
@@ -170,9 +169,9 @@ const rejectInvite = async (
    });
    if (count === 0) throw new ApiHttpError(404, NOT_FOUND);
    if (invite) {
-      await recordFor(user, invite.serverId, auditScopeOf(invite.server), {
-         action: "invite.reject",
-      });
+      await recordManyFor(user, invite.serverId, auditScopeOf(invite.server), [
+         { action: "invite.reject" },
+      ]);
    }
    noContent(res);
 };

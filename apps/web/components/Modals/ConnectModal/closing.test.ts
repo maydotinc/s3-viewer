@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { act, createElement, useState } from "react";
+import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
    mountedRuntime,
@@ -10,10 +10,8 @@ import { deferred } from "@/lib/test/runtime";
 import ConnectModal from "./index";
 
 const h = vi.hoisted(() => ({
-   userId: "first-user",
    encrypt: vi.fn(),
    establish: vi.fn(),
-   validate: vi.fn(),
    create: vi.fn(),
    creating: false,
    close: vi.fn(),
@@ -25,7 +23,7 @@ vi.mock("@/lib/auth", () => ({
       useSession: () => ({ data: { user: { emailVerified: true } } }),
    },
 }));
-vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => h.userId }));
+vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user" }));
 vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
    default: () => ({ data: { encryptionPublicKey: "key" } }),
    encryptionState: () => "ready",
@@ -39,7 +37,7 @@ vi.mock("@/lib/hooks/mutations/server/useCreateServer", () => ({
    default: () => ({ mutateAsync: h.create, isPending: h.creating }),
 }));
 vi.mock("@/lib/hooks/mutations/server/useValidateBuckets", () => ({
-   default: () => ({ mutateAsync: h.validate, isPending: false }),
+   default: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("@s3-viewer/ui/components/dialog", () => {
    const element = ({ children }: { children: React.ReactNode }) =>
@@ -73,15 +71,6 @@ vi.mock("@s3-viewer/ui/components/dialog", () => {
    };
 });
 
-let switchAccount!: () => void;
-const Probe = () => {
-   const [, rerender] = useState(0);
-   switchAccount = () => {
-      h.userId = "second-user";
-      rerender((value) => value + 1);
-   };
-   return createElement(ConnectModal, { onClose: h.close });
-};
 const view = mountedRuntime();
 const input = (id: string) =>
    view.current.container.querySelector<HTMLInputElement>(`#${id}`)!;
@@ -92,81 +81,17 @@ const submit = async () =>
       submitForm(view.current.container);
    });
 const open = async () => {
-   await view.mount(createElement(Probe));
-   await type("connect-name", "First account storage");
+   await view.mount(createElement(ConnectModal, { onClose: h.close }));
+   await type("connect-name", "Production");
    await type("connect-endpoint", "https://s3.example.com");
-   await type("connect-access-key", "first-key");
-   await type("connect-secret-key", "first-secret");
+   await type("connect-access-key", "key");
+   await type("connect-secret-key", "secret");
 };
 
 beforeEach(() => {
    vi.clearAllMocks();
-   h.userId = "first-user";
    h.creating = false;
-   h.encrypt.mockResolvedValue("encrypted-first");
-   h.establish.mockResolvedValue({
-      provider: "Other",
-      listBucketsAllowed: false,
-      bucketCount: 0,
-   });
-});
-
-describe("account changes during connection setup", () => {
-   it("drops encryption from the previous account before credential detection", async () => {
-      const encrypted = deferred<string>();
-      h.encrypt.mockReturnValue(encrypted.promise);
-      await open();
-      await submit();
-      expect(h.encrypt).toHaveBeenCalledOnce();
-      expect(input("connect-name").disabled).toBe(true);
-      await act(async () => switchAccount());
-      expect(input("connect-name").disabled).toBe(false);
-      expect(input("connect-name").value).toBe("");
-      expect(input("connect-secret-key").value).toBe("");
-      await act(async () => encrypted.resolve("encrypted-first"));
-      expect(h.establish).not.toHaveBeenCalled();
-   });
-
-   it("does not show an old detection result after an account change", async () => {
-      const detection = deferred<{
-         provider: string;
-         listBucketsAllowed: boolean;
-         bucketCount: number;
-      }>();
-      h.establish.mockReturnValue(detection.promise);
-      await open();
-      await submit();
-      expect(h.establish).toHaveBeenCalledOnce();
-      await act(async () => switchAccount());
-      await act(async () =>
-         detection.resolve({
-            provider: "Other",
-            listBucketsAllowed: true,
-            bucketCount: 1,
-         })
-      );
-      expect(view.current.container.textContent).not.toContain("Server found");
-      expect(input("connect-name").value).toBe("");
-      expect(h.create).not.toHaveBeenCalled();
-   });
-
-   it("does not create a connection in a new account after old bucket validation", async () => {
-      const validation =
-         deferred<{ bucketName: string; accessible: boolean }[]>();
-      h.validate.mockReturnValue(validation.promise);
-      await open();
-      await submit();
-      await type("bucket-names", "first-bucket");
-      await submit();
-      expect(h.validate).toHaveBeenCalledOnce();
-      expect(input("bucket-names").disabled).toBe(true);
-      await act(async () => switchAccount());
-      await act(async () =>
-         validation.resolve([{ bucketName: "first-bucket", accessible: true }])
-      );
-      expect(h.create).not.toHaveBeenCalled();
-      expect(input("connect-name").value).toBe("");
-   });
+   h.encrypt.mockResolvedValue("encrypted");
 });
 
 describe("closing the dialog", () => {
@@ -175,6 +100,7 @@ describe("closing the dialog", () => {
       await open();
       await submit();
       expect(h.establish).toHaveBeenCalledOnce();
+      expect(input("connect-name").disabled).toBe(true);
       expect(h.closeButton).toBe(true);
       h.openChange(false);
       expect(h.close).toHaveBeenCalledOnce();

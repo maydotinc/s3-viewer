@@ -22,13 +22,9 @@ const RenameModal = ({ server, onClose }: RenameModalProps) => {
    const submit = (event: FormEvent) => {
       event.preventDefault();
       if (rename.isPending || !parsed.ok || unchanged) return;
-      field.setRequestError(null);
       rename.mutate(
          { serverId: server.id, serverName: parsed.name },
-         {
-            onSuccess: onClose,
-            onError: (error) => field.setRequestError(error.message),
-         }
+         field.attempt(onClose)
       );
    };
 

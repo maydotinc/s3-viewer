@@ -1,3 +1,4 @@
+import FormError from "@/components/Modals/form-error";
 import PathInput from "@/components/path-input";
 import RemovableChip from "@/components/removable-chip";
 import { publicEnv } from "@/lib/env";
@@ -162,24 +163,14 @@ const FolderListEditor = ({
                Add
             </Button>
          </div>
-         <div
-            id={messageId}
-            role={invalid ? "alert" : undefined}
-            className="flex min-w-0 flex-col"
-         >
-            {messages.map((message) => (
-               <p
-                  key={message.text}
-                  className={cn(
-                     "min-w-0 break-words text-xs leading-5",
-                     message.tone === "error"
-                        ? "text-viewertextred"
-                        : "text-viewerlighttext"
-                  )}
-               >
-                  {message.text}
-               </p>
-            ))}
+         <div id={messageId} className="flex min-w-0 flex-col">
+            {messages.map(({ tone, text }) =>
+               tone === "error" ? (
+                  <FormError key={text}>{text}</FormError>
+               ) : (
+                  <FormError key={text} hint={text} />
+               )
+            )}
          </div>
       </div>
    );
@@ -282,14 +273,7 @@ const GrantScope = ({
             )}
          </div>
          {entry.folders === null ? (
-            error && (
-               <p
-                  role="alert"
-                  className="min-w-0 break-words text-xs leading-5 text-viewertextred"
-               >
-                  {error}
-               </p>
-            )
+            <FormError>{error}</FormError>
          ) : (
             <FolderListEditor
                serverId={serverId}

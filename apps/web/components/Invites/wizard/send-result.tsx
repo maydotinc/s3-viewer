@@ -48,10 +48,7 @@ const OutcomeRow = ({
             <div className="flex min-w-0 flex-col text-xs leading-5">
                {outcome.error !== null ? (
                   <div className="flex min-w-0 flex-col items-start gap-2">
-                     <p
-                        role="alert"
-                        className="flex min-w-0 items-start gap-1.5 text-viewerblack"
-                     >
+                     <p className="flex min-w-0 items-start gap-1.5 text-viewerblack">
                         <CircleAlert
                            aria-hidden="true"
                            className="mt-0.5 size-4 shrink-0 text-viewertextred"
@@ -101,11 +98,7 @@ const SendResult = ({
 }: SendResultProps) => {
    const unemailed = notified ? unemailedAddresses(outcomes) : [];
    return (
-      <div
-         role="status"
-         aria-live="polite"
-         className="flex min-w-0 flex-col gap-4"
-      >
+      <div className="flex min-w-0 flex-col gap-4">
          <ul className="divide-y divide-viewerborder rounded-lg border border-viewerborder">
             {outcomes.map((outcome) => (
                <OutcomeRow

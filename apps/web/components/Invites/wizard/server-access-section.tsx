@@ -2,7 +2,6 @@ import Field from "@/components/form-field";
 import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import { ROLE_DESCRIPTIONS, assignableRoles } from "@s3-viewer/permissions";
 import type { GrantableRole, ServerInfo } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { ChevronDown } from "lucide-react";
@@ -17,6 +16,7 @@ import {
 } from "react";
 import BucketAccessPicker from "../bucket-access-picker";
 import type { GrantRow } from "../bucket-grants";
+import LinkButton from "../link-button";
 import RoleSelect from "../role-select";
 import { grantableBucketRoles } from "../roles";
 import type { ServerBuckets } from "./use-server-buckets";
@@ -212,15 +212,9 @@ const ServerAccessSection = memo(function ServerAccessSection({
                   errorAction={
                      noBuckets &&
                      !single && (
-                        <Button
-                           type="button"
-                           variant="link"
-                           size="sm"
-                           className="h-auto shrink-0 px-0"
-                           onClick={() => onRemove(server.id)}
-                        >
+                        <LinkButton onClick={() => onRemove(server.id)}>
                            Remove this server
-                        </Button>
+                        </LinkButton>
                      )
                   }
                />

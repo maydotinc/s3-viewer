@@ -25,7 +25,7 @@ import {
 } from "@/lib/s3/archive/ticket";
 import { contentDispositionFilename } from "@/lib/s3/keys";
 import { withoutRetries } from "@/lib/s3/no-retry";
-import { UploadIdleError } from "@/lib/s3/progress-floor";
+import { SlotExpiredError, UploadIdleError } from "@/lib/s3/progress-floor";
 import { ARCHIVE_POOL, UPLOAD_SLOT_MAX_MS } from "@/lib/s3/upload-budget";
 import { Permission } from "@s3-viewer/permissions";
 import {
@@ -190,9 +190,12 @@ archiveRouter.get(
                   );
                   assertZippable(res, entries);
                   aborted.signal.throwIfAborted();
+                  // a slot-expiry reason maps to the same 408 as an upload that outlives its slot, instead of a storage failure.
                   const deadline = setTimeout(
                      () =>
-                        aborted.abort(new Error("The download is too slow.")),
+                        aborted.abort(
+                           new SlotExpiredError("The download is too slow.")
+                        ),
                      Math.min(
                         UPLOAD_SLOT_MAX_MS,
                         Math.max(

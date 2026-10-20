@@ -179,6 +179,7 @@ const MoveObjectsModal = ({
          hint={progressNotice}
          onEdit={() => setError(null)}
          onSubmit={submit}
+         onAbort={() => task.cancel()}
       >
          <DeletionProtectionNotice serverId={serverId} action="move" />
          <FailureList failures={failed} />

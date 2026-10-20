@@ -1,15 +1,22 @@
-// keep these values in sync with packages/ui/src/styles/globals.css.
+import { PALETTE, type PaletteToken } from "@s3-viewer/ui/lib/palette";
+
+// the brand kit shows and copies hex codes, which read better in upper case.
+const brandColor = <T extends PaletteToken>(token: T) => ({
+   token,
+   hex: PALETTE[token].toUpperCase(),
+});
+
 export const BRAND_COLORS = {
-   blue: { token: "viewerblue", hex: "#3658C1" },
-   darkBlue: { token: "viewerdarkblue", hex: "#253977" },
-   black: { token: "viewerblack", hex: "#0E121B" },
-   text: { token: "viewertext", hex: "#525866" },
-   light: { token: "viewerlighttext", hex: "#636C7E" },
-   border: { token: "viewerborder", hex: "#E1E4EA" },
-   gray: { token: "viewergray", hex: "#F7F7F7" },
-   white: { token: "viewerwhite", hex: "#FFFFFF" },
-   red: { token: "viewertextred", hex: "#FB3748" },
-   redBg: { token: "viewerbgred", hex: "#FEEBEC" },
+   blue: brandColor("viewerblue"),
+   darkBlue: brandColor("viewerdarkblue"),
+   black: brandColor("viewerblack"),
+   text: brandColor("viewertext"),
+   light: brandColor("viewerlighttext"),
+   border: brandColor("viewerborder"),
+   gray: brandColor("viewergray"),
+   white: brandColor("viewerwhite"),
+   red: brandColor("viewertextred"),
+   redBg: brandColor("viewerbgred"),
 } as const;
 
 type BrandColor = keyof typeof BRAND_COLORS;

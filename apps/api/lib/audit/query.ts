@@ -8,6 +8,7 @@ import {
 import { decodeCursor, keysetAfter, pageOf, type Position } from "@/lib/cursor";
 import { ApiHttpError, rateLimited } from "@/lib/http";
 import { logger } from "@/lib/logger";
+import { bump, countOf } from "@/lib/utils/counter-map";
 import { Prisma, type AuditLog } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import {
@@ -197,18 +198,14 @@ const exportFits = (): boolean =>
 const takeRead = ({ exporting, reader }: ReadSlot): void => {
    reads++;
    if (exporting) exportReads++;
-   if (reader) searchesBy.set(reader, (searchesBy.get(reader) ?? 0) + 1);
+   if (reader) bump(searchesBy, reader, 1);
 };
 
 // a freed slot passes straight to a waiting export, so a search arriving in between cannot take it.
 const leaveRead = ({ exporting, reader }: ReadSlot): void => {
    reads--;
    if (exporting) exportReads--;
-   if (reader) {
-      const left = (searchesBy.get(reader) ?? 1) - 1;
-      if (left > 0) searchesBy.set(reader, left);
-      else searchesBy.delete(reader);
-   }
+   if (reader) bump(searchesBy, reader, -1);
    if (waitingExports.length > 0 && exportFits()) waitingExports.shift()!();
 };
 
@@ -235,7 +232,7 @@ const enterRead = async (slot: ReadSlot): Promise<void> => {
    }
    if (
       slot.reader &&
-      (searchesBy.get(slot.reader) ?? 0) >= USER_READ_CONCURRENCY
+      countOf(searchesBy, slot.reader) >= USER_READ_CONCURRENCY
    ) {
       throw rateLimited(
          "Your earlier audit searches are still running. Try again shortly."

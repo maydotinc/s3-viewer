@@ -1,6 +1,5 @@
 import {
    appendAuditWithin,
-   writeAudit,
    writeAudits,
    type WriteInput,
 } from "@/lib/audit/writer";
@@ -58,20 +57,23 @@ const scopeOf = (res: Response, always = false): WriteInput => {
    };
 };
 
-const recordMany = (res: Response, entries: AuditEntry[]): Promise<void> => {
-   const scope = scopeOf(res);
+// always: written even while the server has its log off, for changes to the log itself and to credentials.
+type RecordOptions = { always?: boolean };
+
+const recordMany = (
+   res: Response,
+   entries: AuditEntry[],
+   { always = false }: RecordOptions = {}
+): Promise<void> => {
+   const scope = scopeOf(res, always);
    return settled(writeAudits({ ...scope, entries }), scope.serverId, entries);
 };
 
-const record = (res: Response, entry: AuditEntry): Promise<void> =>
-   recordMany(res, [entry]);
-
-const recordAlways = (res: Response, entry: AuditEntry): Promise<void> => {
-   const scope = scopeOf(res, true);
-   return settled(writeAudits({ ...scope, entries: [entry] }), scope.serverId, [
-      entry,
-   ]);
-};
+const record = (
+   res: Response,
+   entry: AuditEntry,
+   options?: RecordOptions
+): Promise<void> => recordMany(res, [entry], options);
 
 // writes inside the caller's transaction, so the change cannot commit unrecorded.
 const recordWithin = (
@@ -96,24 +98,4 @@ const recordManyFor = (
       entries
    );
 
-const recordFor = (
-   { id, email }: WriteInput["actor"],
-   serverId: string,
-   audit: WriteInput["audit"],
-   entry: AuditEntry
-): Promise<void> =>
-   settled(
-      writeAudit({ serverId, actor: { id, email }, audit, entry }),
-      serverId,
-      [entry]
-   );
-
-export {
-   auditUnavailable,
-   record,
-   recordAlways,
-   recordFor,
-   recordMany,
-   recordManyFor,
-   recordWithin,
-};
+export { auditUnavailable, record, recordMany, recordManyFor, recordWithin };

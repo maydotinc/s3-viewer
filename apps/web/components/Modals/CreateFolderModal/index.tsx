@@ -1,7 +1,6 @@
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import { NameField, useNameField } from "@/components/Modals/name-field";
-import { errorMessage } from "@/lib/api";
 import useCreateFolder from "@/lib/hooks/mutations/object/useCreateFolder";
 import useBucketScope from "@/lib/hooks/queries/s3/useBucketScope";
 import { writeScopeError } from "@/lib/utils/folder-access";
@@ -32,18 +31,14 @@ const CreateFolderModal = ({
    const submit = (event: FormEvent) => {
       event.preventDefault();
       if (createFolder.isPending || !field.valid) return;
-      field.setRequestError(null);
       const folderKey = `${prefix}${field.trimmed}/`;
       createFolder.mutate(
          { userId, serverId, bucketName, folderKey },
-         {
-            onSuccess: () => {
-               toast.success("Folder created.");
-               onCreateSuccess?.(folderKey);
-               onClose();
-            },
-            onError: (failure) => field.setRequestError(errorMessage(failure)),
-         }
+         field.attempt(() => {
+            toast.success("Folder created.");
+            onCreateSuccess?.(folderKey);
+            onClose();
+         })
       );
    };
 

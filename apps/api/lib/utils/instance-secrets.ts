@@ -2,7 +2,7 @@ import { env } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { auditChainKeySchema } from "./audit-chain-key";
 import { encryptionPublicKey } from "./encryption";
-import { persistSecretFile } from "./secrets";
+import { ensureSecret, type Secret } from "./secrets";
 import { prisma } from "@s3-viewer/db";
 import { isMissingTable, isUniqueViolation } from "@s3-viewer/db/errors";
 import {
@@ -122,8 +122,7 @@ const checkAuthSecret = (secret: string): Promise<void> =>
          "BETTER_AUTH_SECRET differs from the one this database last saw: sessions issued by the other value are now invalid. If this is one of several replicas, give every replica the same secret.",
    });
 
-const readAuditChainKeyFile = (dir: string): Buffer | undefined => {
-   const path = join(dir, AUDIT_CHAIN_KEY_FILE);
+const readAuditChainKeyFile = (path: string): string | undefined => {
    let raw: string;
    try {
       raw = readFileSync(path, "utf8").trim();
@@ -146,26 +145,20 @@ const readAuditChainKeyFile = (dir: string): Buffer | undefined => {
          `Invalid persisted AUDIT_CHAIN_KEY in ${path}: ${parsed.error.issues.map((issue) => issue.message).join("; ")}`
       );
    }
-   return Buffer.from(parsed.data, "base64");
+   return parsed.data;
 };
 
-const persistAuditChainKey = (dir: string): Buffer => {
-   const existing = readAuditChainKeyFile(dir);
-   if (existing) return existing;
-   const key = randomBytes(AUDIT_CHAIN_KEY_BYTES);
-   const path = join(dir, AUDIT_CHAIN_KEY_FILE);
-   const raced = persistSecretFile(
-      dir,
-      path,
-      `${key.toString("base64")}\n`,
-      () => readAuditChainKeyFile(dir)
-   );
-   if (raced) return raced;
-   logger.warn(
-      `generated AUDIT_CHAIN_KEY into ${path} — back this file up; losing it makes audit rows written from now on unverifiable (they stay readable)`
-   );
-   return key;
+const AUDIT_CHAIN_KEY_SECRET: Secret = {
+   variable: "AUDIT_CHAIN_KEY",
+   file: AUDIT_CHAIN_KEY_FILE,
+   generate: () => randomBytes(AUDIT_CHAIN_KEY_BYTES).toString("base64"),
+   warning:
+      "back this file up; losing it makes audit rows written from now on unverifiable (they stay readable)",
+   read: readAuditChainKeyFile,
 };
+
+const persistAuditChainKey = (dir: string): Buffer =>
+   Buffer.from(ensureSecret(dir, AUDIT_CHAIN_KEY_SECRET), "base64");
 
 // existing audit history must keep its legacy key; generate a new key only where DATA_DIR can persist it.
 const resolveAuditChainKey = async (
@@ -198,11 +191,14 @@ const assertInstanceSecrets = async (
 ): Promise<Buffer> => {
    // read the key before database checks so pending migrations can't bypass file validation.
    const dataDir = process.env.DATA_DIR?.trim();
-   let auditChainKey = env.AUDIT_CHAIN_KEY
-      ? Buffer.from(env.AUDIT_CHAIN_KEY, "base64")
-      : dataDir
-        ? readAuditChainKeyFile(dataDir)
-        : undefined;
+   const encoded =
+      env.AUDIT_CHAIN_KEY ||
+      (dataDir
+         ? readAuditChainKeyFile(join(dataDir, AUDIT_CHAIN_KEY_FILE))
+         : undefined);
+   let auditChainKey: Buffer | undefined = encoded
+      ? Buffer.from(encoded, "base64")
+      : undefined;
    try {
       await checkEncryptionKey();
       await checkAuthSecret(authSecret);

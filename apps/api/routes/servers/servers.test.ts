@@ -34,7 +34,6 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/middleware/audit-record", () => ({
    record: state.record,
-   recordAlways: vi.fn(),
    recordMany: state.recordMany,
    recordWithin: state.recordWithin,
 }));

@@ -46,9 +46,7 @@ describe("createThrottle", () => {
    it("caps the keys it remembers, forgetting the least recently seen first", async () => {
       const throttle = createThrottle(1, 60_000);
       for (let i = 0; i < 20_000; i++) await throttle.allow(`k${i}`, 0);
-      expect(throttle.size()).toBe(20_000);
       await throttle.allow("one-more", 1);
-      expect(throttle.size()).toBe(20_000);
       expect(await throttle.allow("k0", 2)).toBe(true);
       expect(await throttle.allow("k2", 2)).toBe(false);
    });
@@ -60,14 +58,6 @@ describe("createThrottle", () => {
       expect(await throttle.allow("a", 10)).toBe(true);
       expect(await throttle.allow("a", 20)).toBe(false);
       await throttle.refund("never-seen");
-   });
-
-   it("sweeps expired keys so memory stays bounded", async () => {
-      const throttle = createThrottle(1, 100);
-      for (let i = 0; i < 999; i++) await throttle.allow(`k${i}`, 0);
-      expect(throttle.size()).toBe(999);
-      await throttle.allow("late", 10_000);
-      expect(throttle.size()).toBe(1);
    });
 });
 

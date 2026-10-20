@@ -14,6 +14,7 @@ import {
    authErrorMessage,
    type AuthClientError,
 } from "./errors";
+import { DELETE_USER_PATH, VERIFY_CODE_PATH } from "./paths";
 import { localPart } from "./utils";
 
 type AuthClientOptions = {
@@ -151,7 +152,7 @@ const makeAuthClient = ({
       password: string
    ): Promise<AuthResult> =>
       settled(
-         authClient.$fetch("/email-otp/verify-email", {
+         authClient.$fetch(VERIFY_CODE_PATH, {
             method: "POST",
             body: { email, otp: code, password },
          })
@@ -174,7 +175,7 @@ const makeAuthClient = ({
       confirmation: DeleteAccountInput
    ): Promise<AuthResult> =>
       settled(
-         authClient.$fetch("/delete-user", {
+         authClient.$fetch(DELETE_USER_PATH, {
             method: "POST",
             body: confirmation,
             ...accountFetchOptions(confirmation.expectedUserId),
@@ -221,7 +222,6 @@ const makeAuthClient = ({
       signInWithGithub,
       signInWithPassword,
       signOut,
-      signUpWithPassword,
       verifyEmailCode,
    };
 };

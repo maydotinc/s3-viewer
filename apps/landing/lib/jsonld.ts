@@ -16,6 +16,7 @@ import {
 } from "@/lib/site-config";
 import { founder, team, type TeamMember } from "@/lib/team";
 import type { Faq } from "@/lib/types";
+import { PRODUCT_NAME } from "@s3-viewer/types/constants";
 
 type JsonLdNode = Record<string, unknown>;
 type Crumb = { name: string; url: string };
@@ -73,7 +74,7 @@ const organizationNode = () => ({
    url: MAY_URL,
    logo: MAY_LOGO_URL,
    image: MAY_LOGO_URL,
-   description: `${MAY_NAME} is the software company behind S3 Viewer. Based in ${MAY_LOCATION}, May builds products, open-source developer tools and technical consulting.`,
+   description: `${MAY_NAME} is the software company behind ${PRODUCT_NAME}. Based in ${MAY_LOCATION}, May builds products, open-source developer tools and technical consulting.`,
    foundingDate: MAY_FOUNDING_YEAR,
    foundingLocation: { "@type": "Place", name: MAY_LOCATION },
    founder: { "@id": founder.schemaId },
@@ -99,8 +100,8 @@ const organizationNode = () => ({
 const websiteNode = () => ({
    "@type": "WebSite",
    "@id": WEBSITE_ID,
-   name: "S3 Viewer",
-   alternateName: "S3 Viewer by May Inc.",
+   name: PRODUCT_NAME,
+   alternateName: `${PRODUCT_NAME} by ${MAY_NAME}`,
    url: SITE_URL,
    inLanguage: "en-US",
    publisher: organizationRef,
@@ -124,8 +125,8 @@ const softwareSourceCodeNode = () => ({
 const softwareApplicationNode = (description: string) => ({
    "@type": ["SoftwareApplication", "WebApplication"],
    "@id": APP_ID,
-   name: "S3 Viewer",
-   alternateName: ["S3 Viewer by May", "s3-viewer"],
+   name: PRODUCT_NAME,
+   alternateName: [`${PRODUCT_NAME} by May`, "s3-viewer"],
    description,
    url: SITE_URL,
    image: OG_IMAGE_URL,
@@ -291,7 +292,7 @@ const homeJsonLd = (description: string) =>
 const aboutJsonLd = (description: string) =>
    pageJsonLd({
       type: "AboutPage",
-      name: "About S3 Viewer",
+      name: `About ${PRODUCT_NAME}`,
       path: "/about",
       description,
       crumbs: "About",
@@ -310,7 +311,7 @@ const aboutJsonLd = (description: string) =>
 const contactJsonLd = (description: string) =>
    pageJsonLd({
       type: "ContactPage",
-      name: "Contact S3 Viewer",
+      name: `Contact ${PRODUCT_NAME}`,
       path: "/contact",
       description,
       crumbs: "Contact",

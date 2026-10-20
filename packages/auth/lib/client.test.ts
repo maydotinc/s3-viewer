@@ -78,10 +78,23 @@ describe("authenticated client actor binding", () => {
    it("does not bind sign-in, sign-up or password recovery to the old account", async () => {
       const { client, fetch } = setup();
       await client.signInWithPassword("new@example.test", "password");
-      await client.signUpWithPassword("new@example.test", "password");
+      // a refused sign-in makes continueWithPassword fall through to sign-up.
+      fetch.mockResolvedValueOnce(
+         Response.json(
+            { code: "INVALID_EMAIL_OR_PASSWORD", message: "Invalid" },
+            { status: 401 }
+         )
+      );
+      await client.continueWithPassword("new@example.test", "password");
       await client.requestPasswordReset("new@example.test");
       await client.resetPassword("reset-token", "new-password");
-      expect(fetch.mock.calls.map(header)).toEqual([null, null, null, null]);
+      expect(fetch.mock.calls.map(header)).toEqual([
+         null,
+         null,
+         null,
+         null,
+         null,
+      ]);
    });
 });
 
@@ -96,7 +109,6 @@ describe("requests the server never answers", () => {
       fetch.mockRejectedValue(new TypeError("Failed to fetch"));
       const results = await Promise.all([
          client.signInWithPassword("a@example.test", "password"),
-         client.signUpWithPassword("a@example.test", "password"),
          client.requestPasswordReset("a@example.test"),
          client.resetPassword("reset-token", "new-password"),
          client.sendVerificationCode("a@example.test"),

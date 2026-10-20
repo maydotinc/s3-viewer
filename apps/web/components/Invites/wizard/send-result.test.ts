@@ -62,10 +62,11 @@ describe("mixed outcomes", () => {
       expect(rows[0]!.textContent).toContain("Invited x@x.com and y@x.com");
       expect(rows[0]!.textContent).toContain("z@x.com is already a member");
       expect(rows[1]!.textContent).toContain("Media");
-      expect(rows[1]!.querySelector("[role=alert]")!.textContent).toContain(
-         "Too many pending invites"
-      );
-      expect(container.querySelector("[role=status]")).not.toBeNull();
+      expect(rows[1]!.textContent).toContain("Too many pending invites");
+      // the wizard announces the outcome in its own live region
+      expect(
+         container.querySelector("[aria-live], [role=status], [role=alert]")
+      ).toBeNull();
       expect(container.textContent).not.toContain("no email went");
    });
 

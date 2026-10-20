@@ -214,13 +214,10 @@ export const bucketAccessEntrySchema = z
       role: grantableRoleSchema,
       folders: grantFoldersSchema,
    })
-   .refine(
-      ({ role, folders }) => folders === null || canLimitToFolders(Role[role]),
-      {
-         message: "Admins always get the whole bucket",
-         path: ["folders"],
-      }
-   );
+   .refine(({ role, folders }) => folders === null || canLimitToFolders(role), {
+      message: "Admins always get the whole bucket",
+      path: ["folders"],
+   });
 
 export const expectedUserShape = { expectedUserId: idSchema };
 

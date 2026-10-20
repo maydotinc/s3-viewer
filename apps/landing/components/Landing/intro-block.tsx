@@ -1,12 +1,6 @@
+import { BuiltByMay } from "@/components/built-by-may";
 import CtaButtons from "@/components/cta-buttons";
-import { ExternalLink } from "@/components/external-link";
-import {
-   APP_PATH,
-   MAY_NAME,
-   MAY_ROUNDED_LOGO_URL,
-   MAY_URL,
-} from "@/lib/site-config";
-import Image from "next/image";
+import { APP_PATH } from "@/lib/site-config";
 import { AppHeroFigure } from "./figures/app-hero";
 
 const IntroBlock = () => {
@@ -14,21 +8,7 @@ const IntroBlock = () => {
       <section className="w-full">
          <div className="mx-auto w-full max-w-6xl px-6 pt-16 pb-16 sm:pt-28 2xl:max-w-7xl">
             <div className="flex flex-col items-center text-center">
-               <ExternalLink
-                  href={MAY_URL}
-                  className="inline-flex items-center gap-2 text-sm text-viewerlighttext transition-colors hover:text-viewerblack"
-               >
-                  <span>Built by</span>
-                  <Image
-                     src={MAY_ROUNDED_LOGO_URL}
-                     alt=""
-                     width={20}
-                     height={20}
-                     className="size-5 rounded-[5px]"
-                     draggable={false}
-                  />
-                  <span>{MAY_NAME}</span>
-               </ExternalLink>
+               <BuiltByMay />
 
                <h1 className="mt-6 max-w-3xl text-4xl leading-[1.05] font-semibold tracking-tight text-balance text-viewerblack sm:text-5xl md:text-6xl">
                   Browse every{" "}

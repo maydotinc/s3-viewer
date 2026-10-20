@@ -13,8 +13,9 @@ import type { S3ObjectPreview } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { TabButton, TabList } from "@s3-viewer/ui/components/tabs";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import ErrorBoundary from "@s3-viewer/ui/error-boundary";
 import { Copy, FileWarning } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { PREVIEW_PANEL, PreviewLoading, TextFrame } from "./preview-frame";
 import { PreviewMessage } from "./preview-message";
 
@@ -121,6 +122,38 @@ const RawText = ({ text, summary }: { text: string; summary: string }) => (
    </Panel>
 );
 
+const ViewPanel = ({
+   text,
+   summary,
+   mono = true,
+   actions,
+   children,
+}: {
+   text: string;
+   summary: string;
+   mono?: boolean;
+   actions?: ReactNode;
+   children: ReactNode;
+}) => {
+   const [mode, setMode] = useState<ViewMode>("preview");
+   const source = mode === "source";
+   return (
+      <Panel
+         summary={summary}
+         mono={mono || source}
+         actions={
+            <>
+               <ViewTabs mode={mode} onChange={setMode} />
+               {!source && actions}
+               <CopyButton text={text} />
+            </>
+         }
+      >
+         {source ? <RawTextBody text={text} /> : children}
+      </Panel>
+   );
+};
+
 type BodyPreviewProps = {
    preview: S3ObjectPreview;
    objectKey: string;
@@ -134,6 +167,26 @@ type LoadedBody = {
    // changes whenever the text may differ, so error boundaries keyed on it retry a fresh render
    version: string;
 };
+
+// a renderer that throws on this text falls back to the raw file until the text may have changed
+const RenderedBody = ({
+   text,
+   version,
+   label,
+   children,
+}: LoadedBody & { label: string; children: ReactNode }) => (
+   <ErrorBoundary
+      key={version}
+      fallback={
+         <RawText
+            text={text}
+            summary={`Couldn't render this ${label} — showing the raw file`}
+         />
+      }
+   >
+      {children}
+   </ErrorBoundary>
+);
 
 // reads the object into memory for previews that need the text itself, falling back to the browser's own rendering of the url
 const BodyPreview = ({
@@ -198,10 +251,8 @@ export {
    BodyPreview,
    COMPACT_ACTION,
    COMPACT_LABEL,
-   CopyButton,
-   Panel,
    RawText,
-   RawTextBody,
-   ViewTabs,
+   RenderedBody,
+   ViewPanel,
 };
-export type { BodyPreviewProps, ViewMode };
+export type { BodyPreviewProps };

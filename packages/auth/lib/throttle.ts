@@ -7,7 +7,6 @@ import { describeError } from "@s3-viewer/types";
 type Throttle = {
    allow: (key: string, now?: number) => Promise<boolean>;
    refund: (key: string) => Promise<void>;
-   size: () => number;
 };
 
 type ThrottleOptions = { name: string; shared: boolean };
@@ -20,7 +19,6 @@ const memoryThrottle = (limit: number, windowMs: number): Throttle => {
       allow: async (key, now) =>
          (await counter.hit(key, windowMs, now)) <= limit,
       refund: counter.undo,
-      size: counter.size,
    };
 };
 
@@ -52,7 +50,6 @@ const sharedThrottle = (
          );
       }
    },
-   size: () => 0,
 });
 
 const createThrottle = (

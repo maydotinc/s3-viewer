@@ -42,6 +42,13 @@ import {
    TOO_MANY_ATTEMPTS,
    TOO_MANY_CODE_GUESSES,
 } from "./errors";
+import {
+   DELETE_USER_PATH,
+   PASSWORD_SIGN_UP_PATH,
+   SEND_CODE_PATH,
+   SIGN_IN_PATH,
+   VERIFY_CODE_PATH,
+} from "./paths";
 import { validateNewProfile, validateProfileChange } from "./profile";
 import {
    assertPasswordSignUpAllowed,
@@ -103,10 +110,6 @@ const MAIL_PER_ADDRESS: readonly Throttle[] = [
    makeThrottle("mail-address-burst", 1, MINUTE_MS),
    makeThrottle("mail-address", 10, HOUR_MS),
 ];
-const PASSWORD_SIGN_UP_PATH = "/sign-up/email";
-const SIGN_IN_PATH = "/sign-in/email";
-const SEND_CODE_PATH = "/email-otp/send-verification-otp";
-const VERIFY_CODE_PATH = "/email-otp/verify-email";
 
 const SIGN_IN_RULES: readonly ThrottleRule[] = [
    {
@@ -157,7 +160,7 @@ const passwordCheckThrottle = makeThrottle(
 );
 const SESSION_THROTTLES: Readonly<Record<string, Throttle>> = {
    "/change-password": passwordCheckThrottle,
-   "/delete-user": passwordCheckThrottle,
+   [DELETE_USER_PATH]: passwordCheckThrottle,
 };
 
 const DISABLED_PATHS: string[] = [

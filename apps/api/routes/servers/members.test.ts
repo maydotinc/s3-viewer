@@ -53,7 +53,6 @@ vi.mock("@/lib/audit/writer", async (original) => ({
 
 vi.mock("@/lib/middleware/audit-record", () => ({
    record: vi.fn(),
-   recordAlways: vi.fn(),
    recordMany: state.recordMany,
 }));
 

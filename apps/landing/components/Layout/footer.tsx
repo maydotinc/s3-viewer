@@ -1,12 +1,9 @@
+import { BuiltByMay } from "@/components/built-by-may";
 import { ExternalLink } from "@/components/external-link";
-import {
-   GITHUB_URL,
-   MAY_NAME,
-   MAY_ROUNDED_LOGO_URL,
-   MAY_URL,
-} from "@/lib/site-config";
+import { Wordmark } from "@/components/wordmark";
+import { GITHUB_URL } from "@/lib/site-config";
+import { PRODUCT_NAME } from "@s3-viewer/types/constants";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import Image from "next/image";
 import Link from "next/link";
 
 type LinkItem = { label: string; href: string; external?: boolean };
@@ -125,35 +122,15 @@ const Footer = () => {
                      className="flex w-fit items-center"
                      aria-label="S3 Viewer home"
                   >
-                     <Image
-                        src="/icons/viewer.svg"
-                        alt="S3 Viewer"
-                        width={150}
-                        height={32}
-                        draggable={false}
-                        className="h-7 w-auto select-none"
-                     />
+                     <Wordmark className="h-7 w-auto select-none" />
                   </Link>
                   <p className="max-w-65 text-sm text-viewertext">
                      A fast, open-source viewer for any S3-compatible object
                      storage.
                   </p>
-                  <ExternalLink
-                     href={MAY_URL}
-                     className="inline-flex w-fit items-center gap-2 text-sm text-viewerlighttext transition-colors hover:text-viewerblack"
-                  >
-                     <span>Built by</span>
-                     <Image
-                        src={MAY_ROUNDED_LOGO_URL}
-                        alt=""
-                        width={20}
-                        height={20}
-                        className="size-5 rounded-[5px]"
-                     />
-                     <span>{MAY_NAME}</span>
-                  </ExternalLink>
+                  <BuiltByMay className="w-fit" />
                   <span className="text-xs text-viewerlighttext">
-                     S3 Viewer is open source under MIT.
+                     {PRODUCT_NAME} is open source under MIT.
                   </span>
                </div>
 

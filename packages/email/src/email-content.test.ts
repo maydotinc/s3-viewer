@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Role } from "@s3-viewer/types";
+import { DAY_MS, INVITE_TTL_DAYS, Role } from "@s3-viewer/types";
 import type { EmailMessage } from "./delivery";
 
 const sent = vi.hoisted(() => ({
@@ -44,7 +44,7 @@ const inviteMessage = async ({
       inviterName: SPOOFED_INVITER,
       inviterEmail: "attacker@mail.example",
       servers,
-      expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      expiresAt: new Date(Date.now() + INVITE_TTL_DAYS * DAY_MS),
       invitesUrl: "https://app.example/settings/invites?invite=secret-token",
       ...overrides,
    });
@@ -116,7 +116,9 @@ describe("invite email content", () => {
          expect(part).toContain(
             "Invited by Pat Example (attacker@mail.example)"
          );
-         expect(part).toContain("These invitations expire on January 1, 2030.");
+         expect(part).toContain(
+            `These invitations expire in ${INVITE_TTL_DAYS} days.`
+         );
          for (const link of LINKS) expect(part).not.toContain(link);
          expect(part).not.toMatch(BIDI);
       }

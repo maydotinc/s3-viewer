@@ -19,6 +19,7 @@ import { recentlySeen } from "@/lib/audit/writer";
 import { record, recordWithin } from "@/lib/middleware/audit-record";
 import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { memberRole } from "@/lib/services/members";
+import { bump, countOf } from "@/lib/utils/counter-map";
 import {
    auditSettingsOf,
    auditSettingsSelect,
@@ -236,7 +237,7 @@ const verifyAuditLog = async (
 
 // per process, like the streams it protects; released when the response closes, however it ends.
 const exportsRunning = new Map<string, number>();
-const running = (key: string): number => exportsRunning.get(key) ?? 0;
+const running = (key: string): number => countOf(exportsRunning, key);
 
 const claimExportSlot = (res: Response, serverId: string): void => {
    const { userId, serverRole } = getAuth(res);
@@ -256,13 +257,9 @@ const claimExportSlot = (res: Response, serverId: string): void => {
       throw rateLimited(
          "Other exports are running on this server. Try again once they finish."
       );
-   for (const key of keys) exportsRunning.set(key, running(key) + 1);
+   for (const key of keys) bump(exportsRunning, key, 1);
    res.once("close", () => {
-      for (const key of keys) {
-         const left = running(key) - 1;
-         if (left > 0) exportsRunning.set(key, left);
-         else exportsRunning.delete(key);
-      }
+      for (const key of keys) bump(exportsRunning, key, -1);
    });
 };
 

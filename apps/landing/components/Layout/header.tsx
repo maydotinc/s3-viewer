@@ -1,11 +1,11 @@
 import { ExternalLink } from "@/components/external-link";
 import { GitHubMark } from "@/components/social-marks";
+import { Wordmark } from "@/components/wordmark";
 import { APP_PATH, GITHUB_URL } from "@/lib/site-config";
 import { Button } from "@s3-viewer/ui/components/button";
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Menu, X } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
@@ -200,15 +200,7 @@ const Header = () => {
                      scrolled && "scale-[0.92]"
                   )}
                >
-                  <Image
-                     src="/icons/viewer.svg"
-                     alt="S3 Viewer"
-                     width={150}
-                     height={32}
-                     className="h-6 w-auto sm:h-8"
-                     priority
-                     draggable={false}
-                  />
+                  <Wordmark className="h-6 w-auto sm:h-8" priority />
                </Link>
 
                <NavLinks pathname={pathname} />

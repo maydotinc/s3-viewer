@@ -15,6 +15,9 @@ const GLYPHS: Record<string, string> = {
    delete: "⌦",
 };
 
+const KEY_CLASS =
+   "inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-viewerborder bg-viewerwhite px-1 font-sans text-[11px] font-medium leading-none text-viewertext";
+
 const NEVER_CHANGES = () => () => {};
 
 const readIsApple = (): boolean =>
@@ -38,6 +41,7 @@ const Kbd = ({ keys, className, ...props }: KbdProps) => {
             "inline-flex items-center gap-0.5 pointer-coarse:hidden",
             className
          )}
+         role="img"
          aria-label={keys}
          {...props}
       >
@@ -50,10 +54,7 @@ const Kbd = ({ keys, className, ...props }: KbdProps) => {
                return (
                   <kbd
                      key={index}
-                     className={cn(
-                        "inline-flex h-5 min-w-5 items-center justify-center rounded-[5px] border border-viewerborder bg-viewerwhite px-1 font-sans text-[11px] font-medium leading-none text-viewertext",
-                        key === "mod" && "w-8 shrink-0"
-                     )}
+                     className={cn(KEY_CLASS, key === "mod" && "w-8 shrink-0")}
                   >
                      {key === "mod"
                         ? mod
@@ -65,4 +66,4 @@ const Kbd = ({ keys, className, ...props }: KbdProps) => {
    );
 };
 
-export { Kbd };
+export { KEY_CLASS, Kbd };

@@ -6,6 +6,12 @@ const OBJECT_EXISTS = "An object with that name already exists";
 const UPLOAD_CONFLICT =
    "The file changed or already exists. Refresh the folder and confirm the upload again.";
 
+const SERVER_MOUNT = "/servers/:serverId";
+const BUCKETS_PATH = "/buckets";
+// middleware that runs before express strips the mount sees the raw path, so it matches any server id itself.
+const underAnyServer = (...paths: readonly string[]): string =>
+   `^${SERVER_MOUNT.replace(":serverId", "[^/]+")}(?:${paths.join("|")})`;
+
 const S3_ROUTE_TIMEOUT_MS = MINUTE_MS;
 const HEAD_CONCURRENCY = 16;
 const CLEANUP_TIMEOUT_MS = 10 * SECOND_MS;
@@ -35,11 +41,13 @@ export {
    ARCHIVE_DRAIN_FLOOR_FRACTION,
    ARCHIVE_MIN_BYTES_PER_SECOND,
    ARCHIVE_MS_PER_OBJECT,
+   BUCKETS_PATH,
    CLEANUP_TIMEOUT_MS,
    HEAD_CONCURRENCY,
    MEMBER_NOT_FOUND,
    OBJECT_EXISTS,
    S3_ROUTE_TIMEOUT_MS,
+   SERVER_MOUNT,
    SERVER_NOT_FOUND,
    SLOT_MIN_BYTES_PER_SECOND,
    SLOT_MIN_LIFETIME_MS,
@@ -51,5 +59,6 @@ export {
    UPLOAD_PART_QUEUE_SIZE,
    copyDeadlineMs,
    copyWorkMs,
+   underAnyServer,
    uploadMemoryFor,
 };

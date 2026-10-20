@@ -6,14 +6,14 @@ import BasicBlock, {
 import OnThisPage from "@/components/on-this-page";
 import PageHero from "@/components/page-hero";
 import { SITE_URL } from "@/lib/site-config";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { Check, Copy, Download } from "lucide-react";
 import Image from "next/image";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { COLORS, LOGOS, SECTIONS, TYPE_SCALE, VOICE_EXAMPLES } from "./data";
 
-const FOCUS =
-   "outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-viewerblue";
+const FOCUS = `outline-none ${FOCUS_RING}`;
 
 const BrandSection = ({
    id,

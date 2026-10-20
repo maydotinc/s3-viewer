@@ -10,6 +10,7 @@ import { Checkbox } from "@s3-viewer/ui/components/checkbox";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import { memo, useId } from "react";
 import type { GrantRow } from "../bucket-grants";
+import LinkButton from "../link-button";
 import type { ServerAccess } from "./wizard-state";
 
 type ReviewServer = { server: ServerInfo; access: ServerAccess };
@@ -77,28 +78,6 @@ const NotifyToggle = ({
    );
 };
 
-const EditLink = ({
-   label,
-   disabled,
-   onClick,
-}: {
-   label: string;
-   disabled?: boolean;
-   onClick: () => void;
-}) => (
-   <Button
-      type="button"
-      variant="link"
-      size="sm"
-      className="h-auto shrink-0 px-0"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-   >
-      Edit
-   </Button>
-);
-
 const rowLabel = (row: GrantRow, serverRole: Role): string =>
    serverRole === Role.ADMIN ? "Admin · whole bucket" : grantLabel(row);
 
@@ -121,11 +100,13 @@ const ServerSummary = memo(function ServerSummary({
             <span className="min-w-0 flex-1 truncate text-xs text-viewerlighttext">
                {ROLE_LABELS[access.role]}
             </span>
-            <EditLink
-               label={`Edit access on ${server.name}`}
+            <LinkButton
+               aria-label={`Edit access on ${server.name}`}
                disabled={disabled}
                onClick={() => onEdit(server.id)}
-            />
+            >
+               Edit
+            </LinkButton>
          </div>
          <ul className="divide-y divide-viewerborder border-t border-viewerborder px-3 py-2">
             {rows.map((row) => (
@@ -170,11 +151,13 @@ const StepReview = ({
       <div className="flex min-w-0 flex-col gap-2">
          <div className="flex h-5 items-center justify-between gap-2">
             <h3 className="text-sm font-medium text-viewerblack">People</h3>
-            <EditLink
-               label="Edit people"
+            <LinkButton
+               aria-label="Edit people"
                disabled={disabled}
                onClick={onEditPeople}
-            />
+            >
+               Edit
+            </LinkButton>
          </div>
          <ul className="flex flex-wrap gap-1.5">
             {emails.map((address) => (

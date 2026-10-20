@@ -35,7 +35,7 @@ export type EstablishInput = z.infer<typeof establishSchema>;
 export const validateBucketsSchema = z.object({
    encryptedCredentials: encryptedCredentialsSchema,
    bucketNames: bucketNameListSchema
-      .refine((v) => v.length > 0)
+      .refine((v) => v.length > 0, "Check at least one bucket")
       .refine(
          (v) => v.length <= MAX_VALIDATE_BUCKETS,
          `Check at most ${MAX_VALIDATE_BUCKETS} buckets at a time`

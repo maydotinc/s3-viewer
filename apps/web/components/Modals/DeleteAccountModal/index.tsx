@@ -1,8 +1,8 @@
 import PasswordInput from "@/components/Auth/password-input";
 import Callout from "@/components/callout";
+import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import Field, { FieldSkeleton } from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
-import { ModalShell } from "@/components/Modals/modal-shell";
 import { signInAgain } from "@/components/stale-sign-in";
 import { authClient, deleteAccount, signOut } from "@/lib/auth";
 import { useHasPassword } from "@/lib/hooks/queries/user/useHasPassword";
@@ -16,7 +16,6 @@ import {
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Checkbox } from "@s3-viewer/ui/components/checkbox";
-import { DialogBody, DialogFooter } from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { toast } from "@s3-viewer/ui/components/toast";
@@ -247,15 +246,20 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
    };
 
    return (
-      <ModalShell
+      <ConfirmDialog
          closable={!deleting}
-         showCloseButton={false}
          onClose={onClose}
          title={`Delete your ${PRODUCT_NAME} account`}
          description={`Permanently removes what ${PRODUCT_NAME} stores about you. Your buckets, files and S3 servers are never touched.`}
-         className="max-w-lg"
+         contentClassName="max-w-lg"
+         form
+         confirmVariant="destructive"
+         confirmLabel="Delete account"
+         confirmDisabled={!confirmed}
+         isPending={deleting}
+         onConfirm={() => void confirm()}
       >
-         <DialogBody className="flex flex-col gap-5">
+         <div className="flex flex-col gap-5">
             <RemovedList summary={confirmedSummary} />
             <Callout>
                {PRODUCT_NAME} only stores the address and keys it uses to reach
@@ -340,29 +344,8 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
                   )}
                </div>
             )}
-         </DialogBody>
-         <DialogFooter>
-            <Button
-               type="button"
-               variant="outline"
-               className="flex-1 sm:flex-initial"
-               disabled={deleting}
-               onClick={onClose}
-            >
-               Cancel
-            </Button>
-            <Button
-               type="button"
-               variant="destructive"
-               className="flex-1 sm:flex-initial"
-               onClick={() => void confirm()}
-               disabled={!confirmed}
-               loading={deleting}
-            >
-               Delete account
-            </Button>
-         </DialogFooter>
-      </ModalShell>
+         </div>
+      </ConfirmDialog>
    );
 };
 

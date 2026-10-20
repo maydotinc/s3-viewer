@@ -98,4 +98,4 @@ const useAbortMultipartUploads = () =>
    });
 
 export default useAbortMultipartUploads;
-export { abortUploads, pairId, reportAbortResult };
+export { abortUploads, pairId };

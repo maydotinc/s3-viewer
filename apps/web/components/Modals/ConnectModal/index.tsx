@@ -1,6 +1,7 @@
 import Field, { FieldSkeleton } from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import { ModalShell } from "@/components/Modals/modal-shell";
+import useAsyncAction from "@/components/use-async-action";
 import { errorMessage } from "@/lib/api";
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { parseServerName } from "@/lib/utils/server-name";
@@ -55,56 +56,35 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       detected: EstablishResult;
       name: string;
       endpoint: string;
-      userId: string;
    } | null>(null);
    const [bucketInput, setBucketInput] = useState("");
    const [checks, setChecks] = useState<BucketCheck[] | null>(null);
-   const [busy, setBusy] = useState(false);
-   const pending = useRef(false);
-   const revision = useRef(0);
+   const { pending: busy, run } = useAsyncAction((failure) =>
+      setError(errorMessage(failure))
+   );
+   // a step that finishes after the dialog closed must not start the next one, or a dismissed connect could still create the server
+   const mounted = useRef(false);
    useEffect(() => {
-      pending.current = false;
-      setBusy(false);
-      setFields(EMPTY);
-      setConnection(null);
-      setBucketInput("");
-      setChecks(null);
-      setError(null);
+      mounted.current = true;
       return () => {
-         revision.current += 1;
+         mounted.current = false;
       };
-   }, [userId]);
+   }, []);
 
    const establish = useEstablishConnection();
    const validateBuckets = useValidateBuckets();
    const createServer = useCreateServer();
    const detected = connection?.detected;
 
-   const run = async (work: (current: () => boolean) => Promise<void>) => {
-      if (pending.current) return;
-      pending.current = true;
-      setBusy(true);
-      const started = revision.current;
-      const current = () => revision.current === started;
-      try {
-         await work(current);
-      } finally {
-         if (current()) {
-            pending.current = false;
-            setBusy(false);
-         }
-      }
-   };
-
    const set = (key: keyof Fields, value: string) => {
-      if (pending.current) return;
+      if (busy) return;
       setFields((prev) => ({ ...prev, [key]: value }));
       setError(null);
    };
 
    const detect = async (e: FormEvent) => {
       e.preventDefault();
-      await run(async (current) => {
+      await run(async () => {
          const submitted = { ...fields };
          const name = parseServerName(submitted.name);
          if (!name.ok) {
@@ -116,35 +96,27 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
             config.data,
             userId
          );
-         if (!current()) return;
+         if (!mounted.current) return;
          if ("error" in sealed) {
             setError(sealed.error);
             return;
          }
-         try {
-            const detected = await establish.mutateAsync({
-               encryptedCredentials: sealed.encrypted,
-            });
-            if (!current()) return;
-            setConnection({
-               encrypted: sealed.encrypted,
-               detected,
-               name: name.name,
-               endpoint: submitted.endpoint.trim(),
-               userId,
-            });
-            setFields(withoutSecrets);
-            setError(null);
-         } catch (err) {
-            if (current()) setError(errorMessage(err));
-         }
+         const detected = await establish.mutateAsync({
+            encryptedCredentials: sealed.encrypted,
+         });
+         setConnection({
+            encrypted: sealed.encrypted,
+            detected,
+            name: name.name,
+            endpoint: submitted.endpoint.trim(),
+         });
+         setFields(withoutSecrets);
+         setError(null);
       });
    };
 
-   const checkBuckets = async (
-      current: () => boolean
-   ): Promise<string[] | null> => {
-      if (!connection || connection.userId !== userId) return null;
+   const checkBuckets = async (): Promise<string[] | null> => {
+      if (!connection) return null;
       const names = parseBucketNames(bucketInput);
       if (names.length === 0) {
          setError("Enter at least one bucket name");
@@ -161,63 +133,47 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
          setError(`Not a valid bucket name: ${invalid.join(", ")}`);
          return null;
       }
-      try {
-         const results = await validateBuckets.mutateAsync({
-            encryptedCredentials: connection.encrypted,
-            bucketNames: names,
-         });
-         if (!current()) return null;
-         setChecks(results);
-         if (
-            names.some(
-               (name) =>
-                  !results.some(
-                     (result) => result.bucketName === name && result.accessible
-                  )
-            )
-         ) {
-            setError("Remove the buckets this token can't access");
-            return null;
-         }
-         setError(null);
-         return names;
-      } catch (err) {
-         if (current()) setError(errorMessage(err));
+      const results = await validateBuckets.mutateAsync({
+         encryptedCredentials: connection.encrypted,
+         bucketNames: names,
+      });
+      setChecks(results);
+      if (
+         names.some(
+            (name) =>
+               !results.some(
+                  (result) => result.bucketName === name && result.accessible
+               )
+         )
+      ) {
+         setError("Remove the buckets this token can't access");
          return null;
       }
+      setError(null);
+      return names;
    };
 
    const connect = async (e: FormEvent) => {
       e.preventDefault();
-      await run(async (current) => {
-         if (!connection || connection.userId !== userId) return;
+      await run(async () => {
+         if (!connection) return;
          let bucketNames: string[] | undefined;
          if (!connection.detected.listBucketsAllowed) {
-            const names = await checkBuckets(current);
-            if (!names) return;
+            const names = await checkBuckets();
+            if (!names || !mounted.current) return;
             bucketNames = names;
          }
-         if (!current()) return;
-         try {
-            await createServer.mutateAsync({
-               encryptedCredentials: connection.encrypted,
-               serverName: connection.name,
-               bucketNames,
-            });
-            if (current()) close();
-         } catch (err) {
-            if (current()) setError(errorMessage(err));
-         }
+         await createServer.mutateAsync({
+            encryptedCredentials: connection.encrypted,
+            serverName: connection.name,
+            bucketNames,
+         });
+         onClose();
       });
    };
 
-   const close = () => {
-      setFields(withoutSecrets);
-      onClose();
-   };
-
    const back = () => {
-      if (pending.current) return;
+      if (busy) return;
       setConnection(null);
       setChecks(null);
       setError(null);
@@ -232,11 +188,10 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
    return (
       <ModalShell
          closable={!createServer.isPending}
-         onClose={close}
+         onClose={onClose}
          title={title}
          description={description}
          className="sm:max-w-md"
-         headerClassName="text-left"
       >
          {keyState !== "ready" ? (
             <>
@@ -282,7 +237,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                            disabled={busy}
                            autoFocus
                            onChange={(e) => {
-                              if (pending.current) return;
+                              if (busy) return;
                               setBucketInput(e.target.value);
                               setChecks(null);
                               setError(null);
@@ -324,11 +279,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
                            variant="link"
                            size="sm"
                            className="w-fit px-0"
-                           onClick={() =>
-                              void run(async (current) => {
-                                 await checkBuckets(current);
-                              })
-                           }
+                           onClick={() => void run(checkBuckets)}
                            disabled={busy}
                            loading={validateBuckets.isPending}
                         >

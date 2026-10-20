@@ -3,6 +3,7 @@ import CtaButtons, { type CtaButtonsProps } from "@/components/cta-buttons";
 import FaqList from "@/components/faq-list";
 import { stepId } from "@/lib/jsonld";
 import type { Faq } from "@/lib/types";
+import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
 import { cn } from "@s3-viewer/ui/lib/utils";
 import type { ReactNode } from "react";
 
@@ -96,7 +97,10 @@ export const StepList = ({ steps }: { steps: Step[] }) => (
                   tabIndex={0}
                   role="region"
                   aria-label={`Code for step ${i + 1}`}
-                  className="min-w-0 max-w-full sm:ml-14 overflow-x-auto rounded-md border border-viewerborder bg-viewergray px-4 py-3 text-xs leading-relaxed font-mono text-viewerblack outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-solid focus-visible:outline-viewerblue"
+                  className={cn(
+                     "min-w-0 max-w-full sm:ml-14 overflow-x-auto rounded-md border border-viewerborder bg-viewergray px-4 py-3 text-xs leading-relaxed font-mono text-viewerblack outline-none",
+                     FOCUS_RING
+                  )}
                >
                   <code>{step.code}</code>
                </pre>

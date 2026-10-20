@@ -1,7 +1,7 @@
 import Field from "@/components/form-field";
+import FormError from "@/components/Modals/form-error";
 import RemovableChip from "@/components/removable-chip";
 import { MAX_INVITE_EMAILS } from "@s3-viewer/types";
-import { cn } from "@s3-viewer/ui/lib/utils";
 import { useId, useRef, type ClipboardEvent, type KeyboardEvent } from "react";
 import {
    INVALID_CHIP_TITLE,
@@ -69,9 +69,9 @@ const StepWho = ({
          <div
             role="group"
             aria-labelledby={labelId}
-            aria-invalid={invalid || undefined}
+            data-invalid={invalid || undefined}
             onClick={() => inputRef.current?.focus()}
-            className="flex min-h-20 min-w-0 cursor-text flex-wrap items-start gap-1.5 rounded-lg border border-viewerborder bg-viewerwhite p-2 transition-colors focus-within:border-viewerblue aria-invalid:border-viewertextred"
+            className="flex min-h-20 min-w-0 cursor-text flex-wrap items-start gap-1.5 rounded-lg border border-viewerborder bg-viewerwhite p-2 transition-colors focus-within:border-viewerblue data-invalid:border-viewertextred"
          >
             <ul className="contents">
                {value.chips.map((chip) => {
@@ -109,16 +109,9 @@ const StepWho = ({
                className="h-7 min-w-40 flex-1 bg-transparent text-base outline-none placeholder:text-viewerlighttext sm:text-sm"
             />
          </div>
-         <p
-            id={helperId}
-            role={invalid ? "alert" : undefined}
-            className={cn(
-               "min-h-5 break-words text-xs leading-5",
-               invalid ? "text-viewertextred" : "text-viewertext"
-            )}
-         >
-            {message.text}
-         </p>
+         <FormError id={helperId} hint={invalid ? undefined : message.text}>
+            {invalid ? message.text : null}
+         </FormError>
       </Field>
    );
 };

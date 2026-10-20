@@ -21,6 +21,7 @@ const ServerLogo = ({ provider }: { provider: Provider }) => {
             />
          ) : (
             <ServerIcon
+               role="img"
                aria-label="S3-compatible server"
                className="size-4 text-viewerblack"
             />

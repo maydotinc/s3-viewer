@@ -1,7 +1,7 @@
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import { KeyDialog } from "@/components/Modals/key-dialog";
-import { errorMessage } from "@/lib/api";
+import useRequestError from "@/components/Modals/use-request-error";
 import useCopyObject from "@/lib/hooks/mutations/object/useCopyObject";
 import { visibleText } from "@/lib/utils/format";
 import { occupiedBy } from "@/lib/utils/s3/key-exists";
@@ -23,7 +23,7 @@ const CopyObjectModal = ({
    onCopySuccess,
 }: CopyObjectModalProps) => {
    const copy = useCopyObject();
-   const [requestError, setRequestError] = useState<string | null>(null);
+   const request = useRequestError();
    const [isChecking, setIsChecking] = useState(false);
    const [conflict, setConflict] = useState<ReviewedDestination | null>(null);
    const [draft, setDraft] = useState(objectKey);
@@ -44,8 +44,8 @@ const CopyObjectModal = ({
             expectedETag,
             expectedDestinationETag,
          },
-         {
-            onSuccess: () => {
+         request.attempt(
+            () => {
                toast.success(
                   expectedDestinationETag === undefined
                      ? "Object copied."
@@ -54,17 +54,14 @@ const CopyObjectModal = ({
                onCopySuccess?.(newObjectKey);
                onClose();
             },
-            onError: (failure) => {
-               setConflict(null);
-               setRequestError(errorMessage(failure));
-            },
-         }
+            () => setConflict(null)
+         )
       );
    };
 
    const submit = async (newObjectKey: string) => {
       setDraft(newObjectKey);
-      setRequestError(null);
+      request.clear();
       setIsChecking(true);
       try {
          const eTag = await occupiedBy({
@@ -75,7 +72,7 @@ const CopyObjectModal = ({
          if (eTag === null) run(newObjectKey);
          else setConflict({ key: newObjectKey, eTag });
       } catch (failure) {
-         setRequestError(errorMessage(failure));
+         request.fail(failure);
       } finally {
          setIsChecking(false);
       }
@@ -108,8 +105,8 @@ const CopyObjectModal = ({
          initialValue={draft}
          validate={validate}
          isPending={isChecking || copy.isPending}
-         requestError={requestError}
-         onEdit={() => setRequestError(null)}
+         requestError={request.error}
+         onEdit={request.clear}
          onSubmit={(newObjectKey) => void submit(newObjectKey)}
       />
    );

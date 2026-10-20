@@ -31,7 +31,7 @@ const state = vi.hoisted(() => ({
    copy: vi.fn(),
    transfer: vi.fn(),
    audit: vi.fn(),
-   writeAudit: vi.fn(),
+   writeAudits: vi.fn(),
    send: vi.fn(),
    requestSignal: vi.fn(),
    responseClosed: vi.fn(),
@@ -110,7 +110,7 @@ vi.mock("@/lib/middleware/audit-record", async (importOriginal) => ({
 }));
 vi.mock("@/lib/audit/writer", async (importOriginal) => ({
    ...(await importOriginal<typeof import("@/lib/audit/writer")>()),
-   writeAudit: state.writeAudit,
+   writeAudits: state.writeAudits,
 }));
 
 const awsClient = endpointStub(state.send);
@@ -154,7 +154,7 @@ beforeEach(() => {
    state.routeError.mockReset();
    state.getClient.mockReset().mockResolvedValue(awsClient);
    state.audit.mockReset().mockResolvedValue(undefined);
-   state.writeAudit.mockReset().mockResolvedValue(undefined);
+   state.writeAudits.mockReset().mockResolvedValue(undefined);
    state.head.mockReset().mockResolvedValue({
       ETag: '"reviewed"',
       ContentLength: 42,
@@ -194,7 +194,7 @@ const expectNoStorage = () => {
    expect(state.copy).not.toHaveBeenCalled();
    expect(state.transfer).not.toHaveBeenCalled();
    expect(state.audit).not.toHaveBeenCalled();
-   expect(state.writeAudit).not.toHaveBeenCalled();
+   expect(state.writeAudits).not.toHaveBeenCalled();
 };
 
 describe("copying between buckets on one server", () => {
@@ -294,19 +294,21 @@ describe("copying between buckets on one server", () => {
             },
          })
       );
-      expect(state.writeAudit).toHaveBeenCalledWith(
+      expect(state.writeAudits).toHaveBeenCalledWith(
          expect.objectContaining({
             serverId: SOURCE_SERVER,
-            entry: expect.objectContaining({
-               action: "object.download",
-               bucket: "from-bucket",
-               target: "reports/q3.csv",
-               detail: {
-                  outcome: "attempt",
-                  toServerId: SOURCE_SERVER,
-                  toBucket: "to-bucket",
-               },
-            }),
+            entries: [
+               expect.objectContaining({
+                  action: "object.download",
+                  bucket: "from-bucket",
+                  target: "reports/q3.csv",
+                  detail: {
+                     outcome: "attempt",
+                     toServerId: SOURCE_SERVER,
+                     toBucket: "to-bucket",
+                  },
+               }),
+            ],
          })
       );
    });
@@ -534,20 +536,22 @@ describe("auditing both ends of a transfer", () => {
             target: "imported/q3.csv",
          })
       );
-      expect(state.writeAudit).toHaveBeenCalledWith(
+      expect(state.writeAudits).toHaveBeenCalledWith(
          expect.objectContaining({
             serverId: SOURCE_SERVER,
             audit: { enabled: true, level: "ALL" },
-            entry: expect.objectContaining({
-               action: "object.download",
-               bucket: "from-bucket",
-               target: "reports/q3.csv",
-               detail: {
-                  outcome: "attempt",
-                  toServerId: OTHER_SERVER,
-                  toBucket: "to-bucket",
-               },
-            }),
+            entries: [
+               expect.objectContaining({
+                  action: "object.download",
+                  bucket: "from-bucket",
+                  target: "reports/q3.csv",
+                  detail: {
+                     outcome: "attempt",
+                     toServerId: OTHER_SERVER,
+                     toBucket: "to-bucket",
+                  },
+               }),
+            ],
          })
       );
    });
@@ -559,14 +563,16 @@ describe("auditing both ends of a transfer", () => {
       };
       let received = "";
       state.transfer.mockImplementation(async () => {
-         expect(state.writeAudit).toHaveBeenCalledWith(
+         expect(state.writeAudits).toHaveBeenCalledWith(
             expect.objectContaining({
                serverId: SOURCE_SERVER,
                audit: { enabled: true, level: "CHANGES" },
-               entry: expect.objectContaining({
-                  action: "object.download",
-                  detail: expect.objectContaining({ outcome: "attempt" }),
-               }),
+               entries: [
+                  expect.objectContaining({
+                     action: "object.download",
+                     detail: expect.objectContaining({ outcome: "attempt" }),
+                  }),
+               ],
             })
          );
          received = "source bytes";
@@ -574,7 +580,7 @@ describe("auditing both ends of a transfer", () => {
       });
       expect((await post(crossServerBody)).status).toBe(502);
       expect(received).toBe("source bytes");
-      expect(state.writeAudit).toHaveBeenCalledOnce();
+      expect(state.writeAudits).toHaveBeenCalledOnce();
       expect(state.audit).not.toHaveBeenCalled();
    });
 
@@ -589,7 +595,7 @@ describe("auditing both ends of a transfer", () => {
       };
       const response = await post(crossServerBody);
       expect(response.status).toBe(201);
-      expect(state.writeAudit).toHaveBeenCalledWith(
+      expect(state.writeAudits).toHaveBeenCalledWith(
          expect.objectContaining({
             serverId: SOURCE_SERVER,
             audit: { enabled: true, level: "ALL" },
@@ -614,7 +620,7 @@ describe("auditing both ends of a transfer", () => {
       expect(state.audit.mock.calls[0]?.[0].locals.auth).toMatchObject({
          audit: { enabled: true, level: "ALL" },
       });
-      expect(state.writeAudit).toHaveBeenCalledWith(
+      expect(state.writeAudits).toHaveBeenCalledWith(
          expect.objectContaining({
             serverId: SOURCE_SERVER,
             audit: { enabled: false, level: "ALL" },
