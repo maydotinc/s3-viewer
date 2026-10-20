@@ -54,11 +54,14 @@ const objectPermissions = (
 ): ObjectPermissions => ({
    download: hasPermission(role, Permission.DOWNLOAD_OBJECT),
    rename:
-      capabilities.writable && hasPermission(role, Permission.DELETE_OBJECT),
+      capabilities.writable === true &&
+      hasPermission(role, Permission.DELETE_OBJECT),
    upload:
-      capabilities.writable && hasPermission(role, Permission.UPLOAD_OBJECT),
+      capabilities.writable === true &&
+      hasPermission(role, Permission.UPLOAD_OBJECT),
    delete:
-      capabilities.writable && hasPermission(role, Permission.DELETE_OBJECT),
+      capabilities.writable === true &&
+      hasPermission(role, Permission.DELETE_OBJECT),
 });
 
 const canCreateBucketOn = (server: ServerInfo | null | undefined): boolean =>

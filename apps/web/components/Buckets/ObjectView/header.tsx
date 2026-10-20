@@ -139,7 +139,9 @@ const ObjectHeader = ({
             ),
       },
    ];
-   const secondary = actionList.filter((action) => action !== false);
+   const secondary = actionList.filter(
+      (action): action is SecondaryAction => Boolean(action)
+   );
 
    const actions = (
       <>

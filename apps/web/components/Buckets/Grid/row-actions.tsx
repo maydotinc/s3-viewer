@@ -140,7 +140,9 @@ const RowActionsMenu = ({
               onSelect: removeRow,
            },
         ];
-   const actions = listed.filter((action) => action !== false);
+   const actions = listed.filter(
+      (action): action is SecondaryAction => Boolean(action)
+   );
    if (actions.length === 0) return null;
 
    const blocked = rowBlockReason(reach, data.key);
