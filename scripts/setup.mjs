@@ -258,6 +258,12 @@ async function collectChoices({ interactive, noDocker }) {
 
 const OWNER_ONLY = 0o600;
 
+// mode only applies when writeFileSync creates the file; an existing file keeps its bits.
+function writeOwnerOnly(path, content) {
+   writeFileSync(path, content, { mode: OWNER_ONLY });
+   chmodSync(path, OWNER_ONLY);
+}
+
 function backup(path) {
    const target = `${path}.bak-${Date.now()}`;
    copyFileSync(path, target);
@@ -281,8 +287,7 @@ function writeEnvFiles(choices) {
    const secrets = resolveSecrets(parseEnvFile(apiEnvPath));
    const write = (path, content) => {
       if (existsSync(path)) backup(path);
-      writeFileSync(path, content, { mode: OWNER_ONLY });
-      chmodSync(path, OWNER_ONLY);
+      writeOwnerOnly(path, content);
       process.stdout.write(`✅ Wrote ${path}\n`);
    };
    const example = (path) => readFileSync(`${path}.example`, "utf8");
@@ -345,10 +350,9 @@ async function freePostgresPort(env) {
    const url = new URL(env.DATABASE_URL);
    url.port = String(port);
    const databaseUrl = url.toString();
-   writeFileSync(
+   writeOwnerOnly(
       apiEnvPath,
-      setKey(readFileSync(apiEnvPath, "utf8"), "DATABASE_URL", databaseUrl),
-      { mode: OWNER_ONLY }
+      setKey(readFileSync(apiEnvPath, "utf8"), "DATABASE_URL", databaseUrl)
    );
    process.stdout.write(`✅ Updated DATABASE_URL in ${apiEnvPath}\n`);
    return { ...env, DATABASE_URL: databaseUrl };
@@ -391,10 +395,9 @@ export async function runSetup(argv = process.argv.slice(2)) {
       }
       if (!regenerate) {
          if (noDocker && parseEnvFile(apiEnvPath).COMPOSE_PROFILES !== "") {
-            writeFileSync(
+            writeOwnerOnly(
                apiEnvPath,
-               clearComposeProfiles(readFileSync(apiEnvPath, "utf8")),
-               { mode: OWNER_ONLY }
+               clearComposeProfiles(readFileSync(apiEnvPath, "utf8"))
             );
             process.stdout.write(
                `✅ Cleared COMPOSE_PROFILES in ${apiEnvPath}\n`

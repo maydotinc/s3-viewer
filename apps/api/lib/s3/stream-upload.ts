@@ -18,10 +18,13 @@ import { ApiHttpError } from "@/lib/http";
 import { abortReason } from "@/lib/utils/abort";
 import {
    conditionalInitiation,
+   sentMarker,
+   UnconfirmedWriteError,
    uploadConflict,
    type WriteCondition,
 } from "./conditions";
 import { uploadLimitMessage } from "./errors";
+import { describeFailure } from "./failure";
 import { abortForCleanup } from "./multipart-uploads";
 import { forCleanup, withoutRetries } from "./no-retry";
 import {
@@ -129,15 +132,17 @@ const streamThroughUpload = async ({
    abortController.signal.addEventListener("abort", onAbort, { once: true });
 
    let cleanupConfirmed = false;
+   let commitSent = () => false;
    const uploadClient = Object.create(client) as S3Client;
    uploadClient.send = (async (command: Parameters<S3Client["send"]>[0]) => {
       const cleanup = command instanceof AbortMultipartUploadCommand;
       if (
-         beforeCommit &&
-         (command instanceof PutObjectCommand ||
-            command instanceof CompleteMultipartUploadCommand)
-      )
-         await beforeCommit();
+         command instanceof PutObjectCommand ||
+         command instanceof CompleteMultipartUploadCommand
+      ) {
+         if (beforeCommit) await beforeCommit();
+         commitSent = sentMarker(command);
+      }
       if (
          command instanceof CreateMultipartUploadCommand &&
          provider !== Provider.S3
@@ -182,6 +187,12 @@ const streamThroughUpload = async ({
          reason instanceof StorageStalledError
       )
          throw reason;
+      // storage keeps a commit it received even when no answer comes back, so the caller must not retry blind.
+      if (commitSent()) {
+         const { httpStatus } = describeFailure(err);
+         if (httpStatus === undefined || httpStatus >= 500)
+            throw new UnconfirmedWriteError();
+      }
       if (uploadConflict(err)) throw new ApiHttpError(409, conflictMessage);
       throw err;
    } finally {

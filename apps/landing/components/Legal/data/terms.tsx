@@ -2,7 +2,7 @@ import { CONTACT_EMAIL } from "@/lib/site-config";
 import type { LegalPageData } from "../legal-page";
 
 const EFFECTIVE_DATE = "2025-07-25";
-const LAST_UPDATED = "2026-10-04";
+const LAST_UPDATED = "2026-10-21";
 
 const sections: LegalPageData["sections"] = [
    {
@@ -22,7 +22,19 @@ const sections: LegalPageData["sections"] = [
             in S3-compatible storage. The software is provided as-is and may be
             self-hosted. The hosted version, operated by{" "}
             <strong>May Inc.</strong>, is provided as a convenience and may
-            change or be discontinued.
+            change or be discontinued. These terms cover that hosted version.
+         </p>
+      ),
+   },
+   {
+      title: "Self-hosting",
+      content: (
+         <p>
+            A self-hosted instance is run by whoever operates it. These terms do
+            not apply to it: the operator sets its own terms, and May Inc. is
+            not a party to your use of that instance and does not provide,
+            support or stand behind it. Your use of the software itself is
+            governed by the MIT license alone.
          </p>
       ),
    },

@@ -25,10 +25,10 @@ const PrefixSearch = ({ className }: { className?: string }) => {
    }, [filter]);
 
    useEffect(() => {
-      // applying a filter lists the bucket, so a lone character waits for more input; clearing is always allowed.
-      if (text === filter || (text && text.length < LIST_INPUT_MIN_CHARS))
-         return;
-      const timer = setTimeout(() => setFilter(text), LIST_INPUT_DEBOUNCE_MS);
+      // applying a filter lists the bucket, so a lone character waits for more input and drops a filter it no longer matches.
+      const next = text.length < LIST_INPUT_MIN_CHARS ? "" : text;
+      if (next === filter) return;
+      const timer = setTimeout(() => setFilter(next), LIST_INPUT_DEBOUNCE_MS);
       return () => clearTimeout(timer);
    }, [text, filter, setFilter]);
 

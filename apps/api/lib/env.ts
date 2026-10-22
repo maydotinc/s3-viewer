@@ -52,7 +52,19 @@ const positiveInt = (fallback: number) =>
 const nonNegativeInt = (fallback: number) =>
    withDefault(z.coerce.number().int().min(0), fallback);
 
-const flag = optionalString.transform((value) => value === "true");
+const TRUE_FLAGS = ["true", "1", "yes", "on"];
+const FALSE_FLAGS = ["false", "0", "no", "off"];
+// a misspelt flag must fail loudly: silently reading it as false hides the operator's intent.
+const flag = optionalString.transform((value, ctx) => {
+   const text = value?.toLowerCase();
+   if (text === undefined || FALSE_FLAGS.includes(text)) return false;
+   if (TRUE_FLAGS.includes(text)) return true;
+   ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `expected true or false, got "${value}"`,
+   });
+   return z.NEVER;
+});
 
 const schema = z
    .object({

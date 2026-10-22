@@ -698,6 +698,25 @@ describe("GET /servers/:serverId/audit/export", () => {
       expect(state.selectRows).not.toHaveBeenCalled();
    });
 
+   it("answers a first read that times out with its status instead of a truncated csv", async () => {
+      state.selectRows.mockRejectedValue(
+         new Prisma.PrismaClientKnownRequestError("Raw query failed", {
+            code: "P2010",
+            clientVersion: "test",
+            meta: {
+               code: "57014",
+               message: "canceling statement due to statement timeout",
+            },
+         })
+      );
+      const res = await fetch(`${base}/export`);
+      expect(res.status).toBe(422);
+      expect(res.headers.get("content-type")).not.toContain("text/csv");
+      expect(await res.json()).toMatchObject({
+         message: expect.stringContaining("took too long"),
+      });
+   });
+
    it("neutralises every formula prefix, in the actor column too", async () => {
       const at = "2026-09-06T12:00:00.000Z";
       state.selectRows.mockResolvedValue([
@@ -766,13 +785,28 @@ describe("GET /servers/:serverId/audit/export", () => {
       expect(state.selectRows).toHaveBeenCalledOnce();
    });
 
+   // headers wait for the first read, so an export is held open by backpressure: its first batch
+   // is far larger than any socket buffer and nobody reads the body until the test says so.
+   const heavyBatch = Array.from({ length: 1000 }, (_, index) =>
+      row(`held${index}`, "2026-09-06T12:00:00.000Z", {
+         target: "x".repeat(32 * 1024),
+         seq: 2000 - index,
+      })
+   );
+   const heldExport = async (signal?: AbortSignal) => {
+      state.selectRows.mockImplementationOnce(async () => heavyBatch);
+      const res = await fetch(`${base}/export`, {
+         signal,
+         headers: { "accept-encoding": "identity" },
+      });
+      expect(res.status).toBe(200);
+      return res;
+   };
+
    it("runs one export per user and two per server at a time", async () => {
       state.role = "VIEWER";
       state.server.auditViewRole = "VIEWER";
-      const held = Promise.withResolvers<unknown[]>();
-      state.selectRows.mockImplementationOnce(() => held.promise);
-      const first = await fetch(`${base}/export`);
-      expect(first.status).toBe(200);
+      const first = await heldExport();
 
       const again = await fetch(`${base}/export`);
       expect(again.status).toBe(429);
@@ -782,9 +816,7 @@ describe("GET /servers/:serverId/audit/export", () => {
       });
 
       state.actorId = "second12345";
-      state.selectRows.mockImplementationOnce(() => held.promise);
-      const second = await fetch(`${base}/export`);
-      expect(second.status).toBe(200);
+      const second = await heldExport();
       state.actorId = "third123456";
       const third = await fetch(`${base}/export`);
       expect(third.status).toBe(429);
@@ -792,7 +824,6 @@ describe("GET /servers/:serverId/audit/export", () => {
          message: expect.stringContaining("Other exports"),
       });
 
-      held.resolve([]);
       await Promise.all([first.text(), second.text()]);
       const after = await fetch(`${base}/export`);
       expect(after.status).toBe(200);
@@ -802,14 +833,11 @@ describe("GET /servers/:serverId/audit/export", () => {
    it("never locks the log's managers out behind viewers' exports", async () => {
       state.role = "VIEWER";
       state.server.auditViewRole = "VIEWER";
-      const held = Promise.withResolvers<unknown[]>();
       const streams = [];
       for (const actorId of ["viewer1234a", "viewer1234b"]) {
          state.actorId = actorId;
-         state.selectRows.mockImplementationOnce(() => held.promise);
-         streams.push(await fetch(`${base}/export`));
+         streams.push(await heldExport());
       }
-      expect(streams.map((res) => res.status)).toEqual([200, 200]);
 
       for (const role of ["OWNER", "ADMIN"] as const) {
          state.role = role;
@@ -819,23 +847,18 @@ describe("GET /servers/:serverId/audit/export", () => {
          await res.text();
       }
 
-      held.resolve([]);
       await Promise.all(streams.map((res) => res.text()));
    });
 
    it("frees the slot when the client walks away mid-export", async () => {
-      const held = Promise.withResolvers<unknown[]>();
-      state.selectRows.mockImplementationOnce(() => held.promise);
       const aborted = new AbortController();
-      const first = await fetch(`${base}/export`, { signal: aborted.signal });
-      expect(first.status).toBe(200);
+      await heldExport(aborted.signal);
       aborted.abort();
       await vi.waitFor(async () => {
          const res = await fetch(`${base}/export`);
          await res.text();
          expect(res.status).toBe(200);
       });
-      held.resolve([]);
    });
 
    it("is gated like the log itself", async () => {

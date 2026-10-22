@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
    part: vi.fn(),
    complete: vi.fn(),
    audit: vi.fn(),
+   auditMany: vi.fn(),
 }));
 
 vi.mock("@s3-viewer/db", () => ({
@@ -59,7 +60,7 @@ vi.mock("@/lib/s3/multipart-uploads", async (original) => {
 });
 vi.mock("@/lib/middleware/audit-record", () => ({
    record: state.audit,
-   recordMany: vi.fn(),
+   recordMany: state.auditMany,
 }));
 
 const client = endpointStub(vi.fn());
@@ -85,6 +86,7 @@ beforeEach(() => {
    client.send.mockReset().mockResolvedValue({});
    state.getClient.mockReset().mockResolvedValue(client);
    state.audit.mockReset().mockResolvedValue(undefined);
+   state.auditMany.mockReset().mockResolvedValue(undefined);
    state.list.mockReset().mockResolvedValue({
       uploads: [
          {
@@ -384,31 +386,37 @@ describe("the deadline for publishing a multipart upload", () => {
 });
 
 describe("aborting incomplete uploads", () => {
-   it("aborts and records the count once", async () => {
+   it("aborts and records one row per key, sharing the batch", async () => {
+      const other = { key: "videos/b.mp4", uploadId: "u2" };
+      state.abort.mockResolvedValue({
+         aborted: [upload, other],
+         alreadyGone: [],
+         failed: [],
+      });
       const response = await remove({
          expectedUserId: state.actor,
-         uploads: [upload],
+         uploads: [upload, other],
       });
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({
-         aborted: [upload],
+         aborted: [upload, other],
          failed: [],
       });
       expect(state.abort).toHaveBeenCalledWith(
          expect.objectContaining({ bucket: "backups" }),
          "server12345",
-         [upload]
+         [upload, other]
       );
-      expect(state.audit).toHaveBeenCalledOnce();
-      expect(state.audit).toHaveBeenCalledWith(
+      expect(state.auditMany).toHaveBeenCalledExactlyOnceWith(
          expect.anything(),
-         expect.objectContaining({
+         [upload, other].map(({ key }) => ({
             action: "object.multipart_abort",
             bucket: "backups",
-            target: upload.key,
-            detail: { count: 1 },
-         })
+            target: key,
+            detail: { batch: null, count: 2 },
+         }))
       );
+      expect(state.audit).not.toHaveBeenCalled();
    });
 
    it("reports partial failure as 207", async () => {
@@ -438,7 +446,7 @@ describe("aborting incomplete uploads", () => {
          uploads: [upload],
       });
       expect(response.status).toBe(207);
-      expect(state.audit).not.toHaveBeenCalled();
+      expect(state.auditMany).not.toHaveBeenCalled();
    });
 
    it("lists uploads already gone as aborted without auditing them", async () => {
@@ -456,9 +464,9 @@ describe("aborting incomplete uploads", () => {
          aborted: [upload, gone],
          failed: [],
       });
-      expect(state.audit).toHaveBeenCalledExactlyOnceWith(
+      expect(state.auditMany).toHaveBeenCalledExactlyOnceWith(
          expect.anything(),
-         expect.objectContaining({ detail: { count: 1 } })
+         [expect.objectContaining({ target: upload.key })]
       );
    });
 

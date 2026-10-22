@@ -917,6 +917,27 @@ describe("audit trail of reads and uploads", () => {
    );
 });
 
+describe("an upload cut off after storage received its commit", () => {
+   it("is audited as unconfirmed before the 502 goes out", async () => {
+      state.upload.mockRejectedValueOnce(new UnconfirmedWriteError());
+      const res = await fetch(
+         `${base}/v3/upload?objectKey=report.json&contentType=text%2Fplain&expectedUserId=${state.actor}`,
+         { method: "PUT", body: "new-data" }
+      );
+      expect(res.status).toBe(502);
+      expect(state.audit).toHaveBeenCalledExactlyOnceWith(expect.anything(), {
+         action: "object.upload",
+         bucket: "backups",
+         target: "report.json",
+         detail: {
+            contentType: "text/plain",
+            replaced: false,
+            confirmed: false,
+         },
+      });
+   });
+});
+
 describe("new file key validation", () => {
    it("rejects an invalid upload key before storage", async () => {
       const response = await fetch(

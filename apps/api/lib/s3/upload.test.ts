@@ -32,6 +32,7 @@ import {
    StorageStalledError,
    UploadIdleError,
 } from "./progress-floor";
+import { UnconfirmedWriteError } from "./conditions";
 import { isUploadTooLargeError } from "./stream-upload";
 import {
    empty,
@@ -772,21 +773,23 @@ describe("upload transport does not replay ambiguous writes", () => {
             { maxAttempts: 3, requestChecksumCalculation: "WHEN_REQUIRED" }
          );
          const size = failAt === "put" ? 1 : 6 * 1024 * 1024;
-         await expect(
-            streamUpload({
-               client,
-               bucket: "test",
-               key: "file",
-               contentType: "application/octet-stream",
-               body: Readable.from([Buffer.alloc(size)]),
-               contentLength: size,
-               partSize: 5 * 1024 * 1024,
-               maxBytes: size,
-               abortController: new AbortController(),
-            })
-         ).rejects.toMatchObject({
-            $metadata: { httpStatusCode: 503, attempts: 1 },
-         });
+         const failure: unknown = await streamUpload({
+            client,
+            bucket: "test",
+            key: "file",
+            contentType: "application/octet-stream",
+            body: Readable.from([Buffer.alloc(size)]),
+            contentLength: size,
+            partSize: 5 * 1024 * 1024,
+            maxBytes: size,
+            abortController: new AbortController(),
+         }).catch((error: unknown) => error);
+         // a 5xx on the commit itself leaves the write unconfirmed; anything earlier is a plain failure.
+         if (failAt === "create")
+            expect(failure).toMatchObject({
+               $metadata: { httpStatusCode: 503, attempts: 1 },
+            });
+         else expect(failure).toBeInstanceOf(UnconfirmedWriteError);
          expect(calls.filter((step) => step === failAt)).toHaveLength(1);
          if (failAt === "complete")
             expect(calls.filter((step) => step === "abort")).toHaveLength(

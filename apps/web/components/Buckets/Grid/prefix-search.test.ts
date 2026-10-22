@@ -87,6 +87,21 @@ describe("filter requests", () => {
       }
    });
 
+   it("drops the filter once the text falls below the minimum", async () => {
+      vi.useFakeTimers();
+      try {
+         h.filter = "re";
+         const field = await input();
+         await type(field, "r");
+         await act(async () => {
+            await vi.advanceTimersByTimeAsync(LIST_INPUT_DEBOUNCE_MS);
+         });
+         expect(h.setFilter).toHaveBeenCalledExactlyOnceWith("");
+      } finally {
+         vi.useRealTimers();
+      }
+   });
+
    it("still clears the filter when the field is emptied", async () => {
       vi.useFakeTimers();
       try {

@@ -195,6 +195,22 @@ const shown = (tree: Element) =>
       )
       .join(" ");
 
+it("shows no destination error until something was changed", () => {
+   const initial = render();
+   const path = nodes(initial).find(
+      ({ props }) => props.placeholder === "reports/"
+   )!;
+   expect(path.props.invalid).toBe(false);
+   expect(shown(initial)).not.toContain("current folder");
+   expect(initial.props.submitDisabled).toBe(true);
+   const touched = typeDestination(defaults, "raw/");
+   const touchedPath = nodes(touched).find(
+      ({ props }) => props.placeholder === "reports/"
+   )!;
+   expect(touchedPath.props.invalid).toBe(true);
+   expect(shown(touched)).toContain("current folder");
+});
+
 it("keeps a copy inside the destination folders someone was given", () => {
    h.buckets = [
       {

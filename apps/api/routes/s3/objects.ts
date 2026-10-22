@@ -248,33 +248,38 @@ objectsRouter.put(
                bucket: bucketName,
             },
             async (abortController, client) => {
-               const { size, eTag } = await streamUpload({
-                  client,
+               const upload: AuditEntry = {
+                  action: "object.upload",
                   bucket: bucketName,
-                  key: objectKey,
-                  contentType,
-                  expectedETag,
-                  body: req,
-                  contentLength,
-                  partSize,
-                  maxBytes: streamedUploadCap(partSize),
-                  abortController,
-                  idleTimeoutMs: env.UPLOAD_IDLE_TIMEOUT_MS,
-               });
+                  target: objectKey,
+                  detail: { contentType, replaced: Boolean(expectedETag) },
+               };
+               const { size, eTag } = await recordedIfUnconfirmed(
+                  res,
+                  upload,
+                  () =>
+                     streamUpload({
+                        client,
+                        bucket: bucketName,
+                        key: objectKey,
+                        contentType,
+                        expectedETag,
+                        body: req,
+                        contentLength,
+                        partSize,
+                        maxBytes: streamedUploadCap(partSize),
+                        abortController,
+                        idleTimeoutMs: env.UPLOAD_IDLE_TIMEOUT_MS,
+                     })
+               );
                const uploaded: S3ObjectUploaded = {
                   key: objectKey,
                   size,
                   eTag,
                };
                await record(res, {
-                  action: "object.upload",
-                  bucket: bucketName,
-                  target: objectKey,
-                  detail: {
-                     size,
-                     contentType,
-                     replaced: Boolean(expectedETag),
-                  },
+                  ...upload,
+                  detail: { size, ...upload.detail },
                });
                res.status(201).json(uploaded);
             }

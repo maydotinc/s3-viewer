@@ -118,6 +118,7 @@ const ObjectSettingsModal = ({
    const [expires, setExpires] = useState("");
    const [rows, setRows] = useState<MetadataRow[]>([]);
    const [requestError, setRequestError] = useState<string | null>(null);
+   const [touched, setTouched] = useState(false);
    const nextRowId = useRef(0);
    const seeded = useRef(false);
 
@@ -146,15 +147,21 @@ const ObjectSettingsModal = ({
       contentType.trim() === ""
          ? "Enter a content type."
          : (headerError ?? validateExpires(expires) ?? validateMetadata(rows));
-   const error = requestError ?? validation;
+   // stored settings can already be invalid (an empty content type, say), so nothing is red before an edit.
+   const error = requestError ?? (touched ? validation : null);
+
+   const touch = () => {
+      setRequestError(null);
+      setTouched(true);
+   };
 
    const setHeader = (name: HeaderField["name"], value: string) => {
-      setRequestError(null);
+      touch();
       setHeaders((previous) => ({ ...previous, [name]: value }));
    };
 
    const setRow = (id: number, patch: Partial<MetadataRow>) => {
-      setRequestError(null);
+      touch();
       setRows((previous) =>
          previous.map((row) => (row.id === id ? { ...row, ...patch } : row))
       );
@@ -225,7 +232,7 @@ const ObjectSettingsModal = ({
                      disabled={update.isPending}
                      aria-describedby={errorId}
                      onChange={(event) => {
-                        setRequestError(null);
+                        touch();
                         setContentType(event.target.value);
                      }}
                   />
@@ -261,7 +268,7 @@ const ObjectSettingsModal = ({
                      value={expires}
                      disabled={update.isPending}
                      onChange={(event) => {
-                        setRequestError(null);
+                        touch();
                         setExpires(event.target.value);
                      }}
                   />
@@ -314,7 +321,7 @@ const ObjectSettingsModal = ({
                            aria-label={`Remove ${row.key || "metadata entry"}`}
                            disabled={update.isPending}
                            onClick={() => {
-                              setRequestError(null);
+                              touch();
                               setRows((previous) =>
                                  previous.filter((item) => item.id !== row.id)
                               );

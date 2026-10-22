@@ -82,7 +82,9 @@ const BulkRenameModal = ({
       onClose,
    });
    const { kind } = options;
-   const disabled = run.step !== null;
+   const busy = run.step !== null;
+   // a retry resends the pairs an earlier run left behind, so the pattern must stay as it was.
+   const disabled = busy || run.attempted;
 
    const edit = (patch: Partial<BulkRenameFields>) => {
       setFields((previous) => ({ ...previous, ...patch }));
@@ -110,7 +112,7 @@ const BulkRenameModal = ({
    return (
       <FormDialog
          onClose={onClose}
-         isPending={disabled}
+         isPending={busy}
          onAbort={run.cancel}
          contentClassName="max-w-2xl"
          title="Bulk rename"

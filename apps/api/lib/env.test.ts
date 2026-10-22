@@ -121,16 +121,24 @@ describe("EMAIL_FROM", () => {
 
 describe("boolean flags", () => {
    // every boolean flag shares one transform, so one flag stands for them all.
-   it("is true only for the exact string `true`", async () => {
+   it("reads the usual spellings of on and off, in any case", async () => {
       vi.spyOn(console, "error").mockImplementation(() => {});
-      await expect(
-         loadEnv({ ALLOW_PRIVATE_ENDPOINTS: "true" })
-      ).resolves.toMatchObject({ ALLOW_PRIVATE_ENDPOINTS: true });
-      for (const value of ["", "TRUE", "1", "yes", "false"]) {
+      for (const value of ["true", "TRUE", "1", "yes", "on"]) {
+         await expect(
+            loadEnv({ ALLOW_PRIVATE_ENDPOINTS: value })
+         ).resolves.toMatchObject({ ALLOW_PRIVATE_ENDPOINTS: true });
+      }
+      for (const value of ["", "false", "False", "0", "no", "off"]) {
          await expect(
             loadEnv({ ALLOW_PRIVATE_ENDPOINTS: value })
          ).resolves.toMatchObject({ ALLOW_PRIVATE_ENDPOINTS: false });
       }
+   });
+
+   it("refuses a value it cannot read instead of treating it as off", async () => {
+      await expect(
+         loadEnv({ ACCEPT_NEW_AUDIT_CHAIN_KEY: "maybe" })
+      ).rejects.toThrow(/ACCEPT_NEW_AUDIT_CHAIN_KEY.*expected true or false/);
    });
 
    it("warns once when private endpoints are allowed", async () => {

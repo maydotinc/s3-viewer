@@ -282,6 +282,16 @@ const exportAuditLog = async (
          to: filters.to?.toISOString() ?? null,
       },
    });
+   const closed = new AbortController();
+   res.once("close", () => closed.abort());
+   const batches = iterateAudit({
+      ...filters,
+      reach,
+      viewerId: getAuth(res).userId,
+   });
+   const deadline = Date.now() + EXPORT_DEADLINE_MS;
+   // the first read can still refuse with 429 or 422, so the headers wait for its answer.
+   const first = await batches.next();
    const day = new Date().toISOString().slice(0, 10);
    res.setHeader("Content-Type", "text/csv; charset=utf-8");
    res.setHeader(
@@ -289,8 +299,6 @@ const exportAuditLog = async (
       `attachment; filename="audit-${filters.serverId}-${day}.csv"`
    );
    res.write(CSV_HEADER);
-   const closed = new AbortController();
-   res.once("close", () => closed.abort());
    // compression hands drain listeners to its gzip stream and never removes them, so a single
    // listener serves every wait instead of one leaking per batch.
    let drained: (() => void) | undefined;
@@ -306,13 +314,9 @@ const exportAuditLog = async (
             resolve();
          };
       });
-   const deadline = Date.now() + EXPORT_DEADLINE_MS;
    try {
-      for await (const batch of iterateAudit({
-         ...filters,
-         reach,
-         viewerId: getAuth(res).userId,
-      })) {
+      for (let step = first; !step.done; step = await batches.next()) {
+         const batch = step.value;
          if (closed.signal.aborted) return;
          if (Date.now() > deadline) {
             logger.warn("Audit export hit its deadline", {
@@ -342,6 +346,8 @@ const exportAuditLog = async (
          error: describeError(err),
       });
       res.destroy(err instanceof Error ? err : new Error(String(err)));
+   } finally {
+      void batches.return(undefined);
    }
 };
 

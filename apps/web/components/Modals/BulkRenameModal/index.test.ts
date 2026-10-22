@@ -289,6 +289,24 @@ describe("bulk rename execution", () => {
       expect(view.text()).toContain("Renamed 2");
    });
 
+   it("locks the pattern once a run was attempted, so a retry resends what the preview showed", async () => {
+      h.summary = {
+         ...h.summary,
+         done: 1,
+         failed: [failure("two", "Access denied")],
+      };
+      await prepared();
+      await submit();
+      const controls = [
+         ...view.current.container.querySelectorAll<
+            HTMLInputElement | HTMLSelectElement | HTMLButtonElement
+         >("input, select, button[role=checkbox]"),
+      ];
+      expect(controls.length).toBeGreaterThan(2);
+      expect(controls.every((control) => control.disabled)).toBe(true);
+      expect(submitButton().disabled).toBe(false);
+   });
+
    it("resends what a cancel left unsent alongside the retryable failures", async () => {
       h.summary = {
          ...h.summary,

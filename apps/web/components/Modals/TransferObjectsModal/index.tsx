@@ -84,6 +84,7 @@ const TransferObjectsModal = ({
    const [destServerId, setDestServerId] = useState(serverId);
    const [destBucket, setDestBucket] = useState(bucketName);
    const [prefix, setPrefix] = useState(folder ?? files?.prefix ?? "");
+   const [touched, setTouched] = useState(false);
    const [overwrite, setOverwrite] = useState(false);
    const [error, setError] = useState<string | null>(null);
    const [summary, setSummary] = useState<TransferSummary | null>(null);
@@ -138,6 +139,8 @@ const TransferObjectsModal = ({
                  }),
            });
    const validation = pathValidation ?? writeScopeError(destReach, prefix);
+   // the dialog opens on the source itself, which is not a destination yet, so nothing is red until a change.
+   const shownValidation = touched ? validation : null;
 
    const needsReview =
       summary?.failed.some((failure) => !failure.retryable) ?? false;
@@ -263,6 +266,7 @@ const TransferObjectsModal = ({
                disabled={transfer.isPending || started}
                onValueChange={(next) => {
                   setError(null);
+                  setTouched(true);
                   setDestServerId(next);
                }}
             >
@@ -290,6 +294,7 @@ const TransferObjectsModal = ({
                disabled={transfer.isPending || started || isBucketsLoading}
                onValueChange={(next) => {
                   setError(null);
+                  setTouched(true);
                   setDestBucket(next);
                }}
             >
@@ -317,7 +322,7 @@ const TransferObjectsModal = ({
                id={inputId}
                errorId={errorId}
                label="Destination folder"
-               invalid={validation !== null}
+               invalid={shownValidation !== null}
                hint={hint}
                value={prefix}
                suggestionBase={prefix}
@@ -326,11 +331,15 @@ const TransferObjectsModal = ({
                disabled={transfer.isPending || started}
                onChange={(event) => {
                   setError(null);
+                  setTouched(true);
                   setPrefix(event.target.value);
                }}
-               onAccept={setPrefix}
+               onAccept={(value) => {
+                  setTouched(true);
+                  setPrefix(value);
+               }}
             >
-               {notice || validation}
+               {notice || shownValidation}
             </PathField>
          </div>
          <div className="flex items-center gap-2">

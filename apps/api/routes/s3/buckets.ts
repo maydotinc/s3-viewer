@@ -5,7 +5,7 @@ import {
    requestSignal,
    serverNotFound,
 } from "@/lib/http";
-import { recordMany } from "@/lib/middleware/audit-record";
+import { record, recordMany } from "@/lib/middleware/audit-record";
 import {
    authorizeBucket,
    getAuth,
@@ -142,7 +142,7 @@ bucketsRouter.post(
             serverId
          );
          const startedAt = new Date();
-         const allowBucket = (permission: Permission) =>
+         const grantCreatedBucket = (permission: Permission) =>
             prisma.$transaction(async (tx) => {
                await lockBucketScope(tx, serverId);
                const current = await tx.server.findUnique({
@@ -217,6 +217,19 @@ bucketsRouter.post(
                });
                return { ...outcome, access: grant };
             });
+         const allowBucket = async (permission: Permission) => {
+            try {
+               return await grantCreatedBucket(permission);
+            } catch (error) {
+               // storage already holds the bucket, so the trail says so even when no access follows.
+               await record(res, {
+                  action: "bucket.create",
+                  bucket: bucketName,
+                  detail: { accessGranted: false },
+               });
+               throw error;
+            }
+         };
          // the owner's way back to a bucket that was removed from an allow-listed server.
          const attachable = async (error: unknown): Promise<boolean> =>
             error instanceof BucketExistsError &&

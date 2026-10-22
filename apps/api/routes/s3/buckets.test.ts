@@ -49,6 +49,7 @@ const state = vi.hoisted(() => ({
    transaction: vi.fn(),
    onPermissionLock: vi.fn(),
    invites: vi.fn(),
+   audit: vi.fn(),
    auditMany: vi.fn(),
    createLimit: vi.fn(),
    canHead: vi.fn(),
@@ -70,7 +71,7 @@ vi.mock("@/lib/utils/endpoint", async (original) => ({
    assertPublicEndpoint: state.assertPublicEndpoint,
 }));
 vi.mock("@/lib/middleware/audit-record", () => ({
-   record: vi.fn(),
+   record: state.audit,
    recordMany: state.auditMany,
 }));
 vi.mock("@/lib/s3/bucket-create", async (original) => ({
@@ -134,6 +135,7 @@ beforeEach(() => {
    state.events = [];
    state.onPermissionLock.mockReset();
    state.invites.mockReset().mockResolvedValue([]);
+   state.audit.mockReset().mockResolvedValue(undefined);
    state.auditMany.mockReset().mockResolvedValue(undefined);
    state.createLimit.mockReset();
    state.canHead.mockReset().mockResolvedValue(false);
@@ -475,6 +477,15 @@ describe("bucket creation authorization", () => {
          expect(state.allowed).toEqual(["original-bucket"]);
          expect(state.grants).toEqual([]);
          expect(state.events).toEqual(["permission-lock"]);
+         expect(state.audit).toHaveBeenCalledExactlyOnceWith(
+            expect.anything(),
+            {
+               action: "bucket.create",
+               bucket: "new-bucket",
+               detail: { accessGranted: false },
+            }
+         );
+         expect(state.auditMany).not.toHaveBeenCalled();
       }
    );
 
@@ -838,6 +849,13 @@ describe("bucket creation authorization", () => {
          await expect(request.finished).rejects.toMatchObject({ status: 403 });
          expect(state.grants).toEqual([]);
          expect(state.allowed).toEqual(["original-bucket"]);
+         expect(state.audit).toHaveBeenCalledExactlyOnceWith(
+            expect.anything(),
+            expect.objectContaining({
+               action: "bucket.create",
+               detail: { accessGranted: false },
+            })
+         );
       });
    });
 });

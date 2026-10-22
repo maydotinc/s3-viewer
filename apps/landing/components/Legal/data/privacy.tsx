@@ -2,7 +2,7 @@ import { CONTACT_EMAIL } from "@/lib/site-config";
 import type { LegalPageData } from "../legal-page";
 
 const EFFECTIVE_DATE = "2025-07-25";
-const LAST_UPDATED = "2026-09-19";
+const LAST_UPDATED = "2026-10-21";
 
 const sections: LegalPageData["sections"] = [
    {
@@ -12,7 +12,8 @@ const sections: LegalPageData["sections"] = [
             S3 Viewer is an open-source viewer for S3-compatible object storage.
             The hosted service is operated by <strong>May Inc.</strong>, which
             is responsible for the personal information described in this
-            policy. Questions about this policy can be sent to{" "}
+            policy. This policy covers that hosted service only; see
+            self-hosting below. Questions about this policy can be sent to{" "}
             <a href={`mailto:${CONTACT_EMAIL}?subject=S3%20Viewer%20privacy`}>
                {CONTACT_EMAIL}
             </a>{" "}
@@ -133,8 +134,10 @@ const sections: LegalPageData["sections"] = [
       title: "Self-hosting",
       content: (
          <p>
-            S3 Viewer is open source, and self-hosted instances are operated by
-            whoever runs them, not by May Inc.
+            S3 Viewer is open source. A self-hosted instance is operated by
+            whoever runs it, and that operator, not May Inc., is responsible for
+            any personal information it holds and for its own privacy notice.
+            May Inc. receives nothing from a self-hosted instance.
          </p>
       ),
    },

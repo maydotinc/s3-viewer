@@ -3,10 +3,11 @@ import { env, MAX_UPLOAD_OBJECT_BYTES } from "@/lib/env";
 import {
    ApiHttpError,
    noContent,
+   requestId,
    requestSignal,
    sendPartialResult,
 } from "@/lib/http";
-import { record } from "@/lib/middleware/audit-record";
+import { record, recordMany } from "@/lib/middleware/audit-record";
 import {
    bucketRoute,
    byObjectKey,
@@ -110,12 +111,18 @@ multipartRouter.delete(
             uploads
          );
          if (aborted.length > 0) {
-            await record(res, {
-               action: "object.multipart_abort",
-               bucket: bucketName,
-               target: aborted[0]?.key ?? null,
-               detail: { count: aborted.length },
-            });
+            const batch = requestId(res);
+            await recordMany(
+               res,
+               aborted.map(
+                  ({ key }): AuditEntry => ({
+                     action: "object.multipart_abort",
+                     bucket: bucketName,
+                     target: key,
+                     detail: { batch, count: aborted.length },
+                  })
+               )
+            );
          }
          const result: S3AbortUploadsResult = {
             aborted: [...aborted, ...alreadyGone],

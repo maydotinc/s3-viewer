@@ -517,6 +517,19 @@ describe("auditing both ends of a transfer", () => {
       },
    };
 
+   it("audits a stream cut off after the destination received its commit as unconfirmed", async () => {
+      state.transfer.mockRejectedValue(new UnconfirmedWriteError());
+      expect((await post(crossServerBody)).status).toBe(502);
+      expect(state.audit).toHaveBeenCalledWith(
+         expect.anything(),
+         expect.objectContaining({
+            action: "object.transfer",
+            target: "imported/q3.csv",
+            detail: expect.objectContaining({ confirmed: false }),
+         })
+      );
+   });
+
    it("writes a row on both the source and destination servers", async () => {
       state.serverAudit[SOURCE_SERVER] = {
          auditEnabled: true,

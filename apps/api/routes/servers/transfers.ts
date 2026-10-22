@@ -228,12 +228,11 @@ const runTransfer = async (req: Request, res: Response): Promise<void> => {
          from: source.objectKey,
       },
    };
-   const uploaded =
+   const uploaded = await recordedIfUnconfirmed(res, transferred, () =>
       sourceServerId === destination.serverId
-         ? await recordedIfUnconfirmed(res, transferred, () =>
-              copyAcrossBuckets(res, scope)
-           )
-         : await streamAcrossServers(req, res, scope);
+         ? copyAcrossBuckets(res, scope)
+         : streamAcrossServers(req, res, scope)
+   );
    await record(res, transferred);
    res.status(201).json(uploaded);
 };
