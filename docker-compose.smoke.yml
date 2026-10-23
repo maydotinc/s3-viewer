@@ -59,7 +59,7 @@ services:
          - "127.0.0.1::3001"
 
    rustfs:
-      image: rustfs/rustfs:1.0.1
+      image: rustfs/rustfs:1.0.3
       environment:
          RUSTFS_ACCESS_KEY: smoke-access-key
          RUSTFS_SECRET_KEY: smoke-secret-key
