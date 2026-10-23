@@ -1,6 +1,6 @@
 ARG TURBO_VERSION=2.10.12
 
-FROM node:22.23.4-alpine AS base
+FROM node:26.12.0-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -82,7 +82,7 @@ find /out/node_modules \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o 
 rm -f /out/dist/*.map
 SH
 
-FROM node:22.23.4-alpine AS runner
+FROM node:26.12.0-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5001
