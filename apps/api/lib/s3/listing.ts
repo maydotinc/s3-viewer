@@ -53,6 +53,13 @@ const retainRow = (
          LISTED_ROW_OVERHEAD_BYTES
    );
 
+// EncodingType=url percent-encodes every listed key, so each row's key field is decoded back.
+const decodeListed = <F extends string, T extends Partial<Record<F, string>>>(
+   rows: T[] | undefined,
+   field: F
+): T[] | undefined =>
+   rows?.map((row) => ({ ...row, [field]: decodeOptionalKey(row[field]) }));
+
 const listObjects = async (
    { client, bucket, signal }: S3Scope,
    input: Omit<ListObjectsV2CommandInput, "Bucket" | "EncodingType">
@@ -70,14 +77,8 @@ const listObjects = async (
    if (page.EncodingType !== "url") return page;
    return transferBufferedResponse(page, {
       ...page,
-      Contents: page.Contents?.map((object) => ({
-         ...object,
-         Key: decodeOptionalKey(object.Key),
-      })),
-      CommonPrefixes: page.CommonPrefixes?.map((common) => ({
-         ...common,
-         Prefix: decodeOptionalKey(common.Prefix),
-      })),
+      Contents: decodeListed(page.Contents, "Key"),
+      CommonPrefixes: decodeListed(page.CommonPrefixes, "Prefix"),
    });
 };
 
@@ -325,6 +326,7 @@ const existingKeys = async (
 
 export {
    EXISTS_LIST_THRESHOLD,
+   decodeListed,
    existingKeys,
    listKeysPage,
    listObjects,

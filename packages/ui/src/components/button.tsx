@@ -23,7 +23,7 @@ const buttonVariants = cva(
             default:
                "bg-viewerblue text-viewerwhite not-disabled:hover:bg-viewerdarkblue",
             destructive:
-               "bg-viewertextred text-viewerwhite not-disabled:hover:bg-viewertextred/90",
+               "bg-viewerstrongred text-viewerwhite not-disabled:hover:bg-viewerstrongred/90",
             outline:
                "border-viewerborder bg-viewerwhite text-viewertext not-disabled:hover:bg-viewergray not-disabled:hover:text-viewerblack",
             ghost: "text-viewertext not-disabled:hover:bg-viewergray not-disabled:hover:text-viewerblack",

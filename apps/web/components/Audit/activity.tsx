@@ -8,7 +8,7 @@ import ListPagination from "@/components/list-pagination";
 import RefreshButton from "@/components/refresh-button";
 import RelativeTime from "@/components/relative-time";
 import TableSkeletonRows from "@/components/table-skeleton";
-import useAsyncAction from "@/components/use-async-action";
+import useAsyncAction from "@/lib/hooks/useAsyncAction";
 import { api, qs, serverPath } from "@/lib/api";
 import { SEARCH_DEBOUNCE_MS } from "@/lib/constants";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";

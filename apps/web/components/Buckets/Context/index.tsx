@@ -20,6 +20,7 @@ import {
 } from "react";
 
 type BucketContextValue = {
+   serverId: string;
    bucketName: string;
    reach: KnownReach;
    awaitingReach: boolean;
@@ -46,12 +47,14 @@ const BucketFilterContext = createContext<BucketFilterContextValue | null>(
 );
 
 type BucketProviderProps = {
+   serverId: string;
    bucketName: string;
    path: string[];
    children: ReactNode;
 };
 
 const BucketProvider = ({
+   serverId,
    bucketName,
    path,
    children,
@@ -59,21 +62,23 @@ const BucketProvider = ({
    const { data: session } = authClient.useSession();
    const queryClient = useQueryClient();
    const userId = useUserId();
-   const serverId = useServerId();
-   const { servers, currentServer, isLoading: isServersLoading } = useServers();
+   const sessionServerId = useServerId();
+   // until the URL's server is the selected one, every query below would read another server
+   const adopted = Boolean(serverId) && serverId === sessionServerId;
+   const { currentServer, isLoading: isServersLoading } = useServers();
    const {
       currentBucket,
       isBucketsLoading,
-      bucketsError,
+      bucketsError: selectedBucketsError,
       isFetching: isBucketsFetching,
       refetch: refetchBuckets,
    } = useBuckets(bucketName);
+   const bucketsError = adopted ? selectedBucketsError : null;
    const prefix = prefixFromSegments(path);
-   const isSettling =
-      (Boolean(session) && !userId) || (servers.length > 0 && !serverId);
+   const isSettling = (Boolean(session) && !userId) || !adopted;
    const isLoading = isServersLoading || isSettling || isBucketsLoading;
-   const isOwner = currentServer?.userRole === Role.OWNER;
-   const scope = JSON.stringify([bucketName, prefix]);
+   const isOwner = adopted && currentServer?.userRole === Role.OWNER;
+   const scope = JSON.stringify([serverId, bucketName, prefix]);
    const [filterState, setFilterState] = useState({ scope, text: "" });
    if (filterState.scope !== scope) setFilterState({ scope, text: "" });
    const filter = filterState.scope === scope ? filterState.text : "";
@@ -89,7 +94,7 @@ const BucketProvider = ({
 
    const reloadListing = useCallback(() => refreshHandler.current?.(), []);
    const refresh = useCallback(() => {
-      if (!userId || !serverId) return;
+      if (!userId || !adopted) return;
       void refetchBuckets();
       void queryClient.invalidateQueries({
          queryKey: queryKeys.serverInfo(userId, serverId),
@@ -105,6 +110,7 @@ const BucketProvider = ({
       reloadListing,
       queryClient,
       userId,
+      adopted,
       serverId,
       bucketName,
    ]);
@@ -118,6 +124,7 @@ const BucketProvider = ({
    );
    const value = useMemo<BucketContextValue>(
       () => ({
+         serverId,
          bucketName,
          reach,
          awaitingReach: isLoading && !isOwner,
@@ -138,6 +145,7 @@ const BucketProvider = ({
          setListingReloading,
       }),
       [
+         serverId,
          bucketName,
          reach,
          currentBucket,

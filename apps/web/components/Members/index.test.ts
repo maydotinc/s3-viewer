@@ -39,6 +39,7 @@ vi.mock("next/link", () => ({
       createElement("a", { href }, children),
 }));
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "owner" }));
+vi.mock("@/lib/auth", () => ({ signOut: vi.fn() }));
 vi.mock("@s3-viewer/ui/components/tooltip", () => ({
    SimpleTooltip: ({ children }: { children: ReactNode }) => children,
 }));

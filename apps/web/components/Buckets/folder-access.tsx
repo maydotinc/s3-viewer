@@ -12,35 +12,44 @@ import Link from "next/link";
 import { useBucketContext } from "./Context";
 
 const FolderLinks = ({
-   bucketName,
    folders,
    className,
 }: {
-   bucketName: string;
    folders: readonly string[];
    className?: string;
-}) => (
-   <ul className={cn("flex min-w-0 max-w-full flex-wrap gap-1.5", className)}>
-      {folders.map((folder) => (
-         <li key={folder} className="min-w-0 max-w-full">
-            <Link
-               href={folderHref(bucketName, segmentsFromKey(folder))}
-               title={visibleText(folder)}
-               className={cn(
-                  "flex max-w-full items-center gap-1.5 rounded-md border border-viewerborder bg-viewerwhite px-2 py-1 text-xs text-viewerblack outline-none transition-colors pointer-coarse:min-h-10 hover:text-viewerblue",
-                  FOCUS_RING
-               )}
-            >
-               <Folder aria-hidden="true" className="size-3.5 shrink-0" />
-               <span className="min-w-0 truncate">{visibleText(folder)}</span>
-            </Link>
-         </li>
-      ))}
-   </ul>
-);
+}) => {
+   const { serverId, bucketName } = useBucketContext();
+   return (
+      <ul
+         className={cn("flex min-w-0 max-w-full flex-wrap gap-1.5", className)}
+      >
+         {folders.map((folder) => (
+            <li key={folder} className="min-w-0 max-w-full">
+               <Link
+                  href={folderHref(
+                     serverId,
+                     bucketName,
+                     segmentsFromKey(folder)
+                  )}
+                  title={visibleText(folder)}
+                  className={cn(
+                     "flex max-w-full items-center gap-1.5 rounded-md border border-viewerborder bg-viewerwhite px-2 py-1 text-xs text-viewerblack outline-none transition-colors pointer-coarse:min-h-10 hover:text-viewerblue",
+                     FOCUS_RING
+                  )}
+               >
+                  <Folder aria-hidden="true" className="size-3.5 shrink-0" />
+                  <span className="min-w-0 truncate">
+                     {visibleText(folder)}
+                  </span>
+               </Link>
+            </li>
+         ))}
+      </ul>
+   );
+};
 
 const FolderAccessNotice = () => {
-   const { bucketName, prefix, reach, awaitingReach } = useBucketContext();
+   const { prefix, reach, awaitingReach } = useBucketContext();
    if (
       awaitingReach ||
       !reach?.folders ||
@@ -54,7 +63,7 @@ const FolderAccessNotice = () => {
             <p className="font-medium text-viewerblack">{title}</p>
             <p>{detail}</p>
          </div>
-         <FolderLinks bucketName={bucketName} folders={folders} />
+         <FolderLinks folders={folders} />
       </Callout>
    );
 };
@@ -76,11 +85,7 @@ const NoFolderAccess = ({
       title={`You don't have access to this ${target}`}
       detail={`Your access to ${bucketName} is limited to ${folders.length === 1 ? "this folder" : "these folders"}:`}
    >
-      <FolderLinks
-         bucketName={bucketName}
-         folders={folders}
-         className="w-full justify-center"
-      />
+      <FolderLinks folders={folders} className="w-full justify-center" />
       {onRetry && <RetryButton onRetry={onRetry} retrying={retrying} />}
    </GridErrorState>
 );

@@ -4,7 +4,7 @@ import FailureList from "@/components/Modals/failure-list";
 import { FormDialog } from "@/components/Modals/form-dialog";
 import { PathField } from "@/components/Modals/key-dialog";
 import ServerListPagination from "@/components/server-list-pagination";
-import useServer from "@/components/use-server";
+import useServer from "@/lib/hooks/useServer";
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { errorMessage, isAborted } from "@/lib/api";
 import { useAbortableTask } from "@/lib/hooks/useAbortableTask";

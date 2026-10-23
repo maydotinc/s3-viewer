@@ -1,5 +1,7 @@
 import { Provider } from "@s3-viewer/types";
 import { S3Client } from "@aws-sdk/client-s3";
+import type { Agent as HttpAgent } from "node:http";
+import type { Agent as HttpsAgent } from "node:https";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
    getS3Client,
@@ -151,6 +153,42 @@ describe("S3 client credential authority", () => {
          });
       } finally {
          ids.forEach(invalidateS3Client);
+      }
+   });
+
+   it("gives each server its own connection pool and closes its idle sockets on removal", async () => {
+      type HandlerConfig = {
+         httpAgentProvider: () => Promise<HttpAgent>;
+         httpsAgent: HttpsAgent;
+      };
+      const agentsOf = async (client: S3Client) => {
+         const config = await (
+            client.config.requestHandler as unknown as {
+               configProvider: Promise<HandlerConfig>;
+            }
+         ).configProvider;
+         return {
+            httpAgent: await config.httpAgentProvider(),
+            httpsAgent: config.httpsAgent,
+         };
+      };
+      const other = "other-server";
+      try {
+         const mine = await agentsOf(await getS3Client({ serverId }));
+         const theirs = await agentsOf(await getS3Client({ serverId: other }));
+         expect(mine.httpAgent).not.toBe(theirs.httpAgent);
+         expect(mine.httpsAgent).not.toBe(theirs.httpsAgent);
+         const idle = { destroy: vi.fn() };
+         (mine.httpsAgent.freeSockets as Record<string, unknown[]>)[
+            "storage.example.com:443:"
+         ] = [idle];
+         invalidateS3Client(serverId);
+         expect(idle.destroy).toHaveBeenCalledOnce();
+         expect(mine.httpsAgent.maxFreeSockets).toBe(0);
+         expect(mine.httpAgent.maxFreeSockets).toBe(0);
+         expect(theirs.httpsAgent.maxFreeSockets).toBeGreaterThan(0);
+      } finally {
+         invalidateS3Client(other);
       }
    });
 

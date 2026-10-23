@@ -9,17 +9,19 @@ import type { S3Scope } from "./listing";
 import { releaseBufferedResponse } from "./response-collector";
 import { SECOND_MS } from "@s3-viewer/types";
 
-type Answer = { acceptsAcl: boolean; expiresAt: number };
+// "hidden" is a denied read: the bucket may or may not accept ACLs.
+type Ownership = "acl" | "enforced" | "hidden";
+type Answer = { ownership: Ownership; expiresAt: number };
 
 const ANSWER_TTL_MS = 10 * SECOND_MS;
 
 const answers = new WeakMap<S3Client, Map<string, Answer>>();
 
-const readAcceptsAcl = async ({
+const readOwnership = async ({
    client,
    bucket,
    signal,
-}: S3Scope): Promise<boolean> => {
+}: S3Scope): Promise<Ownership> => {
    try {
       const output = await client.send(
          new GetBucketOwnershipControlsCommand({ Bucket: bucket }),
@@ -28,12 +30,12 @@ const readAcceptsAcl = async ({
       try {
          const ownership =
             output.OwnershipControls?.Rules?.[0]?.ObjectOwnership;
-         if (ownership === "BucketOwnerEnforced") return false;
+         if (ownership === "BucketOwnerEnforced") return "enforced";
          if (
             ownership === "BucketOwnerPreferred" ||
             ownership === "ObjectWriter"
          )
-            return true;
+            return "acl";
          throw new ApiHttpError(
             502,
             "Storage returned invalid bucket ownership settings."
@@ -47,21 +49,35 @@ const readAcceptsAcl = async ({
          failure.name === "OwnershipControlsNotFoundError" &&
          failure.httpStatus === 404
       )
-         return true;
-      if (isForbiddenFailure(failure)) return false;
+         return "acl";
+      if (isForbiddenFailure(failure)) return "hidden";
       return throwHttpError(error);
    }
 };
 
-const destinationAcceptsAcl = async (scope: S3Scope): Promise<boolean> => {
+const bucketOwnership = async (scope: S3Scope): Promise<Ownership> => {
    const now = Date.now();
    const known = answers.get(scope.client) ?? new Map<string, Answer>();
    const answer = known.get(scope.bucket);
-   if (answer && answer.expiresAt > now) return answer.acceptsAcl;
-   const acceptsAcl = await readAcceptsAcl(scope);
-   known.set(scope.bucket, { acceptsAcl, expiresAt: now + ANSWER_TTL_MS });
+   if (answer && answer.expiresAt > now) return answer.ownership;
+   const ownership = await readOwnership(scope);
+   known.set(scope.bucket, { ownership, expiresAt: now + ANSWER_TTL_MS });
    answers.set(scope.client, known);
-   return acceptsAcl;
+   return ownership;
 };
 
-export { destinationAcceptsAcl };
+const destinationAcceptsAcl = async (scope: S3Scope): Promise<boolean> =>
+   (await bucketOwnership(scope)) === "acl";
+
+// only a definite answer may drop grants a same-bucket source already holds, so a failed read
+// (5xx, NotImplemented, an odd body) keeps them and stays uncached for the next copy to retry.
+const aclsDisabled = async (scope: S3Scope): Promise<boolean> => {
+   try {
+      return (await bucketOwnership(scope)) === "enforced";
+   } catch (error) {
+      if (scope.signal?.aborted) throw error;
+      return false;
+   }
+};
+
+export { aclsDisabled, destinationAcceptsAcl };

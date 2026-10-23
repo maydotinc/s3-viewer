@@ -50,7 +50,7 @@ let context!: ReturnType<typeof useBucketContext>;
 let filter!: ReturnType<typeof useBucketFilter>;
 
 const Provider = BucketProvider as FC<
-   PropsWithChildren<{ bucketName: string; path: string[] }>
+   PropsWithChildren<{ serverId: string; bucketName: string; path: string[] }>
 >;
 const Consumer = () => {
    context = useBucketContext();
@@ -63,7 +63,7 @@ const Probe = () => {
    navigate = setPath;
    return createElement(
       Provider,
-      { bucketName: "bucket", path },
+      { serverId: "server", bucketName: "bucket", path },
       createElement(Consumer)
    );
 };
@@ -121,6 +121,23 @@ describe("waiting for a member's folder access", () => {
       await mount();
       expect(context.awaitingReach).toBe(false);
       expect(context.reach).toBeDefined();
+   });
+});
+
+describe("a bucket URL for a server that isn't selected yet", () => {
+   it("holds the page, even for an owner, until the selection follows the URL", async () => {
+      h.serverId = "other";
+      await mount();
+      expect(context).toMatchObject({
+         serverId: "server",
+         isLoading: true,
+         reach: undefined,
+         awaitingReach: true,
+         notFound: false,
+         bucketsError: null,
+      });
+      context.refresh();
+      expect(h.refetch).not.toHaveBeenCalled();
    });
 });
 

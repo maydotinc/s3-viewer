@@ -12,7 +12,6 @@ type CursorQueryOptions<Page, Item, Cursor> = {
    queryFn: (cursor: Cursor | null, signal: AbortSignal) => Promise<Page>;
    // keep this referentially stable (module scope) so the list only changes with the data.
    select: (page: Page) => Item[];
-   // null once the listing is exhausted.
    nextCursor: (page: Page) => Cursor | null;
    enabled: boolean;
    retry?: boolean;

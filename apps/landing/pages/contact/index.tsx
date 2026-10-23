@@ -1,5 +1,5 @@
 import Contact from "@/components/Contact";
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { contactJsonLd } from "@/lib/jsonld";
 import { CONTACT_EMAIL, MAY_HOST, MAY_NAME } from "@/lib/site-config";
 import { PRODUCT_NAME } from "@s3-viewer/types/constants";

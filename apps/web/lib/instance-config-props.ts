@@ -11,7 +11,6 @@ import type { GetServerSideProps } from "next";
 
 type InstanceConfigProps = { dehydratedState?: DehydratedState };
 
-// an api that doesn't answer in time leaves the client to fetch, as it did before
 const TIMEOUT_MS = 1500;
 
 const fetchPublicConfig = async (): Promise<PublicConfig | null> => {
@@ -25,11 +24,12 @@ const fetchPublicConfig = async (): Promise<PublicConfig | null> => {
       const body: unknown = await res.json();
       return isPublicConfig(body) ? body : null;
    } catch {
+      // an API that doesn't answer in time leaves the client to fetch the config itself
       return null;
    }
 };
 
-// the auth screens paint differently per instance (github button, sign-up link), so the server
+// the auth screens paint differently per instance (GitHub button, sign-up link), so the server
 // fetches the config and seeds the query cache; the markup then matches the first client render
 const getInstanceConfigProps: GetServerSideProps<
    InstanceConfigProps

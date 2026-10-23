@@ -1,11 +1,13 @@
 import { api, setUnauthorizedHandler } from "./api";
 import { loginPathFor } from "./auth-redirect";
 import { publicEnv } from "./env";
+import { confirmNavigation } from "./navigation-guard";
 import { clearQueryCache } from "./query-client";
 import useSessionStore from "@/lib/stores/session-store";
 import {
    resetUploads,
    suspendUploads,
+   uploadsInProgress,
 } from "@/lib/stores/upload-store/lifecycle";
 import { forgetAccountSessions } from "@/lib/utils/s3/multipart-session";
 import { makeAuthClient } from "@s3-viewer/auth/client";
@@ -14,16 +16,19 @@ import Router from "next/router";
 
 const {
    authClient,
-   accountFetchOptions,
    changePassword,
    continueWithPassword,
    deleteAccount,
    hasPassword,
+   listSessions,
    requestPasswordReset,
    resetPassword,
+   revokeOtherSessions,
+   revokeSession,
    sendVerificationCode,
    signInWithGithub,
    signOut: endSession,
+   updateProfileName,
    verifyEmailCode,
 } = makeAuthClient({
    ...publicEnv,
@@ -170,6 +175,19 @@ const signOut = (redirectTo: string = SITE_PATHS.login): Promise<void> => {
    return signOutPromise;
 };
 
+const UPLOADS_RUNNING_MESSAGE =
+   "Uploads are still running. Signing out cancels them. Sign out anyway?";
+
+// asks while the session still exists, since guards only recognise their own work under it;
+// sign-outs the app forces (an expired or unverified session, a deleted account) go through signOut and never ask
+const requestSignOut = (redirectTo?: string): Promise<void> => {
+   if (signOutPromise) return signOutPromise;
+   if (!confirmNavigation()) return Promise.resolve();
+   if (uploadsInProgress() && !window.confirm(UPLOADS_RUNNING_MESSAGE))
+      return Promise.resolve();
+   return signOut(redirectTo);
+};
+
 setUnauthorizedHandler(() => {
    useSessionStore.getState().clearSession();
    void resetUploads();
@@ -182,18 +200,22 @@ const refetchSession = (): Promise<void> =>
 
 export {
    authClient,
-   accountFetchOptions,
    changePassword,
    continueWithPassword,
    deleteAccount,
    hasPassword,
    isSigningOut,
+   listSessions,
    refetchSession,
    requestPasswordReset,
+   requestSignOut,
    resetPassword,
+   revokeOtherSessions,
+   revokeSession,
    sendVerificationCode,
    setPassword,
    signInWithGithub,
    signOut,
+   updateProfileName,
    verifyEmailCode,
 };

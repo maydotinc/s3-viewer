@@ -1,6 +1,12 @@
 import { render } from "@react-email/render";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
-import { DAY_MS, PRODUCT_NAME, type Role } from "@s3-viewer/types";
+import {
+   DAY_MS,
+   PRODUCT_NAME,
+   consoleLogger,
+   type Logger,
+   type Role,
+} from "@s3-viewer/types";
 import {
    AccountDeletedEmail,
    accountDeletedEmailSubject,
@@ -53,6 +59,7 @@ type EmailConfig = {
    smtpUrl?: string | undefined;
    // log whole messages (including their links) when nothing is sent, so a developer can follow them.
    logBodies: boolean;
+   logger?: Logger | undefined;
 };
 
 const DEV_FROM = `${PRODUCT_NAME} <dev@localhost>`;
@@ -70,13 +77,11 @@ const deliveringTransport = (deliver: Delivery, from: string): Transport => {
 };
 
 const noneTransport =
-   (logBodies: boolean): Transport =>
+   (logBodies: boolean, logger: Logger): Transport =>
    async ({ kind, to, subject, text }) => {
-      console.info(
-         logBodies
-            ? `[email] to=${to} subject="${subject}" (transport none, not sent)\n${text}`
-            : `[email] ${kind} email dropped (transport none)`
-      );
+      if (logBodies)
+         logger.info("Email not sent (transport none)", { to, subject, text });
+      else logger.warn("Email dropped (transport none)", { kind });
    };
 
 const buildTransport = (config: EmailConfig): Transport => {
@@ -85,7 +90,7 @@ const buildTransport = (config: EmailConfig): Transport => {
       return deliveringTransport(resendDelivery(config.resendKey ?? ""), from);
    if (config.transport === "smtp")
       return deliveringTransport(smtpDelivery(config.smtpUrl ?? ""), from);
-   return noneTransport(config.logBodies);
+   return noneTransport(config.logBodies, config.logger ?? consoleLogger);
 };
 
 let configured: Transport | undefined;

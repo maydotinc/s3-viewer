@@ -3,7 +3,7 @@ import type { KeyChangeInput } from "@/lib/types";
 import useObjectMutation, {
    forgetTouched,
    postKeyChange,
-} from "./object-mutation";
+} from "./useObjectMutation";
 
 const useCopyObject = () =>
    useObjectMutation({

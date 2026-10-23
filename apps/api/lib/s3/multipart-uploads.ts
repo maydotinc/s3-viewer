@@ -40,6 +40,8 @@ import {
 } from "./conditions";
 import {
    isNotFound,
+   isStalled,
+   requirePartETag,
    throwBucketError,
    throwHttpError,
    toHttpError,
@@ -52,14 +54,10 @@ import {
    keyHash,
    utf8Before,
 } from "./keys";
-import { retainRow, type S3Scope } from "./listing";
+import { decodeListed, retainRow, type S3Scope } from "./listing";
 import { forCancel, forCleanup, withoutRetries } from "./no-retry";
 import { clientProvider, clientSupportsMultipartPrefix } from "./provider";
-import {
-   floorGuard,
-   StorageStalledError,
-   UploadIdleError,
-} from "./progress-floor";
+import { floorGuard } from "./progress-floor";
 import {
    BUFFER_MEMORY_FACTOR,
    copyRetainedString,
@@ -107,17 +105,13 @@ const listStoredUploads = async (
          )
          .catch(throwBucketError);
       try {
-         const uploads =
-            page.EncodingType === "url"
-               ? page.Uploads?.map((upload) => ({
-                    ...upload,
-                    Key: decodeOptionalKey(upload.Key),
-                 }))
-               : page.Uploads;
-         const nextKeyMarker =
-            page.EncodingType === "url"
-               ? decodeOptionalKey(page.NextKeyMarker)
-               : page.NextKeyMarker;
+         const encoded = page.EncodingType === "url";
+         const uploads = encoded
+            ? decodeListed(page.Uploads, "Key")
+            : page.Uploads;
+         const nextKeyMarker = encoded
+            ? decodeOptionalKey(page.NextKeyMarker)
+            : page.NextKeyMarker;
 
          // some gateways omit next-page markers; the last returned row supplies the cursor.
          const fallback = nextKeyMarker ? undefined : uploads?.at(-1);
@@ -617,16 +611,14 @@ const streamPart = async (
          }),
          { abortSignal: abortController.signal }
       );
-      if (!stored.ETag)
-         throw new ApiHttpError(502, "Storage returned no part ETag.");
-      return { partNumber, eTag: stored.ETag, size: contentLength };
+      return {
+         partNumber,
+         eTag: requirePartETag(stored.ETag),
+         size: contentLength,
+      };
    } catch (error) {
       const { reason } = abortController.signal;
-      if (
-         reason instanceof UploadIdleError ||
-         reason instanceof StorageStalledError
-      )
-         throw reason;
+      if (isStalled(reason)) throw reason;
       return throwHttpError(error);
    } finally {
       body.off("error", onBodyError);

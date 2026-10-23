@@ -17,7 +17,7 @@ import {
 import useObjectMutation, {
    confirmedTargets,
    forgetTouched,
-} from "./object-mutation";
+} from "./useObjectMutation";
 
 const MOVE_BATCH_KEYS = 50;
 

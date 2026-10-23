@@ -2,7 +2,7 @@ import { env } from "@/lib/env";
 import { ApiHttpError } from "@/lib/http";
 import dns from "node:dns";
 import { isIP, type LookupFunction } from "node:net";
-import { MINUTE_MS } from "@s3-viewer/types";
+import { MINUTE_MS, ttlMap } from "@s3-viewer/types";
 
 const REJECTION = "Endpoint must be a public https URL";
 
@@ -128,7 +128,6 @@ const isDocumentationV6 = (groups: number[]): boolean =>
 
 const isMulticastV6 = (first: number): boolean => (first & 0xff00) === 0xff00;
 
-// check 6to4's embedded IPv4 address to block private-address bypasses.
 const is6to4V6 = (first: number): boolean => first === 0x2002;
 
 const sixToFourV4 = (groups: number[]): string => v4Of(groups[1], groups[2]);
@@ -169,6 +168,7 @@ const isPrivateV6 = (ip: string): boolean => {
    const groups = v6Groups(ip);
    if (holdsV4(groups)) return isPrivateV4(embeddedV4(groups));
    const first = groups[0] ?? 0;
+   // a 6to4 address embeds an IPv4 address that must be screened, or a private target passes as public.
    if (is6to4V6(first)) return isPrivateV4(sixToFourV4(groups));
    return (
       isUnspecifiedV6(groups) ||
@@ -268,27 +268,18 @@ const lookupError = (code: string, hostname: string): NodeJS.ErrnoException =>
       syscall: "getaddrinfo",
    });
 
-type Lookup = { result: dns.LookupAddress[] | Error; expiresAt: number };
+type LookupResult = dns.LookupAddress[] | Error;
 
-const lookups = new Map<string, Lookup>();
+const lookups = ttlMap<string, LookupResult>(LOOKUP_CACHE_MAX);
 const lookupsInFlight = new Map<string, Promise<dns.LookupAddress[]>>();
 
-const remember = (hostname: string, result: Lookup["result"]): void => {
-   if (lookups.size >= LOOKUP_CACHE_MAX) {
-      const now = Date.now();
-      for (const [known, { expiresAt }] of lookups)
-         if (expiresAt <= now) lookups.delete(known);
-      // map order is insertion order, so the first key is the oldest.
-      if (lookups.size >= LOOKUP_CACHE_MAX)
-         lookups.delete(lookups.keys().next().value!);
-   }
-   lookups.set(hostname, {
+const remember = (hostname: string, result: LookupResult): void =>
+   lookups.set(
+      hostname,
       result,
-      expiresAt:
-         Date.now() +
-         (result instanceof Error ? LOOKUP_FAILURE_TTL_MS : LOOKUP_TTL_MS),
-   });
-};
+      Date.now() +
+         (result instanceof Error ? LOOKUP_FAILURE_TTL_MS : LOOKUP_TTL_MS)
+   );
 
 const NO_SUCH_NAME_CODES: ReadonlySet<string> = new Set([
    "ENODATA",
@@ -342,10 +333,10 @@ const boundedLookup = (hostname: string): Promise<dns.LookupAddress[]> =>
 // every new socket resolves its host, so remember answers briefly and share one lookup between concurrent sockets.
 const lookupAll = (hostname: string): Promise<dns.LookupAddress[]> => {
    const known = lookups.get(hostname);
-   if (known && known.expiresAt > Date.now())
-      return known.result instanceof Error
-         ? Promise.reject(known.result)
-         : Promise.resolve(known.result);
+   if (known)
+      return known instanceof Error
+         ? Promise.reject(known)
+         : Promise.resolve(known);
    const shared = lookupsInFlight.get(hostname);
    if (shared) return shared;
    const fresh = boundedLookup(hostname)

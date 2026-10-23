@@ -4,7 +4,7 @@ import {
 } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { ApiHttpError, rateLimited } from "@/lib/http";
-import { bump, countOf } from "@/lib/utils/counter-map";
+import { keyedSlots, type KeyedSlots } from "@/lib/utils/keyed-slots";
 import { SECOND_MS } from "@s3-viewer/types";
 
 type UploadBudgetOptions = {
@@ -26,13 +26,7 @@ type UploadBudget = {
    ) => () => void;
 };
 
-type SlotPool = {
-   active: number;
-   bytes: number;
-   users: Map<string, number>;
-   ips: Map<string, number>;
-   servers: Map<string, number>;
-};
+type SlotPool = { inFlight: KeyedSlots; bytes: number };
 
 const UPLOAD_SLOT_MAX_MS = env.UPLOAD_SLOT_MAX_MS;
 
@@ -65,13 +59,7 @@ const createUploadBudget = ({
    const poolFor = (pool: string): SlotPool => {
       const existing = pools.get(pool);
       if (existing) return existing;
-      const created: SlotPool = {
-         active: 0,
-         bytes: 0,
-         users: new Map(),
-         ips: new Map(),
-         servers: new Map(),
-      };
+      const created: SlotPool = { inFlight: keyedSlots(), bytes: 0 };
       pools.set(pool, created);
       return created;
    };
@@ -89,48 +77,41 @@ const createUploadBudget = ({
                `This ${pool.name.toLowerCase()} needs more buffer memory than this instance allows`
             );
          const slots = poolFor(pool.name);
-         const held = countOf(slots.users, userId);
-         const crowded = slots.active >= Math.ceil(maxUploads / 2);
-         // accounts are cheap to mint, so once the pool is crowded an address gets no more slots than one account would;
-         // while it is quiet, a team behind one NAT is bound only by the per-account and per-server caps.
-         const fromIp = ip ? countOf(slots.ips, ip) : 0;
-         const ipCap = crowded ? maxPerIp : Infinity;
-         // a server's members share its storage, so no server may crowd the others out by spreading across accounts.
-         const fromServer = serverId ? countOf(slots.servers, serverId) : 0;
-         const serverCap = crowded ? Math.ceil(maxUploads / 2) : Infinity;
+         const busy = () =>
+            rateLimited(`${pool.name} capacity is busy. Try again shortly.`);
+         const crowded =
+            slots.inFlight.held("all") >= Math.ceil(maxUploads / 2);
          // an empty pool always admits one reservation, so a small share can't lock it out.
          const overShare =
             slots.bytes > 0 &&
             slots.bytes + reservation > maxBytes * pool.share;
-         if (
-            slots.active >= maxUploads ||
-            held >= (crowded ? 1 : maxPerUser) ||
-            fromIp >= ipCap ||
-            fromServer >= serverCap ||
-            overShare ||
-            bytes + reservation > maxBytes
-         ) {
-            throw rateLimited(
-               `${pool.name} capacity is busy. Try again shortly.`
-            );
-         }
-         slots.active++;
+         if (overShare || bytes + reservation > maxBytes) throw busy();
+         const release = slots.inFlight.acquire(
+            [
+               ["all", maxUploads, busy],
+               [`user:${userId}`, crowded ? 1 : maxPerUser, busy],
+               // accounts are cheap to mint, so once the pool is crowded an address gets no more slots than one account would;
+               // while it is quiet, a team behind one NAT is bound only by the per-account and per-server caps.
+               ip
+                  ? [`ip:${ip}`, crowded ? maxPerIp : Infinity, busy]
+                  : undefined,
+               // a server's members share its storage, so no server may crowd the others out by spreading across accounts.
+               serverId
+                  ? [
+                       `server:${serverId}`,
+                       crowded ? Math.ceil(maxUploads / 2) : Infinity,
+                       busy,
+                    ]
+                  : undefined,
+            ],
+            () => {
+               slots.bytes -= reservation;
+               bytes -= reservation;
+            }
+         );
          slots.bytes += reservation;
          bytes += reservation;
-         bump(slots.users, userId, 1);
-         if (ip) bump(slots.ips, ip, 1);
-         if (serverId) bump(slots.servers, serverId, 1);
-         let released = false;
-         return () => {
-            if (released) return;
-            released = true;
-            slots.active--;
-            slots.bytes -= reservation;
-            bytes -= reservation;
-            bump(slots.users, userId, -1);
-            if (ip) bump(slots.ips, ip, -1);
-            if (serverId) bump(slots.servers, serverId, -1);
-         };
+         return release;
       },
    };
 };

@@ -16,7 +16,6 @@ import { input, validate } from "@/lib/middleware/validate";
 import { getS3Client } from "@/lib/s3/client-cache";
 import { copyObject } from "@/lib/s3/copy";
 import { guardFolders } from "@/lib/s3/folder-guard";
-import { headObject } from "@/lib/s3/head";
 import type { S3Scope } from "@/lib/s3/listing";
 import { withoutRetries } from "@/lib/s3/no-retry";
 import { headReviewed } from "@/lib/s3/object-metadata";
@@ -113,10 +112,12 @@ const copyAcrossBuckets = async (
       bucket: source.bucketName,
       signal,
    };
-   const head = source.expectedETag
-      ? await headReviewed(sourceScope, source.objectKey, source.expectedETag)
-      : await headObject(sourceScope, source.objectKey);
-   const sourceETag = source.expectedETag ?? head.ETag;
+   const head = await headReviewed(
+      sourceScope,
+      source.objectKey,
+      source.expectedETag
+   );
+   const sourceETag = head.ETag;
    if (!sourceETag)
       throw new ApiHttpError(
          409,

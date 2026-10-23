@@ -1,7 +1,7 @@
 import useObjectMutation, {
    forgetTouched,
    postKeyChange,
-} from "./object-mutation";
+} from "./useObjectMutation";
 
 const useRenameObject = () =>
    useObjectMutation({

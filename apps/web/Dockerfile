@@ -1,4 +1,6 @@
-FROM node:22-alpine AS base
+ARG TURBO_VERSION=2.10.12
+
+FROM node:22.23.4-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -8,7 +10,8 @@ WORKDIR /app
 
 FROM base AS pruner
 COPY . .
-RUN pnpm dlx turbo@2.10.12 prune web --docker
+ARG TURBO_VERSION
+RUN pnpm dlx turbo@${TURBO_VERSION} prune web --docker
 
 FROM base AS builder
 COPY --from=pruner /app/out/json/ .
@@ -19,7 +22,8 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 RUN pnpm --filter web build
 
-FROM base AS runner
+FROM node:22.23.4-alpine AS runner
+WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000

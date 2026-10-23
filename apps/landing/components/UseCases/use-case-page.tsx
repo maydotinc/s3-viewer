@@ -14,7 +14,7 @@ import {
    StepList,
 } from "@/components/page-sections";
 import RelatedLinks from "@/components/related-links";
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { pickBySlug } from "@/lib/every-slug";
 import type { LinkRef } from "@/lib/link-ref";
 import type { Faq } from "@/lib/types";

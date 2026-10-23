@@ -6,7 +6,7 @@ import {
    type S3ObjectUploaded,
 } from "@s3-viewer/types";
 import { nextUploadJob, uploadSlot } from "./slot-pool";
-import { UploadCancelled } from "./upload-cancelled";
+import { UploadCancelledError } from "./upload-cancelled";
 import {
    objectUploadUrl,
    outcomeUnknown,
@@ -67,10 +67,10 @@ const uploadSingle = ({
       let lost = 0;
       let busy = 0;
       for (;;) {
-         if (stopped()) throw new UploadCancelled();
+         if (stopped()) throw new UploadCancelledError();
          try {
             return await uploadSlot(job, async () => {
-               if (stopped()) throw new UploadCancelled();
+               if (stopped()) throw new UploadCancelledError();
                current = putBytes<S3ObjectUploaded>({
                   url,
                   body: file,
@@ -109,7 +109,7 @@ const uploadSingle = ({
    const cancelled = new Promise<never>((_resolve, reject) => {
       controller.signal.addEventListener(
          "abort",
-         () => reject(new UploadCancelled()),
+         () => reject(new UploadCancelledError()),
          { once: true }
       );
    });

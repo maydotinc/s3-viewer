@@ -1,4 +1,5 @@
 import { FormDialog } from "@/components/Modals/form-dialog";
+import StaleSignIn, { isSessionStale } from "@/components/stale-sign-in";
 import useUpdateRole from "@/lib/hooks/mutations/invites/useUpdateRole";
 import type {
    BucketAccessEntry,
@@ -118,6 +119,12 @@ const BucketAccessDialog = ({
             }
             disabled={updateRole.isPending || conflict !== null}
          />
+         {isSessionStale(updateRole.error) && (
+            <StaleSignIn
+               title="Sign in again to change an admin's access"
+               action="changing an admin's access"
+            />
+         )}
       </FormDialog>
    );
 };

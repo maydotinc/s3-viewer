@@ -1,4 +1,4 @@
-import useServer from "@/components/use-server";
+import useServer from "@/lib/hooks/useServer";
 
 type DeletionProtectionNoticeProps = {
    serverId: string;

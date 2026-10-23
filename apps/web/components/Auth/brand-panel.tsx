@@ -74,13 +74,15 @@ const RowMenu = () => (
                className={cn(
                   "flex h-8 items-center gap-2 rounded-md px-2 text-[13px]",
                   active && "bg-viewergray text-viewerblack",
-                  destructive ? "text-viewertextred" : "text-viewertext"
+                  destructive ? "text-viewerstrongred" : "text-viewertext"
                )}
             >
                <Icon
                   className={cn(
                      "size-3.5",
-                     destructive ? "text-viewertextred" : "text-viewerlighttext"
+                     destructive
+                        ? "text-viewerstrongred"
+                        : "text-viewerlighttext"
                   )}
                />
                {label}

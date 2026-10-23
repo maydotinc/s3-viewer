@@ -46,6 +46,7 @@ vi.mock("@/components/Modals/form-dialog", () => ({
          )
       ),
 }));
+vi.mock("@/lib/auth", () => ({ requestSignOut: vi.fn() }));
 vi.mock("@/lib/hooks/mutations/invites/useUpdateRole", () => ({
    default: () => ({ mutate: h.update, isPending: false }),
 }));

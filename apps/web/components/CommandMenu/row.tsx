@@ -38,7 +38,7 @@ const CommandRow = ({
       className: cn(
          ROW,
          destructive
-            ? "text-viewertextred [&_svg]:text-viewertextred"
+            ? "text-viewerstrongred [&_svg]:text-viewertextred"
             : "text-viewerblack [&_svg]:text-viewertext",
          active && (destructive ? "bg-viewerbgred" : "bg-viewergray")
       ),

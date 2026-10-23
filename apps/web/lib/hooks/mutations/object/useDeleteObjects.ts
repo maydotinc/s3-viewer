@@ -17,7 +17,7 @@ import {
 import useObjectMutation, {
    confirmedTargets,
    forgetTouched,
-} from "./object-mutation";
+} from "./useObjectMutation";
 
 type DeleteSummary = BatchSummary<BatchFailure<S3DeleteTarget>>;
 

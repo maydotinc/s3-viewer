@@ -7,18 +7,25 @@ const isSafeNextPath = (value: unknown): value is string =>
    !value.startsWith("/\\") &&
    !/[\s\p{Cc}]/u.test(value);
 
-const AUTH_SCREEN_PATHS = new Set<string>([
+// a signed-in visitor is sent on from these; a reset link stays usable from any session
+const AUTH_SCREENS = new Set<string>([
    SITE_PATHS.login,
    SITE_PATHS.signup,
    SITE_PATHS.forgotPassword,
+]);
+
+const NOT_AFTER_LOGIN = new Set<string>([
+   ...AUTH_SCREENS,
    SITE_PATHS.resetPassword,
 ]);
+
+const PUBLIC_PATHS = new Set<string>([...NOT_AFTER_LOGIN, "/404", "/_error"]);
 
 // a `next` pointing back at an auth screen would loop the signed-in redirect.
 const afterLoginPath = (next: string | string[] | undefined): string => {
    if (!isSafeNextPath(next)) return SITE_PATHS.dashboard;
    const { pathname } = new URL(next, "http://placeholder");
-   return AUTH_SCREEN_PATHS.has(pathname) ? SITE_PATHS.dashboard : next;
+   return NOT_AFTER_LOGIN.has(pathname) ? SITE_PATHS.dashboard : next;
 };
 
 const inviteIdFrom = (
@@ -40,4 +47,11 @@ const loginPathFor = (asPath: string, reason?: string): string => {
    return query ? `${SITE_PATHS.login}?${query}` : SITE_PATHS.login;
 };
 
-export { afterLoginPath, inviteIdFrom, isSafeNextPath, loginPathFor };
+export {
+   afterLoginPath,
+   AUTH_SCREENS,
+   inviteIdFrom,
+   isSafeNextPath,
+   loginPathFor,
+   PUBLIC_PATHS,
+};

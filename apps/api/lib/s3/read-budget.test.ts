@@ -307,6 +307,8 @@ describe("buffered copy response lifetimes", () => {
 
    const standardReply = (request: FixtureRequest): string | undefined => {
       if (request.method === "DELETE") return undefined;
+      if ("ownershipControls" in request.query)
+         return "<OwnershipControls><Rule><ObjectOwnership>ObjectWriter</ObjectOwnership></Rule></OwnershipControls>";
       if ("acl" in request.query) return acl;
       if ("tagging" in request.query) return tagging;
       if ("uploads" in request.query) return initiation;

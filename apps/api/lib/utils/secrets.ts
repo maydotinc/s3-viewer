@@ -1,4 +1,5 @@
 import { logger } from "@/lib/logger";
+import { optionalString } from "@s3-viewer/types/env";
 import { generateKeyPairSync, randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -88,7 +89,7 @@ const ensureSecret = (dir: string, secret: Secret): string => {
 };
 
 const ensureDataDirSecrets = (env: NodeJS.ProcessEnv = process.env): void => {
-   const dir = env.DATA_DIR?.trim();
+   const dir = optionalString.parse(env.DATA_DIR);
    if (!dir) return;
    for (const secret of SECRETS) {
       if (env[secret.variable]?.trim()) continue;

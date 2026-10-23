@@ -1,5 +1,6 @@
 import type { S3Object } from "@s3-viewer/types";
 import type {
+   GridApi,
    GridReadyEvent,
    PaginationChangedEvent,
    SelectionChangedEvent,
@@ -36,6 +37,7 @@ type GridPaginationContextValue = {
    rowCount: number;
    goToPage: (page: number) => void;
    clearSelection: () => void;
+   refreshSnapshots: (api: GridApi) => void;
    handlers: {
       onGridReady: (event: GridReadyEvent) => void;
       onGridPreDestroyed: () => void;
@@ -45,6 +47,12 @@ type GridPaginationContextValue = {
 };
 
 type SelectedObject = Pick<S3Object, "key" | "eTag" | "size">;
+
+const snapshotOf = ({ key, eTag, size }: S3Object): SelectedObject => ({
+   key,
+   eTag,
+   size,
+});
 
 type SelectionContextValue = {
    selectedObjects: ReadonlyMap<string, SelectedObject | null>;
@@ -104,7 +112,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
                      const snapshot = previous.has(id)
                         ? (previous.get(id) ?? null)
                         : data
-                          ? { key: data.key, eTag: data.eTag, size: data.size }
+                          ? snapshotOf(data)
                           : null;
                      return [[id, snapshot]];
                   })
@@ -123,6 +131,23 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
       gridRef.current?.api?.deselectAll();
    }, []);
 
+   // after a listing reload the rows on screen are the versions the user now sees, so selected rows follow them
+   const refreshSnapshots = useCallback((api: GridApi) => {
+      const current = new Map<string, S3Object>();
+      for (const { id, data } of api.getSelectedNodes())
+         if (typeof id === "string" && data) current.set(id, data as S3Object);
+      setSelectedObjects((previous) => {
+         let next: Map<string, SelectedObject | null> | null = null;
+         for (const [id, snapshot] of previous) {
+            const data = current.get(id);
+            if (!data || (snapshot && snapshot.eTag === data.eTag)) continue;
+            next ??= new Map(previous);
+            next.set(id, snapshotOf(data));
+         }
+         return next ?? previous;
+      });
+   }, []);
+
    const paginationValue = useMemo<GridPaginationContextValue>(
       () => ({
          gridRef,
@@ -134,6 +159,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
          rowCount,
          goToPage,
          clearSelection,
+         refreshSnapshots,
          handlers: {
             onGridReady,
             onGridPreDestroyed,
@@ -149,6 +175,7 @@ const GridProvider = ({ children }: { children: React.ReactNode }) => {
          rowCount,
          goToPage,
          clearSelection,
+         refreshSnapshots,
          onGridReady,
          onGridPreDestroyed,
          onPaginationChanged,

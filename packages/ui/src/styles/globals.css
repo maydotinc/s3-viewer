@@ -8,11 +8,15 @@
    --color-viewerdarkblue: #253977;
    --color-viewerwhite: #ffffff;
    --color-viewerborder: #e1e4ea;
+   /* 3.2:1 on white, the WCAG minimum for the edge of a field or checkbox */
+   --color-viewercontrolborder: #868fa1;
    --color-viewergray: #f7f7f7;
    --color-viewertext: #525866;
    --color-viewerblack: #0e121b;
    --color-viewerlighttext: #636c7e;
    --color-viewertextred: #fb3748;
+   /* 5.4:1 on white and 4.7:1 on viewerbgred, for red text and fills under white text */
+   --color-viewerstrongred: #d11a2d;
    --color-viewerbgred: #feebec;
 
    --color-jsonkey: #253977;

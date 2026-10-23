@@ -121,6 +121,33 @@ export async function mapLimit<T, R>(
    return results;
 }
 
+// for siblings that share what the caller holds (in-flight slots, a read reservation): the first
+// failure aborts the rest and waits for them to settle, so the caller releases nothing still in use.
+export const mapLimitAbortingSiblings = <T, R>(
+   items: readonly T[],
+   limit: number,
+   signal: AbortSignal | undefined,
+   fn: (item: T, signal: AbortSignal) => Promise<R>
+): Promise<R[]> => {
+   const failed = new AbortController();
+   const linked = signal
+      ? AbortSignal.any([signal, failed.signal])
+      : failed.signal;
+   return mapLimit(
+      items,
+      limit,
+      async (item) => {
+         try {
+            return await fn(item, linked);
+         } catch (error) {
+            failed.abort(error);
+            throw error;
+         }
+      },
+      { settle: true }
+   );
+};
+
 type PrismaClientError = Error & {
    code?: unknown;
    errorCode?: unknown;

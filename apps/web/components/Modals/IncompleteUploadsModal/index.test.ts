@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
    get: vi.fn(),
    remove: vi.fn(),
    reach: undefined as unknown,
+   entries: {} as Record<string, { status: string }>,
 }));
 
 vi.mock("@s3-viewer/ui/components/dialog", async () =>
@@ -28,6 +29,10 @@ vi.mock("@/lib/api", async (original) => ({
    api: { get: h.get, delete: h.remove },
 }));
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user1" }));
+vi.mock("@/lib/stores/upload-store/upload-store", () => ({
+   default: (select: (state: { entries: typeof h.entries }) => unknown) =>
+      select({ entries: h.entries }),
+}));
 vi.mock("@/lib/hooks/queries/s3/useBucketScope", () => ({
    default: () => h.reach,
 }));
@@ -97,6 +102,7 @@ const sent = () =>
 beforeEach(() => {
    vi.clearAllMocks();
    h.reach = { folders: null, owner: false };
+   h.entries = {};
    h.get
       .mockReset()
       .mockImplementation(async (path: string) =>
@@ -161,6 +167,39 @@ describe("incomplete uploads dialog", () => {
          ],
       ]);
       expect(onClose).toHaveBeenCalledOnce();
+   });
+
+   it("leaves uploads this browser is still sending out of every abort", async () => {
+      h.get.mockResolvedValue(page([...uploads, upload("photos/c.bin", "u3")]));
+      h.entries = {
+         [JSON.stringify(["server1", "bucket", "photos/b.bin"])]: {
+            status: "active",
+         },
+         [JSON.stringify(["server1", "bucket", "photos/c.bin"])]: {
+            status: "completed",
+         },
+      };
+      const lease = `s3-viewer.multipart-upload.${JSON.stringify(["user1", "server1", "bucket", "photos/a.bin"])}`;
+      Object.defineProperty(navigator, "locks", {
+         configurable: true,
+         value: { query: async () => ({ held: [{ name: lease }] }) },
+      });
+      try {
+         await open();
+         expect(view.text().match(/In progress/g)).toHaveLength(2);
+         expect(
+            view.current.container.querySelector<HTMLButtonElement>(
+               '[aria-label="Select photos/a.bin"]'
+            )!.disabled
+         ).toBe(true);
+         await press("Abort all listed");
+         expect(view.text()).toContain("Confirm aborting 1");
+         await press("Confirm aborting");
+         expect(sent()).toEqual([[{ key: "photos/c.bin", uploadId: "u3" }]]);
+         expect(onClose).not.toHaveBeenCalled();
+      } finally {
+         delete (navigator as { locks?: unknown }).locks;
+      }
    });
 
    it("stays open after aborting every listed row while more pages remain", async () => {

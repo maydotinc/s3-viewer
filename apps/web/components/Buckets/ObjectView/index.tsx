@@ -42,11 +42,9 @@ const ObjectViewSession = () => {
    const preview = useObjectPreview(bucketName, objectKey, readable);
    const commands = useCreateObjectCommands(bucketName);
    const presignable = canPresignObjectKey(objectKey);
-   const settings = useObjectSettings(
-      bucketName,
-      objectKey,
-      readable && commands.can.download && !presignable
-   );
+   const settings = useObjectSettings(bucketName, objectKey, {
+      enabled: readable && commands.can.download && !presignable,
+   });
    const [isEditing, setIsEditing] = useState(false);
    const metadataQuery = presignable ? preview : settings;
    // refetch() ignores `enabled`, so a refresh must not reach a query that would be refused

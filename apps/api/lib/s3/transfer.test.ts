@@ -343,7 +343,7 @@ describe("streaming an object to another server", () => {
          destination: emptyDestination,
          maxBytes: 2,
       });
-      expect(result).toMatchObject({ status: 413 });
+      expect(result).toSatisfy(isUploadTooLargeError);
       expect(destination.filter((r) => r.method === "PUT")).toEqual([]);
    });
 });
@@ -365,15 +365,12 @@ describe("a source head the route already took", () => {
       expect(source.filter((r) => r.method === "HEAD")).toEqual([]);
    });
 
-   it.each([
-      ["a customer-encrypted object", { SSECustomerAlgorithm: "AES256" }, 409],
-      ["an object over the cap", { ContentLength: 2 * 1024 * 1024 }, 413],
-   ])("still refuses %s", async (_name, extra, status) => {
+   it("still refuses a customer-encrypted object", async () => {
       const { source, result } = await run({
          destination: emptyDestination,
-         head: head(extra),
+         head: head({ SSECustomerAlgorithm: "AES256" }),
       });
-      expect(result).toMatchObject({ status });
+      expect(result).toMatchObject({ status: 409 });
       expect(source).toEqual([]);
    });
 });

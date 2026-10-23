@@ -3,8 +3,8 @@ import InlineAlert from "@/components/inline-alert";
 import { RetryButton } from "@/components/status-message";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useCurrentServer from "@/lib/hooks/queries/server/useCurrentServer";
-import { bucketEntryHref } from "@/lib/utils/s3/paths";
-import { SITE_PATHS } from "@s3-viewer/types";
+import { useServerId } from "@/lib/stores/session-scope";
+import { bucketEntryHref, bucketRoute } from "@/lib/utils/s3/paths";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import { cn } from "@s3-viewer/ui/lib/utils";
@@ -20,6 +20,7 @@ const ROW_GAP = 4;
 
 const BucketList = () => {
    const router = useRouter();
+   const serverId = useServerId();
    const { currentServer, isLoading: isServerLoading } = useCurrentServer();
    const { buckets, isBucketsLoading, bucketsError, isFetching, refetch } =
       useBuckets();
@@ -31,11 +32,8 @@ const BucketList = () => {
       gap: ROW_GAP,
       overscan: 8,
    });
-   const selected =
-      router.pathname.startsWith(SITE_PATHS.buckets) &&
-      Array.isArray(router.query.slug)
-         ? router.query.slug[0]
-         : null;
+   const route = bucketRoute(router.query);
+   const selected = route.serverId === serverId ? route.bucketName : null;
 
    if (isServerLoading || (currentServer && isBucketsLoading)) {
       return (
@@ -92,7 +90,7 @@ const BucketList = () => {
                const Icon = bucket.folders === null ? Folder : FolderLock;
                const link = (
                   <Link
-                     href={bucketEntryHref(bucket)}
+                     href={bucketEntryHref(serverId, bucket)}
                      aria-current={
                         selected === bucket.name ? "page" : undefined
                      }

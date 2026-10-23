@@ -2,7 +2,7 @@ import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
 import { useId, useState, type ChangeEvent } from "react";
 import FormError from "./form-error";
-import useRequestError from "./use-request-error";
+import useRequestError from "./useRequestError";
 
 const useNameField = (
    validate: (name: string) => string | null,

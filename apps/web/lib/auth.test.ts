@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@/lib/test/storage";
-import { UploadCancelled } from "@/lib/utils/s3/upload-cancelled";
+import { UploadCancelledError } from "@/lib/utils/s3/upload-cancelled";
 
 type SessionValue = {
    data: { user: { id: string } } | null;
@@ -67,7 +67,7 @@ vi.mock("@/lib/utils/s3/upload-object", () => ({
          reject = fail;
       });
       const abort = vi.fn(() => {
-         const finish = () => reject(new UploadCancelled());
+         const finish = () => reject(new UploadCancelledError());
          if (h.holdCleanup) h.cleanups.push(finish);
          else finish();
       });
@@ -81,7 +81,8 @@ const { default: sessionStore } = await import("@/lib/stores/session-store");
 const { default: uploadStore } = await import(
    "@/lib/stores/upload-store/upload-store"
 );
-const { signOut } = await import("./auth");
+const { requestSignOut, signOut } = await import("./auth");
+const { registerNavigationGuard } = await import("./navigation-guard");
 const { handleUnauthorized } = await import("./api");
 
 const emit = (userId: string | null) => {
@@ -309,5 +310,50 @@ describe("uploads follow the authenticated session synchronously", () => {
       expectErased();
       enqueue();
       expect(h.jobs).toHaveLength(6);
+   });
+});
+
+describe("a sign-out the user asks for", () => {
+   const confirm = vi.fn(() => false);
+   const scope = globalThis as { window?: unknown };
+
+   beforeEach(() => {
+      confirm.mockReset().mockReturnValue(false);
+      scope.window = { confirm };
+   });
+   afterEach(() => {
+      delete scope.window;
+   });
+
+   it("stops before touching uploads or the session when a page guard declines", async () => {
+      const release = registerNavigationGuard(() => false);
+      enqueue();
+      await requestSignOut();
+      release();
+      expect(h.signOut).not.toHaveBeenCalled();
+      expect(sessionStore.getState().userId).toBe("user-a");
+      expect(uploadStore.getState().isUploading).toBe(true);
+      expect(h.jobs.every((job) => !job.abort.mock.calls.length)).toBe(true);
+   });
+
+   it("asks before cancelling running uploads", async () => {
+      enqueue();
+      await requestSignOut();
+      expect(confirm).toHaveBeenCalledOnce();
+      expect(h.signOut).not.toHaveBeenCalled();
+      expect(uploadStore.getState().isUploading).toBe(true);
+      confirm.mockReturnValue(true);
+      await requestSignOut();
+      expect(h.signOut).toHaveBeenCalledExactlyOnceWith("user-a");
+      expectErased();
+   });
+
+   it("never asks on a forced sign-out", async () => {
+      const release = registerNavigationGuard(() => false);
+      enqueue();
+      await signOut();
+      release();
+      expect(confirm).not.toHaveBeenCalled();
+      expect(h.signOut).toHaveBeenCalledOnce();
    });
 });

@@ -1,9 +1,11 @@
 import { publicEnv } from "./env";
+import { anySignal } from "@/lib/utils/any-signal";
 import useSessionStore from "@/lib/stores/session-store";
 import {
    GENERIC_ERROR_MESSAGE,
    EXPECTED_USER_ID_HEADER,
    ErrorCode,
+   MINUTE_MS,
    MULTIPART_UPLOADS_PATH,
    OBJECT_MUTATION_PATH,
    type ApiError as ApiErrorBody,
@@ -19,6 +21,12 @@ const ClientErrorCode = {
 
 const NETWORK_MESSAGE =
    "Couldn't reach the server. Check your connection and try again.";
+
+const TIMEOUT_MESSAGE = "The server took too long to answer. Try again.";
+
+// the API drops a silent socket after two minutes, so a read still open past that is stuck on a dead connection.
+// writes get no bound: a large copy runs as long as storage needs, and abandoning one would leave its outcome unknown
+const READ_TIMEOUT_MS = 2 * MINUTE_MS;
 
 class ApiError extends Error {
    constructor(
@@ -39,10 +47,20 @@ const networkError = () =>
 const cancelledError = () =>
    new ApiError(0, "Request cancelled", ClientErrorCode.ABORTED);
 
+const timeoutError = () =>
+   new ApiError(0, TIMEOUT_MESSAGE, ClientErrorCode.NETWORK);
+
 const transportError = (error: unknown) =>
    error instanceof DOMException && error.name === "AbortError"
       ? cancelledError()
-      : networkError();
+      : error instanceof DOMException && error.name === "TimeoutError"
+        ? timeoutError()
+        : networkError();
+
+const withReadTimeout = (signal: AbortSignal | undefined): AbortSignal => {
+   const timeout = AbortSignal.timeout(READ_TIMEOUT_MS);
+   return signal ? anySignal([signal, timeout]) : timeout;
+};
 
 const BAD_RESPONSE_MESSAGE =
    "The server sent an unexpected response. Try again.";
@@ -136,7 +154,12 @@ const request = async <T>(
    body?: unknown,
    signal?: AbortSignal
 ): Promise<T> => {
-   const res = await send(method, path, body, signal);
+   const res = await send(
+      method,
+      path,
+      body,
+      method === "GET" ? withReadTimeout(signal) : signal
+   );
    if (res.status === 204) return undefined as T;
    try {
       return (await res.json()) as T;

@@ -44,6 +44,7 @@ const SERVER_ROW = {
 
 const state = vi.hoisted(() => ({
    actor: "actor12345",
+   sessionCreatedAt: Date.now(),
    servers: new Map<string, ServerState>(),
    busy: new Set<string>(),
    tokens: new Map<string, string>(),
@@ -317,6 +318,12 @@ routeServer(
    (app) => {
       app.use(express.json());
       app.use(signedIn(() => ({ id: state.actor })));
+      app.use((req, _res, next) => {
+         Object.assign(req, {
+            session: { createdAt: new Date(state.sessionCreatedAt) },
+         });
+         next();
+      });
       app.use("/invites", invitesRouter);
       app.use(errorHandler);
    },
@@ -327,6 +334,7 @@ routeServer(
 
 beforeEach(() => {
    state.actor = ACTOR;
+   state.sessionCreatedAt = Date.now();
    state.servers.clear();
    server(SERVER);
    state.busy.clear();
@@ -837,6 +845,59 @@ describe("POST /invites on one server", () => {
       expect(result.invites[0]?.emailed).toBe(false);
       expect(state.sendEmail).not.toHaveBeenCalled();
       expect(tokenOf(SERVER, "one@example.com")).toBe("someone-else-1");
+   });
+});
+
+describe("POST /invites and a stale sign-in", () => {
+   const adminOn = (serverId: string) => ({
+      serverId,
+      role: "ADMIN",
+      bucketAccess: [{ bucketName: "alpha", role: "VIEWER", folders: null }],
+   });
+
+   beforeEach(() => {
+      state.sessionCreatedAt = Date.now() - 25 * 60 * 60 * 1000;
+      server(OTHER);
+   });
+
+   it("refuses the whole batch when any target invites an admin, before saving any", async () => {
+      const res = await send({
+         emails: ["one@example.com"],
+         targets: [viewerOn(SERVER), adminOn(OTHER)],
+      });
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "SESSION_STALE" });
+      expect(state.lockRaw).not.toHaveBeenCalled();
+      expect(on(SERVER).written).toEqual([]);
+      expect(state.sendEmail).not.toHaveBeenCalled();
+      expect(state.recordManyFor).not.toHaveBeenCalled();
+   });
+
+   it("refuses a viewer invite that makes them a bucket admin", async () => {
+      const res = await send({
+         emails: ["one@example.com"],
+         targets: [
+            {
+               serverId: SERVER,
+               role: "VIEWER",
+               bucketAccess: [
+                  { bucketName: "alpha", role: "ADMIN", folders: null },
+               ],
+            },
+         ],
+      });
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "SESSION_STALE" });
+      expect(on(SERVER).written).toEqual([]);
+   });
+
+   it("still sends invites below admin", async () => {
+      const result = await outcome({
+         emails: ["one@example.com"],
+         targets: [viewerOn(SERVER)],
+      });
+      expect(result.error).toBeNull();
+      expect(on(SERVER).written).toHaveLength(1);
    });
 });
 

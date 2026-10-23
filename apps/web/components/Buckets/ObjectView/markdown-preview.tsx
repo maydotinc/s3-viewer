@@ -1,9 +1,12 @@
-import { pluralize } from "@/lib/utils/format";
+import { MARKDOWN_RENDER_BYTES } from "@/lib/utils/file-utils";
+import { formatBytes, pluralize } from "@/lib/utils/format";
 import { useMemo } from "react";
 import { MarkdownContent } from "./markdown";
 import {
    BodyPreview,
    type BodyPreviewProps,
+   type LoadedBody,
+   RawText,
    RenderedBody,
    ViewPanel,
 } from "./preview-panel";
@@ -25,13 +28,26 @@ const MarkdownBody = ({ text }: { text: string }) => {
    );
 };
 
+const LoadedMarkdown = (body: LoadedBody) => {
+   const bytes = useMemo(
+      () => new TextEncoder().encode(body.text).byteLength,
+      [body.text]
+   );
+   return bytes > MARKDOWN_RENDER_BYTES ? (
+      <RawText
+         text={body.text}
+         summary={`Markdown over ${formatBytes(MARKDOWN_RENDER_BYTES)} — showing the raw file`}
+      />
+   ) : (
+      <RenderedBody {...body} label="Markdown">
+         <MarkdownBody text={body.text} />
+      </RenderedBody>
+   );
+};
+
 const MarkdownPreview = (props: BodyPreviewProps) => (
    <BodyPreview {...props} label="Markdown">
-      {(body) => (
-         <RenderedBody {...body} label="Markdown">
-            <MarkdownBody text={body.text} />
-         </RenderedBody>
-      )}
+      {(body) => <LoadedMarkdown {...body} />}
    </BodyPreview>
 );
 

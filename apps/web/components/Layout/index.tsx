@@ -5,6 +5,7 @@ import { cn } from "@s3-viewer/ui/lib/utils";
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 import ViewerBanner from "@/components/Layout/Banner/banner";
+import { useServerIdParam } from "@/lib/hooks/useServerIdParam";
 import { useServerId } from "@/lib/stores/session-scope";
 import useUploadStore from "@/lib/stores/upload-store/upload-store";
 import { ViewerSidebar } from "./sidebar";
@@ -25,13 +26,16 @@ const ViewerLayout = ({
    const { openMobile } = useSidebar();
    const uploadsShown = useUploadStore((state) => state.order.length > 0);
    const { push } = useRouter();
+   const routeServerId = useServerIdParam();
 
    useEffect(() => {
       const previous = prevServerId.current;
       prevServerId.current = serverId || null;
       if (!dashboardOnServerChange || !previous || !serverId) return;
-      if (previous !== serverId) void push(SITE_PATHS.dashboard);
-   }, [dashboardOnServerChange, push, serverId]);
+      // a page whose URL names the server selected it itself
+      if (previous !== serverId && serverId !== routeServerId)
+         void push(SITE_PATHS.dashboard);
+   }, [dashboardOnServerChange, push, serverId, routeServerId]);
 
    useEffect(() => {
       const main = mainRef.current;

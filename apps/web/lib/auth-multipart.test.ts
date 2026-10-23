@@ -1,5 +1,5 @@
 import { createWebLocks } from "@/lib/test/web-locks";
-import { UploadCancelled } from "@/lib/utils/s3/upload-cancelled";
+import { UploadCancelledError } from "@/lib/utils/s3/upload-cancelled";
 import { EXPECTED_USER_ID_HEADER, type S3UploadedPart } from "@s3-viewer/types";
 import { afterEach, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@/lib/test/storage";
@@ -64,7 +64,7 @@ it("aborts a persisted multipart upload before invalidating the outgoing session
             resolve = yes;
             reject = no;
          });
-         const abort = vi.fn(() => reject(new UploadCancelled()));
+         const abort = vi.fn(() => reject(new UploadCancelledError()));
          parts.push({
             acknowledge: () =>
                resolve({

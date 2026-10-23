@@ -31,7 +31,7 @@ const MAX_CREDENTIAL_READ_ATTEMPTS = 3;
 const CONNECTION_TIMEOUT_MS = 5000;
 const SOCKET_QUEUE_WARNING_MS = 35 * SECOND_MS;
 const MAX_ATTEMPTS = 2;
-const AGENT_MAX_FREE_SOCKETS = 64;
+const AGENT_MAX_FREE_SOCKETS = 16;
 const AGENT_IDLE_TIMEOUT_MS = MINUTE_MS;
 
 type CredentialSnapshot = {
@@ -40,8 +40,10 @@ type CredentialSnapshot = {
    ownerId: string;
 };
 type ClientScope = { serverId: string; credentials?: CredentialSnapshot };
+type Agents = { httpAgent: HttpAgent; httpsAgent: HttpsAgent };
 type CacheEntry = {
    client: S3Client;
+   agents: Agents;
    expiresAt: number;
    snapshot: CredentialSnapshot;
 };
@@ -50,9 +52,21 @@ const generations = new Map<string, number>();
 const inFlightFills = new Map<string, number>();
 const fills = new Map<string, Promise<S3Client>>();
 
+// requests still running on a removed client (a long download or copy) keep their sockets until they
+// finish; only the idle ones close now, and nothing returns to the pool afterwards.
+const retireAgents = (agents: Agents): void => {
+   for (const agent of [agents.httpAgent, agents.httpsAgent]) {
+      agent.maxFreeSockets = 0;
+      for (const sockets of Object.values(agent.freeSockets))
+         for (const socket of sockets ?? []) socket.destroy();
+   }
+};
+
 const removeCachedClient = (serverId: string): void => {
    const entry = cache.get(serverId);
-   if (entry) invalidateBucketClients(entry.client);
+   if (!entry) return;
+   invalidateBucketClients(entry.client);
+   retireAgents(entry.agents);
    cache.delete(serverId);
 };
 
@@ -76,12 +90,19 @@ const agentOptions = {
    timeout: AGENT_IDLE_TIMEOUT_MS,
 };
 
-const httpAgent = new HttpAgent(agentOptions);
-const httpsAgent = new HttpsAgent(agentOptions);
+const createAgents = (): Agents => ({
+   httpAgent: new HttpAgent(agentOptions),
+   httpsAgent: new HttpsAgent(agentOptions),
+});
+
+// one-off probe clients share a pair; each cached server gets its own so tenants behind one
+// path-style host do not queue for the same per-host sockets.
+const probeAgents = createAgents();
 
 const buildClient = (
    credentials: ServerCredentials,
-   provider: Provider
+   provider: Provider,
+   { httpAgent, httpsAgent }: Agents
 ): S3Client =>
    new S3Client({
       region: credentials.region,
@@ -118,17 +139,24 @@ const credentialBudgetKey = (credentials: ServerCredentials): string =>
       .update(credentials.accessKey)
       .digest("base64url")}`;
 
-const getS3ClientFromCredentials = (
+const clientWithAgents = (
    credentials: ServerCredentials,
-   provider: Provider = Provider.Other,
-   serverId?: string
+   provider: Provider,
+   serverId: string | undefined,
+   agents: Agents
 ): S3Client => {
    const client = withRequestBudget(
-      buildClient(credentials, provider),
+      buildClient(credentials, provider, agents),
       serverId ?? credentialBudgetKey(credentials)
    );
    return serverId ? withFolderGuard(client, serverId) : client;
 };
+
+const getS3ClientFromCredentials = (
+   credentials: ServerCredentials,
+   provider: Provider = Provider.Other,
+   serverId?: string
+): S3Client => clientWithAgents(credentials, provider, serverId, probeAgents);
 
 const makeRoom = (): void => {
    if (cache.size < CACHE_MAX_ENTRIES) return;
@@ -197,15 +225,18 @@ const fillCachedClient = async (
          ) {
             continue;
          }
-         const client = getS3ClientFromCredentials(
+         const agents = createAgents();
+         const client = clientWithAgents(
             credentials,
             Provider[snapshot.provider],
-            serverId
+            serverId,
+            agents
          );
          makeRoom();
          removeCachedClient(serverId);
          cache.set(serverId, {
             client,
+            agents,
             expiresAt: Date.now() + CACHE_TTL_MS,
             snapshot,
          });

@@ -14,7 +14,7 @@ import Settings, { canToggleLog, settingsPayload } from "./settings";
 const h = vi.hoisted(() => ({
    saved: null as unknown,
    error: null as unknown,
-   signOut: vi.fn(),
+   requestSignOut: vi.fn(),
 }));
 
 vi.mock("@/lib/hooks/queries/server/useAuditSettings", () => ({
@@ -23,7 +23,7 @@ vi.mock("@/lib/hooks/queries/server/useAuditSettings", () => ({
 vi.mock("@/lib/hooks/mutations/server/useUpdateAuditSettings", () => ({
    default: () => ({ isPending: false, mutate: vi.fn(), error: h.error }),
 }));
-vi.mock("@/lib/auth", () => ({ signOut: h.signOut }));
+vi.mock("@/lib/auth", () => ({ requestSignOut: h.requestSignOut }));
 
 const draft: AuditSettings = {
    enabled: true,
@@ -66,7 +66,7 @@ describe("a stale sign-in", () => {
    beforeEach(() => {
       h.saved = draft;
       h.error = null;
-      h.signOut.mockReset();
+      h.requestSignOut.mockReset();
    });
 
    it("offers a fresh sign-in where the save failed", async () => {
@@ -82,6 +82,6 @@ describe("a stale sign-in", () => {
       await act(async () =>
          buttonByText(view.current.container, "Sign in again")!.click()
       );
-      expect(h.signOut).toHaveBeenCalledOnce();
+      expect(h.requestSignOut).toHaveBeenCalledOnce();
    });
 });

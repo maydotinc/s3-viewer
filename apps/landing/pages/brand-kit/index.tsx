@@ -1,5 +1,5 @@
 import BrandKit from "@/components/BrandKit";
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { pageJsonLd } from "@/lib/jsonld";
 
 const JSON_LD = pageJsonLd({

@@ -9,6 +9,7 @@ import ListPagination, {
    type LoadMoreQuery,
 } from "@/components/list-pagination";
 import { ConfirmButton } from "@/components/Modals/confirm-button";
+import { isSessionStale, signInAgain } from "@/components/stale-sign-in";
 import useRemoveMember from "@/lib/hooks/mutations/invites/useRemoveMember";
 import useUpdateRole from "@/lib/hooks/mutations/invites/useUpdateRole";
 import TableSkeletonRows from "@/components/table-skeleton";
@@ -28,6 +29,7 @@ import {
    type ServerUser,
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
+import { toast } from "@s3-viewer/ui/components/toast";
 import {
    Table,
    TableBody,
@@ -60,6 +62,13 @@ type MembersProps = Omit<MemberRowProps, "member" | "isMe" | "myRole"> & {
 };
 
 const COLUMNS = 4;
+
+// a table row has no room for the full sign-in prompt, so the toast carries its action
+const toastStaleSignIn = (error: Error) =>
+   toast.error("Sign in again to make someone an admin", {
+      description: error.message,
+      action: { label: "Sign in again", onClick: signInAgain },
+   });
 
 const SKELETON_COLUMNS = [{ avatar: true }, {}, {}, {}] as const;
 
@@ -125,11 +134,19 @@ const MemberRow = ({
                   roles={roles}
                   disabled={busy}
                   onChange={(next) =>
-                     updateRole.mutate({
-                        serverId,
-                        userId: member.id,
-                        role: next as GrantableRole,
-                     })
+                     updateRole.mutate(
+                        {
+                           serverId,
+                           userId: member.id,
+                           role: next as GrantableRole,
+                        },
+                        {
+                           onError: (error) => {
+                              if (isSessionStale(error))
+                                 toastStaleSignIn(error);
+                           },
+                        }
+                     )
                   }
                />
             ) : (

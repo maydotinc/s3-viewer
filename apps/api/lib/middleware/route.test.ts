@@ -79,7 +79,7 @@ vi.mock("@s3-viewer/db", () => ({
    },
 }));
 
-const { AccessDenied, assertMemberAuthority, getAuth } = await import(
+const { AccessDeniedError, assertMemberAuthority, getAuth } = await import(
    "./authorize"
 );
 const {
@@ -151,7 +151,7 @@ routeServer(
       );
       app.get("/servers/:serverId/elsewhere", (_req, _res, next) =>
          next(
-            new AccessDenied(403, "Not on that server", {
+            new AccessDeniedError(403, "Not on that server", {
                serverId: "server67890",
                actorId: ACTOR,
                audit: { enabled: true, level: AuditLevel.ALL },

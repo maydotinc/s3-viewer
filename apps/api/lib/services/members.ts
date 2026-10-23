@@ -265,10 +265,11 @@ type ViewerGrants = {
 const viewerGrants = async (
    viewerId: string,
    serverId: string,
-   serverRole: Role
+   serverRole: Role,
+   db: Prisma.TransactionClient = prisma
 ): Promise<ViewerGrants> => {
    if (serverRole === Role.OWNER) return { visible: null, held: new Map() };
-   const rows = await loadBucketGrants(viewerId, serverId);
+   const rows = await loadBucketGrants(viewerId, serverId, db);
    return { visible: heldBucketNames(rows), held: grantsByBucket(rows) };
 };
 

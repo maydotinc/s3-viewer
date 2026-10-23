@@ -28,17 +28,17 @@ const FINGERPRINT_SCRYPT = {
    maxmem: 64 * MIB,
 };
 
-const LEGACY_AUDIT_CHAIN_INFO = "s3-viewer audit chain";
+const AUTH_SECRET_CHAIN_INFO = "s3-viewer audit chain";
 const AUDIT_CHAIN_KEY_BYTES = 32;
 const AUDIT_CHAIN_KEY_FILE = "audit-chain-key";
 
-const legacyAuditChainKey = (authSecret: string): Buffer =>
+const authSecretDerivedChainKey = (authSecret: string): Buffer =>
    Buffer.from(
       hkdfSync(
          "sha256",
          authSecret,
          "",
-         LEGACY_AUDIT_CHAIN_INFO,
+         AUTH_SECRET_CHAIN_INFO,
          AUDIT_CHAIN_KEY_BYTES
       )
    );
@@ -160,14 +160,16 @@ const AUDIT_CHAIN_KEY_SECRET: Secret = {
 const persistAuditChainKey = (dir: string): Buffer =>
    Buffer.from(ensureSecret(dir, AUDIT_CHAIN_KEY_SECRET), "base64");
 
-// existing audit history must keep its legacy key; generate a new key only where DATA_DIR can persist it.
+// rows already chained under the auth-secret-derived key must stay verifiable, so a dedicated key is generated only for
+// an empty log and only where DATA_DIR can persist it.
 const resolveAuditChainKey = async (
    authSecret: string,
    dataDir: string | undefined
 ): Promise<Buffer> => {
    const hasAuditHistory =
       (await prisma.auditLog.findFirst({ select: { id: true } })) !== null;
-   if (hasAuditHistory || !dataDir) return legacyAuditChainKey(authSecret);
+   if (hasAuditHistory || !dataDir)
+      return authSecretDerivedChainKey(authSecret);
    return persistAuditChainKey(dataDir);
 };
 
@@ -190,7 +192,7 @@ const assertInstanceSecrets = async (
    authSecret: string = env.BETTER_AUTH_SECRET
 ): Promise<Buffer> => {
    // read the key before database checks so pending migrations can't bypass file validation.
-   const dataDir = process.env.DATA_DIR?.trim();
+   const dataDir = env.DATA_DIR;
    const encoded =
       env.AUDIT_CHAIN_KEY ||
       (dataDir
@@ -211,7 +213,7 @@ const assertInstanceSecrets = async (
          "instance_secret table is missing; run the pending database migrations so replicas can verify they share one encryption key"
       );
    }
-   return auditChainKey ?? legacyAuditChainKey(authSecret);
+   return auditChainKey ?? authSecretDerivedChainKey(authSecret);
 };
 
 export {

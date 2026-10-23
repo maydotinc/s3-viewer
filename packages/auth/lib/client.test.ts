@@ -46,24 +46,38 @@ describe("authenticated client actor binding", () => {
       expect(header(fetch.mock.calls[1])).toBe("account-a");
    });
 
-   it("supports actor-bound profile and session mutations on the native client", async () => {
-      const { client, fetch } = setup();
-      await client.authClient.updateUser({
-         name: "Name",
-         fetchOptions: client.accountFetchOptions("account-a"),
-      });
-      await client.authClient.revokeSession({
-         token: "session-token",
-         fetchOptions: client.accountFetchOptions("account-a"),
-      });
-      await client.authClient.revokeOtherSessions({
-         fetchOptions: client.accountFetchOptions("account-a"),
-      });
+   it("binds profile and session calls to the account that asked", async () => {
+      const { client, fetch, switchAccount } = setup();
+      switchAccount();
+      await client.updateProfileName("Name", "account-a");
+      await client.revokeSession("session-token", "account-a");
+      await client.revokeOtherSessions("account-a");
+      fetch.mockResolvedValueOnce(Response.json([]));
+      await expect(client.listSessions("account-a")).resolves.toEqual([]);
       expect(fetch.mock.calls.map(header)).toEqual([
          "account-a",
          "account-a",
          "account-a",
+         "account-a",
       ]);
+   });
+
+   it("words session and profile refusals like every other auth error", async () => {
+      const { client, fetch } = setup();
+      const refusal = () =>
+         Response.json(
+            { code: "RATE_LIMITED", message: "raw" },
+            { status: 429 }
+         );
+      fetch.mockImplementation(async () => refusal());
+      const worded = "Too many attempts. Try again in a few minutes.";
+      await expect(client.listSessions()).rejects.toThrow(worded);
+      for (const result of await Promise.all([
+         client.revokeSession("session-token"),
+         client.revokeOtherSessions(),
+         client.updateProfileName("Name"),
+      ]))
+         expect(result).toEqual({ error: worded, code: "RATE_LIMITED" });
    });
 
    it("binds the password lookup to the signed-in account", async () => {
@@ -120,6 +134,9 @@ describe("requests the server never answers", () => {
             password: "password",
          }),
          client.signInWithGithub(),
+         client.revokeSession("session-token"),
+         client.revokeOtherSessions(),
+         client.updateProfileName("Name"),
       ]);
       expect(results).toEqual(results.map(() => UNREACHABLE));
       await expect(
@@ -131,6 +148,7 @@ describe("requests the server never answers", () => {
       const { client, fetch } = setup();
       fetch.mockRejectedValue(new TypeError("Failed to fetch"));
       await expect(client.hasPassword()).rejects.toThrow();
+      await expect(client.listSessions()).rejects.toThrow(UNREACHABLE.error);
       await expect(client.signOut()).rejects.toThrow();
    });
 });

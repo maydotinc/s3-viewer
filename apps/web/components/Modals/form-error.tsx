@@ -20,7 +20,7 @@ const FormError = ({
          className={cn(
             "shrink-0 break-words",
             size === "sm" ? "text-sm/5" : "text-xs/5",
-            children ? "text-viewertextred" : "text-viewertext"
+            children ? "text-viewerstrongred" : "text-viewertext"
          )}
       >
          {children ?? hint}

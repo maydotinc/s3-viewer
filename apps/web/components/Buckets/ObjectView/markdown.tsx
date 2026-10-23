@@ -13,7 +13,7 @@ import {
    type ReactNode,
 } from "react";
 
-// presigned previews run on the storage origin's trust, so only destinations a browser can't script through survive
+// the document renders in the app origin, where a javascript: or data: href would run with the viewer's session
 const SAFE_LINK = /^(https?:|mailto:)/i;
 const SAFE_IMAGE = /^https?:/i;
 

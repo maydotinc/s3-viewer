@@ -11,7 +11,7 @@ function Checkbox({
    return (
       <CheckboxPrimitive.Root
          className={cn(
-            "peer relative size-4 shrink-0 cursor-pointer rounded-[4px] border border-viewerborder bg-viewerwhite transition-colors outline-none",
+            "peer relative size-4 shrink-0 cursor-pointer rounded-[4px] border border-viewercontrolborder bg-viewerwhite transition-colors outline-none",
             "pointer-coarse:after:absolute pointer-coarse:after:-inset-3.5",
             "data-[state=checked]:border-viewerblue data-[state=checked]:bg-viewerblue data-[state=checked]:text-viewerwhite",
             "data-[state=indeterminate]:border-viewerblue data-[state=indeterminate]:bg-viewerblue data-[state=indeterminate]:text-viewerwhite",

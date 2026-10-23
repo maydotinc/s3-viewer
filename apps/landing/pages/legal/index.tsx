@@ -1,5 +1,5 @@
 import LegalHub from "@/components/Legal/legal-hub";
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { pageJsonLd } from "@/lib/jsonld";
 
 const DESCRIPTION =

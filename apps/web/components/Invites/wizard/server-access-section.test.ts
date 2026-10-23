@@ -9,7 +9,7 @@ import { act, createElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { GrantRow } from "../bucket-grants";
 import ServerAccessSection from "./server-access-section";
-import type { ServerBuckets } from "./use-server-buckets";
+import type { ServerBuckets } from "./useServerBuckets";
 
 type PickerProps = {
    error: string | null;

@@ -10,6 +10,7 @@ import { AuthErrorCode, SHARED_SERVERS_CODE } from "@s3-viewer/auth/client";
 import { pluralize } from "@/lib/utils/format";
 import {
    ErrorCode,
+   normalizeEmail,
    PRODUCT_NAME,
    SITE_PATHS,
    type AccountSummary,
@@ -191,7 +192,7 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
    const { id: expectedUserId, email } = confirmedSummary.user;
    const sessionMatches =
       session?.user.id === expectedUserId &&
-      session.user.email.toLowerCase() === email.toLowerCase();
+      normalizeEmail(session.user.email) === normalizeEmail(email);
    useEffect(() => {
       if (!isPending && !isRefetching && !sessionMatches && !deleting)
          onClose();
@@ -206,7 +207,7 @@ const DeleteAccountModal = ({ summary, onClose }: DeleteAccountModalProps) => {
       password.length > 0 &&
       (!mustAcknowledge || acknowledged) &&
       email.length > 0 &&
-      typed.trim().toLowerCase() === email.toLowerCase();
+      normalizeEmail(typed) === normalizeEmail(email);
 
    const confirm = async () => {
       if (deleting || !confirmed) return;

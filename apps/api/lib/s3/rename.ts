@@ -1,4 +1,8 @@
-import { S3_ROUTE_TIMEOUT_MS, copyDeadlineMs } from "@/lib/constants";
+import {
+   CLEANUP_TIMEOUT_MS,
+   S3_ROUTE_TIMEOUT_MS,
+   copyDeadlineMs,
+} from "@/lib/constants";
 import { ApiHttpError } from "@/lib/http";
 import { withDeadline } from "@/lib/utils/abort";
 import {
@@ -70,12 +74,17 @@ const renameObject = async (
       source,
       sourceETag,
    });
-   const committed = { ...scope, client: withoutBudget(scope.client) };
+   // once the copy exists, a closed tab or spent deadline must not strand both objects.
+   const committed = (): S3Scope => ({
+      ...scope,
+      client: withoutBudget(scope.client),
+      signal: AbortSignal.timeout(CLEANUP_TIMEOUT_MS),
+   });
    try {
-      await deleteSource(committed, provider, objectKey, sourceETag);
+      await deleteSource(committed(), provider, objectKey, sourceETag);
    } catch {
       // never roll back the destination: another writer may own it, and a timed-out delete may have landed.
-      const remains = await stillPresent(committed, objectKey);
+      const remains = await stillPresent(committed(), objectKey);
       if (remains === false) return;
       throw new PartialRenameError();
    }

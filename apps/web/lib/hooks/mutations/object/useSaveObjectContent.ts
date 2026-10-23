@@ -4,7 +4,7 @@ import { uploadSingle } from "@/lib/utils/s3/upload-object";
 import type { BucketTarget } from "@/lib/types";
 import { type S3ObjectUploaded } from "@s3-viewer/types";
 import type { QueryClient } from "@tanstack/react-query";
-import useObjectMutation from "./object-mutation";
+import useObjectMutation from "./useObjectMutation";
 
 type SaveObjectContentInput = BucketTarget & {
    objectKey: string;

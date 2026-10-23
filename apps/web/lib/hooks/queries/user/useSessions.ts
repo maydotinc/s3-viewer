@@ -1,21 +1,12 @@
-import { accountFetchOptions, authClient } from "@/lib/auth";
+import { listSessions, revokeOtherSessions, revokeSession } from "@/lib/auth";
 import useApiMutation, {
    type MutationScope,
 } from "@/lib/hooks/mutations/useApiMutation";
 import { queryKeys } from "@/lib/query-keys";
 import { useUserId } from "@/lib/stores/session-store";
-import { GENERIC_ERROR_MESSAGE } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
-type Sessions = NonNullable<
-   Awaited<ReturnType<typeof authClient.listSessions>>["data"]
->;
-type Session = Sessions[number];
-
-type AuthError = { message?: string | undefined };
-
-const failed = (error: AuthError): Error =>
-   new Error(error.message ?? GENERIC_ERROR_MESSAGE);
+type Session = Awaited<ReturnType<typeof listSessions>>[number];
 
 const newestFirst = (a: Session, b: Session): number =>
    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
@@ -23,11 +14,8 @@ const newestFirst = (a: Session, b: Session): number =>
 const sessionsQuery = (userId: string) => ({
    queryKey: queryKeys.sessions(userId),
    queryFn: async (): Promise<Session[]> => {
-      const { data, error } = await authClient.listSessions({
-         fetchOptions: accountFetchOptions(userId),
-      });
-      if (error) throw failed(error);
-      return [...(data ?? [])].sort(newestFirst);
+      const sessions = await listSessions(userId);
+      return [...sessions].sort(newestFirst);
    },
 });
 
@@ -43,11 +31,8 @@ const sessionsOf = ({ scope }: { scope: MutationScope }) => [
 const useRevokeSession = () =>
    useApiMutation<void, Error, { token: string }>({
       request: async ({ token }, { userId }) => {
-         const { error } = await authClient.revokeSession({
-            token,
-            fetchOptions: accountFetchOptions(userId),
-         });
-         if (error) throw failed(error);
+         const { error } = await revokeSession(token, userId);
+         if (error) throw new Error(error);
       },
       success: "Signed out on that device",
       invalidates: sessionsOf,
@@ -57,10 +42,8 @@ const useRevokeSession = () =>
 const useRevokeOtherSessions = () =>
    useApiMutation<void, Error, void>({
       request: async (_, { userId }) => {
-         const { error } = await authClient.revokeOtherSessions({
-            fetchOptions: accountFetchOptions(userId),
-         });
-         if (error) throw failed(error);
+         const { error } = await revokeOtherSessions(userId);
+         if (error) throw new Error(error);
       },
       success: "Signed out everywhere else",
       invalidates: sessionsOf,

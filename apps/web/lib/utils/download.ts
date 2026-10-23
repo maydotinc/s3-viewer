@@ -17,7 +17,6 @@ const downloadUrl = (url: string, fileName?: string): void => {
 };
 
 const FRAME_LIFETIME_MS = 60_000;
-const UNSTARTED_TOAST_MS = 10_000;
 
 // a cross-origin anchor ignores download and would navigate the app away whenever a provider
 // serves the file inline anyway; a frame needs no user activation, so it isn't popup-blocked
@@ -36,7 +35,7 @@ const downloadFromStorage = (url: string): void => {
          frame.remove();
          toast.error("The download didn't start", {
             description: "Your storage returned a page instead of the file.",
-            duration: UNSTARTED_TOAST_MS,
+
             action: {
                label: "Open",
                onClick: () => window.open(url, "_blank", "noopener,noreferrer"),

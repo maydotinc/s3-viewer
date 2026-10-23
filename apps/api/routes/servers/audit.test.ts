@@ -629,6 +629,20 @@ describe("GET /servers/:serverId/audit/verify", () => {
       expect((await fetch(`${base}/verify?fromSeq=later`)).status).toBe(400);
    });
 
+   it("refuses a resume point past what the seq column can hold", async () => {
+      state.role = "ADMIN";
+      expect((await fetch(`${base}/verify?fromSeq=2147483647`)).status).toBe(
+         200
+      );
+      state.findFirst.mockClear();
+      state.findMany.mockClear();
+      expect((await fetch(`${base}/verify?fromSeq=2147483648`)).status).toBe(
+         400
+      );
+      expect(state.findFirst).not.toHaveBeenCalled();
+      expect(state.findMany).not.toHaveBeenCalled();
+   });
+
    it("refuses members below admin even when they may view the log", async () => {
       state.role = "VIEWER";
       expect((await fetch(`${base}/verify`)).status).toBe(403);

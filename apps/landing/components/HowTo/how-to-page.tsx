@@ -10,7 +10,7 @@ import {
    StepList,
 } from "@/components/page-sections";
 import RelatedLinks from "@/components/related-links";
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { getUseCaseRefs } from "@/components/UseCases/data";
 import { pickBySlug } from "@/lib/every-slug";
 import { formatDate } from "@/lib/format-date";

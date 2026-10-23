@@ -5,7 +5,8 @@ import useObjectContent, {
 } from "@/lib/hooks/queries/s3/useObjectContent";
 import { useUnsavedChangesGuard } from "@/lib/hooks/useUnsavedChangesGuard";
 import { useServerId } from "@/lib/stores/session-scope";
-import useSessionStore, { useUserId } from "@/lib/stores/session-store";
+import { isCurrentScope } from "@/lib/stores/current-scope";
+import { useUserId } from "@/lib/stores/session-store";
 import { visibleText } from "@/lib/utils/format";
 import { observedETagSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
@@ -87,19 +88,10 @@ const ObjectEditor = ({
    const scope = useRef({ userId, serverId, bucketName, objectKey });
    const currentScope = useRef(scope.current);
    currentScope.current = { userId, serverId, bucketName, objectKey };
-   const scopeMatches = useCallback(() => {
-      const session = useSessionStore.getState();
-      const original = scope.current;
-      const current = currentScope.current;
-      return (
-         session.userId === original.userId &&
-         session.serverId === original.serverId &&
-         current.userId === original.userId &&
-         current.serverId === original.serverId &&
-         current.bucketName === original.bucketName &&
-         current.objectKey === original.objectKey
-      );
-   }, []);
+   const scopeMatches = useCallback(
+      () => isCurrentScope(scope.current, currentScope.current),
+      []
+   );
    const content = useObjectContent(bucketName, objectKey, scopeMatches());
    const { mutate: save, isPending: saving } = useSaveObjectContent();
    const [value, setValue] = useState("");
@@ -236,7 +228,7 @@ const ObjectEditor = ({
                <p
                   role="alert"
                   title={error}
-                  className="line-clamp-2 min-w-0 flex-1 text-xs text-viewertextred [overflow-wrap:anywhere]"
+                  className="line-clamp-2 min-w-0 flex-1 text-xs text-viewerstrongred [overflow-wrap:anywhere]"
                >
                   {error}
                </p>

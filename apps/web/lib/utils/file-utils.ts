@@ -1,3 +1,5 @@
+import { MIB } from "@s3-viewer/types";
+
 type PreviewKind =
    | "image"
    | "video"
@@ -69,7 +71,7 @@ const ARCHIVE_EXTENSIONS: [RegExp, string][] = [
    [/\.zst$/i, "Zstandard archive"],
 ];
 
-// chrome answers "" for quicktime yet plays the H.264 inside most .mov files;
+// Chrome answers "" for quicktime yet plays the H.264 inside most .mov files;
 // the preview's error fallback covers the codecs it cannot decode
 const PLAYABLE_ANYWAY = new Set(["video/quicktime"]);
 
@@ -122,20 +124,24 @@ const previewKind = (
    return "none";
 };
 
-const MAX_PREVIEW_BYTES = 50 * 1024 * 1024;
+const MAX_PREVIEW_BYTES = 50 * MIB;
 
 const isStreamedKind = (kind: PreviewKind): boolean =>
    kind === "video" || kind === "audio" || kind === "pdf";
 
 // json and markdown previews read the body into memory, so they stop well short of MAX_PREVIEW_BYTES
-const MAX_BODY_PREVIEW_BYTES = 2 * 1024 * 1024;
+const MAX_BODY_PREVIEW_BYTES = 2 * MIB;
 const JSON_STRING_PREVIEW_CHARS = 1000;
+
+// marked lexes on the main thread and degrades badly on pathological emphasis, so bigger documents show as source
+const MARKDOWN_RENDER_BYTES = 256 * 1024;
 
 const RAW_TEXT_PREVIEW_CHARS = 100000;
 
 export {
    archiveLabel,
    JSON_STRING_PREVIEW_CHARS,
+   MARKDOWN_RENDER_BYTES,
    MAX_BODY_PREVIEW_BYTES,
    MAX_PREVIEW_BYTES,
    isStreamedKind,

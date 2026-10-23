@@ -320,6 +320,27 @@ describe("inline object content", () => {
       }
    });
 
+   it("frees the storage read once the body is buffered, before the response goes out", async () => {
+      const budget = installReadBudget(MAX_EDIT_BYTES * 4, ONE_READ);
+      const { promise: recording, resolve: recorded } =
+         Promise.withResolvers<void>();
+      const { promise: recordFinished, resolve: finishRecord } =
+         Promise.withResolvers<void>();
+      state.audit.mockImplementation(async () => {
+         recorded();
+         await recordFinished;
+      });
+      const pending = get("notes.txt");
+      await recording;
+      budget
+         .acquire({ userId: state.actor, serverId: "server12345" })
+         .release();
+      finishRecord();
+      const response = await pending;
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe("hello");
+   });
+
    it("destroys the editor body and releases its slot on memory exhaustion", async () => {
       installReadBudget(bufferedBodyReservationBytes(1), ONE_READ);
       const body = Readable.from([Buffer.alloc(BUFFERED_BODY_SLAB_BYTES + 1)]);

@@ -121,7 +121,7 @@ describe("authorizeBucket", () => {
          )
       );
       expect(error.status).toBe(404);
-      expect(error.name).not.toBe("AccessDenied");
+      expect(error.name).not.toBe("AccessDeniedError");
    });
 
    it("404s a bucket outside the server's scope, as 'bucket', not 403", async () => {

@@ -3,6 +3,11 @@ import { act, createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buttonByText, mountedRuntime } from "@/components/test-helpers";
 import type { S3ObjectPreview } from "@s3-viewer/types";
+import {
+   MARKDOWN_RENDER_BYTES,
+   RAW_TEXT_PREVIEW_CHARS,
+} from "@/lib/utils/file-utils";
+import { marked } from "marked";
 import MarkdownPreview from "./markdown-preview";
 
 const h = vi.hoisted(() => ({ text: "" }));
@@ -174,5 +179,25 @@ describe("markdown preview", () => {
       );
       expect(article().querySelectorAll("img")).toHaveLength(3);
       expect(article().textContent).not.toContain("not loaded");
+   });
+
+   it("shows a document past the render cap as source without lexing it", async () => {
+      h.text = "*a ".repeat(Math.ceil(MARKDOWN_RENDER_BYTES / 3) + 1);
+      const lexer = vi.spyOn(marked, "lexer");
+      await mount();
+      expect(lexer).not.toHaveBeenCalled();
+      expect(container().querySelector("article")).toBeNull();
+      expect(container().textContent).toContain("showing the raw file");
+      expect(container().querySelector("pre")?.textContent).toBe(
+         h.text.slice(0, RAW_TEXT_PREVIEW_CHARS)
+      );
+   });
+
+   it("measures the render cap in bytes, not characters", async () => {
+      h.text = "é".repeat(MARKDOWN_RENDER_BYTES / 2 + 1);
+      expect(h.text.length).toBeLessThan(MARKDOWN_RENDER_BYTES);
+      await mount();
+      expect(container().querySelector("article")).toBeNull();
+      expect(container().textContent).toContain("Markdown over 256 KiB");
    });
 });

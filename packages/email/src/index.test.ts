@@ -14,12 +14,21 @@ vi.mock("@s3-viewer/ui/emails/account-deleted", async (original) => ({
    AccountDeletedEmail: () => null,
 }));
 
+const callsOf = (spy: { mock: { calls: unknown[][] } }) => () =>
+   spy.mock.calls.map(
+      ([message, meta]): Record<string, string> => ({
+         message: String(message),
+         ...(meta as Record<string, string>),
+      })
+   );
+
 const load = async (logBodies: boolean) => {
    vi.resetModules();
    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
    const email = await import("./index");
    email.configureEmail({ transport: "none", logBodies });
-   return { email, lines: () => info.mock.calls.map(([line]) => String(line)) };
+   return { email, infos: callsOf(info), warnings: callsOf(warn) };
 };
 
 const sendOneOfEach = async (
@@ -62,28 +71,49 @@ describe("email with no transport", () => {
       ).rejects.toThrow(/not configured/);
    });
 
-   it("logs only the kind of each dropped message when bodies are off", async () => {
-      const { email, lines } = await load(false);
+   it("warns with only the kind of each dropped message when bodies are off", async () => {
+      const { email, infos, warnings } = await load(false);
       await sendOneOfEach(email);
-      expect(lines()).toEqual([
-         "[email] invite email dropped (transport none)",
-         "[email] reset email dropped (transport none)",
-         "[email] account-deleted email dropped (transport none)",
+      const dropped = "Email dropped (transport none)";
+      expect(infos()).toEqual([]);
+      expect(warnings()).toEqual([
+         { message: dropped, kind: "invite" },
+         { message: dropped, kind: "reset" },
+         { message: dropped, kind: "account-deleted" },
       ]);
    });
 
    it("prints the whole message when bodies are on so the link can be followed", async () => {
-      const { email, lines } = await load(true);
+      const { email, infos, warnings } = await load(true);
       await sendOneOfEach(email);
-      const [invite, reset] = lines();
-      expect(invite).toContain(
-         `to=invitee@corp.example subject="You've been invited to a server on S3 Viewer"`
-      );
-      expect(invite).toContain(
+      expect(warnings()).toEqual([]);
+      const [invite, reset] = infos();
+      expect(invite).toMatchObject({
+         to: "invitee@corp.example",
+         subject: "You've been invited to a server on S3 Viewer",
+      });
+      expect(invite?.text).toContain(
          "Invited by Mallory Inviter (mallory@corp.example)"
       );
-      expect(invite).toContain("invite=secret-token");
-      expect(reset).toContain("to=member@corp.example");
-      expect(reset).toContain("secret-reset");
+      expect(invite?.text).toContain("invite=secret-token");
+      expect(reset?.to).toBe("member@corp.example");
+      expect(reset?.text).toContain("secret-reset");
+   });
+
+   it("logs through the logger it was handed instead of the console", async () => {
+      vi.resetModules();
+      const printed = vi.spyOn(console, "warn");
+      const warn = vi.fn();
+      const email = await import("./index");
+      email.configureEmail({
+         transport: "none",
+         logBodies: false,
+         logger: { info: vi.fn(), warn, error: vi.fn() },
+      });
+      await sendOneOfEach(email);
+      expect(warn).toHaveBeenCalledWith("Email dropped (transport none)", {
+         kind: "invite",
+      });
+      expect(printed).not.toHaveBeenCalled();
    });
 });

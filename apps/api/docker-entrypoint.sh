@@ -14,6 +14,16 @@ if [ -z "$DATABASE_URL" ]; then
    exit 1
 fi
 
+# the same spellings the API accepts for its boolean flags; checked before the postgres wait so a typo fails fast.
+case "$(printf '%s' "${RUN_MIGRATIONS:-true}" | tr '[:upper:]' '[:lower:]')" in
+   true | 1 | yes | on) migrate=1 ;;
+   false | 0 | no | off) migrate=0 ;;
+   *)
+      echo "RUN_MIGRATIONS must be true or false (also 1/0, yes/no, on/off), got \"$RUN_MIGRATIONS\"." >&2
+      exit 1
+      ;;
+esac
+
 # PID 1 needs a trap to stop children while waiting for PostgreSQL or migrations.
 child=""
 
@@ -63,8 +73,8 @@ else
    esac
 fi
 
-if [ "$RUN_MIGRATIONS" = "false" ]; then
-   echo "RUN_MIGRATIONS=false: skipping migrate deploy."
+if [ "$migrate" = 0 ]; then
+   echo "RUN_MIGRATIONS=$RUN_MIGRATIONS: skipping migrate deploy."
 else
    echo "Applying database migrations ..."
    run node /app/node_modules/prisma/build/index.js migrate deploy --schema=/app/prisma/schema.prisma

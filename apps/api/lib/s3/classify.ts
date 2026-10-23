@@ -10,11 +10,7 @@ import { RESPONSE_TOO_LARGE } from "./xml-response-guard";
 
 type HttpFailure = { status: number; message: string; code?: ErrorCode };
 
-const NOT_FOUND_NAMES: ReadonlySet<string> = new Set([
-   "NoSuchKey",
-   "NotFound",
-   "NoSuchUpload",
-]);
+const NOT_FOUND_NAMES: ReadonlySet<string> = new Set(["NoSuchKey", "NotFound"]);
 const REJECTED_CREDENTIAL_NAMES: ReadonlySet<string> = new Set([
    "InvalidAccessKeyId",
    "InvalidClientTokenId",
@@ -51,6 +47,10 @@ const NETWORK_NAMES: ReadonlySet<string> = new Set([
 const OBJECT_NOT_FOUND: HttpFailure = {
    status: 404,
    message: "Object not found",
+};
+const UPLOAD_GONE: HttpFailure = {
+   status: 404,
+   message: "This upload no longer exists. Start it again.",
 };
 const BUCKET_NOT_FOUND: HttpFailure = {
    status: 404,
@@ -105,6 +105,7 @@ const classifyFailure = (
 ): HttpFailure => {
    const { name, httpStatus } = failure;
    if (name === "NoSuchBucket") return BUCKET_NOT_FOUND;
+   if (name === "NoSuchUpload") return UPLOAD_GONE;
    if (NOT_FOUND_NAMES.has(name) || httpStatus === 404) {
       return scope === "bucket" ? BUCKET_NOT_FOUND : OBJECT_NOT_FOUND;
    }

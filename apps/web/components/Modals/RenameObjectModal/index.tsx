@@ -1,7 +1,7 @@
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { KeyDialog } from "@/components/Modals/key-dialog";
 import DeletionProtectionNotice from "@/components/Modals/deletion-protection-notice";
-import useRequestError from "@/components/Modals/use-request-error";
+import useRequestError from "@/components/Modals/useRequestError";
 import useRenameObject from "@/lib/hooks/mutations/object/useRenameObject";
 import { validateObjectKey } from "@/lib/utils/s3/keys";
 import { toast } from "@s3-viewer/ui/components/toast";

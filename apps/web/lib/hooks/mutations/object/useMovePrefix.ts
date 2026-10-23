@@ -6,7 +6,7 @@ import {
    prefixesOverlap,
 } from "@/lib/utils/s3/keys";
 import type { BucketTarget } from "@/lib/types";
-import useObjectMutation, { forgetMatching } from "./object-mutation";
+import useObjectMutation, { forgetMatching } from "./useObjectMutation";
 import { moveObjects, reportMoveResult } from "./useMoveObjects";
 
 type MovePrefixInput = BucketTarget & {

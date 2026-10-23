@@ -5,8 +5,10 @@ import {
    serverInfo,
    typeInto,
 } from "@/components/test-helpers";
+import { ApiError } from "@/lib/api";
 import { flushRuntime } from "@/lib/test/runtime";
 import {
+   ErrorCode,
    Role,
    type S3Bucket,
    type SendInvitesInput,
@@ -16,7 +18,7 @@ import {
 import { act, createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { GrantRow } from "../bucket-grants";
-import type { ServerBuckets } from "./use-server-buckets";
+import type { ServerBuckets } from "./useServerBuckets";
 import type { ServerAccess } from "./wizard-state";
 
 type AccessProps = {
@@ -43,6 +45,7 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "user" }));
+vi.mock("@/lib/auth", () => ({ requestSignOut: vi.fn() }));
 vi.mock("@/lib/hooks/queries/server/useServers", () => ({
    default: () => h.servers,
 }));
@@ -53,7 +56,7 @@ vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
 vi.mock("@/lib/hooks/mutations/invites/useSendInvites", () => ({
    default: () => ({ mutate: h.send, isPending: false }),
 }));
-vi.mock("./use-server-buckets", () => ({
+vi.mock("./useServerBuckets", () => ({
    default: (_userId: string, ids: string[]): ServerBuckets[] =>
       ids.map((id) => ({
          serverId: id,
@@ -293,6 +296,29 @@ describe("with several servers to choose from", () => {
       expect(container.querySelector("[role=alert]")!.textContent).toContain(
          "Couldn't send invites. Rate limited"
       );
+   });
+
+   it("asks for a fresh sign-in when the API refuses an admin invite from an old session", async () => {
+      h.query = { server: "a" };
+      const container = await mount();
+      await addEmail("a@x.com");
+      await click(continueButton());
+      await click(continueButton());
+      await setAccess("a", Role.VIEWER, [
+         { bucketName: "site", role: Role.VIEWER, folders: null },
+      ]);
+      await click(continueButton());
+      await click(sendButton());
+      await act(async () =>
+         sentOptions().onError(
+            new ApiError(403, "needs a sign-in", ErrorCode.SESSION_STALE)
+         )
+      );
+      expect(title()).toBe("Review and send");
+      expect(container.textContent).toContain(
+         "Sign in again to invite an admin"
+      );
+      expect(container.textContent).not.toContain("Couldn't send invites");
    });
 });
 

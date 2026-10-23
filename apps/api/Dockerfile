@@ -1,4 +1,6 @@
-FROM node:22-alpine AS base
+ARG TURBO_VERSION=2.10.12
+
+FROM node:22.23.4-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
@@ -7,7 +9,8 @@ WORKDIR /app
 
 FROM base AS pruner
 COPY . .
-RUN pnpm dlx turbo@2.10.12 prune api --docker
+ARG TURBO_VERSION
+RUN pnpm dlx turbo@${TURBO_VERSION} prune api --docker
 
 FROM base AS builder
 COPY --from=pruner /app/out/json/ .
@@ -79,7 +82,8 @@ find /out/node_modules \( -name '*.map' -o -name '*.d.ts' -o -name '*.d.mts' -o 
 rm -f /out/dist/*.map
 SH
 
-FROM base AS runner
+FROM node:22.23.4-alpine AS runner
+WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=5001
 ENV DATA_DIR=/data
@@ -91,7 +95,7 @@ ENV PRISMA_HIDE_UPDATE_MESSAGE=1
 COPY --from=builder /out ./
 COPY apps/api/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN apk add --no-cache su-exec && chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data && chown node:node /data
+RUN apk add --no-cache openssl su-exec && chmod +x /usr/local/bin/docker-entrypoint.sh && mkdir -p /data && chown node:node /data
 
 USER node
 VOLUME /data

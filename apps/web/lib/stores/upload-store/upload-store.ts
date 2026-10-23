@@ -9,6 +9,7 @@ import type { UploadFile } from "@/lib/utils/s3/drop-entries";
 import { isCancelled } from "@/lib/utils/s3/upload-cancelled";
 import { uploadObject } from "@/lib/utils/s3/upload-object";
 import useSessionStore from "@/lib/stores/session-store";
+import { entryId, isOpen } from "./entries";
 import { registerUploadReset, uploadsSuspended } from "./lifecycle";
 import type { UploadBatch, UploadEntry } from "./types";
 
@@ -64,9 +65,6 @@ const flushScopeIfIdle = (scope: string) => {
    settleScope(batch);
 };
 
-const isOpen = (status: UploadEntry["status"]) =>
-   status === "pending" || status === "active";
-
 const adjustBatchCounts = (
    batch: UploadBatch,
    status: UploadEntry["status"],
@@ -99,9 +97,6 @@ type UploadActions = {
 };
 
 type UploadStore = UploadState & UploadActions;
-
-const entryId = (serverId: string, bucketName: string, objectKey: string) =>
-   JSON.stringify([serverId, bucketName, objectKey]);
 
 // pending ids live past queueHead so dequeuing a 10k drop is not O(n) per slot
 let queue: string[] = [];
@@ -451,7 +446,10 @@ const useUploadStore = create<UploadStore>()((set, get) => {
    };
 });
 
-registerUploadReset(() => useUploadStore.getState().cancelAllAndClear());
+registerUploadReset(
+   () => useUploadStore.getState().cancelAllAndClear(),
+   () => useUploadStore.getState().isUploading
+);
 
 useSessionStore.subscribe((state, previous) => {
    if (state.userId !== previous.userId)

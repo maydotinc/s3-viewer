@@ -1,31 +1,11 @@
-type Level = "debug" | "info" | "warn" | "error";
-
-const LEVELS: Record<Level, number> = {
-   debug: 10,
-   info: 20,
-   warn: 30,
-   error: 40,
-};
-
-const isLevel = (value: string): value is Level => Object.hasOwn(LEVELS, value);
-
-// resolved on first write, after env.ts has loaded .env, not at import time.
-let threshold: number | undefined;
-
-const resolveThreshold = (): number => {
-   const configured = process.env.LOG_LEVEL?.trim() ?? "";
-   const fallback: Level =
-      process.env.NODE_ENV === "production" ? "warn" : "debug";
-   return LEVELS[isLevel(configured) ? configured : fallback];
-};
+import { logs, type LogLevel } from "./log-level";
 
 const write = (
-   level: Level,
+   level: LogLevel,
    message: string,
    meta?: Record<string, unknown>
 ) => {
-   threshold ??= resolveThreshold();
-   if (LEVELS[level] < threshold) return;
+   if (!logs(level)) return;
    const line = { t: new Date().toISOString(), level, message, ...meta };
    (level === "error" || level === "warn" ? console.error : console.log)(
       JSON.stringify(line)

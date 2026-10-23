@@ -12,7 +12,7 @@ cd s3-viewer
 docker compose up -d
 ```
 
-open [localhost:3000](http://localhost:3000) once the first build finishes. no `.env` needed — the API runs migrations and saves generated secrets in its `/data` volume. the app and API are only reachable from your machine by default.
+open [localhost:3000](http://localhost:3000) once the first build finishes. no `.env` needed — the API runs migrations and saves generated secrets in its `/data` volume. the app and API are only reachable from your machine by default. the bundled Postgres password defaults to `s3viewer`, so set `POSTGRES_PASSWORD` in a root `.env` before the first start to change it.
 
 create an account. nobody gets in before their email is verified, and email is off by default, so the app asks you to [verify the account below](#verify-an-account-without-email) from the terminal.
 

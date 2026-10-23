@@ -8,6 +8,7 @@ const limit = vi.hoisted(() => ({
    perMinute: 2,
    perServer: 32,
    perUser: 64,
+   total: 1000,
 }));
 
 vi.mock("@/lib/env", async (original) => {
@@ -24,6 +25,9 @@ vi.mock("@/lib/env", async (original) => {
          },
          get S3_MAX_INFLIGHT_PER_USER() {
             return limit.perUser;
+         },
+         get S3_MAX_TOTAL_SOCKETS() {
+            return limit.total;
          },
       },
    };
@@ -77,6 +81,7 @@ beforeEach(() => {
    limit.perMinute = 2;
    limit.perServer = 32;
    limit.perUser = 64;
+   limit.total = 1000;
    resetRequestBudgets();
    vi.useRealTimers();
 });
@@ -220,6 +225,36 @@ describe("in-flight storage request caps", () => {
       open();
       await Promise.all(pending);
       await expect(head()).rejects.toThrow("network unavailable");
+   });
+
+   it("holds the whole process to its total across servers but leaves cancellations their own pool", async () => {
+      limit.total = 2;
+      const first = held("tarpit1234");
+      const second = held("tarpit5678");
+      const third = held("tarpit9012");
+      const cancel = held("tarpit9012", withCancelBudget);
+      const pending = [
+         withReadUser("alice", () => quiet(first.head())),
+         withReadUser("bob", () => quiet(second.head())),
+      ];
+      await expect(
+         withReadUser("carol", () => third.head())
+      ).rejects.toMatchObject({
+         status: 429,
+         message: "Storage is busy. Try again shortly.",
+         code: "RATE_LIMITED",
+      });
+      cancel.open();
+      await expect(withReadUser("carol", () => cancel.head())).rejects.toThrow(
+         "network unavailable"
+      );
+      first.open();
+      second.open();
+      await Promise.all(pending);
+      third.open();
+      await expect(withReadUser("carol", () => third.head())).rejects.toThrow(
+         "network unavailable"
+      );
    });
 
    it("holds one user to their cap across servers without touching other users", async () => {

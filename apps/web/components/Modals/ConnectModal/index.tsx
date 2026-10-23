@@ -1,7 +1,7 @@
 import Field, { FieldSkeleton } from "@/components/form-field";
 import FormError from "@/components/Modals/form-error";
 import { ModalShell } from "@/components/Modals/modal-shell";
-import useAsyncAction from "@/components/use-async-action";
+import useAsyncAction from "@/lib/hooks/useAsyncAction";
 import { errorMessage } from "@/lib/api";
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { parseServerName } from "@/lib/utils/server-name";
@@ -9,6 +9,7 @@ import { PROVIDER_NAMES } from "@/lib/constants";
 import useCreateServer from "@/lib/hooks/mutations/server/useCreateServer";
 import useEstablishConnection from "@/lib/hooks/mutations/server/useEstablishConnection";
 import useValidateBuckets from "@/lib/hooks/mutations/server/useValidateBuckets";
+import { useAbortableTask } from "@/lib/hooks/useAbortableTask";
 import useInstanceConfig, {
    encryptionState,
 } from "@/lib/hooks/queries/useInstanceConfig";
@@ -26,7 +27,7 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { DialogBody, DialogFooter } from "@s3-viewer/ui/components/dialog";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Check, X } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import {
    CredentialsFields,
    CredentialsFieldsSkeleton,
@@ -63,13 +64,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       setError(errorMessage(failure))
    );
    // a step that finishes after the dialog closed must not start the next one, or a dismissed connect could still create the server
-   const mounted = useRef(false);
-   useEffect(() => {
-      mounted.current = true;
-      return () => {
-         mounted.current = false;
-      };
-   }, []);
+   const task = useAbortableTask();
 
    const establish = useEstablishConnection();
    const validateBuckets = useValidateBuckets();
@@ -85,6 +80,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
    const detect = async (e: FormEvent) => {
       e.preventDefault();
       await run(async () => {
+         const signal = task.start();
          const submitted = { ...fields };
          const name = parseServerName(submitted.name);
          if (!name.ok) {
@@ -96,7 +92,7 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
             config.data,
             userId
          );
-         if (!mounted.current) return;
+         if (signal.aborted) return;
          if ("error" in sealed) {
             setError(sealed.error);
             return;
@@ -157,10 +153,11 @@ const ConnectModal = ({ onClose }: ConnectModalProps) => {
       e.preventDefault();
       await run(async () => {
          if (!connection) return;
+         const signal = task.start();
          let bucketNames: string[] | undefined;
          if (!connection.detected.listBucketsAllowed) {
             const names = await checkBuckets();
-            if (!names || !mounted.current) return;
+            if (!names || signal.aborted) return;
             bucketNames = names;
          }
          await createServer.mutateAsync({

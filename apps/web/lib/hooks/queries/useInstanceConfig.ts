@@ -49,16 +49,20 @@ const isPublicConfig = (value: unknown): value is PublicConfig =>
    typeof (value as PublicConfig).encryptionPublicKey === "string" &&
    typeof (value as PublicConfig).allowInsecureEndpoints === "boolean";
 
-const placeholderFrom = ({
+const cacheEntry = ({
    emailEnabled,
    githubLoginEnabled,
    signUpMode,
    allowedEmailDomains,
-}: CachedConfig): PublicConfig => ({
+}: CachedConfig): CachedConfig => ({
    emailEnabled,
    githubLoginEnabled,
    signUpMode,
    allowedEmailDomains,
+});
+
+const placeholderFrom = (config: CachedConfig): PublicConfig => ({
+   ...cacheEntry(config),
    encryptionPublicKey: "",
    allowInsecureEndpoints: false,
 });
@@ -76,18 +80,6 @@ const readCachedConfig = (): PublicConfig | undefined => {
    }
    return cached ?? undefined;
 };
-
-const cacheEntry = ({
-   emailEnabled,
-   githubLoginEnabled,
-   signUpMode,
-   allowedEmailDomains,
-}: CachedConfig): CachedConfig => ({
-   emailEnabled,
-   githubLoginEnabled,
-   signUpMode,
-   allowedEmailDomains,
-});
 
 const rememberConfig = (config: PublicConfig): void => {
    const serialized = JSON.stringify(cacheEntry(config));

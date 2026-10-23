@@ -1,5 +1,6 @@
 import FoldersOnlyLabel from "@/components/folders-only-label";
 import RemoveBucketDialog from "@/components/Buckets/remove-bucket-dialog";
+import OverflowMenu from "@/components/overflow-menu";
 import {
    HIDDEN_HEADER_TEXT,
    RIGHT_ALIGNED,
@@ -12,13 +13,7 @@ import { bucketEntryHref } from "@/lib/utils/s3/paths";
 import { ROLE_LABELS } from "@s3-viewer/permissions";
 import type { S3Bucket } from "@s3-viewer/types";
 import { Badge } from "@s3-viewer/ui/components/badge";
-import { Button } from "@s3-viewer/ui/components/button";
-import {
-   DropdownMenu,
-   DropdownMenuContent,
-   DropdownMenuItem,
-   DropdownMenuTrigger,
-} from "@s3-viewer/ui/components/dropdown-menu";
+import { DropdownMenuItem } from "@s3-viewer/ui/components/dropdown-menu";
 import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import type {
    ColDef,
@@ -26,16 +21,17 @@ import type {
    ICellRendererParams,
 } from "ag-grid-community";
 import type { FitContext } from "@/components/DataGrid/fit-columns";
-import { Ellipsis, Folder, FolderMinus } from "lucide-react";
+import { Folder, FolderMinus } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 const BucketNameCell = (params: ICellRendererParams<S3Bucket, string>) => {
+   const serverId = useServerId();
    const data = params.data;
    if (!data) return null;
    const link = (
       <Link
-         href={bucketEntryHref(data)}
+         href={bucketEntryHref(serverId, data)}
          className="flex h-full min-w-0 items-center gap-2.5 text-viewerblack transition-colors hover:text-viewerblue focus-visible:text-viewerblue"
       >
          <Folder
@@ -63,28 +59,15 @@ const BucketActionsMenu = ({ bucketName }: { bucketName: string }) => {
 
    return (
       <div className="flex h-full items-center justify-center">
-         <DropdownMenu modal={false}>
-            <SimpleTooltip label={`Actions for ${bucketName}`}>
-               <DropdownMenuTrigger asChild>
-                  <Button
-                     variant="ghost"
-                     size="icon-sm"
-                     aria-label={`Actions for ${bucketName}`}
-                  >
-                     <Ellipsis aria-hidden="true" />
-                  </Button>
-               </DropdownMenuTrigger>
-            </SimpleTooltip>
-            <DropdownMenuContent align="end" className="w-56">
-               <DropdownMenuItem
-                  variant="destructive"
-                  onSelect={() => setConfirming(true)}
-               >
-                  <FolderMinus aria-hidden="true" />
-                  Remove bucket
-               </DropdownMenuItem>
-            </DropdownMenuContent>
-         </DropdownMenu>
+         <OverflowMenu label={bucketName}>
+            <DropdownMenuItem
+               variant="destructive"
+               onSelect={() => setConfirming(true)}
+            >
+               <FolderMinus aria-hidden="true" />
+               Remove bucket
+            </DropdownMenuItem>
+         </OverflowMenu>
          <RemoveBucketDialog
             bucketName={bucketName}
             open={confirming}

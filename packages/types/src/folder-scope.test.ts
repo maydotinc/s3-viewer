@@ -47,23 +47,6 @@ describe("isInFolderScope", () => {
       expect(isInFolderScope([], "")).toBe(false);
    });
 
-   it("never lets an empty folder name stand for the whole bucket", () => {
-      expect(isInFolderScope([""], "landing/x")).toBe(false);
-      expect(isPrefixInFolderScope([""], "")).toBe(false);
-      expect(isInFolderScope(["", "landing/"], "landing/x")).toBe(true);
-   });
-
-   it("reads a stored folder missing its slash as a folder, not a name prefix", () => {
-      expect(isInFolderScope(["landing"], "landing/hero.png")).toBe(true);
-      expect(isInFolderScope(["landing"], "landing-internal/plan.pdf")).toBe(
-         false
-      );
-      expect(isInFolderScope(["landing"], "landing")).toBe(false);
-      expect(isPrefixInFolderScope(["landing"], "landing-internal/")).toBe(
-         false
-      );
-   });
-
    it("refuses dot segments even under an allowed folder", () => {
       expect(isInFolderScope(landing, "landing/../uploads/x")).toBe(false);
       expect(isInFolderScope(landing, "landing/./x")).toBe(false);

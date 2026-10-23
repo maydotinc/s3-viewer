@@ -106,8 +106,18 @@ const world = (state: World) => {
    return { requests, handle };
 };
 
+const OWNERSHIP =
+   "<OwnershipControls><Rule><ObjectOwnership>ObjectWriter</ObjectOwnership></Rule></OwnershipControls>";
+
+// every bucket here accepts ACLs; copy.test.ts covers the other ownership settings.
 const clientFor = (endpoint: string, handle: FixtureHandle) =>
-   s3Fixture(handle, { endpoint }).client;
+   s3Fixture(
+      async (request, options) =>
+         "ownershipControls" in request.query
+            ? xml(OWNERSHIP)
+            : handle(request, options),
+      { endpoint }
+   ).client;
 
 const run = async (
    provider: Provider,
@@ -188,26 +198,30 @@ describe("rename copies then deletes on every provider", () => {
    });
 
    it.each(providers.filter(({ provider }) => provider !== Provider.S3))(
-      "checks the destination and re-checks the source before deleting on $name",
+      "re-checks the source before deleting on $name",
       async ({ provider, endpoint }) => {
          const { requests, result, state } = await run(provider, endpoint, {
             source: { etag: ETAG, size: 12 },
          });
          expect(result).toBeUndefined();
          expect(state.source).toBeNull();
+         // only a provider that ignores the copy's destination condition needs the destination HEAD.
          expect(summarise(requests)).toEqual([
             `HEAD ${SOURCE}`,
-            `HEAD ${DEST}`,
+            ...(provider === Provider.R2 ? [] : [`HEAD ${DEST}`]),
             `PUT ${DEST}`,
             `HEAD ${SOURCE}`,
             `DELETE ${SOURCE}`,
          ]);
-         const copy = requests[2]!;
-         const remove = requests[4]!;
+         const [recheck, remove] = requests.slice(-2) as [
+            FixtureRequest,
+            FixtureRequest,
+         ];
+         const copy = requests.find((r) => r.method === "PUT")!;
          expect(copy.headers["x-amz-copy-source-if-match"]).toBe(ETAG);
          expect(remove.headers).not.toHaveProperty("if-match");
          expect(remove.headers).not.toHaveProperty("if-none-match");
-         expect(requests[3]!.headers["if-match"]).toBe(ETAG);
+         expect(recheck.headers["if-match"]).toBe(ETAG);
          expect(requests.some((r) => "acl" in r.query)).toBe(false);
       }
    );
@@ -220,10 +234,39 @@ describe("rename copies then deletes on every provider", () => {
             source: { etag: ETAG, size: 12 },
          }
       );
-      const copy = requests[2]!;
+      const copy = requests.find((r) => r.method === "PUT")!;
       expect(copy.headers["cf-copy-destination-if-none-match"]).toBe("*");
       expect(copy.headers).not.toHaveProperty("if-none-match");
    });
+
+   it.each(providers)(
+      "removes the original after the copy lands even when the caller leaves on $name",
+      async ({ provider, endpoint }) => {
+         const caller = new AbortController();
+         const state: World = { source: { etag: ETAG, size: 12 } };
+         const { requests, handle } = world(state);
+         const client = clientFor(endpoint, async (request) => {
+            const answer = await handle(request);
+            if (request.method === "PUT") caller.abort();
+            return answer;
+         });
+         try {
+            const scope = { client, bucket: BUCKET };
+            const source = await headReviewed(scope, SOURCE, ETAG);
+            await renameObject({ ...scope, signal: caller.signal }, provider, {
+               objectKey: SOURCE,
+               newObjectKey: DEST,
+               source,
+               sourceETag: ETAG,
+            });
+         } finally {
+            client.destroy();
+         }
+         expect(caller.signal.aborted).toBe(true);
+         expect(state.source).toBeNull();
+         expect(summarise(requests).at(-1)).toBe(`DELETE ${SOURCE}`);
+      }
+   );
 
    it("refuses a source that changed before the copy", async () => {
       const { requests, result } = await run(

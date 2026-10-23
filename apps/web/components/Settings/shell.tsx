@@ -22,7 +22,7 @@ const SettingsShell = ({ children }: { children: ReactNode }) => {
    const { pathname } = useRouter();
    const prefetch = usePrefetchSettings();
    // the whole page scrolls, not the card column, so cards run past the window edges instead of clipping in the page padding.
-   // the top gap is inside the scroll area, not scroll-container padding: chrome measures the sticky inset from the content box.
+   // the top gap is inside the scroll area, not scroll-container padding: Chrome measures the sticky inset from the content box.
    return (
       <Page className="pt-0">
          <div className="flex min-w-0 flex-col gap-6 pt-10 lg:flex-row lg:items-start lg:gap-8">

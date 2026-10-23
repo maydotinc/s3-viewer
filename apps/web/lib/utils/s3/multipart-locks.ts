@@ -23,9 +23,17 @@ const withMultipartStorageLock = async <T>(
    }
 };
 
+const LEASE_PREFIX = "s3-viewer.multipart-upload.";
+
+const leaseName = (
+   userId: string,
+   { serverId, bucketName, objectKey }: UploadTarget
+): string =>
+   `${LEASE_PREFIX}${JSON.stringify([userId, serverId, bucketName, objectKey])}`;
+
 const withMultipartLease = async <T>(
    userId: string,
-   { serverId, bucketName, objectKey }: UploadTarget,
+   target: UploadTarget,
    operation: (persistent: boolean) => Promise<T>
 ): Promise<T> => {
    const locks = lockManager();
@@ -33,7 +41,7 @@ const withMultipartLease = async <T>(
    let entered = false;
    try {
       return await locks.request(
-         `s3-viewer.multipart-upload.${JSON.stringify([userId, serverId, bucketName, objectKey])}`,
+         leaseName(userId, target),
          { ifAvailable: true },
          async (lock) => {
             entered = true;
@@ -46,4 +54,33 @@ const withMultipartLease = async <T>(
    }
 };
 
-export { withMultipartLease, withMultipartStorageLock };
+// keys whose multipart upload some tab of this browser is still running under its lease
+const leasedUploadKeys = async (
+   userId: string,
+   serverId: string,
+   bucketName: string
+): Promise<Set<string>> => {
+   const locks = lockManager();
+   if (!locks) return new Set();
+   try {
+      const { held = [] } = await locks.query();
+      return new Set(
+         held.flatMap(({ name }) => {
+            if (!name?.startsWith(LEASE_PREFIX)) return [];
+            const [user, server, bucket, key] = JSON.parse(
+               name.slice(LEASE_PREFIX.length)
+            ) as string[];
+            return user === userId &&
+               server === serverId &&
+               bucket === bucketName &&
+               key !== undefined
+               ? [key]
+               : [];
+         })
+      );
+   } catch {
+      return new Set();
+   }
+};
+
+export { leasedUploadKeys, withMultipartLease, withMultipartStorageLock };

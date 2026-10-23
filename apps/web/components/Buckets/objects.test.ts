@@ -53,6 +53,10 @@ vi.mock("@/components/Buckets/Grid/grid-state", () => ({
 vi.mock("@/components/Buckets/Grid/selection", () => ({
    objectRowSelection: {},
 }));
+vi.mock("@/components/DataGrid/context", () => ({
+   GRID_CARD: "",
+   useGridPaginationContext: () => ({ refreshSnapshots: vi.fn() }),
+}));
 vi.mock("@/components/DataGrid/lazy-grid", () => ({ LazyGrid: "grid" }));
 vi.mock("@/components/DataGrid/overlays", () => ({ EmptyState: "empty" }));
 vi.mock("@/components/DataGrid/page-controls", () => ({

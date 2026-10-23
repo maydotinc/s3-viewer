@@ -1,5 +1,6 @@
 import Field from "@/components/form-field";
 import { StepHeader } from "./auth-layout";
+import StatusLine from "./status-line";
 import { TEXT_LINK } from "./text-link";
 import { sendVerificationCode, verifyEmailCode } from "@/lib/auth";
 import { AuthErrorCode } from "@s3-viewer/auth/client";
@@ -11,7 +12,7 @@ import {
 } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
-import { cn } from "@s3-viewer/ui/lib/utils";
+
 import Link from "next/link";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
@@ -204,16 +205,11 @@ const VerifyCodeStep = ({
                   {backLabel}
                </button>
             </p>
-            <p
+            <StatusLine
                id="verification-code-message"
-               role={error ? "alert" : "status"}
-               className={cn(
-                  "min-h-5 break-words leading-5",
-                  error ? "text-viewertextred" : "text-viewertext"
-               )}
-            >
-               {error ?? status ?? ""}
-            </p>
+               error={error}
+               status={status}
+            />
          </div>
       </>
    );

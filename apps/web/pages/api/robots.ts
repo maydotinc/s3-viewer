@@ -1,5 +1,5 @@
 import { publicEnv } from "@/lib/env";
-import { SITE_PATHS } from "@s3-viewer/types";
+import { EDGE_CACHE_CONTROL, SITE_PATHS } from "@s3-viewer/types";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const DISALLOWED = [
@@ -21,10 +21,7 @@ const handler = (_req: NextApiRequest, res: NextApiResponse) => {
       "",
    ].join("\n");
    res.setHeader("Content-Type", "text/plain");
-   res.setHeader(
-      "Cache-Control",
-      "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400"
-   );
+   res.setHeader("Cache-Control", EDGE_CACHE_CONTROL);
    res.status(200).send(body);
 };
 

@@ -7,7 +7,7 @@ import { PRODUCT_NAME } from "@s3-viewer/types/constants";
 type SeoProps = {
    title: string;
    description: string;
-   canonical?: string;
+   canonical: string;
    imageAlt?: string;
    type?: "website" | "article";
    publishedTime?: string;
@@ -26,7 +26,7 @@ export default function Seo({
    jsonLd,
 }: SeoProps) {
    const fullTitle = siteTitle(title);
-   const url = canonical ? `${SITE_URL}${canonical}` : SITE_URL;
+   const url = `${SITE_URL}${canonical}`;
 
    return (
       <Head>

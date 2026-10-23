@@ -177,7 +177,9 @@ describe("details for a role without download permission", () => {
          (node) => node.type === "details",
          "details"
       ).props as { isLoading: boolean; error: Error | null };
-      expect(h.settings).toHaveBeenLastCalledWith("bucket", h.key, false);
+      expect(h.settings).toHaveBeenLastCalledWith("bucket", h.key, {
+         enabled: false,
+      });
       expect(details.isLoading).toBe(false);
       expect(details.error?.message).toContain("can't download this file");
    });
@@ -192,7 +194,7 @@ describe("combined object metadata", () => {
       expect(h.settings).toHaveBeenCalledExactlyOnceWith(
          "bucket",
          "config.json",
-         false
+         { enabled: false }
       );
       expect(
          one(tree, (node) => node.type === "details", "details").props
@@ -209,7 +211,7 @@ describe("combined object metadata", () => {
       expect(h.settings).toHaveBeenCalledExactlyOnceWith(
          "bucket",
          "a/../config.json",
-         true
+         { enabled: true }
       );
    });
 });
@@ -235,7 +237,7 @@ describe("files outside someone's reach", () => {
       expect(h.settings).toHaveBeenCalledExactlyOnceWith(
          "bucket",
          "private/report.pdf",
-         false
+         { enabled: false }
       );
    });
 
@@ -247,11 +249,9 @@ describe("files outside someone's reach", () => {
          "a/../config.json",
          false
       );
-      expect(h.settings).toHaveBeenCalledWith(
-         "bucket",
-         "a/../config.json",
-         false
-      );
+      expect(h.settings).toHaveBeenCalledWith("bucket", "a/../config.json", {
+         enabled: false,
+      });
    });
 
    it("holds the preview read until the bucket list says the file is in reach", () => {

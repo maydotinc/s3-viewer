@@ -1,7 +1,7 @@
 import { useSwitchServer } from "@/lib/hooks/useSwitchServer";
 import { PROVIDER_NAMES } from "@/lib/constants";
 import { useModalActions } from "@/lib/contexts/modal-context";
-import { signOut } from "@/lib/auth";
+import { requestSignOut } from "@/lib/auth";
 import { notifyListingChanged } from "@/lib/listing-events";
 import useBuckets from "@/lib/hooks/queries/s3/useBuckets";
 import useServers from "@/lib/hooks/queries/server/useServers";
@@ -66,10 +66,12 @@ const useCommands = (): CommandItem[] => {
       isFetchNextPageError,
       refetch,
    } = useServers();
-   const route = bucketRoute(router.query);
-   const { buckets, currentBucket } = useBuckets(route.bucketName);
-   const switchServer = useSwitchServer();
    const serverId = useServerId();
+   const route = bucketRoute(router.query);
+   // a bucket URL for a server not yet selected must not offer actions against the selected one
+   const bucketName = route.serverId === serverId ? route.bucketName : "";
+   const { buckets, currentBucket } = useBuckets(bucketName);
+   const switchServer = useSwitchServer();
    const { setHelpOpen } = useShortcutRegistry();
    const { toggleSidebar } = useSidebar();
    const { open: openModal, openScoped } = useModalActions();
@@ -80,7 +82,7 @@ const useCommands = (): CommandItem[] => {
       !route.isObjectView &&
       writeBlockReason(reachOf(currentBucket), folderPrefix) === null;
    const capabilities = useStorageCapabilities();
-   const { role: roleHere } = useEffectiveRoleState(route.bucketName);
+   const { role: roleHere } = useEffectiveRoleState(bucketName);
    const serverRole = currentServer?.userRole ?? null;
    const can = objectPermissions(roleHere, capabilities);
    const canCreateFolder = inFolder && can.upload;
@@ -141,7 +143,7 @@ const useCommands = (): CommandItem[] => {
                bucket.folders === null
                   ? ROLE_LABELS[bucket.userRole]
                   : `${ROLE_LABELS[bucket.userRole]} · Folders only`,
-            href: bucketEntryHref(bucket),
+            href: bucketEntryHref(serverId, bucket),
          });
       }
 
@@ -193,17 +195,21 @@ const useCommands = (): CommandItem[] => {
             id: "action:create-folder",
             group: "Actions",
             label: "New folder",
-            description: `${route.bucketName}/${folderPrefix}`,
+            description: `${bucketName}/${folderPrefix}`,
             keywords: "make directory prefix add empty",
             icon: FolderPlus,
             run: () =>
                openScoped("createFolder", {
                   serverId,
-                  bucketName: route.bucketName,
+                  bucketName,
                   prefix: folderPrefix,
                   onCreateSuccess: (folderKey) =>
                      void router.push(
-                        folderHref(route.bucketName, segmentsFromKey(folderKey))
+                        folderHref(
+                           serverId,
+                           bucketName,
+                           segmentsFromKey(folderKey)
+                        )
                      ),
                }),
          });
@@ -214,13 +220,13 @@ const useCommands = (): CommandItem[] => {
             id: "action:bulk-rename",
             group: "Actions",
             label: "Bulk rename…",
-            description: `${route.bucketName}/${folderPrefix}`,
+            description: `${bucketName}/${folderPrefix}`,
             keywords: "pattern find replace prefix suffix extension lowercase",
             icon: Replace,
             run: () =>
                openScoped("bulkRename", {
                   serverId,
-                  bucketName: route.bucketName,
+                  bucketName,
                   source: { folderKey: folderPrefix },
                   onRenamed: () => notifyListingChanged(),
                }),
@@ -232,13 +238,13 @@ const useCommands = (): CommandItem[] => {
             id: "action:transfer-folder",
             group: "Actions",
             label: "Copy folder to another bucket",
-            description: `${route.bucketName}/${folderPrefix}`,
+            description: `${bucketName}/${folderPrefix}`,
             keywords: "transfer across server bucket duplicate sync",
             icon: ArrowRightLeft,
             run: () =>
                openScoped("transferObjects", {
                   serverId,
-                  bucketName: route.bucketName,
+                  bucketName,
                   source: { folderKey: folderPrefix },
                }),
          });
@@ -354,7 +360,7 @@ const useCommands = (): CommandItem[] => {
             keywords: "log out exit leave session",
             icon: LogOut,
             destructive: true,
-            run: () => void signOut().catch(toastFailure),
+            run: () => void requestSignOut().catch(toastFailure),
          }
       );
 
@@ -368,7 +374,7 @@ const useCommands = (): CommandItem[] => {
       folderPrefix,
       openModal,
       openScoped,
-      route.bucketName,
+      bucketName,
       router,
       serverId,
       canManageMembers,

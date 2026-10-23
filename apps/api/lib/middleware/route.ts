@@ -1,6 +1,6 @@
 import { asyncHandler } from "@/lib/http";
 import {
-   AccessDenied,
+   AccessDeniedError,
    assertInFolders,
    authorize,
    authorizeAudit,
@@ -56,7 +56,7 @@ const recordDenial = (
 const READ_METHODS = new Set(["GET", "HEAD"]);
 
 const recordDenials: ErrorRequestHandler = (err, req, _res, next) => {
-   if (!(err instanceof AccessDenied)) {
+   if (!(err instanceof AccessDeniedError)) {
       next(err);
       return;
    }

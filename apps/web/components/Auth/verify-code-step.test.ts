@@ -85,7 +85,9 @@ describe("entering the code", () => {
       expect(message(container).textContent).toBe(
          "That code isn't right. Check it and try again."
       );
-      expect(message(container).getAttribute("role")).toBe("alert");
+      expect(
+         message(container).querySelector('[role="alert"]')?.textContent
+      ).toBe("That code isn't right. Check it and try again.");
       expect(field(container).disabled).toBe(false);
       expect(field(container).readOnly).toBe(false);
       expect(field(container).getAttribute("aria-invalid")).toBe("true");
@@ -139,7 +141,12 @@ describe("resending", () => {
          "me@example.com"
       );
       expect(message(container).textContent).toBe("Code sent.");
-      expect(message(container).getAttribute("role")).toBe("status");
+      expect(
+         message(container).querySelector('[role="status"]')?.textContent
+      ).toBe("Code sent.");
+      expect(
+         message(container).querySelector('[role="alert"]')?.textContent
+      ).toBe("");
       expect(resend().disabled).toBe(true);
    });
 });

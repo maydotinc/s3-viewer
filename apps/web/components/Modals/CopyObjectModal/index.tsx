@@ -1,7 +1,7 @@
 import type { ModalProps } from "@/lib/contexts/modal-props";
 import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import { KeyDialog } from "@/components/Modals/key-dialog";
-import useRequestError from "@/components/Modals/use-request-error";
+import useRequestError from "@/components/Modals/useRequestError";
 import useCopyObject from "@/lib/hooks/mutations/object/useCopyObject";
 import { visibleText } from "@/lib/utils/format";
 import { occupiedBy } from "@/lib/utils/s3/key-exists";

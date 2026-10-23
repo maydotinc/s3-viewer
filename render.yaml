@@ -40,6 +40,9 @@ services:
           value: none
         - key: AUDIT_RETENTION_DAYS
           value: "365"
+        # the default 256 MiB budget is half this 512 MB instance; 128 MiB leaves headroom for Node and TLS.
+        - key: UPLOAD_MEMORY_BUDGET_BYTES
+          value: "134217728"
 
    - type: web
      name: s3-viewer-web

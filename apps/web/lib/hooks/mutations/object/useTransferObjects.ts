@@ -31,7 +31,7 @@ import {
    type S3ObjectUploaded,
 } from "@s3-viewer/types";
 import { forgetObjects } from "./invalidate";
-import useObjectMutation from "./object-mutation";
+import useObjectMutation from "./useObjectMutation";
 
 const TRANSFER_CONCURRENCY = 2;
 

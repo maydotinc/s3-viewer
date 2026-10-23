@@ -12,7 +12,7 @@ import {
    type S3UploadFailure,
    type S3UploadRef,
 } from "@s3-viewer/types";
-import useObjectMutation from "./object-mutation";
+import useObjectMutation from "./useObjectMutation";
 
 const ABORT_BATCH_UPLOADS = 100;
 

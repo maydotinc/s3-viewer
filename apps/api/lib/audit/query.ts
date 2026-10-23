@@ -8,7 +8,11 @@ import {
 import { decodeCursor, keysetAfter, pageOf, type Position } from "@/lib/cursor";
 import { ApiHttpError, rateLimited } from "@/lib/http";
 import { logger } from "@/lib/logger";
-import { bump, countOf } from "@/lib/utils/counter-map";
+import {
+   keyedSlots,
+   type Release,
+   type SlotClaim,
+} from "@/lib/utils/keyed-slots";
 import { Prisma, type AuditLog } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import {
@@ -35,6 +39,8 @@ const USER_READ_CONCURRENCY = 2;
 const SEARCH_TRANSACTION_MS = 10 * SECOND_MS;
 const VERIFY_TRANSACTION_MS = 30 * SECOND_MS;
 const QUERY_CANCELED = "57014";
+// audit_log.seq is a Postgres int4, so a larger position reaches Prisma as a 500 rather than matching nothing.
+const INT4_MAX = 2_147_483_647;
 
 type AuditRow = Omit<AuditLog, "serverId">;
 type AuditExportRow = AuditLogEntry &
@@ -182,39 +188,38 @@ const isStatementTimeout = (error: unknown): boolean =>
    error.code === "P2010" &&
    String(error.meta?.code) === QUERY_CANCELED;
 
-type ReadSlot = { exporting: boolean; reader: string | undefined };
-
-let reads = 0;
-let exportReads = 0;
-const searchesBy = new Map<string, number>();
-const waitingExports: (() => void)[] = [];
+const readSlots = keyedSlots();
+const waitingExports: ((release: Release) => void)[] = [];
 
 const readsBusy = (): ApiHttpError =>
    rateLimited("Too many audit log reads are running. Try again shortly.");
 
-const exportFits = (): boolean =>
-   reads < READ_CONCURRENCY && exportReads < EXPORT_READ_CONCURRENCY;
+const searchesBusy = (): ApiHttpError =>
+   rateLimited(
+      "Your earlier audit searches are still running. Try again shortly."
+   );
 
-const takeRead = ({ exporting, reader }: ReadSlot): void => {
-   reads++;
-   if (exporting) exportReads++;
-   if (reader) bump(searchesBy, reader, 1);
-};
+const ANY_READ: SlotClaim = ["all", READ_CONCURRENCY, readsBusy];
+const EXPORT_READ: readonly SlotClaim[] = [
+   ANY_READ,
+   ["export", EXPORT_READ_CONCURRENCY, readsBusy],
+];
 
 // a freed slot passes straight to a waiting export, so a search arriving in between cannot take it.
-const leaveRead = ({ exporting, reader }: ReadSlot): void => {
-   reads--;
-   if (exporting) exportReads--;
-   if (reader) bump(searchesBy, reader, -1);
-   if (waitingExports.length > 0 && exportFits()) waitingExports.shift()!();
+const handOver = (): void => {
+   const next = waitingExports[0];
+   if (!next) return;
+   const release = readSlots.tryAcquire(EXPORT_READ, handOver);
+   if (!release) return;
+   waitingExports.shift();
+   next(release);
 };
 
-const waitForRead = (slot: ReadSlot): Promise<void> =>
+const waitForRead = (): Promise<Release> =>
    new Promise((resolve, reject) => {
-      const turn = () => {
+      const turn = (release: Release) => {
          clearTimeout(timer);
-         takeRead(slot);
-         resolve();
+         resolve(release);
       };
       const timer = setTimeout(() => {
          waitingExports.splice(waitingExports.indexOf(turn), 1);
@@ -224,22 +229,21 @@ const waitForRead = (slot: ReadSlot): Promise<void> =>
    });
 
 // an export has already sent its headers, so its batches queue where a search fails fast.
-const enterRead = async (slot: ReadSlot): Promise<void> => {
-   if (slot.exporting) {
-      if (exportFits()) takeRead(slot);
-      else await waitForRead(slot);
-      return;
-   }
-   if (
-      slot.reader &&
-      countOf(searchesBy, slot.reader) >= USER_READ_CONCURRENCY
-   ) {
-      throw rateLimited(
-         "Your earlier audit searches are still running. Try again shortly."
-      );
-   }
-   if (reads >= READ_CONCURRENCY) throw readsBusy();
-   takeRead(slot);
+const enterRead = async (
+   exporting: boolean,
+   reader?: string
+): Promise<Release> => {
+   if (exporting)
+      return readSlots.tryAcquire(EXPORT_READ, handOver) ?? waitForRead();
+   return readSlots.acquire(
+      [
+         reader
+            ? [`reader:${reader}`, USER_READ_CONCURRENCY, searchesBusy]
+            : undefined,
+         ANY_READ,
+      ],
+      handOver
+   );
 };
 
 // any filter can walk a server's whole log, holding a pooled connection throughout.
@@ -249,13 +253,10 @@ const timedRows = async (
    take: number,
    exporting = false
 ): Promise<AuditRow[]> => {
-   const slot: ReadSlot = {
+   const leaveRead = await enterRead(
       exporting,
-      reader: exporting
-         ? undefined
-         : (filters.viewerId ?? filters.reach?.actorId),
-   };
-   await enterRead(slot);
+      filters.viewerId ?? filters.reach?.actorId
+   );
    try {
       return await prisma.$transaction(
          async (tx) => {
@@ -271,7 +272,7 @@ const timedRows = async (
          "This search took too long. Narrow the search with more text, a date range or another filter."
       );
    } finally {
-      leaveRead(slot);
+      leaveRead();
    }
 };
 
@@ -530,38 +531,28 @@ const verdict = (fields: Verdict): AuditVerification => ({
    ...fields,
 });
 
-// a check pins a pooled connection like a search does, so it draws on the same read slots.
-const VERIFY_SLOT: ReadSlot = { exporting: false, reader: undefined };
-
 // one check per server and per person, so neither a long check nor someone with many servers
 // can hold every slot.
-const verifying = new Set<string>();
-const verifyingBy = new Set<string>();
+const checks = keyedSlots();
+
+const serverChecking = (): ApiHttpError =>
+   rateLimited(
+      "An integrity check is already running on this server. Try again shortly."
+   );
+
+const viewerChecking = (): ApiHttpError =>
+   rateLimited(
+      "Your earlier integrity check is still running. Try again once it finishes."
+   );
 
 const enterVerification = (
    serverId: string,
    viewerId: string | undefined
-): (() => void) => {
-   if (verifying.has(serverId)) {
-      throw rateLimited(
-         "An integrity check is already running on this server. Try again shortly."
-      );
-   }
-   if (viewerId && verifyingBy.has(viewerId)) {
-      throw rateLimited(
-         "Your earlier integrity check is still running. Try again once it finishes."
-      );
-   }
-   verifying.add(serverId);
-   if (viewerId) verifyingBy.add(viewerId);
-   let released = false;
-   return () => {
-      if (released) return;
-      released = true;
-      verifying.delete(serverId);
-      if (viewerId) verifyingBy.delete(viewerId);
-   };
-};
+): Release =>
+   checks.acquire([
+      [`server:${serverId}`, 1, serverChecking],
+      viewerId ? [`user:${viewerId}`, 1, viewerChecking] : undefined,
+   ]);
 
 const verifySnapshot = async (
    tx: Prisma.TransactionClient,
@@ -659,19 +650,20 @@ const verifyAuditChain = async (
 ): Promise<AuditVerification> => {
    const release = enterVerification(serverId, viewerId);
    try {
-      await enterRead(VERIFY_SLOT);
+      // a check pins a pooled connection like a search does, so it draws on the same read slots.
+      const leaveRead = await enterRead(false);
       try {
          return await prisma.$transaction(
             (tx) => verifySnapshot(tx, serverId, caller, window),
             { isolationLevel: "RepeatableRead", timeout: VERIFY_TRANSACTION_MS }
          );
       } finally {
-         leaveRead(VERIFY_SLOT);
+         leaveRead();
       }
    } finally {
       release();
    }
 };
 
-export { iterateAudit, listAuditPage, verifyAuditChain };
+export { INT4_MAX, iterateAudit, listAuditPage, verifyAuditChain };
 export type { AuditExportRow, AuditReach };

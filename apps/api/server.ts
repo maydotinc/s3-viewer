@@ -8,7 +8,7 @@ import { startMaintenance } from "@/lib/maintenance";
 import { accountDeletionHooks } from "@/lib/services/account";
 import { assertPrivateKey } from "@/lib/utils/encryption";
 import { assertInstanceSecrets } from "@/lib/utils/instance-secrets";
-import { onUserDeletion } from "@s3-viewer/auth";
+import { onUserDeletion, setAuthLogger } from "@s3-viewer/auth";
 import { configureEmail } from "@s3-viewer/email";
 import { describeError, SECOND_MS } from "@s3-viewer/types";
 import { createServer } from "node:http";
@@ -19,6 +19,7 @@ delete process.env.BETTER_AUTH_SECRET;
 delete process.env.ENCRYPTION_PRIVATE_KEY;
 delete process.env.AUDIT_CHAIN_KEY;
 onUserDeletion(accountDeletionHooks);
+setAuthLogger(logger);
 
 // NODE_ENV defaults to development, so also require a local site before printing live links.
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -30,6 +31,7 @@ configureEmail({
    resendKey: env.RESEND_KEY,
    smtpUrl: env.SMTP_URL,
    logBodies: env.NODE_ENV === "development" && localSite,
+   logger,
 });
 
 const HEADERS_TIMEOUT_MS = env.KEEP_ALIVE_TIMEOUT_MS + 5 * SECOND_MS;

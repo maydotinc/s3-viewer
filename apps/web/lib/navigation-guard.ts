@@ -143,4 +143,9 @@ const installNavigationGuard = (
    };
 };
 
-export { hasInAppHistory, installNavigationGuard, registerNavigationGuard };
+export {
+   confirmNavigation,
+   hasInAppHistory,
+   installNavigationGuard,
+   registerNavigationGuard,
+};

@@ -5,28 +5,34 @@ import {
    folderHref,
    objectHref,
    prefixFromSegments,
+   scopedBucketHref,
    segmentsFromKey,
    segmentsFromObjectKey,
 } from "./paths";
 
-const BUCKETS_ROUTE = "/buckets/[[...slug]]";
+const BUCKETS_ROUTE = "/servers/[serverId]/buckets/[[...slug]]";
+const SERVER = "server-a";
 
 const routeOf = (href: { query: Record<string, unknown> }) =>
    bucketRoute(href.query as Parameters<typeof bucketRoute>[0]);
 
 describe("pretty path segments for ordinary keys", () => {
    it("keeps folders, objects and the bucket root on the slug", () => {
-      expect(folderHref("backups", ["docs", "2026"])).toEqual({
+      expect(folderHref(SERVER, "backups", ["docs", "2026"])).toEqual({
          pathname: BUCKETS_ROUTE,
-         query: { slug: ["backups", "docs", "2026"] },
+         query: { serverId: SERVER, slug: ["backups", "docs", "2026"] },
       });
-      expect(objectHref("backups", "docs/report.pdf")).toEqual({
+      expect(objectHref(SERVER, "backups", "docs/report.pdf")).toEqual({
          pathname: BUCKETS_ROUTE,
-         query: { slug: ["backups", "docs", "report.pdf"], view: "object" },
+         query: {
+            serverId: SERVER,
+            slug: ["backups", "docs", "report.pdf"],
+            view: "object",
+         },
       });
-      expect(folderHref("backups", [])).toEqual({
+      expect(folderHref(SERVER, "backups", [])).toEqual({
          pathname: BUCKETS_ROUTE,
-         query: { slug: ["backups"] },
+         query: { serverId: SERVER, slug: ["backups"] },
       });
    });
 
@@ -64,13 +70,14 @@ describe("keys the URL path cannot carry travel in the query", () => {
       ["./x", [".", "x"]],
       ["docs/", ["docs", ""]],
    ])("routes the object key %j through ?key", (key, segments) => {
-      const href = objectHref("backups", key);
+      const href = objectHref(SERVER, "backups", key);
       expect(href).toEqual({
          pathname: BUCKETS_ROUTE,
-         query: { slug: ["backups"], key, view: "object" },
+         query: { serverId: SERVER, slug: ["backups"], key, view: "object" },
       });
       const route = routeOf(href);
       expect(route).toEqual({
+         serverId: SERVER,
          bucketName: "backups",
          path: segments,
          isObjectView: true,
@@ -83,13 +90,14 @@ describe("keys the URL path cannot carry travel in the query", () => {
       ["a//", ["a", ""]],
       ["./", ["."]],
    ])("routes the folder prefix %j through ?prefix", (prefix, segments) => {
-      const href = folderHref("backups", segments);
+      const href = folderHref(SERVER, "backups", segments);
       expect(href).toEqual({
          pathname: BUCKETS_ROUTE,
-         query: { slug: ["backups"], prefix },
+         query: { serverId: SERVER, slug: ["backups"], prefix },
       });
       const route = routeOf(href);
       expect(route).toEqual({
+         serverId: SERVER,
          bucketName: "backups",
          path: segments,
          isObjectView: false,
@@ -100,7 +108,10 @@ describe("keys the URL path cannot carry travel in the query", () => {
 
 describe("bucketRoute reads both URL shapes", () => {
    it("reads a pretty folder URL", () => {
-      expect(bucketRoute({ slug: ["backups", "docs", "2026"] })).toEqual({
+      expect(
+         bucketRoute({ serverId: SERVER, slug: ["backups", "docs", "2026"] })
+      ).toEqual({
+         serverId: SERVER,
          bucketName: "backups",
          path: ["docs", "2026"],
          isObjectView: false,
@@ -111,6 +122,7 @@ describe("bucketRoute reads both URL shapes", () => {
       expect(
          bucketRoute({ slug: ["backups", "docs", "r.pdf"], view: "object" })
       ).toEqual({
+         serverId: "",
          bucketName: "backups",
          path: ["docs", "r.pdf"],
          isObjectView: true,
@@ -119,6 +131,7 @@ describe("bucketRoute reads both URL shapes", () => {
 
    it("reads a single-segment slug", () => {
       expect(bucketRoute({ slug: "backups" })).toEqual({
+         serverId: "",
          bucketName: "backups",
          path: [],
          isObjectView: false,
@@ -127,6 +140,7 @@ describe("bucketRoute reads both URL shapes", () => {
 
    it("reports no bucket without a slug", () => {
       expect(bucketRoute({})).toEqual({
+         serverId: "",
          bucketName: "",
          path: [],
          isObjectView: false,
@@ -157,11 +171,28 @@ describe("bucketRoute reads both URL shapes", () => {
 describe("opening a bucket", () => {
    it("goes straight into the only folder someone was given, otherwise to the root", () => {
       expect(
-         bucketEntryHref({ name: "site", folders: ["reports/2026/"] })
-      ).toEqual(folderHref("site", ["reports", "2026"]));
+         bucketEntryHref(SERVER, { name: "site", folders: ["reports/2026/"] })
+      ).toEqual(folderHref(SERVER, "site", ["reports", "2026"]));
       for (const folders of [null, ["a/", "b/"]])
-         expect(bucketEntryHref({ name: "site", folders })).toEqual(
-            folderHref("site", [])
+         expect(bucketEntryHref(SERVER, { name: "site", folders })).toEqual(
+            folderHref(SERVER, "site", [])
          );
+   });
+});
+
+describe("a bucket link without a server", () => {
+   it("keeps its bucket, path and query on the given server's URL", () => {
+      const href = scopedBucketHref(SERVER, {
+         slug: ["backups"],
+         key: "a//b.txt",
+         view: "object",
+      });
+      expect(href).toEqual(objectHref(SERVER, "backups", "a//b.txt"));
+   });
+
+   it("cannot be pointed at another server through its query", () => {
+      expect(
+         scopedBucketHref(SERVER, { slug: ["backups"], serverId: "other" })
+      ).toEqual(folderHref(SERVER, "backups", []));
    });
 });

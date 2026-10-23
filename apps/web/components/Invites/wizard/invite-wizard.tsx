@@ -1,4 +1,5 @@
 import SettingsCard from "@/components/Settings/card";
+import { isSessionStale } from "@/components/stale-sign-in";
 import useSendInvites from "@/lib/hooks/mutations/invites/useSendInvites";
 import useServers from "@/lib/hooks/queries/server/useServers";
 import useInstanceConfig, {
@@ -34,7 +35,7 @@ import StepReview from "./step-review";
 import StepWhere from "./step-where";
 import StepWho from "./step-who";
 import Stepper from "./stepper";
-import useServerBuckets from "./use-server-buckets";
+import useServerBuckets from "./useServerBuckets";
 import {
    INITIAL_WIZARD_STATE,
    canContinueAccess,
@@ -77,6 +78,7 @@ const InviteWizard = () => {
    const sendInvites = useSendInvites();
    const [state, dispatch] = useReducer(wizardReducer, INITIAL_WIZARD_STATE);
    const [requestError, setRequestError] = useState<string | null>(null);
+   const [staleSession, setStaleSession] = useState(false);
    const [retrying, setRetrying] = useState<string | null>(null);
    const [announcement, setAnnouncement] = useState("");
    const cardRef = useRef<HTMLDivElement>(null);
@@ -211,11 +213,15 @@ const InviteWizard = () => {
 
    const send = () => {
       setRequestError(null);
+      setStaleSession(false);
       sendInvites.mutate(
          { emails: emails.chips, targets: targetsFor(selectedIds), notify },
          {
             onSuccess: (sent) => dispatch({ type: "sent", result: sent }),
-            onError: (error) => setRequestError(error.message),
+            onError: (error) => {
+               if (isSessionStale(error)) setStaleSession(true);
+               else setRequestError(error.message);
+            },
          }
       );
    };
@@ -362,6 +368,7 @@ const InviteWizard = () => {
             email={email}
             notify={state.notify}
             requestError={requestError}
+            staleSession={staleSession}
             retrying={sending}
             disabled={sending}
             onNotifyChange={(next) =>

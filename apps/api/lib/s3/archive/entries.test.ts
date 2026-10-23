@@ -489,6 +489,43 @@ describe("archive entry collection", () => {
       }
    });
 
+   it("lists selected folders together but keeps the selection's order", async () => {
+      const others = Promise.withResolvers<void>();
+      let started = 0;
+      const contents: Record<string, { key: string; size: number }[]> = {
+         "a/": [
+            { key: "a/1", size: 1 },
+            { key: "a/deep/2", size: 1 },
+         ],
+         "b/": [{ key: "b/3", size: 1 }],
+         "a/deep/": [{ key: "a/deep/2", size: 1 }],
+      };
+      const f = s3Fixture(async (request) => {
+         const prefix = decodeURIComponent(request.query.prefix ?? "");
+         if (++started === 3) others.resolve();
+         // the first folder answers last, so a sequential walk would never get past it.
+         if (prefix === "a/") {
+            await others.promise;
+            await new Promise((resolve) => setTimeout(resolve, 10));
+         }
+         return listing(contents[prefix] ?? []);
+      });
+      try {
+         const { entries } = await collectArchiveEntries(
+            f.scope,
+            ["a/", "b/", "a/deep/"],
+            limits
+         );
+         expect(entries.map(({ key }) => key)).toEqual([
+            "a/1",
+            "a/deep/2",
+            "b/3",
+         ]);
+      } finally {
+         f.client.destroy();
+      }
+   });
+
    it("names the zip after a single folder and after the bucket otherwise", () => {
       expect(archiveFilename("bucket", ["logs/2026/"])).toBe("2026.zip");
       expect(archiveFilename("bucket", ["a.txt", "b.txt"])).toBe("bucket.zip");

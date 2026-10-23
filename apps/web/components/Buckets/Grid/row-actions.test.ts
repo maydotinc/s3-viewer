@@ -1,5 +1,6 @@
-import { one, text, type Element } from "@/lib/test/elements";
+import { all, one, type Element } from "@/lib/test/elements";
 import type { ObjectCommands } from "@/components/Buckets/useObjectCommands";
+import OverflowMenu from "@/components/overflow-menu";
 import type { KnownReach } from "@/lib/utils/folder-access";
 import type { S3Object } from "@s3-viewer/types";
 import { describe, expect, it, vi } from "vitest";
@@ -24,6 +25,7 @@ const folder = (key: string): S3Object =>
 
 const menu = (reach: KnownReach, key: string) =>
    RowActionsMenu({
+      serverId: "server",
       bucketName: "site",
       prefix: "",
       reach,
@@ -77,20 +79,33 @@ describe("actions on a folder that was shared", () => {
 });
 
 describe("rows someone can't act on", () => {
+   const shownMenu = (reach: KnownReach, key: string) => {
+      const overflow = one(
+         menu(reach, key),
+         (element) => element.type === OverflowMenu,
+         "overflow menu"
+      );
+      return OverflowMenu(
+         overflow.props as Parameters<typeof OverflowMenu>[0]
+      ) as unknown as Element;
+   };
+   const tooltip = (tree: Element) =>
+      one(tree, (element) => "label" in element.props, "tooltip").props.label;
+
    it("turns the menu off with the reason", () => {
-      const tree = menu(LIMITED, "private/") as Element;
-      expect(text(tree)).not.toContain("Delete folder");
-      const tip = one(tree, (element) => "label" in element.props, "tooltip");
-      expect(tip.props.label).toBe("This isn't shared with you.");
+      const tree = shownMenu(LIMITED, "private/");
+      expect(
+         all(tree, (element) => element.type === ActionMenuItems)
+      ).toHaveLength(0);
+      expect(
+         one(tree, (element) => "disabled" in element.props, "trigger").props
+            .disabled
+      ).toBe(true);
+      expect(tooltip(tree)).toBe("This isn't shared with you.");
    });
 
    it("turns it off on a dotted row for anyone but the owner", () => {
-      const tip = one(
-         menu({ folders: null, owner: false }, "a/../"),
-         (element) => "label" in element.props,
-         "tooltip"
-      );
-      expect(tip.props.label).toBe(
+      expect(tooltip(shownMenu({ folders: null, owner: false }, "a/../"))).toBe(
          "Paths with . or .. segments can only be opened by the server owner."
       );
       expect(
@@ -104,6 +119,7 @@ describe("rows someone can't act on", () => {
 describe("row actions after permissions change", () => {
    it("reads the live grid state rather than the context AG Grid captured", () => {
       const before = {
+         serverId: "server",
          bucketName: "site",
          prefix: "",
          reach: LIMITED,

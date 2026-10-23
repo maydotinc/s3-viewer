@@ -11,15 +11,14 @@
       "lint": "eslint . --max-warnings 0",
       "check-types": "tsc --noEmit"
    },
+   "dependencies": {
+      "@s3-viewer/types": "workspace:*"
+   },
    "devDependencies": {
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
-      "@s3-viewer/types": "workspace:*",
       "eslint": "catalog:",
       "typescript": "catalog:",
       "vitest": "catalog:"
-   },
-   "peerDependencies": {
-      "@s3-viewer/types": "workspace:*"
    }
 }

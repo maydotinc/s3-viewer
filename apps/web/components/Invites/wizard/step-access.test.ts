@@ -5,7 +5,7 @@ import { act, createElement, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { GrantRow } from "../bucket-grants";
 import StepAccess from "./step-access";
-import type { ServerBuckets } from "./use-server-buckets";
+import type { ServerBuckets } from "./useServerBuckets";
 import type { ServerAccess } from "./wizard-state";
 
 const h = vi.hoisted(() => ({

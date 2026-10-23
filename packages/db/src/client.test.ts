@@ -28,12 +28,16 @@ afterEach(() => {
    vi.resetModules();
 });
 
-it("logs queries and raw prisma errors only when PRISMA_LOG_QUERIES is the exact string true", async () => {
+it("logs queries and raw prisma errors only when PRISMA_LOG_QUERIES is on", async () => {
    expect((await loadClient()).log).toEqual(["warn"]);
-   for (const value of ["", "TRUE", "1", "yes", "false"]) {
+   for (const value of ["", "false", "0", "no", "off"]) {
       process.env.PRISMA_LOG_QUERIES = value;
       expect((await loadClient()).log).toEqual(["warn"]);
    }
-   process.env.PRISMA_LOG_QUERIES = "true";
-   expect((await loadClient()).log).toEqual(["query", "warn", "error"]);
+   for (const value of ["true", "TRUE", "1", "yes", "on"]) {
+      process.env.PRISMA_LOG_QUERIES = value;
+      expect((await loadClient()).log).toEqual(["query", "warn", "error"]);
+   }
+   process.env.PRISMA_LOG_QUERIES = "maybe";
+   await expect(loadClient()).rejects.toThrow(/expected true or false/);
 });

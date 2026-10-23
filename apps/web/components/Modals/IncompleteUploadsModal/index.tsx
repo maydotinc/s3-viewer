@@ -10,7 +10,10 @@ import useAbortMultipartUploads, {
 import useBucketScope from "@/lib/hooks/queries/s3/useBucketScope";
 import useMultipartUploads from "@/lib/hooks/queries/s3/useMultipartUploads";
 import { useAbortableTask } from "@/lib/hooks/useAbortableTask";
+import { openUploadKeys } from "@/lib/stores/upload-store/entries";
+import useUploadStore from "@/lib/stores/upload-store/upload-store";
 import { canListPrefix, uploadsScope } from "@/lib/utils/folder-access";
+import { leasedUploadKeys } from "@/lib/utils/s3/multipart-locks";
 import {
    formatCount,
    formatDate,
@@ -29,7 +32,7 @@ import {
    TableRow,
 } from "@s3-viewer/ui/components/table";
 import { cn } from "@s3-viewer/ui/lib/utils";
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 type IncompleteUploadsModalProps = ModalProps<"incompleteUploads">;
 
@@ -101,9 +104,28 @@ const IncompleteUploadsModal = ({
    const [error, setError] = useState<string | null>(null);
    const busy = abortUploads.isPending;
    const task = useAbortableTask();
+   const entries = useUploadStore((state) => state.entries);
+   const [leased, setLeased] = useState<ReadonlySet<string>>(new Set());
+
+   // aborting an upload this browser is still sending would fail it midway, here or in another tab
+   useEffect(() => {
+      let current = true;
+      void leasedUploadKeys(userId, serverId, bucketName).then((keys) => {
+         if (current) setLeased(keys);
+      });
+      return () => {
+         current = false;
+      };
+   }, [userId, serverId, bucketName, uploads]);
+   const running = useMemo(
+      () =>
+         new Set([...leased, ...openUploadKeys(entries, serverId, bucketName)]),
+      [leased, entries, serverId, bucketName]
+   );
+   const abortable = uploads.filter((upload) => !running.has(upload.key));
 
    const chosen = new Set(selected);
-   const picked = uploads.filter((upload) => chosen.has(pairId(upload)));
+   const picked = abortable.filter((upload) => chosen.has(pairId(upload)));
    const failures = new Map(
       failed.map((failure) => [pairId(failure), failure.message])
    );
@@ -214,13 +236,13 @@ const IncompleteUploadsModal = ({
                   type="button"
                   variant={confirmAll ? "destructive" : "outline"}
                   size="sm"
-                  disabled={busy || uploads.length === 0}
+                  disabled={busy || abortable.length === 0}
                   onClick={() =>
-                     confirmAll ? run(uploads) : setConfirmAll(true)
+                     confirmAll ? run(abortable) : setConfirmAll(true)
                   }
                >
                   {confirmAll
-                     ? `Confirm aborting ${formatCount(uploads.length)}`
+                     ? `Confirm aborting ${formatCount(abortable.length)}`
                      : "Abort all listed"}
                </Button>
             </div>
@@ -245,6 +267,7 @@ const IncompleteUploadsModal = ({
                {uploads.map((upload) => {
                   const id = pairId(upload);
                   const message = failures.get(id);
+                  const inProgress = running.has(upload.key);
                   return (
                      <TableRow
                         key={id}
@@ -252,8 +275,8 @@ const IncompleteUploadsModal = ({
                      >
                         <TableCell>
                            <Checkbox
-                              checked={chosen.has(id)}
-                              disabled={busy}
+                              checked={chosen.has(id) && !inProgress}
+                              disabled={busy || inProgress}
                               aria-label={`Select ${visibleText(upload.key)}`}
                               onCheckedChange={() => toggle(upload)}
                            />
@@ -263,8 +286,13 @@ const IncompleteUploadsModal = ({
                            <span className="block text-xs text-viewertext @md:hidden">
                               {formatDate(upload.initiated)}
                            </span>
+                           {inProgress && (
+                              <span className="block text-xs text-viewertext">
+                                 In progress in this browser
+                              </span>
+                           )}
                            {message && (
-                              <span className="block text-xs text-viewertextred">
+                              <span className="block text-xs text-viewerstrongred">
                                  {message}
                               </span>
                            )}

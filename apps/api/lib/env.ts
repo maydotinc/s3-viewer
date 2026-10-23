@@ -3,6 +3,7 @@ import {
    UPLOAD_BUFFERS_PER_UPLOAD,
    uploadMemoryFor,
 } from "./constants";
+import { LOG_LEVELS, setLogLevel } from "./log-level";
 import { logger } from "./logger";
 import { partSizeFor } from "@/lib/s3/part-size";
 import { auditChainKeySchema } from "@/lib/utils/audit-chain-key";
@@ -21,6 +22,8 @@ import {
 } from "@s3-viewer/types";
 import {
    deriveSharedEnv,
+   flag,
+   lowercase,
    optionalString,
    parseEnv,
    refineSharedEnv,
@@ -44,27 +47,13 @@ const isSmtpUrl = (value: string): boolean => {
 const DEFAULT_MAX_UPLOAD_BYTES = 5 * GIB;
 const DEFAULT_UPLOAD_PART_BYTES = 5 * MIB;
 const MIN_UPLOAD_PART_BYTES = 5 * MIB;
-const MAX_UPLOAD_PART_BYTES = 5 * 1024 * MIB;
+const MAX_UPLOAD_PART_BYTES = 5 * GIB;
 
 const positiveInt = (fallback: number) =>
    withDefault(z.coerce.number().int().positive(), fallback);
 
 const nonNegativeInt = (fallback: number) =>
    withDefault(z.coerce.number().int().min(0), fallback);
-
-const TRUE_FLAGS = ["true", "1", "yes", "on"];
-const FALSE_FLAGS = ["false", "0", "no", "off"];
-// a misspelt flag must fail loudly: silently reading it as false hides the operator's intent.
-const flag = optionalString.transform((value, ctx) => {
-   const text = value?.toLowerCase();
-   if (text === undefined || FALSE_FLAGS.includes(text)) return false;
-   if (TRUE_FLAGS.includes(text)) return true;
-   ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `expected true or false, got "${value}"`,
-   });
-   return z.NEVER;
-});
 
 const schema = z
    .object({
@@ -73,6 +62,17 @@ const schema = z
          .default("development"),
       DATABASE_URL: z.string().min(1),
       ...sharedEnvShape,
+      DATA_DIR: optionalString,
+      LOG_LEVEL: lowercase.pipe(
+         z
+            .enum(LOG_LEVELS, {
+               errorMap: () => ({
+                  message: `must be one of ${LOG_LEVELS.join(", ")}`,
+               }),
+            })
+            .optional()
+      ),
+      PRISMA_LOG_QUERIES: flag,
       ENCRYPTION_PRIVATE_KEY: z.string().min(1),
       AUDIT_CHAIN_KEY: optionalString.pipe(auditChainKeySchema.optional()),
       EMAIL_TRANSPORT: optionalString.pipe(z.enum(EMAIL_TRANSPORTS).optional()),
@@ -195,6 +195,7 @@ const schema = z
    });
 
 const parsed = parseEnv(schema, process.env);
+setLogLevel(parsed.LOG_LEVEL);
 
 const env = {
    ...parsed,

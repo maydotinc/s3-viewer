@@ -1,50 +1,42 @@
-import { BucketProvider } from "@/components/Buckets/Context";
-import ObjectView from "@/components/Buckets/ObjectView";
-import Objects from "@/components/Buckets/objects";
-import { GridProvider } from "@/components/DataGrid/context";
-import ViewerLayout from "@/components/Layout";
-import Seo from "@/components/seo";
-import { bucketRoute } from "@/lib/utils/s3/paths";
+import { SettingsLayout } from "@/components/Layout";
+import useServers from "@/lib/hooks/queries/server/useServers";
+import { scopedBucketHref } from "@/lib/utils/s3/paths";
 import type { NextPageWithLayout } from "@/pages/_app";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { useRouter } from "next/router";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
-const BucketPage: NextPageWithLayout = () => {
+// a bucket link that names no server opens on the selected one
+const UnscopedBucketPage: NextPageWithLayout = () => {
    const router = useRouter();
-   const { bucketName, path, isObjectView } = useMemo(
-      () => bucketRoute(router.query),
-      [router.query]
-   );
+   const {
+      currentServer,
+      servers,
+      isLoading,
+      isCurrentServerMissing,
+      serverError,
+      serverListError,
+   } = useServers();
+   const serverId = currentServer?.id;
+   // a missing selection is not a dead end: the session manager picks another server
+   const nowhere =
+      (!isLoading && servers.length === 0) ||
+      Boolean(serverListError) ||
+      (Boolean(serverError) && !isCurrentServerMissing);
 
    useEffect(() => {
-      if (router.isReady && !bucketName)
-         void router.replace(SITE_PATHS.dashboard);
-   }, [router, bucketName]);
+      if (!router.isReady) return;
+      if (serverId)
+         void router.replace(scopedBucketHref(serverId, router.query));
+      else if (nowhere) void router.replace(SITE_PATHS.dashboard);
+   }, [router, serverId, nowhere]);
 
-   return (
-      <>
-         <Seo
-            title={bucketName || "Buckets"}
-            description="Browse objects and manage files in your S3 bucket."
-            canonical={SITE_PATHS.buckets}
-            noindex
-         />
-         {bucketName && (
-            <BucketProvider bucketName={bucketName} path={path}>
-               <GridProvider>
-                  {isObjectView && path.length > 0 ? (
-                     <ObjectView />
-                  ) : (
-                     <Objects />
-                  )}
-               </GridProvider>
-            </BucketProvider>
-         )}
-      </>
-   );
+   return null;
 };
 
-BucketPage.getLayout = (page) => <ViewerLayout>{page}</ViewerLayout>;
+// the session manager may still swap a stale selection, which must not bounce this to the dashboard first
+UnscopedBucketPage.getLayout = (page) => (
+   <SettingsLayout>{page}</SettingsLayout>
+);
 
-export default BucketPage;
+export default UnscopedBucketPage;

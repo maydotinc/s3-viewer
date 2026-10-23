@@ -1,3 +1,4 @@
+import { ttlMap } from "@s3-viewer/types";
 import { prisma } from "./client";
 import { deleteBatches } from "./delete-batches";
 
@@ -41,41 +42,37 @@ type WindowCounter = {
    undo: (key: string) => Promise<void>;
 };
 
-const SWEEP_EVERY = 1000;
+type MemoryWindows = {
+   hit: (key: string, windowMs: number, now?: number) => number;
+   undo: (key: string) => void;
+};
 
 // the same fixed window as the rate_limit table: it starts at the first hit, counts refused hits
 // too and resets on the first hit after it ends, so RATE_LIMIT_STORE=memory behaves the same.
-const memoryWindowCounter = (maxKeys: number): WindowCounter => {
-   const windows = new Map<string, { hits: number; resetAt: number }>();
-   let calls = 0;
-
-   const sweep = (now: number) => {
-      for (const [key, { resetAt }] of windows) {
-         if (resetAt <= now) windows.delete(key);
-      }
-   };
-
+const memoryWindows = (maxKeys: number): MemoryWindows => {
+   const windows = ttlMap<string, { hits: number; resetAt: number }>(maxKeys);
    return {
-      hit: async (key, windowMs, now = Date.now()) => {
-         if (++calls % SWEEP_EVERY === 0) sweep(now);
-         const live = windows.get(key);
-         const window =
-            live && live.resetAt > now
-               ? { hits: live.hits + 1, resetAt: live.resetAt }
-               : { hits: 1, resetAt: now + windowMs };
-         // delete-then-set moves the key to the end, so eviction drops the least recently seen.
-         windows.delete(key);
-         windows.set(key, window);
-         for (const oldest of windows.keys()) {
-            if (windows.size <= maxKeys) break;
-            windows.delete(oldest);
-         }
+      hit: (key, windowMs, now = Date.now()) => {
+         const live = windows.get(key, now);
+         const window = live
+            ? { hits: live.hits + 1, resetAt: live.resetAt }
+            : { hits: 1, resetAt: now + windowMs };
+         windows.set(key, window, window.resetAt, now);
          return window.hits;
       },
-      undo: async (key) => {
-         const window = windows.get(key);
+      // like the table's undo it ignores resetAt; an expired window restarts on its next hit anyway.
+      undo: (key) => {
+         const window = windows.get(key, -Infinity);
          if (window) window.hits = Math.max(window.hits - 1, 0);
       },
+   };
+};
+
+const memoryWindowCounter = (maxKeys: number): WindowCounter => {
+   const windows = memoryWindows(maxKeys);
+   return {
+      hit: async (key, windowMs, now) => windows.hit(key, windowMs, now),
+      undo: async (key) => windows.undo(key),
    };
 };
 
@@ -102,6 +99,7 @@ const sweepRateLimits = (now: Date = new Date()): Promise<number> =>
 export {
    hitRateLimit,
    memoryWindowCounter,
+   memoryWindows,
    resetRateLimit,
    sharedWindowCounter,
    sweepRateLimits,

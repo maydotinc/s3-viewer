@@ -27,6 +27,7 @@ type ObjectSourceParams = ListingScope & {
    onError: (error: unknown) => void;
    onFirstPage?: (keys: string[]) => void;
    onReloaded?: () => void;
+   refreshSelection?: (gridApi: GridApi) => void;
    firstBlock?: PrefetchedBlock | null;
 };
 
@@ -142,6 +143,7 @@ const createObjectDatasource = ({
    onError,
    onFirstPage,
    onReloaded,
+   refreshSelection,
    firstBlock,
 }: ObjectSourceParams): ObjectDatasource => {
    const scope = { serverId, bucketName, prefix };
@@ -228,6 +230,7 @@ const createObjectDatasource = ({
          }
          if (target.reloaded && cacheSettled(gridApi)) {
             deselectVanished(gridApi);
+            refreshSelection?.(gridApi);
             settleReload(target);
          }
       } catch (error) {

@@ -1,6 +1,6 @@
 import { HOW_TOS } from "@/components/HowTo/data";
 import Hub from "@/components/HowTo/hub";
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { aboutThing, pageJsonLd } from "@/lib/jsonld";
 import { SITE_URL } from "@/lib/site-config";
 

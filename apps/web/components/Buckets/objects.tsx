@@ -1,4 +1,7 @@
-import { GRID_CARD } from "@/components/DataGrid/context";
+import {
+   GRID_CARD,
+   useGridPaginationContext,
+} from "@/components/DataGrid/context";
 import { LazyGrid } from "@/components/DataGrid/lazy-grid";
 import { EmptyState } from "@/components/DataGrid/overlays";
 import GridPagination from "@/components/DataGrid/page-controls";
@@ -73,6 +76,7 @@ const Objects = () => {
       isRefreshing,
    } = useBucketContext();
    const { filter } = useBucketFilter();
+   const { refreshSnapshots } = useGridPaginationContext();
    const commands = useCreateObjectCommands(bucketName);
    const [failure, setFailure] = useState<{
       listingKey: string;
@@ -140,6 +144,7 @@ const Objects = () => {
             getGridApi: () => api,
             onError: (error) => setFailure({ listingKey, error }),
             onReloaded: () => setListingReloading(false),
+            refreshSelection: refreshSnapshots,
             onFirstPage: (keys) =>
                queryClient.setQueryData(
                   queryKeys.objectKeySuggestions(
@@ -164,12 +169,13 @@ const Objects = () => {
          queryClient,
          userId,
          setListingReloading,
+         refreshSnapshots,
       ]
    );
 
    const gridState = useMemo<ObjectGridState>(
-      () => ({ bucketName, prefix, reach, commands }),
-      [bucketName, prefix, reach, commands]
+      () => ({ serverId, bucketName, prefix, reach, commands }),
+      [serverId, bucketName, prefix, reach, commands]
    );
 
    if (notFound)

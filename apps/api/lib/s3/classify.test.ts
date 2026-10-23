@@ -26,6 +26,13 @@ describe("classifyS3Error", () => {
       });
    });
 
+   it("tells a missing multipart upload apart from a missing object", () => {
+      expect(classifyS3Error(s3Error("NoSuchUpload", 404))).toMatchObject({
+         status: 404,
+         message: "This upload no longer exists. Start it again.",
+      });
+   });
+
    it("maps access problems to 403", () => {
       expect(classifyS3Error(s3Error("AccessDenied", 403))).toMatchObject({
          status: 403,

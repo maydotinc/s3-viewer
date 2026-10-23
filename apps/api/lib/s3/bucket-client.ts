@@ -45,7 +45,8 @@ const invalidateBucketClients = (client: S3Client): void => {
       for (const entry of buckets.values()) evict(entry);
       bucketsByClient.delete(client);
    }
-   // not destroyed: regional and base clients share one transport with other accounts.
+   // not destroyed: a regional clone shares its base client's agents, and destroying them would cut
+   // requests still in flight; the client cache retires those agents instead.
 };
 
 type ResolvedBucketClient = { client: S3Client; discovered: boolean };

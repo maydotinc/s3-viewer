@@ -3,7 +3,7 @@ import { SECOND_MS } from "@s3-viewer/types";
 import { createTransport } from "nodemailer";
 import { parseConnectionUrl } from "nodemailer/lib/shared";
 import { Resend, type CreateEmailRequestOptions } from "resend";
-import { smtpSocket } from "./smtp-socket";
+import { parseSmtpProxy, smtpSocket } from "./smtp-socket";
 
 const EMAIL_TIMEOUT_MS = 10 * SECOND_MS;
 const RETRY_DELAY_MS = 2 * SECOND_MS;
@@ -29,22 +29,33 @@ type Delivery = (message: EmailMessage, signal: AbortSignal) => Promise<void>;
 
 type ConnectionOptions = ReturnType<typeof parseConnectionUrl>;
 
-// without requireTLS, a server omitting STARTTLS receives credentials and auth links in clear.
-const requireTlsWithCredentials = (
+const isLoopbackHost = (host: string | undefined): boolean => {
+   const name = (host ?? "localhost").replace(/^\[|\]$/g, "").toLowerCase();
+   return (
+      name === "localhost" || name === "::1" || /^127(\.\d{1,3}){3}$/.test(name)
+   );
+};
+
+// without requireTLS, a server omitting STARTTLS (or a hop stripping it) receives credentials and auth links in clear.
+// only a loopback catcher without credentials, or an explicit ignoreTLS/requireTLS=false, may speak plaintext.
+const requireTlsUnlessOptedOut = (
    options: ConnectionOptions
 ): ConnectionOptions =>
-   options.auth &&
    !options.secure &&
    options.requireTLS === undefined &&
-   options.ignoreTLS === undefined
+   options.ignoreTLS === undefined &&
+   (options.auth || !isLoopbackHost(options.host))
       ? { ...options, requireTLS: true }
       : options;
 
 const smtpDelivery = (url: string): Delivery => {
    const { proxy, ...parsed } = parseConnectionUrl(url);
-   if (proxy !== undefined && typeof proxy !== "string")
-      throw new Error("SMTP proxy must be a URL");
-   const options = requireTlsWithCredentials(parsed);
+   if (proxy !== undefined) {
+      if (typeof proxy !== "string")
+         throw new Error("SMTP proxy must be a URL");
+      parseSmtpProxy(proxy);
+   }
+   const options = requireTlsUnlessOptedOut(parsed);
    return async (message, signal) => {
       signal.throwIfAborted();
       let socket: Socket | undefined;
@@ -99,14 +110,22 @@ const resendDelivery = (apiKey: string): Delivery => {
       );
       signal.throwIfAborted();
       if (!error) return;
-      const failure = `Email provider error: ${error.name}`;
+      const failure = `Email provider error: ${error.name}: ${error.message}`;
       throw RESEND_SERVER_ERRORS.has(error.name)
          ? new TransientEmailError(failure)
          : new Error(failure);
    };
 };
 
-const SMTP_TIMEOUT_CODES = new Set(["ETIMEDOUT", "ETIMEOUT"]);
+// nodemailer's own transient codes plus DNS timeouts; auth and protocol codes are permanent. a failed
+// TLS handshake also surfaces as ESOCKET, so a retrying send spends its one retry on it; that is accepted.
+const TRANSIENT_CODES = new Set([
+   "ETIMEDOUT",
+   "ETIMEOUT",
+   "ESOCKET",
+   "ECONNECTION",
+   "EDNS",
+]);
 
 const isTransient = (error: unknown): boolean => {
    if (error instanceof TransientEmailError) return true;
@@ -117,7 +136,7 @@ const isTransient = (error: unknown): boolean => {
    };
    // SMTP 4xx replies are the temporary failures; SMTP 5xx are permanent.
    return (
-      (typeof code === "string" && SMTP_TIMEOUT_CODES.has(code)) ||
+      (typeof code === "string" && TRANSIENT_CODES.has(code)) ||
       (typeof responseCode === "number" &&
          responseCode >= 400 &&
          responseCode < 500)

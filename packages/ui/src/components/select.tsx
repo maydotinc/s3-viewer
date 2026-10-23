@@ -29,7 +29,7 @@ function SelectTrigger({
       <SelectPrimitive.Trigger
          data-size={size}
          className={cn(
-            "flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border border-viewerborder bg-viewerwhite px-3 text-sm text-viewerblack transition-colors outline-none",
+            "flex w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border border-viewercontrolborder bg-viewerwhite px-3 text-sm text-viewerblack transition-colors outline-none",
             "data-[size=default]:h-9 data-[size=sm]:h-8 pointer-coarse:min-h-11",
             "data-[placeholder]:text-viewerlighttext",
             "not-disabled:hover:bg-viewergray",

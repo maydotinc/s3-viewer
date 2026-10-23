@@ -3,6 +3,7 @@ import type { KnownReach } from "@/lib/utils/folder-access";
 import { createContext, useContext } from "react";
 
 type ObjectGridState = {
+   serverId: string;
    bucketName: string;
    prefix: string;
    reach: KnownReach;

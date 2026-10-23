@@ -6,7 +6,7 @@ import { bucketRoute, byObjectKey } from "@/lib/middleware/route";
 import { getAuth } from "@/lib/middleware/authorize";
 import { readBudget, type ReadReservation } from "@/lib/s3/read-budget";
 import { createBufferedBody } from "@/lib/s3/buffered-body";
-import { throwHttpError } from "@/lib/s3/errors";
+import { requireBody, throwHttpError } from "@/lib/s3/errors";
 import { inlineContentType, inlineDisposition } from "@/lib/s3/keys";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { Permission } from "@s3-viewer/permissions";
@@ -84,14 +84,14 @@ contentRouter.get(
                   { abortSignal: signal }
                )
                .catch(throwHttpError);
-            const body = object.Body as Readable | undefined;
-            if (!body) throw new ApiHttpError(502, "Storage returned no body.");
             const content = await readEditorContent(
-               body,
+               requireBody(object.Body),
                object.ContentLength,
                signal,
                reservation
             );
+            // the bytes stay held until the response is sent; only the storage read is over.
+            reservation.finishRead();
             const contentType = object.ContentType ?? DEFAULT_CONTENT_TYPE;
             await record(res, {
                action: "object.view",

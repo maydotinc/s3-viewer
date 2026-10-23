@@ -3,6 +3,7 @@ import {
    sharedWindowCounter,
 } from "@s3-viewer/db/rate-limit";
 import { describeError } from "@s3-viewer/types";
+import { authLog } from "./log";
 
 type Throttle = {
    allow: (key: string, now?: number) => Promise<boolean>;
@@ -35,9 +36,10 @@ const sharedThrottle = (
          );
          return hits <= limit;
       } catch (error) {
-         console.error(
-            `[auth] ${name} throttle unavailable: ${describeError(error)}`
-         );
+         authLog().error("Auth throttle unavailable", {
+            throttle: name,
+            error: describeError(error),
+         });
          return false;
       }
    },
@@ -45,9 +47,10 @@ const sharedThrottle = (
       try {
          await sharedWindowCounter.undo(`throttle:${name}:${key}`);
       } catch (error) {
-         console.error(
-            `[auth] ${name} throttle refund failed: ${describeError(error)}`
-         );
+         authLog().error("Auth throttle refund failed", {
+            throttle: name,
+            error: describeError(error),
+         });
       }
    },
 });

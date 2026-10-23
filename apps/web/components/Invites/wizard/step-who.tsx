@@ -71,7 +71,7 @@ const StepWho = ({
             aria-labelledby={labelId}
             data-invalid={invalid || undefined}
             onClick={() => inputRef.current?.focus()}
-            className="flex min-h-20 min-w-0 cursor-text flex-wrap items-start gap-1.5 rounded-lg border border-viewerborder bg-viewerwhite p-2 transition-colors focus-within:border-viewerblue data-invalid:border-viewertextred"
+            className="flex min-h-20 min-w-0 cursor-text flex-wrap items-start gap-1.5 rounded-lg border border-viewercontrolborder bg-viewerwhite p-2 transition-colors focus-within:border-viewerblue data-invalid:border-viewertextred"
          >
             <ul className="contents">
                {value.chips.map((chip) => {

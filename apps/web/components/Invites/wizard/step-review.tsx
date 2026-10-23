@@ -1,4 +1,5 @@
 import InlineAlert from "@/components/inline-alert";
+import StaleSignIn from "@/components/stale-sign-in";
 import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
 import type { EmailState } from "@/lib/hooks/queries/useInstanceConfig";
 import { folderList, grantLabel } from "@/lib/utils/folder-access";
@@ -21,6 +22,8 @@ type StepReviewProps = {
    email: EmailState;
    notify: boolean;
    requestError: string | null;
+   // inviting an admin needs a recent sign-in
+   staleSession: boolean;
    retrying: boolean;
    disabled?: boolean;
    onNotifyChange: (notify: boolean) => void;
@@ -140,6 +143,7 @@ const StepReview = ({
    email,
    notify,
    requestError,
+   staleSession,
    retrying,
    disabled,
    onNotifyChange,
@@ -185,6 +189,12 @@ const StepReview = ({
          onChange={onNotifyChange}
       />
       <div className="flex min-h-12 flex-col justify-end">
+         {staleSession && (
+            <StaleSignIn
+               title="Sign in again to invite an admin"
+               action="inviting an admin"
+            />
+         )}
          {requestError && (
             <InlineAlert
                action={

@@ -28,9 +28,11 @@ import { useBucketContext } from "./Context";
 const VISIBLE_TAIL = 3;
 
 const HiddenFolders = ({
+   serverId,
    bucketName,
    path,
 }: {
+   serverId: string;
    bucketName: string;
    path: string[];
 }) => (
@@ -47,7 +49,13 @@ const HiddenFolders = ({
             const segment = visibleText(raw);
             return (
                <DropdownMenuItem key={index} asChild>
-                  <Link href={folderHref(bucketName, path.slice(0, index + 1))}>
+                  <Link
+                     href={folderHref(
+                        serverId,
+                        bucketName,
+                        path.slice(0, index + 1)
+                     )}
+                  >
                      <Folder aria-hidden="true" />
                      <span className="min-w-0 truncate" title={segment}>
                         {segment}
@@ -62,7 +70,7 @@ const HiddenFolders = ({
 
 const BucketHeader = () => {
    const { isPending } = authClient.useSession();
-   const { bucketName, path, isLoading } = useBucketContext();
+   const { serverId, bucketName, path, isLoading } = useBucketContext();
 
    if (isLoading || isPending) {
       return (
@@ -94,7 +102,7 @@ const BucketHeader = () => {
                {path.length > 0 ? (
                   <BreadcrumbLink asChild>
                      <Link
-                        href={folderHref(bucketName, [])}
+                        href={folderHref(serverId, bucketName, [])}
                         title={bucketName}
                         className="max-w-none truncate"
                      >
@@ -115,6 +123,7 @@ const BucketHeader = () => {
                   <BreadcrumbSeparator />
                   <BreadcrumbItem className="shrink-0">
                      <HiddenFolders
+                        serverId={serverId}
                         bucketName={bucketName}
                         path={path.slice(0, offset)}
                      />
@@ -140,6 +149,7 @@ const BucketHeader = () => {
                            <BreadcrumbLink asChild>
                               <Link
                                  href={folderHref(
+                                    serverId,
                                     bucketName,
                                     path.slice(0, depth)
                                  )}

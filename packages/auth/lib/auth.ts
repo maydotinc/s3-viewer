@@ -67,6 +67,7 @@ import {
    type Throttle,
    type ThrottleKey,
 } from "./throttle";
+import { authLog, setAuthLogger } from "./log";
 import { onUserDeletion, userDeletionHooks } from "./user-deletion";
 
 const DAY_SECONDS = DAY_MS / SECOND_MS;
@@ -117,7 +118,7 @@ const SIGN_IN_RULES: readonly ThrottleRule[] = [
       key: perAddressAndIp,
    },
    // successful sign-ins are refunded, but failures from any source count: ~100/hour
-   // locks password sign-in for the address until the window resets (accepted).
+   // locks password sign-in for the address until the window resets.
    {
       throttle: makeThrottle("sign-in-address-failures", 100, HOUR_MS),
       key: perAddress,
@@ -250,14 +251,17 @@ const deliverMail = async (
 ): Promise<void> => {
    try {
       if (!(await mailAllowed(to))) {
-         console.warn(
-            `[auth] ${kind} email suppressed: address mailed recently`
-         );
+         authLog().warn("Auth email suppressed: address mailed recently", {
+            kind,
+         });
          return;
       }
       await send();
    } catch (error) {
-      console.error(`[auth] ${kind} email failed: ${describeError(error)}`);
+      authLog().error("Auth email failed", {
+         kind,
+         error: describeError(error),
+      });
    }
 };
 
@@ -602,5 +606,5 @@ const auth = betterAuth({
       : undefined,
 });
 
-export { auth, onUserDeletion, signUpPolicy };
+export { auth, onUserDeletion, setAuthLogger, signUpPolicy };
 export type { DeletedUser, UserDeletionHooks } from "./user-deletion";

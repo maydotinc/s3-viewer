@@ -814,7 +814,7 @@ describe("bucket creation authorization", () => {
          async (role) => {
             state.role = role;
             await expect(postBucket().finished).rejects.toMatchObject({
-               name: "AccessDenied",
+               name: "AccessDeniedError",
                status: 403,
             });
             expect(state.create).not.toHaveBeenCalled();

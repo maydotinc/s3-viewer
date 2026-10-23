@@ -6,6 +6,7 @@ import { ApiError, errorMessage } from "@/lib/api";
 import useUpdateObjectSettings from "@/lib/hooks/mutations/object/useUpdateObjectSettings";
 import useObjectSettings from "@/lib/hooks/queries/s3/useObjectSettings";
 import { visibleText } from "@/lib/utils/format";
+import type { S3ObjectSettings } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Input } from "@s3-viewer/ui/components/input";
 import { Label } from "@s3-viewer/ui/components/label";
@@ -108,7 +109,7 @@ const ObjectSettingsModal = ({
    expectedETag,
    onSaved,
 }: ObjectSettingsModalProps) => {
-   const settings = useObjectSettings(bucketName, objectKey);
+   const settings = useObjectSettings(bucketName, objectKey, { fresh: true });
    const update = useUpdateObjectSettings();
    const typeId = useId();
    const listId = useId();
@@ -120,24 +121,29 @@ const ObjectSettingsModal = ({
    const [requestError, setRequestError] = useState<string | null>(null);
    const [touched, setTouched] = useState(false);
    const nextRowId = useRef(0);
-   const seeded = useRef(false);
+   const [openedAt] = useState(Date.now);
+   const [loaded, setLoaded] = useState<S3ObjectSettings | null>(null);
 
-   const loaded = settings.data;
+   // a metadata-only rewrite keeps the ETag, so If-Match can't catch a save built on another member's older
+   // settings; the form only ever starts from a read that began after it opened
+   const { data, isFetching, dataUpdatedAt } = settings;
+   const fresh =
+      data && !isFetching && dataUpdatedAt >= openedAt ? data : undefined;
    useEffect(() => {
-      if (!loaded || seeded.current) return;
-      seeded.current = true;
-      setContentType(loaded.contentType ?? "");
+      if (!fresh || loaded) return;
+      setLoaded(fresh);
+      setContentType(fresh.contentType ?? "");
       setHeaders({
-         cacheControl: loaded.cacheControl ?? "",
-         contentDisposition: loaded.contentDisposition ?? "",
-         contentLanguage: loaded.contentLanguage ?? "",
-         contentEncoding: loaded.contentEncoding ?? "",
+         cacheControl: fresh.cacheControl ?? "",
+         contentDisposition: fresh.contentDisposition ?? "",
+         contentLanguage: fresh.contentLanguage ?? "",
+         contentEncoding: fresh.contentEncoding ?? "",
       });
-      setExpires(toDateTimeLocal(loaded.expires));
-      const seededRows = rowsFromMetadata(loaded.metadata);
+      setExpires(toDateTimeLocal(fresh.expires));
+      const seededRows = rowsFromMetadata(fresh.metadata);
       nextRowId.current = seededRows.length;
       setRows(seededRows);
-   }, [loaded]);
+   }, [fresh, loaded]);
 
    const headerError =
       HEADER_FIELDS.map((field) =>
@@ -210,14 +216,12 @@ const ObjectSettingsModal = ({
          submitDisabled={!loaded || validation !== null}
          bodyClassName="flex flex-col gap-4"
       >
-         {settings.isPending ? (
-            <SettingsSkeleton />
-         ) : settings.error || !loaded ? (
-            <FormError>
-               {settings.error
-                  ? errorMessage(settings.error)
-                  : "Couldn't load the current settings."}
-            </FormError>
+         {!loaded ? (
+            settings.error && !isFetching ? (
+               <FormError>{errorMessage(settings.error)}</FormError>
+            ) : (
+               <SettingsSkeleton />
+            )
          ) : (
             <>
                <Field label="Content type" htmlFor={typeId}>

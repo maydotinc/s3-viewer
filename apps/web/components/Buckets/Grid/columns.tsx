@@ -39,7 +39,7 @@ const PendingCell = ({
 );
 
 const NameCell = (params: ICellRendererParams<S3Object, string>) => {
-   const { bucketName, prefix } = useObjectGridState();
+   const { serverId, bucketName, prefix } = useObjectGridState();
    const data = params.data;
    if (!data)
       return (
@@ -53,8 +53,8 @@ const NameCell = (params: ICellRendererParams<S3Object, string>) => {
       data.key.startsWith(prefix) ? data.key.slice(prefix.length) : data.key
    );
    const href = data.isFolder
-      ? folderHref(bucketName, segmentsFromKey(data.key))
-      : objectHref(bucketName, data.key);
+      ? folderHref(serverId, bucketName, segmentsFromKey(data.key))
+      : objectHref(serverId, bucketName, data.key);
    const Icon = data.isFolder ? Folder : File;
 
    return (

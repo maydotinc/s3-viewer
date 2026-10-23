@@ -1,7 +1,7 @@
 import { objectsPath } from "@/lib/api";
 import type { BucketTarget } from "@/lib/types";
 import { isBatchComplete, runPrefixBatches } from "@/lib/utils/s3/batch";
-import useObjectMutation, { forgetMatching } from "./object-mutation";
+import useObjectMutation, { forgetMatching } from "./useObjectMutation";
 import { deleteObjects, reportDeleteResult } from "./useDeleteObjects";
 
 type DeletePrefixInput = BucketTarget & {

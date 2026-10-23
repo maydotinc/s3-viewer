@@ -18,18 +18,21 @@ import {
    conditionHeaders,
    conflictAs,
    enforcesConditions,
+   UnconfirmedWriteError,
    unconfirmedOnceSent,
    uploadConflict,
    withRequestHeaders,
    writeCondition,
    type WriteCondition,
 } from "./conditions";
+import { requirePartETag } from "./errors";
+import { cloneS3Client } from "./clone-client";
 import { encodeCopySource } from "./keys";
 import { headIfExists } from "./head";
 import type { S3Scope } from "./listing";
 import { abortForCleanup } from "./multipart-uploads";
 import { aclAttributes, readObjectAcl } from "./object-acl";
-import { destinationAcceptsAcl } from "./bucket-ownership";
+import { aclsDisabled, destinationAcceptsAcl } from "./bucket-ownership";
 import { metadataAttributes, redirectAttributes } from "./object-metadata";
 import { readObjectTagging, taggingOf } from "./object-tagging";
 import { minPartSizeFor } from "./part-size";
@@ -46,6 +49,19 @@ const MAX_SINGLE_COPY_BYTES = 5 * GIB;
 const MIN_COPY_PART_BYTES = 512 * MIB;
 const COPY_CONCURRENCY = 4;
 const COPY_RECORD_MEMORY_BYTES = 128;
+const PART_COPY_ATTEMPTS = 3;
+
+const partClients = new WeakMap<S3Client, S3Client>();
+
+// a part copy only stages bytes under the upload id, so retrying one cannot commit anything twice;
+// initiation and completion stay on the caller's single-attempt client.
+const partClient = (client: S3Client): S3Client => {
+   const cached = partClients.get(client);
+   if (cached) return cached;
+   const created = cloneS3Client(client, { maxAttempts: PART_COPY_ATTEMPTS });
+   partClients.set(client, created);
+   return created;
+};
 
 const reserveCopyString = (
    { client }: S3Scope,
@@ -200,7 +216,7 @@ const destinationETagFor = async (
          comparable: head === null || head.ETag !== undefined,
       };
    }
-   if (provider !== Provider.S3)
+   if (!enforcesConditions(provider))
       await assertDestinationAbsent(
          scope,
          request.destinationKey,
@@ -209,18 +225,27 @@ const destinationETagFor = async (
    return { eTag: null, comparable: true };
 };
 
+// a same-bucket source already holds grants the bucket accepted, so only a bucket known to have ACLs
+// disabled drops them; a hidden or unreadable ownership setting falls back to destination defaults only across buckets.
+const preservesGrants = async (
+   scope: S3Scope,
+   provider: Provider,
+   cross: boolean
+): Promise<boolean> => {
+   if (provider !== Provider.S3) return false;
+   return cross ? destinationAcceptsAcl(scope) : !(await aclsDisabled(scope));
+};
+
 const GRANTS_UNPRESERVABLE =
    "The object's access permissions could not be preserved. Refresh and try again.";
 
 const grantAttributes = async (
    scope: S3Scope,
-   provider: Provider,
    { sourceClient = scope.client, sourceKey }: CopyRequest,
    bucket: string,
    strict: boolean,
    retained: ReadReservation[]
 ): Promise<Partial<CopyObjectCommandInput>> => {
-   if (provider !== Provider.S3) return {};
    try {
       const output = await readObjectAcl(
          { ...scope, client: sourceClient, bucket },
@@ -362,7 +387,7 @@ const multipartCopy = async (
          COPY_CONCURRENCY,
          async ({ start, end }, index): Promise<CompletedPart> => {
             signal?.throwIfAborted();
-            const part = await client.send(
+            const part = await partClient(client).send(
                new UploadPartCopyCommand({
                   Bucket: bucket,
                   Key: destinationKey,
@@ -375,9 +400,7 @@ const multipartCopy = async (
                { abortSignal: signal }
             );
             try {
-               const eTag = part.CopyPartResult?.ETag;
-               if (!eTag)
-                  throw new ApiHttpError(502, "Storage returned no part ETag.");
+               const eTag = requirePartETag(part.CopyPartResult?.ETag);
                return {
                   PartNumber: index + 1,
                   ETag: retainCopyString(scope, retained, eTag),
@@ -410,7 +433,8 @@ const multipartCopy = async (
          releaseBufferedResponse(completed);
       }
    } catch (error) {
-      if (uploadId)
+      // aborting could race a commit storage may already have taken.
+      if (uploadId && !(error instanceof UnconfirmedWriteError))
          await abortForCleanup({ client, bucket }, destinationKey, uploadId);
       return throwCopyError(error);
    } finally {
@@ -445,16 +469,12 @@ const copyObject = async (
       );
       const sourceBucket = request.sourceBucket ?? scope.bucket;
       const inPlace = rewritesInPlace(scope.bucket, request);
-      const preserveGrants =
-         provider !== Provider.S3 ||
-         !crossBucket(scope.bucket, request) ||
-         (await destinationAcceptsAcl(scope));
+      const cross = crossBucket(scope.bucket, request);
       const attributes = {
-         ...copyAttributes(request.source, crossBucket(scope.bucket, request)),
-         ...(preserveGrants
+         ...copyAttributes(request.source, cross),
+         ...((await preservesGrants(scope, provider, cross))
             ? await grantAttributes(
                  scope,
-                 provider,
                  request,
                  sourceBucket,
                  inPlace,
@@ -470,16 +490,13 @@ const copyObject = async (
             attributes,
             destination
          );
-      const tagging =
-         provider !== Provider.R2
-            ? await sourceTagging(
-                 scope,
-                 request,
-                 sourceBucket,
-                 inPlace,
-                 retained
-              )
-            : undefined;
+      const tagging = await sourceTagging(
+         scope,
+         request,
+         sourceBucket,
+         inPlace,
+         retained
+      );
       return await multipartCopy(
          scope,
          provider,
@@ -500,7 +517,7 @@ const createFolder = async (
    provider: Provider,
    folderKey: string
 ): Promise<void> => {
-   if (provider !== Provider.S3)
+   if (!enforcesConditions(provider))
       await assertDestinationAbsent(scope, folderKey, OBJECT_EXISTS);
    await scope.client
       .send(

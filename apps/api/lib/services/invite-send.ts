@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 import { LOCK_NAMESPACE, tryXactLock } from "@/lib/db-locks";
 import type { SessionUser } from "@/lib/middleware/auth";
 import {
-   AccessDenied,
+   AccessDeniedError,
    denied,
    grantRefusal,
    type DenialScope,
@@ -287,7 +287,7 @@ const trySaveTarget = async (
          target: await saveTarget(actor, emails, target, expiresAt),
       };
    } catch (error) {
-      if (error instanceof AccessDenied)
+      if (error instanceof AccessDeniedError)
          await recordDenial(error.denial, actor.email);
       if (error instanceof ApiHttpError)
          return { ok: false, serverId, error: error.message };

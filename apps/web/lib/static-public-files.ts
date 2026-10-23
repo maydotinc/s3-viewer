@@ -16,4 +16,4 @@ const STATIC_PUBLIC_FILE_PATTERN = STATIC_PUBLIC_FILES.map((file) =>
    file.replace(/\./g, "\\.")
 ).join("|");
 
-export { STATIC_PUBLIC_FILE_PATTERN, STATIC_PUBLIC_FILES };
+export { STATIC_PUBLIC_FILE_PATTERN };

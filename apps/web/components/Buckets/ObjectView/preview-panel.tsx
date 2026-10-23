@@ -255,4 +255,4 @@ export {
    RenderedBody,
    ViewPanel,
 };
-export type { BodyPreviewProps };
+export type { BodyPreviewProps, LoadedBody };

@@ -1,4 +1,21 @@
-import { Toaster as SonnerToaster } from "sonner";
+import { Toaster as SonnerToaster, toast as sonnerToast } from "sonner";
+
+// a described error usually lists what failed, which takes longer to read than the 3 s a one-liner gets
+const DESCRIBED_ERROR_MS = 10_000;
+
+const error: typeof sonnerToast.error = (message, data) =>
+   sonnerToast.error(
+      message,
+      data?.description && data.duration === undefined
+         ? { ...data, duration: DESCRIBED_ERROR_MS }
+         : data
+   );
+
+const toast: typeof sonnerToast = Object.assign(
+   (...args: Parameters<typeof sonnerToast>) => sonnerToast(...args),
+   sonnerToast,
+   { error }
+);
 
 // Sonner injects styles after Tailwind; ! keeps these overrides effective.
 const Toaster = () => (
@@ -19,7 +36,7 @@ const Toaster = () => (
                "rounded-md! bg-viewerblue! px-2.5! text-xs! font-medium! text-viewerwhite!",
             cancelButton:
                "rounded-md! bg-viewergray! px-2.5! text-xs! font-medium! text-viewerblack!",
-            error: "text-viewertextred!",
+            error: "text-viewerstrongred!",
             success: "text-viewerblack!",
          },
       }}
@@ -27,4 +44,4 @@ const Toaster = () => (
 );
 
 export default Toaster;
-export { toast } from "sonner";
+export { DESCRIBED_ERROR_MS, toast };

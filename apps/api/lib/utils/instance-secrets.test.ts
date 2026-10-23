@@ -47,6 +47,9 @@ vi.mock("@/lib/env", () => ({
       get ACCEPT_NEW_AUDIT_CHAIN_KEY() {
          return state.acceptNewAuditChainKey;
       },
+      get DATA_DIR() {
+         return process.env.DATA_DIR || undefined;
+      },
       BETTER_AUTH_SECRET: "regression-test-secret-at-least-thirty-two-chars",
    },
 }));
@@ -101,7 +104,7 @@ const generateKey = () =>
    }).privateKey;
 
 // duplicated on purpose so a change to either derivation fails here.
-const legacyAuditChainKey = (authSecret: string): Buffer =>
+const authSecretDerivedChainKey = (authSecret: string): Buffer =>
    Buffer.from(hkdfSync("sha256", authSecret, "", "s3-viewer audit chain", 32));
 
 const tempDir = (): string =>
@@ -200,7 +203,9 @@ describe("instance secrets", () => {
    it("only warns when the table has not been migrated yet", async () => {
       state.findUnique.mockRejectedValue(new PrismaKnownError("P2021"));
       await expect(assertInstanceSecrets()).resolves.toEqual(
-         legacyAuditChainKey("regression-test-secret-at-least-thirty-two-chars")
+         authSecretDerivedChainKey(
+            "regression-test-secret-at-least-thirty-two-chars"
+         )
       );
       expect(state.warn).toHaveBeenCalledWith(
          expect.stringContaining("instance_secret table is missing")
@@ -218,15 +223,15 @@ describe("instance secrets", () => {
 describe("audit chain key", () => {
    const AUTH_SECRET = "regression-test-secret-at-least-thirty-two-chars";
 
-   it("falls back to the legacy BETTER_AUTH_SECRET derivation when unset and no dedicated key is recorded yet", async () => {
+   it("falls back to the BETTER_AUTH_SECRET derivation when unset and no dedicated key is recorded yet", async () => {
       const key = await assertInstanceSecrets();
-      expect(key).toEqual(legacyAuditChainKey(AUTH_SECRET));
+      expect(key).toEqual(authSecretDerivedChainKey(AUTH_SECRET));
       expect(state.rows.get("audit-chain-key")).toBe(
-         auditChainKeyFingerprint(legacyAuditChainKey(AUTH_SECRET))
+         auditChainKeyFingerprint(authSecretDerivedChainKey(AUTH_SECRET))
       );
    });
 
-   it("refuses to boot when BETTER_AUTH_SECRET rotates while still relying on the legacy derivation", async () => {
+   it("refuses to boot when BETTER_AUTH_SECRET rotates while still relying on the BETTER_AUTH_SECRET derivation", async () => {
       await assertInstanceSecrets(AUTH_SECRET);
       await expect(
          assertInstanceSecrets(
@@ -240,17 +245,17 @@ describe("audit chain key", () => {
       state.acceptNewAuditChainKey = true;
       const rotated = "a-different-secret-of-at-least-thirty-two-characters";
       const key = await assertInstanceSecrets(rotated);
-      expect(key).toEqual(legacyAuditChainKey(rotated));
+      expect(key).toEqual(authSecretDerivedChainKey(rotated));
       expect(state.warn).toHaveBeenCalledWith(
          expect.stringContaining("ACCEPT_NEW_AUDIT_CHAIN_KEY")
       );
    });
 
-   it("prefers an explicitly configured AUDIT_CHAIN_KEY over the legacy derivation", async () => {
+   it("prefers an explicitly configured AUDIT_CHAIN_KEY over the BETTER_AUTH_SECRET derivation", async () => {
       state.auditChainKey = Buffer.alloc(32, 7).toString("base64");
       const key = await assertInstanceSecrets(AUTH_SECRET);
       expect(key).toEqual(Buffer.alloc(32, 7));
-      expect(key).not.toEqual(legacyAuditChainKey(AUTH_SECRET));
+      expect(key).not.toEqual(authSecretDerivedChainKey(AUTH_SECRET));
    });
 
    it("does not query for existing audit history once a dedicated key is configured", async () => {
@@ -259,13 +264,13 @@ describe("audit chain key", () => {
       expect(state.auditLogFindFirst).not.toHaveBeenCalled();
    });
 
-   it("keeps the legacy derivation for an install with existing audit history, even with DATA_DIR available", async () => {
+   it("keeps the BETTER_AUTH_SECRET derivation for an install with existing audit history, even with DATA_DIR available", async () => {
       const dir = tempDir();
       try {
          process.env.DATA_DIR = dir;
          state.auditLogFindFirst.mockResolvedValue({ id: "row-1" });
          const key = await assertInstanceSecrets(AUTH_SECRET);
-         expect(key).toEqual(legacyAuditChainKey(AUTH_SECRET));
+         expect(key).toEqual(authSecretDerivedChainKey(AUTH_SECRET));
          expect(() => statSync(join(dir, "audit-chain-key"))).toThrow();
       } finally {
          rmSync(dir, { recursive: true, force: true });
@@ -277,7 +282,7 @@ describe("audit chain key", () => {
       try {
          process.env.DATA_DIR = dir;
          const key = await assertInstanceSecrets(AUTH_SECRET);
-         expect(key).not.toEqual(legacyAuditChainKey(AUTH_SECRET));
+         expect(key).not.toEqual(authSecretDerivedChainKey(AUTH_SECRET));
          const path = join(dir, "audit-chain-key");
          expect(statSync(path).mode & 0o777).toBe(0o600);
          expect(
@@ -355,7 +360,9 @@ describe("audit chain key", () => {
             }
             state.findUnique.mockRejectedValue(new PrismaKnownError("P2021"));
             await expect(assertInstanceSecrets()).resolves.toEqual(
-               source === "missing" ? legacyAuditChainKey(AUTH_SECRET) : key
+               source === "missing"
+                  ? authSecretDerivedChainKey(AUTH_SECRET)
+                  : key
             );
             expect(state.auditLogFindFirst).not.toHaveBeenCalled();
             expect(state.warn).toHaveBeenCalledWith(
@@ -400,7 +407,7 @@ describe("audit chain key", () => {
    );
 
    it.each(["directory", "broken symlink"])(
-      "fails clearly for an unreadable persisted key (%s) instead of using the legacy key",
+      "fails clearly for an unreadable persisted key (%s) instead of using the BETTER_AUTH_SECRET derivation",
       async (kind) => {
          const dir = tempDir();
          try {

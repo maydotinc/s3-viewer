@@ -2,7 +2,7 @@ name: s3-viewer-dev
 
 services:
    postgres:
-      image: postgres:16
+      image: postgres:16.15
       profiles: [core]
       restart: unless-stopped
       environment:

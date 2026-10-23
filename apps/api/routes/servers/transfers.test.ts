@@ -332,7 +332,11 @@ describe("copying between buckets on one server", () => {
          },
       });
       expect(response.status).toBe(201);
-      expect(state.head).not.toHaveBeenCalled();
+      expect(state.head).toHaveBeenCalledExactlyOnceWith(
+         expect.anything(),
+         "reports/q3.csv",
+         null
+      );
       expect(state.copy.mock.calls[0]?.[2]).toMatchObject({
          sourceETag: '"reviewed"',
       });

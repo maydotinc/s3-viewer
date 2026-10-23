@@ -2,7 +2,7 @@ import type { S3Bucket } from "@s3-viewer/types";
 import type { ParsedUrlQuery } from "querystring";
 import { isLossyKeySegment } from "./key-segments";
 
-const BUCKETS_ROUTE = "/buckets/[[...slug]]";
+const BUCKETS_ROUTE = "/servers/[serverId]/buckets/[[...slug]]";
 
 const isLossy = (segments: readonly string[]): boolean =>
    segments.some((segment) => isLossyKeySegment(segment));
@@ -20,46 +20,67 @@ const segmentsFromKey = (key: string): string[] =>
 const segmentsFromObjectKey = (key: string): string[] =>
    key === "" ? [] : key.split("/");
 
-const folderHref = (bucketName: string, segments: readonly string[]) =>
+const folderHref = (
+   serverId: string,
+   bucketName: string,
+   segments: readonly string[]
+) =>
    isLossy(segments)
       ? {
            pathname: BUCKETS_ROUTE,
            query: {
+              serverId,
               slug: [bucketName],
               prefix: prefixFromSegments(segments),
            },
         }
-      : { pathname: BUCKETS_ROUTE, query: { slug: [bucketName, ...segments] } };
+      : {
+           pathname: BUCKETS_ROUTE,
+           query: { serverId, slug: [bucketName, ...segments] },
+        };
 
 // a member limited to one folder has nothing to see above it
-const bucketEntryHref = ({
-   name,
-   folders,
-}: Pick<S3Bucket, "name" | "folders">) =>
-   folders?.length === 1
-      ? folderHref(name, segmentsFromKey(folders[0]!))
-      : folderHref(name, []);
+const bucketEntryHref = (
+   serverId: string,
+   { name, folders }: Pick<S3Bucket, "name" | "folders">
+) =>
+   folderHref(
+      serverId,
+      name,
+      folders?.length === 1 ? segmentsFromKey(folders[0]!) : []
+   );
 
-const objectHref = (bucketName: string, key: string) => {
+const objectHref = (serverId: string, bucketName: string, key: string) => {
    const segments = segmentsFromObjectKey(key);
    return isLossy(segments)
       ? {
            pathname: BUCKETS_ROUTE,
-           query: { slug: [bucketName], key, view: "object" },
+           query: { serverId, slug: [bucketName], key, view: "object" },
         }
       : {
            pathname: BUCKETS_ROUTE,
            query: {
+              serverId,
               slug: [bucketName, ...segments],
               view: "object",
            },
         };
 };
 
-const bucketRoute = (
-   query: ParsedUrlQuery
-): { bucketName: string; path: string[]; isObjectView: boolean } => {
-   const { slug } = query;
+const scopedBucketHref = (serverId: string, query: ParsedUrlQuery) => ({
+   pathname: BUCKETS_ROUTE,
+   query: { ...query, serverId },
+});
+
+type BucketRoute = {
+   serverId: string;
+   bucketName: string;
+   path: string[];
+   isObjectView: boolean;
+};
+
+const bucketRoute = (query: ParsedUrlQuery): BucketRoute => {
+   const { serverId, slug } = query;
    const segments = Array.isArray(slug)
       ? slug
       : typeof slug === "string"
@@ -68,6 +89,7 @@ const bucketRoute = (
    const isObjectView = query.view === "object";
    const explicit = isObjectView ? query.key : query.prefix;
    return {
+      serverId: typeof serverId === "string" ? serverId : "",
       bucketName: segments[0] ?? "",
       path:
          typeof explicit === "string"
@@ -85,6 +107,7 @@ export {
    folderHref,
    objectHref,
    prefixFromSegments,
+   scopedBucketHref,
    segmentsFromKey,
    segmentsFromObjectKey,
 };

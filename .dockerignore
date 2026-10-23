@@ -14,6 +14,8 @@ apps/*/data
 .git
 .github
 .vscode
+.husky
+.editorconfig
 .claude
 **/.DS_Store
 **/*.log

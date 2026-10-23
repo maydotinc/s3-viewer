@@ -13,6 +13,7 @@ import {
    empty,
    reply,
    s3Fixture,
+   xml,
 } from "@/lib/testing/s3-fixture";
 
 const limit = vi.hoisted(() => ({ perMinute: 1 }));
@@ -195,6 +196,10 @@ describe("client clones and the per-server budget", () => {
             async (request) => {
                seen.push(request.method);
                if (request.method === "DELETE") present = false;
+               if ("ownershipControls" in request.query)
+                  return xml(
+                     "<OwnershipControls><Rule><ObjectOwnership>ObjectWriter</ObjectOwnership></Rule></OwnershipControls>"
+                  );
                if ("acl" in request.query) return empty(403);
                if (request.method === "DELETE") return empty(204);
                return request.method === "PUT"
@@ -205,7 +210,7 @@ describe("client clones and the per-server budget", () => {
          ).client,
          "rename-budget"
       );
-      limit.perMinute = 2;
+      limit.perMinute = 3;
       try {
          await renameObject({ client, bucket: "backups" }, Provider.S3, {
             objectKey: "report.json",
@@ -213,7 +218,7 @@ describe("client clones and the per-server budget", () => {
             source: { ContentLength: 4, $metadata: {} },
             sourceETag: '"reviewed"',
          });
-         expect(seen).toEqual(["GET", "PUT", "DELETE"]);
+         expect(seen).toEqual(["GET", "GET", "PUT", "DELETE"]);
          expect(present).toBe(false);
          await expect(client.send(head)).rejects.toThrow(
             /too many storage requests/

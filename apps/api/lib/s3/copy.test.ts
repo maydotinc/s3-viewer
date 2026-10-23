@@ -57,17 +57,24 @@ const copy = (
       ...extra,
    });
 
+type Handle = (request: FixtureRequest) => Promise<FixtureReply>;
+
+// handlers that model bucket ownership themselves; every other S3 bucket accepts ACLs.
+const ownershipAware = new WeakSet<Handle>();
+
 const run = async (
    endpoint: string,
    provider: Provider,
-   handle: (request: FixtureRequest) => Promise<FixtureReply>,
+   handle: Handle,
    size = 12,
    extra: Partial<CopyRequest> = {}
 ) => {
    const requests: FixtureRequest[] = [];
    const client = clientFor(endpoint, (request) => {
       requests.push(request);
-      return handle(request);
+      return "ownershipControls" in request.query && !ownershipAware.has(handle)
+         ? Promise.resolve(xml(OWNERSHIP))
+         : handle(request);
    });
    try {
       return {
@@ -91,7 +98,9 @@ const emptyDestination = async (request: FixtureRequest) =>
       ? empty(404)
       : "acl" in request.query
         ? xml(ACL)
-        : xml(COPIED);
+        : "ownershipControls" in request.query
+          ? xml(OWNERSHIP)
+          : xml(COPIED);
 
 describe("the destination condition reaches every provider", () => {
    it.each([
@@ -123,6 +132,8 @@ describe("the destination condition reaches every provider", () => {
       const put = requests.find((r) => r.method === "PUT")!;
       expect(put.headers["cf-copy-destination-if-none-match"]).toBe("*");
       expect(put.headers).not.toHaveProperty("if-none-match");
+      // R2 enforces the condition itself, so no HEAD guards the destination first.
+      expect(requests.some((r) => r.method === "HEAD")).toBe(false);
    });
 });
 
@@ -888,6 +899,61 @@ describe("a multipart copy needs every part's ETag", () => {
    });
 });
 
+describe("multipart copy attempts", () => {
+   it("retries a failed part copy", async () => {
+      let failed = false;
+      const { requests, result } = await run(
+         PROVIDER_ENDPOINTS[Provider.S3],
+         Provider.S3,
+         async (request) => {
+            if ("acl" in request.query) return xml(ACL);
+            if ("tagging" in request.query) return xml(TAGGED);
+            if (request.query.partNumber === "1" && !failed) {
+               failed = true;
+               return reply(503, errorXml("SlowDown"));
+            }
+            return multipartDestination(request);
+         },
+         6 * GIB
+      );
+      expect(result).toMatchObject({ eTag: '"whole"' });
+      expect(requests.filter((r) => r.query.partNumber === "1")).toHaveLength(
+         2
+      );
+   });
+
+   it.each(["initiation", "completion"])(
+      "sends the %s once and leaves an unconfirmed completion alone",
+      async (step) => {
+         const { requests, result } = await run(
+            PROVIDER_ENDPOINTS[Provider.S3],
+            Provider.S3,
+            async (request) => {
+               if ("acl" in request.query) return xml(ACL);
+               if ("tagging" in request.query) return xml(TAGGED);
+               if (request.method === "DELETE") return empty(204);
+               const failing =
+                  step === "initiation"
+                     ? "uploads" in request.query
+                     : request.method === "POST" && "uploadId" in request.query;
+               if (failing) return reply(503, errorXml("ServiceUnavailable"));
+               return multipartDestination(request);
+            },
+            6 * GIB
+         );
+         const writes = requests.filter((r) => r.method === "POST");
+         if (step === "initiation") {
+            expect(result).toMatchObject({ status: 502 });
+            expect(writes).toHaveLength(1);
+         } else {
+            expect(result).toBeInstanceOf(UnconfirmedWriteError);
+            expect(writes.filter((r) => "uploadId" in r.query)).toHaveLength(1);
+            expect(requests.some((r) => r.method === "DELETE")).toBe(false);
+         }
+      }
+   );
+});
+
 describe("a multipart copy that cannot be aborted", () => {
    it("logs the abandoned upload instead of dropping it silently", async () => {
       const warn = vi.spyOn(logger, "warn").mockImplementation(() => undefined);
@@ -1140,12 +1206,11 @@ describe("destination ownership during cross-bucket copies", () => {
       | "failed";
    const failure = (status: number, code: string) =>
       reply(status, errorXml(code));
-   const owned =
-      (
-         ownership: Ownership,
-         options: { acl?: string; denyAcl?: boolean; rejectCopy?: boolean } = {}
-      ) =>
-      async (request: FixtureRequest) => {
+   const owned = (
+      ownership: Ownership,
+      options: { acl?: string; denyAcl?: boolean; rejectCopy?: boolean } = {}
+   ): Handle => {
+      const handle = async (request: FixtureRequest) => {
          if ("ownershipControls" in request.query) {
             if (ownership === "missing")
                return failure(404, "OwnershipControlsNotFoundError");
@@ -1170,6 +1235,9 @@ describe("destination ownership during cross-bucket copies", () => {
             return failure(412, "PreconditionFailed");
          return multipartDestination(request);
       };
+      ownershipAware.add(handle);
+      return handle;
+   };
    const grantHeaders = (request: FixtureRequest) =>
       Object.keys(request.headers).filter((name) =>
          name.startsWith("x-amz-grant-")
@@ -1249,8 +1317,23 @@ describe("destination ownership during cross-bucket copies", () => {
       expect(requests).toHaveLength(1);
    });
 
-   it("leaves same-bucket owner-only grants intact without requiring ownership permission", async () => {
+   it("keeps source grants on a same-bucket rename when the ownership read fails", async () => {
       const { requests, result } = await run(
+         PROVIDER_ENDPOINTS[Provider.S3],
+         Provider.S3,
+         owned("failed")
+      );
+      expect(result).toMatchObject({ eTag: '"copied"' });
+      expect(requests.find((r) => "acl" in r.query)?.path).toBe(
+         `/${BUCKET}/${SOURCE}`
+      );
+      const write = requests.find((r) => r.method === "PUT")!;
+      expect(write.headers["x-amz-grant-read"]).toBe(`id="${READER}"`);
+      expect(write.headers["x-amz-grant-full-control"]).toBe(`id="${OWNER}"`);
+   });
+
+   it("leaves same-bucket owner-only grants intact when ownership settings are hidden", async () => {
+      const { result, requests } = await run(
          PROVIDER_ENDPOINTS[Provider.S3],
          Provider.S3,
          owned("denied", { acl: ACL }),
@@ -1258,7 +1341,6 @@ describe("destination ownership during cross-bucket copies", () => {
          { destinationKey: SOURCE, settings: { ContentType: "text/plain" } }
       );
       expect(result).toMatchObject({ eTag: '"copied"' });
-      expect(requests.some((r) => "ownershipControls" in r.query)).toBe(false);
       expect(
          requests.find((r) => r.method === "PUT")?.headers[
             "x-amz-grant-full-control"
@@ -1275,9 +1357,40 @@ describe("destination ownership during cross-bucket copies", () => {
          { destinationKey: SOURCE, settings: { ContentType: "text/plain" } }
       );
       expect(result).toMatchObject({ status: 409 });
-      expect(requests).toHaveLength(1);
-      expect(requests[0]?.method).toBe("GET");
+      expect(requests.map((r) => r.method)).toEqual(["GET", "GET"]);
    });
+
+   it.each(
+      [12, 6 * GIB].flatMap((size) => [
+         { size, label: "rename", extra: {} },
+         {
+            size,
+            label: "settings edit",
+            extra: {
+               destinationKey: SOURCE,
+               settings: { ContentType: "text/plain" },
+            },
+         },
+      ])
+   )(
+      "sends no grants for a same-bucket $label on an ACL-disabled bucket ($size bytes)",
+      async ({ size, extra }) => {
+         const { requests, result } = await run(
+            PROVIDER_ENDPOINTS[Provider.S3],
+            Provider.S3,
+            owned("BucketOwnerEnforced", { acl: ACL }),
+            size,
+            extra
+         );
+         expect(result).toMatchObject({ size });
+         expect(requests.some((r) => "acl" in r.query)).toBe(false);
+         const writes = requests.filter(
+            (r) => r.method === "PUT" || r.method === "POST"
+         );
+         expect(writes.length).toBeGreaterThan(0);
+         for (const write of writes) expect(grantHeaders(write)).toEqual([]);
+      }
+   );
 
    it("sends the grants and the create condition on the one write storage refuses", async () => {
       const { requests, result } = await run(

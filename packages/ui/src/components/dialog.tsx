@@ -3,6 +3,11 @@ import { XIcon } from "lucide-react";
 import * as React from "react";
 
 import { FOCUS_RING } from "@s3-viewer/ui/lib/classes";
+import {
+   returnFocus,
+   takeHandedFocus,
+   withinDialog,
+} from "@s3-viewer/ui/lib/focus-return";
 import { cn } from "@s3-viewer/ui/lib/utils";
 
 const DIALOG_OVERLAY = "fixed inset-0 z-50 bg-viewerblack/40";
@@ -35,20 +40,48 @@ function DialogOverlay({
    );
 }
 
+// these dialogs open from state rather than a Radix trigger, so Radix has nowhere to return focus on close.
+// an opener inside a dialog still open is a nested dialog's, and the handed target belongs to that outer dialog
+const returnTarget = (opener: Element | null): HTMLElement | null => {
+   const live =
+      opener instanceof HTMLElement &&
+      opener.isConnected &&
+      opener !== document.body
+         ? opener
+         : null;
+   if (live && withinDialog(live)) return live;
+   return takeHandedFocus() ?? live;
+};
+
 function DialogContent({
    className,
    children,
    showCloseButton = true,
+   onOpenAutoFocus,
+   onCloseAutoFocus,
    ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
    showCloseButton?: boolean;
 }) {
+   const opener = React.useRef<Element | null>(null);
    return (
       <DialogPortal>
          <DialogOverlay />
          <DialogPrimitive.Content
             data-slot="dialog-content"
             className={cn(DIALOG_CONTENT, className)}
+            onOpenAutoFocus={(event) => {
+               opener.current = document.activeElement;
+               onOpenAutoFocus?.(event);
+            }}
+            onCloseAutoFocus={(event) => {
+               onCloseAutoFocus?.(event);
+               if (event.defaultPrevented) return;
+               const target = returnTarget(opener.current);
+               if (!target) return;
+               event.preventDefault();
+               returnFocus(target);
+            }}
             {...props}
          >
             {children}

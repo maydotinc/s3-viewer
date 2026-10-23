@@ -1,4 +1,3 @@
-import { GENERIC_ERROR_MESSAGE } from "@s3-viewer/types";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type QueryOptions = {
@@ -20,13 +19,8 @@ vi.mock("react", () => ({
    useCallback: <T>(callback: T) => callback,
 }));
 vi.mock("@/lib/auth", () => ({
-   accountFetchOptions: (userId: string) => ({
-      headers: { "X-Expected-User-Id": userId },
-   }),
-   authClient: {
-      listSessions: h.listSessions,
-      revokeSession: h.revokeSession,
-   },
+   listSessions: h.listSessions,
+   revokeSession: h.revokeSession,
 }));
 vi.mock("@/lib/stores/session-store", () => ({
    default: { getState: () => ({ userId: "signed-in-user", serverId: "s1" }) },
@@ -73,19 +67,14 @@ beforeEach(() => {
 
 describe("listing sessions", () => {
    it("shows the most recent sign-in first", async () => {
-      h.listSessions.mockResolvedValue({
-         data: [
-            session("older", "2026-01-01T00:00:00.000Z"),
-            session("newest", "2026-09-01T00:00:00.000Z"),
-            session("middle", "2026-05-01T00:00:00.000Z"),
-         ],
-         error: null,
-      });
+      h.listSessions.mockResolvedValue([
+         session("older", "2026-01-01T00:00:00.000Z"),
+         session("newest", "2026-09-01T00:00:00.000Z"),
+         session("middle", "2026-05-01T00:00:00.000Z"),
+      ]);
       useSessions();
       const sessions = await query().queryFn();
-      expect(h.listSessions).toHaveBeenCalledWith({
-         fetchOptions: { headers: { "X-Expected-User-Id": "signed-in-user" } },
-      });
+      expect(h.listSessions).toHaveBeenCalledWith("signed-in-user");
       expect(sessions.map((entry) => entry.id)).toEqual([
          "newest",
          "middle",
@@ -93,19 +82,10 @@ describe("listing sessions", () => {
       ]);
    });
 
-   it("surfaces what better-auth said went wrong", async () => {
-      h.listSessions.mockResolvedValue({
-         data: null,
-         error: { message: "Session expired" },
-      });
+   it("surfaces the worded auth error", async () => {
+      h.listSessions.mockRejectedValue(new Error("Session expired"));
       useSessions();
       await expect(query().queryFn()).rejects.toThrow("Session expired");
-   });
-
-   it("falls back to the generic message when the error carries none", async () => {
-      h.listSessions.mockResolvedValue({ data: null, error: {} });
-      useSessions();
-      await expect(query().queryFn()).rejects.toThrow(GENERIC_ERROR_MESSAGE);
    });
 });
 
@@ -113,14 +93,14 @@ describe("revoking sessions", () => {
    it("signs out one device by its token as the account that asked", async () => {
       useRevokeSession();
       await lastMutation().mutationFn(scoped({ token: "token-other" }));
-      expect(h.revokeSession).toHaveBeenCalledWith({
-         token: "token-other",
-         fetchOptions: { headers: { "X-Expected-User-Id": "signed-in-user" } },
-      });
+      expect(h.revokeSession).toHaveBeenCalledWith(
+         "token-other",
+         "signed-in-user"
+      );
    });
 
    it("does not report success when the revoke was refused", async () => {
-      h.revokeSession.mockResolvedValue({ error: { message: "Nope" } });
+      h.revokeSession.mockResolvedValue({ error: "Nope" });
       useRevokeSession();
       await expect(
          lastMutation().mutationFn(scoped({ token: "token-other" }))

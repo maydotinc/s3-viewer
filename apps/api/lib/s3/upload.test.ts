@@ -736,12 +736,14 @@ describe("upload transport does not replay ambiguous writes", () => {
    it.each([
       { failAt: "put", failAbortOnce: false },
       { failAt: "create", failAbortOnce: false },
+      { failAt: "part", failAbortOnce: false },
+      { failAt: "part", failAbortOnce: true },
       { failAt: "complete", failAbortOnce: false },
-      { failAt: "complete", failAbortOnce: true },
    ])(
       "makes one $failAt attempt and permits cleanup retry: $failAbortOnce",
       async ({ failAt, failAbortOnce }) => {
          const calls: string[] = [];
+         const parts: string[] = [];
          const { client } = s3Fixture(
             async (request) => {
                const step =
@@ -757,6 +759,7 @@ describe("upload transport does not replay ambiguous writes", () => {
                              ? "complete"
                              : "put";
                calls.push(step);
+               if (step === "part") parts.push(request.query.partNumber!);
                if (step === "head") return empty(404);
                if (
                   step === failAt ||
@@ -785,17 +788,88 @@ describe("upload transport does not replay ambiguous writes", () => {
             abortController: new AbortController(),
          }).catch((error: unknown) => error);
          // a 5xx on the commit itself leaves the write unconfirmed; anything earlier is a plain failure.
-         if (failAt === "create")
+         if (failAt === "put" || failAt === "complete")
+            expect(failure).toBeInstanceOf(UnconfirmedWriteError);
+         else
             expect(failure).toMatchObject({
                $metadata: { httpStatusCode: 503, attempts: 1 },
             });
-         else expect(failure).toBeInstanceOf(UnconfirmedWriteError);
-         expect(calls.filter((step) => step === failAt)).toHaveLength(1);
-         if (failAt === "complete")
-            expect(calls.filter((step) => step === "abort")).toHaveLength(
-               failAbortOnce ? 2 : 1
-            );
+         if (failAt === "part") expect(new Set(parts).size).toBe(parts.length);
+         else expect(calls.filter((step) => step === failAt)).toHaveLength(1);
+         // an unconfirmed commit keeps its parts: aborting could race the commit storage may be finishing.
+         const aborts = calls.filter((step) => step === "abort").length;
+         if (failAt === "part") expect(aborts).toBe(failAbortOnce ? 2 : 1);
+         else expect(aborts).toBe(0);
          expect(await client.config.maxAttempts()).toBe(3);
+      }
+   );
+
+   it.each([
+      ["a single write", 1, "put", new UploadIdleError()],
+      ["a single write", 1, "put", new StorageStalledError()],
+      [
+         "a multipart completion",
+         6 * 1024 * 1024,
+         "complete",
+         new UploadIdleError(),
+      ],
+      [
+         "a multipart completion",
+         6 * 1024 * 1024,
+         "complete",
+         new StorageStalledError(),
+      ],
+   ])(
+      "reports %s cut off by a progress abort as unconfirmed and leaves it alone (%#)",
+      async (_name, size, commit, reason) => {
+         const calls: string[] = [];
+         const abortController = new AbortController();
+         const { promise: committing, resolve: sent } =
+            Promise.withResolvers<void>();
+         const { client } = s3Fixture(
+            async (request, { abortSignal }) => {
+               if (request.method === "HEAD") return empty(404);
+               const step =
+                  request.method === "DELETE"
+                     ? "abort"
+                     : Object.hasOwn(request.query, "uploads")
+                       ? "create"
+                       : request.query.partNumber
+                         ? "part"
+                         : request.query.uploadId
+                           ? "complete"
+                           : "put";
+               calls.push(step);
+               if (step === commit) {
+                  sent();
+                  return new Promise<never>((_resolve, reject) =>
+                     abortSignal?.addEventListener(
+                        "abort",
+                        () => reject(abortSignal.reason),
+                        { once: true }
+                     )
+                  );
+               }
+               const body = step === "create" ? initiatedXml("upload1") : "";
+               return reply(200, body, { etag: '"part"' });
+            },
+            { requestChecksumCalculation: "WHEN_REQUIRED" }
+         );
+         const pending = streamUpload({
+            client,
+            bucket: "test",
+            key: "file",
+            contentType: "application/octet-stream",
+            body: Readable.from([Buffer.alloc(size)]),
+            contentLength: size,
+            partSize: 5 * 1024 * 1024,
+            maxBytes: size,
+            abortController,
+         }).catch((error: unknown) => error);
+         await committing;
+         abortController.abort(reason);
+         expect(await pending).toBeInstanceOf(UnconfirmedWriteError);
+         expect(calls).not.toContain("abort");
       }
    );
 });

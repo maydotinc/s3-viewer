@@ -3,6 +3,13 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 import type { SMTPTransportOptions } from "nodemailer/lib/smtp-transport";
 
+const parseSmtpProxy = (proxy: string): URL => {
+   const url = new URL(proxy);
+   if (url.protocol !== "http:" && url.protocol !== "https:")
+      throw new Error("SMTP proxy must use HTTP or HTTPS");
+   return url;
+};
+
 const smtpSocket = async (
    options: SMTPTransportOptions,
    proxy: string | undefined,
@@ -23,9 +30,7 @@ const smtpSocket = async (
          socket.once("connect", () => resolve(socket));
       });
    }
-   const url = new URL(proxy);
-   if (url.protocol !== "http:" && url.protocol !== "https:")
-      return Promise.reject(new Error("SMTP proxy must use HTTP or HTTPS"));
+   const url = parseSmtpProxy(proxy);
    const authority = `${host.includes(":") ? `[${host}]` : host}:${port}`;
    const authorization =
       url.username || url.password
@@ -59,7 +64,12 @@ const smtpSocket = async (
          const status = response.statusCode ?? 0;
          if (status < 200 || status >= 300 || signal.aborted) {
             socket.destroy();
-            reject(new Error("SMTP proxy connection failed"));
+            // ECONNECTION marks it transient for delivery retries.
+            reject(
+               Object.assign(new Error("SMTP proxy connection failed"), {
+                  code: "ECONNECTION",
+               })
+            );
             return;
          }
          // CONNECT detaches the socket from the request's abort handling.
@@ -75,4 +85,4 @@ const smtpSocket = async (
    });
 };
 
-export { smtpSocket };
+export { parseSmtpProxy, smtpSocket };

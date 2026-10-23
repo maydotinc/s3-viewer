@@ -1,4 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { consoleLogger } from "@s3-viewer/types";
+import { setAuthLogger } from "./log";
 import { createThrottle } from "./throttle";
 
 const store = vi.hoisted(() => ({
@@ -87,6 +89,24 @@ describe("shared throttle", () => {
       });
       store.hit.mockRejectedValue(new Error("connection refused"));
       expect(await throttle.allow("k")).toBe(false);
+   });
+
+   it("reports the outage through the logger its host handed over", async () => {
+      const error = vi.fn();
+      vi.mocked(console.error).mockClear();
+      setAuthLogger({ info: vi.fn(), warn: vi.fn(), error });
+      const throttle = createThrottle(2, 60_000, {
+         name: "sign-in",
+         shared: true,
+      });
+      store.hit.mockRejectedValue(new Error("connection refused"));
+      await throttle.allow("k");
+      setAuthLogger(consoleLogger);
+      expect(error).toHaveBeenCalledWith("Auth throttle unavailable", {
+         throttle: "sign-in",
+         error: expect.stringContaining("connection refused"),
+      });
+      expect(console.error).not.toHaveBeenCalled();
    });
 
    it("refunds through the rate_limit table and survives a failed refund", async () => {

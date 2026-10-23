@@ -5,6 +5,7 @@ import {
    getAuth,
    grantRefusal,
 } from "@/lib/middleware/authorize";
+import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { memberRoute } from "@/lib/middleware/route";
 import { recordMany } from "@/lib/middleware/audit-record";
 import { visibleGrants, withVisibleGrants } from "@/lib/services/bucket-grants";
@@ -17,13 +18,12 @@ import {
    clampBucketAccess,
    bucketDetail,
    findMember,
-   grantsByBucket,
-   heldBucketNames,
    listMembers,
    loadBucketGrants,
    memberRole,
    removeMembership,
    replaceBucketAccess,
+   viewerGrants,
 } from "@/lib/services/members";
 import { lockBucketScope } from "@/lib/services/servers";
 import { prisma } from "@s3-viewer/db";
@@ -62,7 +62,7 @@ const getMembers = async (
 };
 
 const updateRole = async (
-   _req: Request,
+   req: Request,
    res: Response,
    input: UpdateRoleInput
 ) => {
@@ -80,19 +80,35 @@ const updateRole = async (
          targetRole: currentRole,
          newRole,
       });
+      // previousBucketAccess must match the stored grants before anything is written, so an admin
+      // grant it already shows is not new; a bucket admin under a lower server role is still delegated authority.
+      const shownAdmin = new Set(
+         (previousBucketAccess ?? [])
+            .filter((grant) => grant.role === Role.ADMIN)
+            .map((grant) => grant.bucketName)
+      );
+      if (
+         (newRole === Role.ADMIN && targetRole !== Role.ADMIN) ||
+         bucketAccess?.some(
+            (grant) =>
+               grant.role === Role.ADMIN && !shownAdmin.has(grant.bucketName)
+         )
+      )
+         requireFreshSession(req, "making someone an admin");
       const demoted = rankOf(newRole) < rankOf(targetRole);
-      const actorGrants =
-         serverRole === Role.OWNER
-            ? null
-            : await loadBucketGrants(actorId, serverId, tx);
-      const visible = actorGrants && heldBucketNames(actorGrants);
+      const { visible, held: actorHeld } = await viewerGrants(
+         actorId,
+         serverId,
+         serverRole,
+         tx
+      );
       if (bucketAccess) {
          const held = await loadBucketGrants(userId, serverId, tx);
          // the editor only ever saw grants on buckets the actor holds, so the edit is checked against those alone.
          const current = visibleGrants(visible, held);
          assertAccessAsShown(current, previousBucketAccess ?? [], bucketAccess);
          assertBucketGrantChanges(
-            { serverRole, bucketGrants: grantsByBucket(actorGrants ?? []) },
+            { serverRole, bucketGrants: actorHeld },
             scope,
             current,
             bucketAccess,
@@ -131,7 +147,7 @@ const updateRole = async (
          {
             id: actorId,
             role: serverRole,
-            held: grantsByBucket(actorGrants ?? []),
+            held: actorHeld,
          },
          tx
       );

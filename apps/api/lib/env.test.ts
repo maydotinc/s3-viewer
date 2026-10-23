@@ -25,6 +25,8 @@ const KEYS = [
    "EMAIL_FROM",
    "UNVERIFIED_ACCOUNT_TTL_DAYS",
    "PORT",
+   "LOG_LEVEL",
+   "PRISMA_LOG_QUERIES",
 ] as const;
 
 const loadEnv = async (overrides: Partial<Record<string, string>> = {}) => {
@@ -149,6 +151,37 @@ describe("boolean flags", () => {
             String(line).includes("ALLOW_PRIVATE_ENDPOINTS=true")
          )
       ).toHaveLength(1);
+   });
+});
+
+describe("LOG_LEVEL", () => {
+   it("reads a level in any case and refuses one it does not know", async () => {
+      await expect(loadEnv({ LOG_LEVEL: "WARN" })).resolves.toMatchObject({
+         LOG_LEVEL: "warn",
+      });
+      await expect(loadEnv({ LOG_LEVEL: "verbose" })).rejects.toThrow(
+         /LOG_LEVEL: must be one of debug, info, warn, error/
+      );
+   });
+
+   it("holds back lines below the configured level", async () => {
+      const write = vi.spyOn(console, "error").mockImplementation(() => {});
+      await loadEnv({ LOG_LEVEL: "error", ALLOW_PRIVATE_ENDPOINTS: "true" });
+      expect(write).not.toHaveBeenCalled();
+   });
+});
+
+describe("PRISMA_LOG_QUERIES", () => {
+   it("accepts the shared flag spellings and refuses anything else", async () => {
+      await expect(
+         loadEnv({ PRISMA_LOG_QUERIES: "Yes" })
+      ).resolves.toMatchObject({ PRISMA_LOG_QUERIES: true });
+      await expect(loadEnv({ PRISMA_LOG_QUERIES: "" })).resolves.toMatchObject({
+         PRISMA_LOG_QUERIES: false,
+      });
+      await expect(loadEnv({ PRISMA_LOG_QUERIES: "maybe" })).rejects.toThrow(
+         /PRISMA_LOG_QUERIES.*expected true or false/
+      );
    });
 });
 

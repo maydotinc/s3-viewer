@@ -6,7 +6,6 @@ export default defineConfig((options: Options) => ({
    target: "node22",
    sourcemap: true,
    clean: true,
-   // inline source-only workspace packages.
    noExternal: [/@s3-viewer\/.*/],
    // keep react-dom/server external to avoid ESM require-shim failures.
    external: [

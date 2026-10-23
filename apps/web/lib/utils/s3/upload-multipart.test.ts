@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@/lib/test/storage";
 import type { MultipartSession } from "./multipart-session";
-import { UploadCancelled } from "./upload-cancelled";
+import { UploadCancelledError } from "./upload-cancelled";
 
 const identity = vi.hoisted(() => ({ userId: "user-a" as string | null }));
 vi.mock("@/lib/stores/session-store", () => ({
@@ -652,7 +652,7 @@ describe("resuming an interrupted upload", () => {
       await acquired;
       const handle = start();
       const cancelled = expect(handle.done).rejects.toBeInstanceOf(
-         UploadCancelled
+         UploadCancelledError
       );
       await settle();
       handle.abort();
@@ -680,7 +680,7 @@ describe("resuming an interrupted upload", () => {
       );
       const handle = start();
       const failed = expect(handle.done).rejects.toBeInstanceOf(
-         UploadCancelled
+         UploadCancelledError
       );
       await settle();
       handle.abort();
@@ -750,7 +750,7 @@ describe("cancelling", () => {
       await settle();
       const aborts = FakeXHR.instances.map((xhr) => vi.spyOn(xhr, "abort"));
       handle.abort();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       aborts.forEach((abort) => expect(abort).toHaveBeenCalledOnce());
       expect(server.remove).toHaveBeenCalledWith(
          expect.stringContaining("/multipart-uploads/upload"),
@@ -776,7 +776,7 @@ describe("cancelling", () => {
          partSize: PART_SIZE,
          partCount: 3,
       });
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       expect(FakeXHR.instances).toHaveLength(0);
       expect(server.remove).toHaveBeenCalledOnce();
    });
@@ -795,7 +795,7 @@ describe("cancelling", () => {
          openAs("u1", partCount);
          const handle = start({ file: makeFile(PART_SIZE * partCount) });
          const failed = expect(handle.done).rejects.toBeInstanceOf(
-            UploadCancelled
+            UploadCancelledError
          );
          await settle();
          expect(finishes).toHaveLength(MULTIPART_CONCURRENCY);
@@ -828,7 +828,9 @@ describe("cancelling", () => {
             partDigests: { 1: expect.any(Object) },
          }),
       ]);
-      const failed = expect(older.done).rejects.toBeInstanceOf(UploadCancelled);
+      const failed = expect(older.done).rejects.toBeInstanceOf(
+         UploadCancelledError
+      );
       older.abort();
       await failed;
       expect(savedSessions()).toEqual({});
@@ -840,7 +842,7 @@ describe("cancelling", () => {
    it("sends nothing once the account changes", async () => {
       identity.userId = "user-b";
       const handle = start();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       expect(server.post).not.toHaveBeenCalled();
       expect(FakeXHR.instances).toHaveLength(0);
    });
@@ -904,7 +906,7 @@ describe("cancelling", () => {
       );
       const first = start();
       const cancelled = expect(first.done).rejects.toBeInstanceOf(
-         UploadCancelled
+         UploadCancelledError
       );
       await settle();
       first.abort();
@@ -934,7 +936,7 @@ describe("cancelling", () => {
    it("waits for aborted part transports before discarding their upload", async () => {
       const handle = start();
       const failed = expect(handle.done).rejects.toBeInstanceOf(
-         UploadCancelled
+         UploadCancelledError
       );
       await settle();
       for (const xhr of FakeXHR.instances)
@@ -977,7 +979,7 @@ describe("cancelling", () => {
    it("does not dispatch cleanup after the account changes during a storage lock wait", async () => {
       const handle = start();
       const failed = expect(handle.done).rejects.toBeInstanceOf(
-         UploadCancelled
+         UploadCancelledError
       );
       await settle();
       let releaseStorage!: () => void;
@@ -1006,7 +1008,7 @@ describe("cancelling", () => {
       await settle();
       expect(FakeXHR.instances).toHaveLength(MULTIPART_CONCURRENCY);
       handle.abort();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       await vi.advanceTimersByTimeAsync(30_000);
       expect(partsFor([partCount])).toHaveLength(0);
    });
@@ -1016,7 +1018,7 @@ describe("cancelling", () => {
       await settle();
       identity.userId = "user-b";
       handle.abort();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       expect(server.remove).not.toHaveBeenCalled();
    });
 });

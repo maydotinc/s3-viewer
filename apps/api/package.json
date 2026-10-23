@@ -15,8 +15,8 @@
       "@aws-sdk/lib-storage": "^3.1127.0",
       "@aws-sdk/s3-request-presigner": "^3.1127.0",
       "@prisma/client": "catalog:",
-      "@react-email/components": "^0.5.1",
-      "@react-email/render": "^1.2.1",
+      "@react-email/components": "catalog:",
+      "@react-email/render": "catalog:",
       "@s3-viewer/auth": "workspace:*",
       "@s3-viewer/db": "workspace:*",
       "@s3-viewer/email": "workspace:*",
@@ -30,11 +30,11 @@
       "express": "^5.1.0",
       "express-rate-limit": "^8.7.0",
       "helmet": "^8.3.0",
-      "nodemailer": "^10.0.14",
+      "nodemailer": "catalog:",
       "prisma": "catalog:",
       "react": "catalog:",
       "react-dom": "catalog:",
-      "resend": "^6.0.1",
+      "resend": "catalog:",
       "zod": "catalog:"
    },
    "devDependencies": {
@@ -44,10 +44,10 @@
       "@types/compression": "^1.8.1",
       "@types/cors": "^2.8.17",
       "@types/express": "^5.0.2",
-      "@types/node": "^22",
+      "@types/node": "catalog:",
       "eslint": "catalog:",
       "tsup": "^8.4.0",
-      "tsx": "^4.19.4",
+      "tsx": "catalog:",
       "typescript": "catalog:",
       "vitest": "catalog:"
    }

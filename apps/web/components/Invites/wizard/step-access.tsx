@@ -3,7 +3,7 @@ import { useState } from "react";
 import ServerAccessSection, {
    type AccessUpdate,
 } from "./server-access-section";
-import type { ServerBuckets } from "./use-server-buckets";
+import type { ServerBuckets } from "./useServerBuckets";
 import type { ServerAccess } from "./wizard-state";
 
 type StepAccessProps = {

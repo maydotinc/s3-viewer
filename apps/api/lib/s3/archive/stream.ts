@@ -14,7 +14,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { ZipArchive } from "archiver";
 import { Transform, type Readable, type Writable } from "node:stream";
-import { throwHttpError } from "../errors";
+import { requireBody, throwHttpError } from "../errors";
 import { assertObjectSize, keyHash } from "../keys";
 import type { S3Scope } from "../listing";
 import { progressFloor } from "../progress-floor";
@@ -115,8 +115,7 @@ const streamArchive = async ({
             abortSignal: signal,
          })
          .catch(throwHttpError);
-      const body = object.Body as Readable | undefined;
-      if (!body) throw new ApiHttpError(502, "Storage returned no body.");
+      const body = requireBody(object.Body);
       body.on("error", noop);
       if (signal.aborted) {
          body.destroy();

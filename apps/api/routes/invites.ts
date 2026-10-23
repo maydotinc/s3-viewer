@@ -2,6 +2,7 @@ import { decodeCursor, encodeCursor, pageOf } from "@/lib/cursor";
 import { ApiHttpError, noContent } from "@/lib/http";
 import { recordManyFor } from "@/lib/middleware/audit-record";
 import { requireUser } from "@/lib/middleware/authorize";
+import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { inviteLimit } from "@/lib/middleware/rate-limit";
 import { validatedRoute } from "@/lib/middleware/route";
 import {
@@ -76,7 +77,18 @@ const listReceived = async (
 };
 
 const send = async (req: Request, res: Response, input: SendInvitesInput) => {
-   res.json(await sendInvites(requireUser(req), input));
+   const user = requireUser(req);
+   // checked before any target saves, so a stale sign-in never leaves a batch half sent; a bucket
+   // admin under a lower server role is still delegated authority.
+   if (
+      input.targets.some(
+         (target) =>
+            target.role === Role.ADMIN ||
+            target.bucketAccess.some((grant) => grant.role === Role.ADMIN)
+      )
+   )
+      requireFreshSession(req, "inviting an admin");
+   res.json(await sendInvites(user, input));
 };
 
 const acceptInvite = async (

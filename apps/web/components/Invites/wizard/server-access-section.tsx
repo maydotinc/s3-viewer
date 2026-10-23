@@ -19,7 +19,7 @@ import type { GrantRow } from "../bucket-grants";
 import LinkButton from "../link-button";
 import RoleSelect from "../role-select";
 import { grantableBucketRoles } from "../roles";
-import type { ServerBuckets } from "./use-server-buckets";
+import type { ServerBuckets } from "./useServerBuckets";
 import {
    defaultAccess,
    listLevelProblem,
@@ -51,7 +51,7 @@ type ServerAccessSectionProps = {
 const STATUS_TONE: Readonly<Record<StatusTone, string>> = {
    muted: "text-viewerlighttext",
    set: "text-viewertext",
-   error: "text-viewertextred",
+   error: "text-viewerstrongred",
 };
 
 const HEADER = "flex h-12 w-full items-center gap-3 px-3 text-left";

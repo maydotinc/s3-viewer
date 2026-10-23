@@ -1,7 +1,8 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import { MINUTE_MS } from "@s3-viewer/types";
 import { env } from "@/lib/env";
-import { bump, countOf } from "@/lib/utils/counter-map";
+import { bump } from "@/lib/utils/counter-map";
+import { keyedSlots, type KeyedSlots } from "@/lib/utils/keyed-slots";
 import { rateLimited } from "./errors";
 import { readUserId } from "./read-budget";
 import {
@@ -17,8 +18,8 @@ type Window = {
 };
 
 type InFlightPool = {
-   byServer: Map<string, number>;
-   byUser: Map<string, number>;
+   slots: KeyedSlots;
+   processCap?: () => number;
    serverCap: () => number;
    userCap: () => number;
    serverBusy: () => Error;
@@ -44,6 +45,8 @@ const userBudgetExhausted = () =>
       "You have made too many storage requests on this server. Try again in a minute."
    );
 
+const storageBusy = () => rateLimited("Storage is busy. Try again shortly.");
+
 const serverBusy = () =>
    rateLimited(
       "This server has too many storage requests in progress. Try again shortly."
@@ -55,8 +58,8 @@ const userBusy = () =>
    );
 
 const requests: InFlightPool = {
-   byServer: new Map(),
-   byUser: new Map(),
+   slots: keyedSlots(),
+   processCap: () => env.S3_MAX_TOTAL_SOCKETS,
    serverCap: () => env.S3_MAX_INFLIGHT_PER_SERVER,
    userCap: () => env.S3_MAX_INFLIGHT_PER_USER,
    serverBusy,
@@ -64,8 +67,7 @@ const requests: InFlightPool = {
 };
 
 const cancels: InFlightPool = {
-   byServer: new Map(),
-   byUser: new Map(),
+   slots: keyedSlots(),
    serverCap: () => CANCELS_PER_SERVER,
    userCap: () => CANCELS_PER_USER,
    serverBusy: () =>
@@ -114,27 +116,23 @@ const spendRequest = (serverId: string): void => {
 };
 
 // counts calls still waiting on storage's response head, the phase a tarpit endpoint can stretch.
-// one account holds at most 64 request sockets plus 8 cancel sockets of the default 1000 pooled,
-// and one server 32 plus 16, so even 20 servers stay under the user caps; open bodies are bounded
-// by the read budget and progress floors.
+// each cached server has its own agent pair, so only the "all" claim bounds the process: requests across
+// every server stay under S3_MAX_TOTAL_SOCKETS, and one server's 32 calls plus 16 cancels stay under its
+// default 100 sockets per host. open bodies are bounded by the read budget and progress floors.
 const acquireInFlight = (
    pool: InFlightPool,
    serverId: string
 ): (() => void) => {
    const userId = readUserId();
-   if (countOf(pool.byServer, serverId) >= pool.serverCap())
-      throw pool.serverBusy();
-   if (userId !== undefined && countOf(pool.byUser, userId) >= pool.userCap())
-      throw pool.userBusy();
-   bump(pool.byServer, serverId, 1);
-   if (userId !== undefined) bump(pool.byUser, userId, 1);
-   let released = false;
-   return () => {
-      if (released) return;
-      released = true;
-      bump(pool.byServer, serverId, -1);
-      if (userId !== undefined) bump(pool.byUser, userId, -1);
-   };
+   return pool.slots.acquire([
+      pool.processCap === undefined
+         ? undefined
+         : ["all", pool.processCap(), storageBusy],
+      [`server:${serverId}`, pool.serverCap(), pool.serverBusy],
+      userId === undefined
+         ? undefined
+         : [`user:${userId}`, pool.userCap(), pool.userBusy],
+   ]);
 };
 
 // initialize runs before the retry middleware, so a refusal is never sent or replayed.
@@ -181,10 +179,8 @@ const budgetServerOf = (client: S3Client): string | undefined =>
 
 const resetRequestBudgets = (): void => {
    windows.clear();
-   for (const pool of [requests, cancels]) {
-      pool.byServer.clear();
-      pool.byUser.clear();
-   }
+   requests.slots.clear();
+   cancels.slots.clear();
 };
 
 export {

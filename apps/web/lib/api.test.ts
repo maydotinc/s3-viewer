@@ -111,6 +111,46 @@ describe("API session response ordering", () => {
       });
    });
 
+   it("gives up on a read that never answers but still honours the caller's cancel", async () => {
+      const timeouts: AbortController[] = [];
+      vi.spyOn(AbortSignal, "timeout").mockImplementation(() => {
+         const controller = new AbortController();
+         timeouts.push(controller);
+         return controller.signal;
+      });
+      vi.stubGlobal(
+         "fetch",
+         vi.fn(
+            (_url: string, init: RequestInit) =>
+               new Promise((_resolve, reject) =>
+                  init.signal!.addEventListener("abort", () =>
+                     reject(init.signal!.reason)
+                  )
+               )
+         )
+      );
+      const stuck = api.get("/servers");
+      timeouts[0]!.abort(new DOMException("timed out", "TimeoutError"));
+      await expect(stuck).rejects.toMatchObject({
+         status: 0,
+         code: ClientErrorCode.NETWORK,
+         message: expect.stringContaining("too long"),
+      });
+      const caller = new AbortController();
+      const cancelled = api.get("/servers", caller.signal);
+      caller.abort();
+      await expect(cancelled).rejects.toMatchObject({
+         code: ClientErrorCode.ABORTED,
+      });
+      vi.stubGlobal(
+         "fetch",
+         vi.fn(async () => new Response(null, { status: 204 }))
+      );
+      await api.post("/servers", {});
+      expect(timeouts).toHaveLength(2);
+      vi.restoreAllMocks();
+   });
+
    it("keeps the API's code and falls back to a generic message", async () => {
       vi.stubGlobal(
          "fetch",

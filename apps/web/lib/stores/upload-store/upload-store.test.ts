@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMemoryStorage } from "@/lib/test/storage";
-import { UploadCancelled } from "@/lib/utils/s3/upload-cancelled";
+import { UploadCancelledError } from "@/lib/utils/s3/upload-cancelled";
 import { ErrorCode } from "@s3-viewer/types";
 
 vi.stubGlobal("localStorage", createMemoryStorage());
@@ -31,7 +31,7 @@ vi.mock("@/lib/utils/s3/upload-object", () => ({
       onProgress: (loaded: number) => void;
    }) => {
       let settle: Settle | undefined;
-      const abort = vi.fn(() => settle?.reject(new UploadCancelled()));
+      const abort = vi.fn(() => settle?.reject(new UploadCancelledError()));
       const done = new Promise<void>((resolve, reject) => {
          settle = { resolve, reject, abort, expectedETag, onProgress };
       });
@@ -398,7 +398,7 @@ describe("uploadStore", () => {
       void cleared.then(settled);
       await flush();
       expect(settled).not.toHaveBeenCalled();
-      previous.reject(new UploadCancelled());
+      previous.reject(new UploadCancelledError());
       await cleared;
       expect(settled).toHaveBeenCalledOnce();
       expect(useUploadStore.getState().entries).toEqual({});
@@ -415,7 +415,7 @@ describe("uploadStore", () => {
       await flush();
       expect(settled).not.toHaveBeenCalled();
       expect(previous.abort).toHaveBeenCalledOnce();
-      previous.reject(new UploadCancelled());
+      previous.reject(new UploadCancelledError());
       await cleared;
       expect(settled).toHaveBeenCalledOnce();
    });

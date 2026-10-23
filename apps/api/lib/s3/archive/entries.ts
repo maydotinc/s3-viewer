@@ -4,12 +4,14 @@ import {
    baseName,
    isFolderKey,
    mapLimit,
+   mapLimitAbortingSiblings,
+   parentPrefix,
 } from "@s3-viewer/types";
 import { HEAD_CONCURRENCY, S3_ROUTE_TIMEOUT_MS } from "@/lib/constants";
 import { ApiHttpError, rateLimited } from "@/lib/http";
 import { logger } from "@/lib/logger";
 import { withDeadline } from "@/lib/utils/abort";
-import { bump, countOf } from "@/lib/utils/counter-map";
+import { keyedSlots } from "@/lib/utils/keyed-slots";
 import { headObject } from "../head";
 import { assertObjectSize, keyHash } from "../keys";
 import {
@@ -31,12 +33,15 @@ const ENTRY_MEMORY_OVERHEAD = 512;
 const MAX_CONCURRENT_COLLECTIONS = 4;
 // one account or server may not hold the whole collection cap.
 const MAX_TENANT_COLLECTIONS = 2;
+// selected folders and listing groups are independent, and the in-flight caps already bound the requests.
+const GROUP_CONCURRENCY = 4;
 // folder markers and keys repeated by overlapping selections are listed but never become entries.
 const EXAMINED_PER_ENTRY = 4;
 // listings are one page of 1000 keys at best; stores that answer short pages get twice as many.
 const PAGE_SLACK = 2;
 
 type ManifestEntry = readonly [key: string, size: number];
+type SignalScope = S3Scope & { signal: AbortSignal };
 
 // the zip's own entry cap fixes how many keys may be examined, and so how many pages that takes:
 // at the default 10,000 entries that is 40,000 keys, 80 pages, plus the last page of each selected prefix.
@@ -54,10 +59,20 @@ const listingBounds = (
 
 const gib = (bytes: number): string => `${(bytes / GIB).toFixed(1)} GiB`;
 
-const parentOf = (key: string): string => {
-   const trimmed = isFolderKey(key) ? key.slice(0, -1) : key;
-   return trimmed.slice(0, trimmed.lastIndexOf("/") + 1);
-};
+const parentOf = (key: string): string =>
+   parentPrefix(isFolderKey(key) ? key.slice(0, -1) : key);
+
+const inGroups = <T, R>(
+   scope: SignalScope,
+   groups: readonly T[],
+   run: (scope: SignalScope, group: T) => Promise<R>
+): Promise<R[]> =>
+   mapLimitAbortingSiblings(
+      groups,
+      GROUP_CONCURRENCY,
+      scope.signal,
+      (group, signal) => run({ ...scope, signal }, group)
+   );
 
 const archiveRoot = (objectKeys: readonly string[]): string => {
    let root = objectKeys[0] === undefined ? "" : parentOf(objectKeys[0]);
@@ -114,7 +129,7 @@ const listFolderKeys = async (
 // a key's parent lies inside whatever grant let the key through, so listing per parent never
 // leaves a folder-limited caller's scope; a selection from one folder view shares one parent.
 const listedSizes = async (
-   scope: S3Scope,
+   scope: SignalScope,
    files: readonly string[]
 ): Promise<Map<string, number>> => {
    const byParent = new Map<string, string[]>();
@@ -125,14 +140,19 @@ const listedSizes = async (
       else byParent.set(parent, [key]);
    }
    const sizes = new Map<string, number>();
-   for (const group of byParent.values()) {
-      if (group.length <= EXISTS_LIST_THRESHOLD) continue;
-      const listed = await existingKeys(scope, group);
-      for (const key of listed.existing) {
-         const size = listed.sizes[key];
-         if (size !== undefined) sizes.set(key, size);
+   await inGroups(
+      scope,
+      [...byParent.values()].filter(
+         (group) => group.length > EXISTS_LIST_THRESHOLD
+      ),
+      async (groupScope, group) => {
+         const listed = await existingKeys(groupScope, group);
+         for (const key of listed.existing) {
+            const size = listed.sizes[key];
+            if (size !== undefined) sizes.set(key, size);
+         }
       }
-   }
+   );
    return sizes;
 };
 
@@ -197,7 +217,7 @@ type CollectedEntries = {
 };
 
 const collectWithin = (
-   scope: S3Scope & { signal: AbortSignal },
+   scope: SignalScope,
    objectKeys: readonly string[],
    { maxObjects, maxBytes }: ArchiveLimits,
    knownSizes?: ReadonlyMap<string, number>,
@@ -217,50 +237,56 @@ const collectWithin = (
             );
       };
       const root = archiveRoot(objectKeys);
-      const entries: ArchiveEntry[] = [];
-      const seen = new Set<string>();
+      // selections are listed in parallel, so each lands in its own group and a key repeated by
+      // overlapping selections shares one entry, kept where the first selection holding it puts it.
+      const byKey = new Map<string, ArchiveEntry>();
       let bytes = 0;
-      let rewritten = 0;
-      let firstRewritten: string | undefined;
 
-      const add = (listedKey: string, listedSize: number | undefined): void => {
-         scope.signal.throwIfAborted();
-         if (isFolderKey(listedKey) && listedSize !== 0)
-            throw new ApiHttpError(
-               409,
-               "This selection includes an object whose key ends in / and may contain data. ZIP downloads cannot represent it safely. Copy or move it to a key without a trailing slash before downloading."
+      const add =
+         (group: ArchiveEntry[]) =>
+         (listedKey: string, listedSize: number | undefined): void => {
+            scope.signal.throwIfAborted();
+            if (isFolderKey(listedKey) && listedSize !== 0)
+               throw new ApiHttpError(
+                  409,
+                  "This selection includes an object whose key ends in / and may contain data. ZIP downloads cannot represent it safely. Copy or move it to a key without a trailing slash before downloading."
+               );
+            const size = assertObjectSize(listedSize);
+            if (isFolderKey(listedKey)) return;
+            const known = byKey.get(listedKey);
+            if (known) {
+               group.push(known);
+               return;
+            }
+            const key = copyRetainedString(listedKey);
+            bytes += size;
+            if (byKey.size >= maxObjects) {
+               throw new ApiHttpError(
+                  413,
+                  `A zip can hold ${maxObjects} files; this selection has more. Pick fewer files.`
+               );
+            }
+            if (bytes > maxBytes) {
+               throw new ApiHttpError(
+                  413,
+                  `A zip is limited to ${gib(maxBytes)}; this selection is larger. Pick fewer files.`
+               );
+            }
+            const name = entryName(key, root);
+            reservation.retain(
+               (key.length + name.length * 2) * 2 + ENTRY_MEMORY_OVERHEAD
             );
-         const size = assertObjectSize(listedSize);
-         if (isFolderKey(listedKey) || seen.has(listedKey)) return;
-         const key = copyRetainedString(listedKey);
-         seen.add(key);
-         bytes += size;
-         if (entries.length >= maxObjects) {
-            throw new ApiHttpError(
-               413,
-               `A zip can hold ${maxObjects} files; this selection has more. Pick fewer files.`
-            );
-         }
-         if (bytes > maxBytes) {
-            throw new ApiHttpError(
-               413,
-               `A zip is limited to ${gib(maxBytes)}; this selection is larger. Pick fewer files.`
-            );
-         }
-         const name = entryName(key, root);
-         if (name !== key.slice(root.length)) {
-            rewritten++;
-            firstRewritten ??= key;
-         }
-         reservation.retain(
-            (key.length + name.length * 2) * 2 + ENTRY_MEMORY_OVERHEAD
-         );
-         entries.push({ key, name, size });
-      };
+            const entry = { key, name, size };
+            byKey.set(key, entry);
+            group.push(entry);
+         };
 
       const sizes = new Map<string, number>();
+      let groups: ArchiveEntry[][];
       if (manifest) {
-         for (const [key, size] of manifest) add(key, size);
+         const group: ArchiveEntry[] = [];
+         for (const [key, size] of manifest) add(group)(key, size);
+         groups = [group];
       } else {
          const files = namedFiles(objectKeys);
          for (const key of files) {
@@ -283,12 +309,15 @@ const collectWithin = (
             sizes.set(key, size);
          }
 
-         for (const key of objectKeys) {
+         groups = await inGroups(scope, objectKeys, async (groupScope, key) => {
+            const group: ArchiveEntry[] = [];
             if (isFolderKey(key))
-               await listFolderKeys(scope, key, add, examinePage);
-            else add(key, sizes.get(key) ?? 0);
-         }
+               await listFolderKeys(groupScope, key, add(group), examinePage);
+            else add(group)(key, sizes.get(key) ?? 0);
+            return group;
+         });
       }
+      const entries = [...new Set(groups.flat())];
       if (entries.length === 0) {
          throw new ApiHttpError(404, "Nothing to zip: the selection is empty.");
       }
@@ -307,6 +336,9 @@ const collectWithin = (
             directories.add(copyRetainedString(directory));
          }
       }
+      const rewritten = entries.filter(
+         ({ key, name }) => name !== key.slice(root.length)
+      );
       const names = new Set<string>();
       const nextSuffix = new Map<string, number>();
       for (const entry of entries) {
@@ -314,10 +346,10 @@ const collectWithin = (
          reservation.retain(Math.max(0, name.length - entry.name.length) * 4);
          entry.name = name;
       }
-      if (firstRewritten !== undefined) {
+      if (rewritten[0] !== undefined) {
          logger.warn("Zip entry names rewritten to stay inside the archive", {
-            count: rewritten,
-            firstKey: keyHash(firstRewritten),
+            count: rewritten.length,
+            firstKey: keyHash(rewritten[0].key),
          });
       }
       return { entries, bytes, fileSizes: sizes };
@@ -326,14 +358,9 @@ const collectWithin = (
 type CollectionTenant = { userId: string; serverId: string };
 type CollectionScope = S3Scope & { tenant?: CollectionTenant };
 
-const collecting = new Map<string, number>();
-const collectingKeys = ({ userId, serverId }: CollectionTenant): string[] => [
-   `user:${userId}`,
-   `server:${serverId}`,
-];
-const adjust = (keys: readonly string[], delta: number): void => {
-   for (const key of keys) bump(collecting, key, delta);
-};
+const collecting = keyedSlots();
+const collectionBusy = () =>
+   rateLimited("Zip preparation is busy. Try again shortly.");
 
 // a manifest from the ticket replays what the selection listed, so only fresh listings count as collections.
 const collectArchiveEntries = async (
@@ -343,18 +370,23 @@ const collectArchiveEntries = async (
    knownSizes?: ReadonlyMap<string, number>,
    manifest?: readonly ManifestEntry[]
 ): Promise<CollectedEntries> => {
-   const listing = manifest === undefined;
-   const keys = listing
-      ? ["all", ...(tenant ? collectingKeys(tenant) : [])]
-      : [];
-   const busy =
-      countOf(collecting, "all") >= MAX_CONCURRENT_COLLECTIONS ||
-      keys
-         .slice(1)
-         .some((key) => countOf(collecting, key) >= MAX_TENANT_COLLECTIONS);
-   if (listing && busy)
-      throw rateLimited("Zip preparation is busy. Try again shortly.");
-   adjust(keys, 1);
+   const release = collecting.acquire(
+      manifest !== undefined
+         ? []
+         : [
+              ["all", MAX_CONCURRENT_COLLECTIONS, collectionBusy],
+              tenant && [
+                 `user:${tenant.userId}`,
+                 MAX_TENANT_COLLECTIONS,
+                 collectionBusy,
+              ],
+              tenant && [
+                 `server:${tenant.serverId}`,
+                 MAX_TENANT_COLLECTIONS,
+                 collectionBusy,
+              ],
+           ]
+   );
    try {
       return await withDeadline(scope.signal, S3_ROUTE_TIMEOUT_MS, (signal) =>
          collectWithin(
@@ -366,7 +398,7 @@ const collectArchiveEntries = async (
          )
       );
    } finally {
-      adjust(keys, -1);
+      release();
    }
 };
 

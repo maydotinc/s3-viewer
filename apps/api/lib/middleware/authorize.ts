@@ -69,7 +69,7 @@ type Denial = DenialScope & {
    };
 };
 
-class AccessDenied extends ApiHttpError {
+class AccessDeniedError extends ApiHttpError {
    constructor(
       status: number,
       message: string,
@@ -77,7 +77,7 @@ class AccessDenied extends ApiHttpError {
       code?: ErrorCode
    ) {
       super(status, message, code);
-      this.name = "AccessDenied";
+      this.name = "AccessDeniedError";
    }
 }
 
@@ -89,8 +89,8 @@ const denied = (
    reason: DenialReason,
    bucket: string | null = null,
    code?: ErrorCode
-): AccessDenied =>
-   new AccessDenied(
+): AccessDeniedError =>
+   new AccessDeniedError(
       status,
       message,
       {
@@ -140,7 +140,8 @@ const refuse = (
    permission: string,
    reason: DenialReason,
    message = FORBIDDEN
-): AccessDenied => denied(403, message, denialScopeOf(res), permission, reason);
+): AccessDeniedError =>
+   denied(403, message, denialScopeOf(res), permission, reason);
 
 const lockedPermission = async (
    tx: Prisma.TransactionClient,
@@ -174,8 +175,8 @@ const folderDenial = (
    permission: string,
    path: string,
    reason: "folder" | "path"
-): AccessDenied =>
-   new AccessDenied(
+): AccessDeniedError =>
+   new AccessDeniedError(
       403,
       reason === "path" ? DOT_SEGMENTS_MESSAGE : limitedTo(auth.folders ?? []),
       {
@@ -530,7 +531,7 @@ const authorizeAudit = (kind: "view" | "manage"): RequestHandler =>
    });
 
 export {
-   AccessDenied,
+   AccessDeniedError,
    assertInFolders,
    assertListablePrefix,
    assertMemberAuthority,

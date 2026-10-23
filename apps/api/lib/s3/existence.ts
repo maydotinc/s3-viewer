@@ -1,12 +1,15 @@
 import { HEAD_CONCURRENCY } from "@/lib/constants";
 import {
    mapLimit,
+   mapLimitAbortingSiblings,
    type FolderScope,
    type S3ObjectsExist,
 } from "@s3-viewer/types";
 import { outsideFolders } from "./folder-guard";
 import { headIfExists } from "./head";
 import { EXISTS_LIST_THRESHOLD, existingKeys, type S3Scope } from "./listing";
+
+const FOLDER_CONCURRENCY = 4;
 
 const headExisting = async (
    scope: S3Scope,
@@ -59,9 +62,14 @@ const whichExistInFolders = async (
       if (group) group.push(key);
       else byFolder.set(folder, [key]);
    }
+   const listed = await mapLimitAbortingSiblings(
+      [...byFolder.values()],
+      FOLDER_CONCURRENCY,
+      scope.signal,
+      (group, signal) => listExisting({ ...scope, signal }, group)
+   );
    const found: S3ObjectsExist = { existing: [], eTags: Object.create(null) };
-   for (const group of byFolder.values()) {
-      const { existing, eTags } = await listExisting(scope, group);
+   for (const { existing, eTags } of listed) {
       found.existing.push(...existing);
       Object.assign(found.eTags, eTags);
    }

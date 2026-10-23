@@ -4,7 +4,7 @@ import { ConfirmDialog } from "@/components/Modals/confirm-dialog";
 import FailureList from "@/components/Modals/failure-list";
 import DeletionProtectionNotice from "@/components/Modals/deletion-protection-notice";
 import { useBulkOperation } from "@/components/Modals/useBulkOperation";
-import useServer from "@/components/use-server";
+import useServer from "@/lib/hooks/useServer";
 import useDeleteObjects, {
    type DeleteSummary,
 } from "@/lib/hooks/mutations/object/useDeleteObjects";

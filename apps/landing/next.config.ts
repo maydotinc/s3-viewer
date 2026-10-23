@@ -1,3 +1,4 @@
+import { STATIC_ASSET_CACHE_CONTROL, securityHeaders } from "@s3-viewer/types";
 import type { NextConfig } from "next";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -25,24 +26,6 @@ const contentSecurityPolicy = [
    "form-action 'self'",
 ].join("; ");
 
-const securityHeaders = [
-   { key: "Content-Security-Policy", value: contentSecurityPolicy },
-   { key: "X-Content-Type-Options", value: "nosniff" },
-   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-   {
-      key: "Permissions-Policy",
-      value: "camera=(), microphone=(), geolocation=()",
-   },
-   ...(isProduction
-      ? [
-           {
-              key: "Strict-Transport-Security",
-              value: "max-age=63072000; includeSubDomains",
-           },
-        ]
-      : []),
-];
-
 const nextConfig: NextConfig = {
    output: "standalone",
    outputFileTracingIncludes: {
@@ -60,15 +43,16 @@ const nextConfig: NextConfig = {
       ],
    },
    headers: async () => [
-      { source: "/(.*)", headers: securityHeaders },
+      {
+         source: "/(.*)",
+         headers: [
+            { key: "Content-Security-Policy", value: contentSecurityPolicy },
+            ...securityHeaders(isProduction),
+         ],
+      },
       {
          source: "/landing/:path*",
-         headers: [
-            {
-               key: "Cache-Control",
-               value: "public, max-age=86400, stale-while-revalidate=604800",
-            },
-         ],
+         headers: [{ key: "Cache-Control", value: STATIC_ASSET_CACHE_CONTROL }],
       },
       ...(assetOrigin
          ? [

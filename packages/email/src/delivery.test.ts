@@ -1,5 +1,6 @@
 import { once } from "node:events";
 import { createServer, type Socket } from "node:net";
+import { networkInterfaces } from "node:os";
 import {
    createSecureContext,
    createServer as createTlsServer,
@@ -119,7 +120,7 @@ describe("delivery budget", () => {
       vi.stubGlobal("fetch", fetch);
       await expect(
          deliverEmail(resendDelivery("test"), message, authLink)
-      ).rejects.toThrow("rate_limit_exceeded");
+      ).rejects.toThrow("rate_limit_exceeded: Wait");
       expect(fetch).toHaveBeenCalledTimes(1);
    });
 
@@ -165,6 +166,11 @@ describe("delivery budget", () => {
    it.each([
       ["a temporary SMTP reply", fail({ responseCode: 451 }), 2],
       ["an SMTP timeout", fail({ code: "ETIMEDOUT" }), 2],
+      ["a socket error", fail({ code: "ESOCKET" }), 2],
+      ["a dropped connection", fail({ code: "ECONNECTION" }), 2],
+      ["a DNS failure", fail({ code: "EDNS" }), 2],
+      ["a TLS failure", fail({ code: "ETLS" }), 1],
+      ["an auth failure", fail({ code: "EAUTH", responseCode: 535 }), 1],
       ["a permanent SMTP reply", fail({ responseCode: 550 }), 1],
       ["an unclassified error", new Error("Bad address"), 1],
    ])(
@@ -345,7 +351,7 @@ it.each(["implicit", "starttls"] as const)(
 );
 
 describe("an SMTP server that does not offer STARTTLS", () => {
-   const plaintextServer = async () => {
+   const plaintextServer = async (bindHost = "127.0.0.1") => {
       const commands: string[] = [];
       const peers = new Set<Socket>();
       const server = createServer((socket) => {
@@ -384,7 +390,7 @@ describe("an SMTP server that does not offer STARTTLS", () => {
                else socket.write("502 Not implemented\r\n");
             }
          });
-      }).listen(0, "127.0.0.1");
+      }).listen(0, bindHost);
       await once(server, "listening");
       const address = server.address();
       if (!address || typeof address === "string")
@@ -429,6 +435,46 @@ describe("an SMTP server that does not offer STARTTLS", () => {
       }
    });
 
+   const externalAddress = Object.values(networkInterfaces())
+      .flat()
+      .find((entry) => entry?.family === "IPv4" && !entry.internal)?.address;
+
+   it.skipIf(!externalAddress)(
+      "refuses a plaintext session to a non-loopback host even without credentials",
+      async () => {
+         const server = await plaintextServer(externalAddress);
+         try {
+            await expect(
+               smtpDelivery(`smtp://${externalAddress}:${server.port}`)(
+                  message,
+                  new AbortController().signal
+               )
+            ).rejects.toThrow();
+            expect(server.commands).toContain("STARTTLS");
+            expect(server.commands).not.toContain("MAIL");
+         } finally {
+            server.close();
+         }
+      }
+   );
+
+   it.skipIf(!externalAddress)(
+      "allows plaintext to a non-loopback host only with ignoreTLS",
+      async () => {
+         const server = await plaintextServer(externalAddress);
+         try {
+            await expect(
+               smtpDelivery(
+                  `smtp://${externalAddress}:${server.port}?ignoreTLS=true`
+               )(message, new AbortController().signal)
+            ).resolves.toBeUndefined();
+            expect(server.commands).not.toContain("STARTTLS");
+         } finally {
+            server.close();
+         }
+      }
+   );
+
    it("still delivers without credentials, as to a local catcher", async () => {
       const server = await plaintextServer();
       try {
@@ -442,6 +488,27 @@ describe("an SMTP server that does not offer STARTTLS", () => {
       } finally {
          server.close();
       }
+   });
+});
+
+describe("SMTP proxy validation", () => {
+   it.each(["not a URL", "socks5://127.0.0.1:1080", "ftp://proxy.example"])(
+      "rejects %s when the delivery is constructed",
+      (proxy) => {
+         expect(() =>
+            smtpDelivery(
+               `smtp://mail.example.test?proxy=${encodeURIComponent(proxy)}`
+            )
+         ).toThrow();
+      }
+   );
+
+   it("accepts an HTTP proxy URL", () => {
+      expect(() =>
+         smtpDelivery(
+            `smtp://mail.example.test?proxy=${encodeURIComponent("http://127.0.0.1:3128")}`
+         )
+      ).not.toThrow();
    });
 });
 

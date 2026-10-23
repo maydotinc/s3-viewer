@@ -580,11 +580,12 @@ describe("repeated reads", () => {
 
    it("writes again once the minute has passed", async () => {
       await written(record(fakeRes(true), listing("dedupe/minute/")));
-      vi.setSystemTime(NOW.getTime() + 60_000);
+      vi.setSystemTime(NOW.getTime() + 59_999);
       await written(record(fakeRes(true), listing("dedupe/minute/")));
       expect(stored()).toHaveLength(1);
-      vi.setSystemTime(NOW.getTime() + 60_001);
+      vi.setSystemTime(NOW.getTime() + 60_000);
       await written(record(fakeRes(true), listing("dedupe/minute/")));
+
       expect(stored()).toHaveLength(2);
       vi.setSystemTime(NOW);
    });

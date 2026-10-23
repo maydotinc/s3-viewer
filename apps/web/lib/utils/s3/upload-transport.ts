@@ -10,7 +10,7 @@ import {
 } from "@/lib/api";
 import type { BucketTarget } from "@/lib/types";
 import type { ApiError as ApiErrorBody } from "@s3-viewer/types";
-import { UploadCancelled } from "./upload-cancelled";
+import { UploadCancelledError } from "./upload-cancelled";
 
 const MIN_UPLOAD_TIMEOUT_MS = 30_000;
 const MIN_UPLOAD_THROUGHPUT_BYTES_PER_SEC = 50 * 1024;
@@ -121,7 +121,7 @@ const putBytes = <T>({
       xhr.onerror = () => reject(networkError());
       xhr.ontimeout = () => reject(networkError());
       xhr.onabort = () =>
-         reject(cancelled ? new UploadCancelled() : networkError());
+         reject(cancelled ? new UploadCancelledError() : networkError());
       xhr.open("PUT", url);
       xhr.withCredentials = true;
       xhr.timeout = uploadTimeoutMs(body.size);

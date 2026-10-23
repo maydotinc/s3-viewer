@@ -9,6 +9,20 @@ const optionalString = z
 
 const lowercase = optionalString.transform((value) => value?.toLowerCase());
 
+const TRUE_FLAGS = ["true", "1", "yes", "on"];
+const FALSE_FLAGS = ["false", "0", "no", "off"];
+// a misspelt flag must fail loudly: silently reading it as false hides the operator's intent.
+const flag = optionalString.transform((value, ctx) => {
+   const text = value?.toLowerCase();
+   if (text === undefined || FALSE_FLAGS.includes(text)) return false;
+   if (TRUE_FLAGS.includes(text)) return true;
+   ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `expected true or false, got "${value}"`,
+   });
+   return z.NEVER;
+});
+
 type OptionalText = z.ZodType<string | undefined, z.ZodTypeDef, unknown>;
 
 /** an unset or blank variable takes `fallback`; anything else must pass `schema`. */
@@ -185,6 +199,8 @@ const deriveSharedEnv = (
 
 export {
    deriveSharedEnv,
+   flag,
+   lowercase,
    optionalString,
    parseEnv,
    parseSharedEnv,

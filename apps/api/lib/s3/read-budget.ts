@@ -1,11 +1,12 @@
 import { MIB, SECOND_MS } from "@s3-viewer/types";
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { ServerResponse } from "node:http";
+import { bump, countOf } from "@/lib/utils/counter-map";
+import { keyedSlots } from "@/lib/utils/keyed-slots";
 import { rateLimited } from "./errors";
 
 // storage has already acted on a committed request, so refusing its response would only hide that it landed.
 type ReadScope = { serverId: string; userId?: string; committed?: boolean };
-type Usage = { reads: number; bytes: number };
 type ReadReservation = {
    retain: (bytes: number) => void;
    discard: (bytes: number) => void;
@@ -84,9 +85,10 @@ const readCapacityError = () =>
    rateLimited("Storage response capacity is busy. Try again shortly.");
 
 const createReadBudget = (limits: ReadBudgetOptions) => {
-   const total: Usage = { reads: 0, bytes: 0 };
-   const users = new Map<string, Usage>();
-   const servers = new Map<string, Usage>();
+   const reads = keyedSlots();
+   let totalBytes = 0;
+   const userBytes = new Map<string, number>();
+   const serverBytes = new Map<string, number>();
    let contendedUntil = 0;
 
    // two accounts at half the pool each would starve everyone else, so shares shrink once the pool is half used
@@ -95,8 +97,8 @@ const createReadBudget = (limits: ReadBudgetOptions) => {
       const { contention } = limits;
       if (!contention) return limit;
       const contended =
-         total.reads >= limits.maxReads * contention.above ||
-         total.bytes >= limits.maxBytes * contention.above ||
+         reads.held("all") >= limits.maxReads * contention.above ||
+         totalBytes >= limits.maxBytes * contention.above ||
          Date.now() < contendedUntil;
       return contended
          ? Math.min(limit, Math.max(1, Math.floor(pool * contention.share)))
@@ -114,41 +116,36 @@ const createReadBudget = (limits: ReadBudgetOptions) => {
       committed = false,
    }: ReadScope): ReadReservation => {
       const userKey = userId ?? "internal";
-      const user = users.get(userKey) ?? { reads: 0, bytes: 0 };
-      const server = servers.get(serverId) ?? { reads: 0, bytes: 0 };
-      if (!committed) {
-         if (total.reads >= limits.maxReads) throw poolFull();
-         if (
-            user.reads >= share(limits.maxUserReads, limits.maxReads) ||
-            server.reads >= share(limits.maxServerReads, limits.maxReads)
-         )
-            throw readCapacityError();
-      }
-      users.set(userKey, user);
-      servers.set(serverId, server);
-      const usages = [total, user, server];
-      for (const usage of usages) usage.reads++;
+      const cap = (limit: number): number => (committed ? Infinity : limit);
+      const finishReading = reads.acquire([
+         ["all", cap(limits.maxReads), poolFull],
+         [
+            `user:${userKey}`,
+            cap(share(limits.maxUserReads, limits.maxReads)),
+            readCapacityError,
+         ],
+         [
+            `server:${serverId}`,
+            cap(share(limits.maxServerReads, limits.maxReads)),
+            readCapacityError,
+         ],
+      ]);
       let held = 0;
-      let released = false;
       let reading = true;
-      const prune = () => {
-         if (!user.reads && !user.bytes && users.get(userKey) === user)
-            users.delete(userKey);
-         if (!server.reads && !server.bytes && servers.get(serverId) === server)
-            servers.delete(serverId);
+      const hold = (bytes: number) => {
+         held += bytes;
+         totalBytes += bytes;
+         bump(userBytes, userKey, bytes);
+         bump(serverBytes, serverId, bytes);
       };
       const finishRead = () => {
-         if (!reading) return;
          reading = false;
-         for (const usage of usages) usage.reads--;
-         prune();
+         finishReading();
       };
       const discard = (bytes: number) => {
          if (!Number.isSafeInteger(bytes) || bytes < 0 || bytes > held)
             throw new Error("Invalid read reservation discard size");
-         held -= bytes;
-         for (const usage of usages) usage.bytes -= bytes;
-         prune();
+         hold(-bytes);
       };
 
       return {
@@ -158,23 +155,20 @@ const createReadBudget = (limits: ReadBudgetOptions) => {
             if (!Number.isSafeInteger(bytes) || bytes < 0)
                throw new Error("Invalid read reservation size");
             if (!committed) {
-               if (total.bytes + bytes > limits.maxBytes) throw poolFull();
+               if (totalBytes + bytes > limits.maxBytes) throw poolFull();
                if (
-                  user.bytes + bytes >
+                  countOf(userBytes, userKey) + bytes >
                      share(limits.maxUserBytes, limits.maxBytes) ||
-                  server.bytes + bytes >
+                  countOf(serverBytes, serverId) + bytes >
                      share(limits.maxServerBytes, limits.maxBytes)
                )
                   throw readCapacityError();
             }
-            held += bytes;
-            for (const usage of usages) usage.bytes += bytes;
+            hold(bytes);
          },
          discard,
          finishRead,
          release() {
-            if (released) return;
-            released = true;
             finishRead();
             discard(held);
          },

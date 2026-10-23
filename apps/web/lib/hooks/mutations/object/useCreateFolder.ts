@@ -2,7 +2,7 @@ import type { BucketTarget } from "@/lib/types";
 import useObjectMutation, {
    forgetTouched,
    sendObjectMutation,
-} from "./object-mutation";
+} from "./useObjectMutation";
 
 const useCreateFolder = () =>
    useObjectMutation({

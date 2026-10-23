@@ -44,8 +44,8 @@ const buttonNamed = (container: HTMLElement, name: string) =>
       (button) => button.textContent?.trim() === name
    )!;
 
-const status = (container: HTMLElement) =>
-   container.querySelector('[role="status"], [role="alert"]')!;
+const live = (container: HTMLElement, role: "alert" | "status") =>
+   container.querySelector(`[role="${role}"]`)!;
 
 const reachSentStep = async (container: HTMLElement) => {
    await act(async () => h.onEmailChange("person@example.com"));
@@ -65,23 +65,26 @@ describe("resending a password reset link", () => {
    it("swaps a failed resend for the confirmation in the slot reserved under the prompt", async () => {
       const container = await mountScreen();
       await reachSentStep(container);
-      const slot = status(container);
-      expect(slot.textContent).toBe("");
+      const alert = live(container, "alert");
+      const status = live(container, "status");
+      expect(alert.textContent).toBe("");
+      expect(status.textContent).toBe("");
 
       h.requestPasswordReset.mockResolvedValueOnce({
          error: "Too many requests",
       });
       await act(async () => buttonNamed(container, "Send again").click());
       await flushRuntime();
-      expect(status(container).getAttribute("role")).toBe("alert");
-      expect(status(container).textContent).toBe("Too many requests");
+      expect(alert.isConnected).toBe(true);
+      expect(alert.textContent).toBe("Too many requests");
+      expect(status.textContent).toBe("");
 
       await act(async () => buttonNamed(container, "Send again").click());
       await flushRuntime();
       expect(h.requestPasswordReset).toHaveBeenCalledTimes(3);
-      expect(status(container)).toBe(slot);
-      expect(slot.getAttribute("role")).toBe("status");
-      expect(slot.textContent).toBe("Sent again.");
+      expect(alert.textContent).toBe("");
+      expect(status.isConnected).toBe(true);
+      expect(status.textContent).toBe("Sent again.");
    });
 
    it("drops the resend error when going back to change the email", async () => {

@@ -1,4 +1,4 @@
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { formatDate } from "@/lib/format-date";
 import { legalJsonLd } from "@/lib/jsonld";
 import type { NextPage } from "next";

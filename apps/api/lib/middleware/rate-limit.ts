@@ -8,6 +8,7 @@ import {
    MINUTE_MS,
    TRANSFERS_PATH,
    SECOND_MS,
+   ttlMap,
 } from "@s3-viewer/types";
 import type { Request, RequestHandler, Response } from "express";
 import rateLimit, {
@@ -73,7 +74,7 @@ const limiter = (
    if (!shared || env.RATE_LIMIT_STORE !== "postgres")
       return rateLimit(options);
 
-   const refusedUntil = new Map<string, number>();
+   const refusedUntil = ttlMap<string, number>(MAX_REFUSED_KEYS);
    const windowSeconds = Math.ceil(windowMs / SECOND_MS);
    // same draft-7 headers express-rate-limit sent on the first refusal.
    const refuse = (req: Request, res: Response, until: number): void => {
@@ -86,15 +87,6 @@ const limiter = (
       res.setHeader("Retry-After", resetSeconds);
       res.status(429).json(refusal(req));
    };
-   const remember = (key: string, until: number): void => {
-      if (refusedUntil.size >= MAX_REFUSED_KEYS) {
-         const now = Date.now();
-         for (const [known, expiry] of refusedUntil)
-            if (expiry <= now) refusedUntil.delete(known);
-         if (refusedUntil.size >= MAX_REFUSED_KEYS) refusedUntil.clear();
-      }
-      refusedUntil.set(key, until);
-   };
    const across = rateLimit({
       ...options,
       store: postgresStore(shared),
@@ -105,7 +97,8 @@ const limiter = (
          used
       ) => {
          const resetAt = req.rateLimit?.resetTime?.getTime();
-         if (resetAt !== undefined) remember(keyGenerator(req, res), resetAt);
+         if (resetAt !== undefined)
+            refusedUntil.set(keyGenerator(req, res), resetAt, resetAt);
          res.status(used.statusCode).json(refusal(req));
       },
    });
@@ -114,10 +107,6 @@ const limiter = (
       const key = keyGenerator(req, res);
       const until = refusedUntil.get(key);
       if (until === undefined) return across(req, res, next);
-      if (until <= Date.now()) {
-         refusedUntil.delete(key);
-         return across(req, res, next);
-      }
       refuse(req, res, until);
    };
 };

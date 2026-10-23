@@ -15,6 +15,8 @@ kill_timeout = "10s"
    COOKIE_SAMESITE = "none"
    EMAIL_TRANSPORT = "none"
    AUDIT_RETENTION_DAYS = "365"
+   # the default 256 MiB budget is half this 512 MB machine; 128 MiB leaves headroom for Node and TLS.
+   UPLOAD_MEMORY_BUDGET_BYTES = "134217728"
 
 [http_service]
    internal_port = 5001

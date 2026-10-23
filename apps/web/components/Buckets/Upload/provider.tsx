@@ -6,7 +6,8 @@ import { forgetKeys } from "@/lib/hooks/mutations/object/invalidate";
 import { notifyListingChanged } from "@/lib/listing-events";
 import type { BucketTarget } from "@/lib/types";
 import { useServerId } from "@/lib/stores/session-scope";
-import useSessionStore, { useUserId } from "@/lib/stores/session-store";
+import { isCurrentScope } from "@/lib/stores/current-scope";
+import { useUserId } from "@/lib/stores/session-store";
 import useUploadStore from "@/lib/stores/upload-store/upload-store";
 import { MAX_UPLOAD_FILES, type UploadFile } from "@/lib/utils/s3/drop-entries";
 import { checkUploadConflicts } from "@/lib/utils/s3/upload-preflight";
@@ -83,14 +84,10 @@ const UploadProvider = ({ children }: { children: React.ReactNode }) => {
    });
    currentTarget.current = { userId, serverId, bucketName, prefix };
 
-   const isCurrent = useCallback((target: UploadTarget) => {
-      const session = useSessionStore.getState();
-      return (
-         sameTarget(target, currentTarget.current) &&
-         session.userId === target.userId &&
-         session.serverId === target.serverId
-      );
-   }, []);
+   const isCurrent = useCallback(
+      (target: UploadTarget) => isCurrentScope(target, currentTarget.current),
+      []
+   );
 
    useEffect(() => {
       const target = { userId, serverId, bucketName, prefix };

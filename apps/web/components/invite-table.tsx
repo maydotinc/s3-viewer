@@ -124,7 +124,7 @@ const ExpiresCell = ({ expiresAt }: { expiresAt: string }) => {
          className={cn(
             "text-right tabular-nums",
             STACKED_LABEL,
-            expired ? "text-viewertextred" : "text-viewertext"
+            expired ? "text-viewerstrongred" : "text-viewertext"
          )}
       >
          {expired ? "Expired" : formatDay(expiresAt)}

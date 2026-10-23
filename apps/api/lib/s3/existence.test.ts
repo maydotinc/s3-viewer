@@ -88,6 +88,66 @@ describe("upload existence and ETag snapshot", () => {
       expect(Object.keys(result.eTags)).toHaveLength(500);
    });
 
+   it("lists a member's folders side by side, a few at a time", async () => {
+      const folders = Array.from({ length: 6 }, (_, i) => `f${i}/`);
+      const keys = folders.flatMap((folder) =>
+         numbered(60).map((name) => `${folder}${name}`)
+      );
+      let active = 0;
+      let maximum = 0;
+      const send = vi.fn(async () => {
+         active++;
+         maximum = Math.max(maximum, active);
+         await new Promise<void>((resolve) => setImmediate(resolve));
+         active--;
+         return { Contents: [], IsTruncated: false };
+      });
+      const result = await whichExistInFolders(
+         { client: { send } as unknown as S3Client, bucket: "bucket" },
+         folders,
+         keys
+      );
+      expect(result.existing).toEqual([]);
+      expect(maximum).toBeGreaterThan(1);
+      expect(maximum).toBeLessThanOrEqual(4);
+   });
+
+   it("aborts the other folder listings once one fails, and waits for them", async () => {
+      const folders = ["a/", "b/", "c/"];
+      const keys = folders.flatMap((folder) =>
+         numbered(60).map((name) => `${folder}${name}`)
+      );
+      const siblings: AbortSignal[] = [];
+      let settled = 0;
+      const send = vi.fn(
+         async (
+            command: ListObjectsV2Command,
+            { abortSignal }: { abortSignal: AbortSignal }
+         ) => {
+            if (command.input.Prefix?.startsWith("a/")) {
+               await new Promise<void>((resolve) => setImmediate(resolve));
+               throw Object.assign(new Error(), { name: "InternalError" });
+            }
+            siblings.push(abortSignal);
+            await new Promise<void>((resolve) =>
+               abortSignal.addEventListener("abort", () => resolve())
+            );
+            settled++;
+            throw abortSignal.reason;
+         }
+      );
+      await expect(
+         whichExistInFolders(
+            { client: { send } as unknown as S3Client, bucket: "bucket" },
+            folders,
+            keys
+         )
+      ).rejects.toMatchObject({ status: 502 });
+      expect(siblings).toHaveLength(2);
+      expect(siblings.every((signal) => signal.aborted)).toBe(true);
+      expect(settled).toBe(2);
+   });
+
    it("keeps a key named __proto__ when merging folder listings", async () => {
       const keys = ["a/__proto__", "__proto__", ...numbered(60)];
       const send = vi.fn(async () => ({

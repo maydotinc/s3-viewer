@@ -16,7 +16,7 @@ import Modal from "./index";
 const h = vi.hoisted(() => ({
    encrypt: vi.fn(),
    mutate: vi.fn(),
-   signOut: vi.fn(),
+   requestSignOut: vi.fn(),
    error: null as unknown,
 }));
 
@@ -26,7 +26,7 @@ vi.mock("@s3-viewer/ui/components/dialog", async () =>
 vi.mock("@/lib/hooks/mutations/server/useUpdateCredentials", () => ({
    default: () => ({ isPending: false, mutate: h.mutate, error: h.error }),
 }));
-vi.mock("@/lib/auth", () => ({ signOut: h.signOut }));
+vi.mock("@/lib/auth", () => ({ requestSignOut: h.requestSignOut }));
 vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
    default: () => ({ data: { encryptionPublicKey: "key" } }),
    ENCRYPTION_ERROR: "Couldn't encrypt",
@@ -107,7 +107,7 @@ describe("updating credentials", () => {
       await act(async () =>
          buttonByText(view.current.container, "Sign in again")!.click()
       );
-      expect(h.signOut).toHaveBeenCalledOnce();
+      expect(h.requestSignOut).toHaveBeenCalledOnce();
       expect(h.mutate).toHaveBeenCalledOnce();
    });
 });

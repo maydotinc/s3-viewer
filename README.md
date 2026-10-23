@@ -23,14 +23,7 @@ starts Postgres, generates your keys, and sets up the database. no `.env` needed
 
 sign up in the app. email is off by default, so the app tells you the account
 has to be verified by whoever runs the instance. that's you, from the terminal:
-
-```bash
-# use the email you signed up with
-docker compose exec api node dist/verify-email.js you@example.com
-
-# check the account details, then add the printed account ID
-docker compose exec api node dist/verify-email.js you@example.com ACCOUNT_ID
-```
+[verify an account without email](./SELF-HOSTING.md#verify-an-account-without-email).
 
 log in, connect your storage, and you're in.
 
@@ -83,11 +76,11 @@ s3 viewer. please report security issues through [SECURITY.md](./SECURITY.md).
 
 ## 🛠️ local development
 
-you'll need Node 22.12+ (`.nvmrc` selects Node 22) and pnpm 10.28.2. after cloning:
+you'll need Node 22.12+ (`.nvmrc` selects Node 22) and the pnpm version pinned in `packageManager` in `package.json`. after cloning:
 
 ```bash
-# if you don't have pnpm yet
-npm install -g pnpm@10.28.2
+# if you don't have pnpm yet, corepack installs the pinned version
+corepack enable
 
 pnpm install --frozen-lockfile
 pnpm dev

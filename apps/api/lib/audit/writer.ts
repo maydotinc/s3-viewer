@@ -6,6 +6,7 @@ import type { AuditScope } from "@/lib/services/servers";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@s3-viewer/db";
 import { isUniqueViolation } from "@s3-viewer/db/errors";
+import { memoryWindows } from "@s3-viewer/db/rate-limit";
 import { createHash } from "node:crypto";
 import {
    AuditLevel,
@@ -37,18 +38,12 @@ const SEEN_WINDOW_MS = 5 * MINUTE_MS;
 const READ_WINDOW_MS = MINUTE_MS;
 const LOSS_LOG_INTERVAL_MS = MINUTE_MS;
 const APPEND_CONCURRENCY = 4;
-const SEEN_SWEEP_EVERY = 1000;
 const MAX_SEEN_KEYS = 20_000;
 // each distinct prefix dodges the dedupe, so a scripted crawl would otherwise write a row per folder.
 const MAX_LISTINGS_PER_WINDOW = 30;
 
-const SKIPPED_AT_CHANGES: ReadonlySet<AuditAction> = new Set<AuditAction>([
-   "object.list",
-   "object.view",
-]);
-
-// any member who can browse can repeat these as fast as the rate limit allows.
-const DEDUPED_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction>([
+// any member who can browse can repeat these as fast as the rate limit allows, so they are deduped and left out at CHANGES.
+const READ_ACTIONS: ReadonlySet<AuditAction> = new Set<AuditAction>([
    "object.list",
    "object.view",
 ]);
@@ -75,7 +70,7 @@ type WriteInput = {
 };
 
 const recordedAt = (level: AuditLevel, entry: AuditEntry): boolean =>
-   level !== AuditLevel.CHANGES || !SKIPPED_AT_CHANGES.has(entry.action);
+   level !== AuditLevel.CHANGES || !READ_ACTIONS.has(entry.action);
 
 type Tx = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
@@ -417,7 +412,7 @@ const readKey = (
       .digest("base64url");
 
 const repeatedRead = (scope: WriteInput, entry: AuditEntry): boolean =>
-   DEDUPED_ACTIONS.has(entry.action) && recentlyRead(readKey(scope, entry));
+   READ_ACTIONS.has(entry.action) && recentlyRead(readKey(scope, entry));
 
 // past the cap one marker row stands in for the rest of the window, so the gap is visible.
 const throttledListing = (
@@ -425,7 +420,10 @@ const throttledListing = (
    entry: AuditEntry
 ): AuditEntry[] => {
    if (entry.action !== "object.list") return [entry];
-   const count = recentListings(JSON.stringify([actor.id, serverId]));
+   const count = listingWindows.hit(
+      JSON.stringify([actor.id, serverId]),
+      READ_WINDOW_MS
+   );
    if (count <= MAX_LISTINGS_PER_WINDOW) return [entry];
    if (count > MAX_LISTINGS_PER_WINDOW + 1) return [];
    return [
@@ -465,39 +463,15 @@ const writeAudit = ({
 }: WriteInput & { entry: AuditEntry }): Promise<void> =>
    writeAudits({ ...scope, entries: [entry] });
 
-// counts a key's hits in a fixed window that opens at its first hit.
-const hitsWithin = (windowMs: number): ((key: string) => number) => {
-   const seen = new Map<string, { at: number; hits: number }>();
-   let calls = 0;
-   const sweep = (now: number): void => {
-      for (const [key, { at }] of seen) {
-         if (now - at > windowMs) seen.delete(key);
-      }
-   };
-   return (key) => {
-      const now = Date.now();
-      if (++calls % SEEN_SWEEP_EVERY === 0) sweep(now);
-      const window = seen.get(key);
-      if (window && now - window.at <= windowMs) return ++window.hits;
-      seen.delete(key);
-      seen.set(key, { at: now, hits: 1 });
-      for (const oldest of seen.keys()) {
-         if (seen.size <= MAX_SEEN_KEYS) break;
-         seen.delete(oldest);
-      }
-      return 1;
-   };
-};
-
 const seenWithin = (windowMs: number): ((key: string) => boolean) => {
-   const hits = hitsWithin(windowMs);
-   return (key) => hits(key) > 1;
+   const windows = memoryWindows(MAX_SEEN_KEYS);
+   return (key) => windows.hit(key, windowMs) > 1;
 };
 
 const recentlySeen = seenWithin(SEEN_WINDOW_MS);
 // kept apart so a flood of distinct reads cannot evict denial keys.
 const recentlyRead = seenWithin(READ_WINDOW_MS);
-const recentListings = hitsWithin(READ_WINDOW_MS);
+const listingWindows = memoryWindows(MAX_SEEN_KEYS);
 
 export {
    AuditWriteError,

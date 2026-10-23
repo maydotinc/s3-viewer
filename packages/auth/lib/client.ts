@@ -29,8 +29,10 @@ type ContinueResult = AuthResult & { created: boolean; exists?: true };
 type ContinueOptions = { allowSignUp?: boolean; inviteId?: string };
 
 const PASSWORD_PROVIDER = "credential";
+const UNREACHABLE_MESSAGE =
+   "Couldn't reach the server. Check your connection and try again.";
 const UNREACHABLE: AuthResult = {
-   error: "Couldn't reach the server. Check your connection and try again.",
+   error: UNREACHABLE_MESSAGE,
    code: AuthErrorCode.NETWORK,
 };
 const ALREADY_EXISTS = new Set([
@@ -190,6 +192,44 @@ const makeAuthClient = ({
       return data.some((account) => account.providerId === PASSWORD_PROVIDER);
    };
 
+   const listSessions = async (expectedUserId?: string) => {
+      const result = await authClient
+         .listSessions({ fetchOptions: accountFetchOptions(expectedUserId) })
+         .catch(() => null);
+      if (!result) throw new Error(UNREACHABLE_MESSAGE);
+      if (result.error) throw new Error(authErrorMessage(result.error));
+      return result.data;
+   };
+
+   const revokeSession = (
+      token: string,
+      expectedUserId?: string
+   ): Promise<AuthResult> =>
+      settled(
+         authClient.revokeSession({
+            token,
+            fetchOptions: accountFetchOptions(expectedUserId),
+         })
+      );
+
+   const revokeOtherSessions = (expectedUserId?: string): Promise<AuthResult> =>
+      settled(
+         authClient.revokeOtherSessions({
+            fetchOptions: accountFetchOptions(expectedUserId),
+         })
+      );
+
+   const updateProfileName = (
+      name: string,
+      expectedUserId?: string
+   ): Promise<AuthResult> =>
+      settled(
+         authClient.updateUser({
+            name,
+            fetchOptions: accountFetchOptions(expectedUserId),
+         })
+      );
+
    const signInWithGithub = (
       callbackPath: string = SITE_PATHS.dashboard
    ): Promise<AuthResult> =>
@@ -211,17 +251,20 @@ const makeAuthClient = ({
 
    return {
       authClient,
-      accountFetchOptions,
       changePassword,
       continueWithPassword,
       deleteAccount,
       hasPassword,
+      listSessions,
       requestPasswordReset,
       resetPassword,
+      revokeOtherSessions,
+      revokeSession,
       sendVerificationCode,
       signInWithGithub,
       signInWithPassword,
       signOut,
+      updateProfileName,
       verifyEmailCode,
    };
 };

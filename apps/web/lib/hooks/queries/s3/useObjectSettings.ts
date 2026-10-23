@@ -4,10 +4,16 @@ import { isScoped, useSessionScope } from "@/lib/stores/session-scope";
 import type { S3ObjectSettings } from "@s3-viewer/types";
 import { useQuery } from "@tanstack/react-query";
 
+type SettingsOptions = {
+   enabled?: boolean;
+   // refetch on mount even when cached, for a form that writes back what it read
+   fresh?: boolean;
+};
+
 const useObjectSettings = (
    bucketName: string,
    objectKey: string,
-   enabled = true
+   { enabled = true, fresh = false }: SettingsOptions = {}
 ) => {
    const { userId, serverId } = useSessionScope();
 
@@ -25,6 +31,7 @@ const useObjectSettings = (
          ),
       enabled: enabled && isScoped(userId, serverId, bucketName, objectKey),
       retry: false,
+      ...(fresh && { refetchOnMount: "always" as const }),
    });
 };
 

@@ -421,10 +421,39 @@ describe("reloading in place", () => {
       expect(grid.setNodesSelected).toHaveBeenCalledOnce();
    });
 
+   it("refreshes selection snapshots from the grid once the reload settles", async () => {
+      const blocks: Record<string, { pageStatus: string }> = {
+         0: { pageStatus: "loaded" },
+         1: { pageStatus: "needsLoading" },
+      };
+      const { grid, getGridApi } = liveGrid({
+         blocks,
+         selected: ["k1", "deleted"],
+         present: ["k1"],
+      });
+      const refreshSelection = vi.fn();
+      const datasource = source({ getGridApi, refreshSelection });
+      datasource.reload();
+      await rowsFor(datasource, 0);
+      expect(refreshSelection).not.toHaveBeenCalled();
+
+      blocks[1] = { pageStatus: "loaded" };
+      await rowsFor(datasource, 1);
+      expect(refreshSelection).toHaveBeenCalledExactlyOnceWith(grid);
+      expect(grid.setNodesSelected.mock.invocationCallOrder[0]).toBeLessThan(
+         refreshSelection.mock.invocationCallOrder[0]!
+      );
+
+      await rowsFor(datasource, 0);
+      expect(refreshSelection).toHaveBeenCalledOnce();
+   });
+
    it("never prunes selection on a listing's first load", async () => {
       const { grid, getGridApi } = liveGrid({ selected: ["elsewhere"] });
-      await rowsFor(source({ getGridApi }), 0);
+      const refreshSelection = vi.fn();
+      await rowsFor(source({ getGridApi, refreshSelection }), 0);
       expect(grid.getSelectedNodes).not.toHaveBeenCalled();
+      expect(refreshSelection).not.toHaveBeenCalled();
    });
 
    it("shares a block the grid is already fetching with a later block's walk", async () => {

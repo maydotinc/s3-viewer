@@ -8,7 +8,7 @@ import { COMPACT } from "@/components/compact-button";
 import { PageHeader, PageTitle } from "@/components/Layout/page";
 import RefreshButton from "@/components/refresh-button";
 import Reserve from "@/components/reserve";
-import useAsyncAction from "@/components/use-async-action";
+import useAsyncAction from "@/lib/hooks/useAsyncAction";
 import { copyToClipboard } from "@/lib/utils/clipboard";
 import { visibleText } from "@/lib/utils/format";
 import { folderHref, objectHref } from "@/lib/utils/s3/paths";
@@ -66,14 +66,14 @@ const ObjectHeader = ({
    onEdit,
 }: ObjectHeaderProps) => {
    const router = useRouter();
-   const { isLoading } = useBucketContext();
+   const { isLoading, serverId } = useBucketContext();
    const commands = useObjectCommands();
    const download = useAsyncAction();
    const link = useAsyncAction();
    const busy = download.pending || link.pending;
    const [copied, setCopied] = useState(false);
    const copiedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-   const backHref = folderHref(bucketName, path.slice(0, -1));
+   const backHref = folderHref(serverId, bucketName, path.slice(0, -1));
 
    useEffect(
       () => () => {
@@ -112,7 +112,9 @@ const ObjectHeader = ({
                objectKey,
                eTag,
                (newObjectKey) =>
-                  void router.replace(objectHref(bucketName, newObjectKey))
+                  void router.replace(
+                     objectHref(serverId, bucketName, newObjectKey)
+                  )
             ),
       },
       can.upload && {
@@ -124,7 +126,9 @@ const ObjectHeader = ({
                objectKey,
                eTag,
                (newObjectKey) =>
-                  void router.push(objectHref(bucketName, newObjectKey))
+                  void router.push(
+                     objectHref(serverId, bucketName, newObjectKey)
+                  )
             ),
       },
       can.delete && {
@@ -139,8 +143,8 @@ const ObjectHeader = ({
             ),
       },
    ];
-   const secondary = actionList.filter(
-      (action): action is SecondaryAction => Boolean(action)
+   const secondary = actionList.filter((action): action is SecondaryAction =>
+      Boolean(action)
    );
 
    const actions = (

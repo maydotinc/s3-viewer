@@ -2,7 +2,7 @@ name: s3-viewer
 
 services:
    postgres:
-      image: postgres:16
+      image: postgres:16.15
       restart: unless-stopped
       environment:
          POSTGRES_USER: s3viewer
@@ -21,6 +21,16 @@ services:
          context: .
          dockerfile: apps/api/Dockerfile
       restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      cap_drop:
+         - ALL
+      # only the entrypoint's root branch uses these, to chown the data dir and drop to node
+      cap_add:
+         - CHOWN
+         - DAC_OVERRIDE
+         - SETUID
+         - SETGID
       depends_on:
          postgres:
             condition: service_healthy
@@ -81,6 +91,10 @@ services:
          context: .
          dockerfile: apps/web/Dockerfile
       restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      cap_drop:
+         - ALL
       depends_on:
          api:
             condition: service_healthy
@@ -104,13 +118,17 @@ services:
             NEXT_PUBLIC_SITE_URL: ${SITE_URL:-http://localhost:3000}
       profiles: [landing]
       restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      cap_drop:
+         - ALL
       environment:
          - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
       expose:
          - "3001"
 
    caddy:
-      image: caddy:2-alpine
+      image: caddy:2.11.7-alpine
       profiles: [proxy]
       restart: unless-stopped
       environment:
@@ -119,6 +137,7 @@ services:
       ports:
          - "80:80"
          - "443:443"
+         - "443:443/udp"
       volumes:
          - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
          - caddydata:/data

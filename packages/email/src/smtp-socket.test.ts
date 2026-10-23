@@ -110,7 +110,7 @@ it("keeps a greeting received with the CONNECT response", async () => {
       const proxyUrl = `http://127.0.0.1:${address.port}`;
       await expect(
          smtpDelivery(
-            `smtp://mail.example.test:587?proxy=${encodeURIComponent(proxyUrl)}`
+            `smtp://mail.example.test:587?proxy=${encodeURIComponent(proxyUrl)}&ignoreTLS=true`
          )(message, AbortSignal.timeout(1000))
       ).resolves.toBeUndefined();
    } finally {
@@ -169,4 +169,25 @@ it("rejects malformed proxy URLs as delivery errors", async () => {
    await expect(
       smtpSocket({}, "not a URL", new AbortController().signal)
    ).rejects.toThrow();
+});
+
+it("reports a refused CONNECT as a transient connection failure", async () => {
+   const proxy = createServer((socket) => {
+      socket.on("error", () => {});
+      socket.once("data", () => socket.end("HTTP/1.1 502 Bad Gateway\r\n\r\n"));
+   }).listen(0, "127.0.0.1");
+   await once(proxy, "listening");
+   const address = proxy.address();
+   if (!address || typeof address === "string") throw new Error("No test port");
+   try {
+      await expect(
+         smtpSocket(
+            { host: "mail.example.test", port: 587 },
+            `http://127.0.0.1:${address.port}`,
+            new AbortController().signal
+         )
+      ).rejects.toMatchObject({ code: "ECONNECTION" });
+   } finally {
+      proxy.close();
+   }
 });

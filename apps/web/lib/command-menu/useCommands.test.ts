@@ -63,7 +63,7 @@ vi.mock("@/lib/hooks/useSwitchServer", () => ({
 vi.mock("@/lib/contexts/modal-context", () => ({
    useModalActions: () => ({ openScoped: h.openScoped }),
 }));
-vi.mock("@/lib/auth", () => ({ signOut: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ requestSignOut: vi.fn() }));
 vi.mock("@/lib/shortcuts", () => ({
    useShortcutRegistry: () => ({ setHelpOpen: vi.fn() }),
 }));
@@ -113,7 +113,7 @@ const bucket = (userRole: Role): S3Bucket => ({
 });
 
 beforeEach(() => {
-   h.query = { slug: ["site", "docs"] };
+   h.query = { serverId: "server-1", slug: ["site", "docs"] };
    h.canCreateBucket = undefined;
 });
 
@@ -167,7 +167,7 @@ describe("commands follow the roles the API enforces", () => {
       h.serverRole = Role.VIEWER;
       h.buckets = [{ ...bucket(Role.EDITOR), folders: ["landing/"] }];
       expect(await offered()).toEqual([]);
-      h.query = { slug: ["site", "landing"] };
+      h.query = { serverId: "server-1", slug: ["site", "landing"] };
       expect(await offered()).toEqual([
          "action:create-folder",
          "action:bulk-rename",
@@ -175,11 +175,36 @@ describe("commands follow the roles the API enforces", () => {
       ]);
    });
 
+   it("offers no folder actions while the URL names another server", async () => {
+      h.serverRole = Role.OWNER;
+      h.buckets = [bucket(Role.OWNER)];
+      h.query = { serverId: "server-2", slug: ["site", "docs"] };
+      const ids = await offered();
+      for (const id of [
+         "action:create-folder",
+         "action:bulk-rename",
+         "action:transfer-folder",
+      ])
+         expect(ids).not.toContain(id);
+   });
+
    it("offers no folder actions outside a bucket", async () => {
       h.serverRole = Role.EDITOR;
       h.buckets = [bucket(Role.EDITOR)];
       h.query = {};
       expect(await offered()).toEqual(["action:create-bucket"]);
+   });
+});
+
+describe("bucket commands", () => {
+   it("open each bucket on the selected server", async () => {
+      h.serverRole = Role.OWNER;
+      h.buckets = [bucket(Role.OWNER)];
+      const site = (await mount()).find(({ id }) => id === "bucket:site");
+      expect(site?.href).toEqual({
+         pathname: "/servers/[serverId]/buckets/[[...slug]]",
+         query: { serverId: "server-1", slug: ["site"] },
+      });
    });
 });
 

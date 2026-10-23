@@ -1,16 +1,28 @@
 // @vitest-environment happy-dom
 import { buttonByText, mountedRuntime } from "@/components/test-helpers";
-import { Role, type ServerUser } from "@s3-viewer/types";
+import { ApiError } from "@/lib/api";
+import { ErrorCode, Role, type ServerUser } from "@s3-viewer/types";
 import { act, createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const h = vi.hoisted(() => ({ remove: vi.fn() }));
+const h = vi.hoisted(() => ({
+   remove: vi.fn(),
+   updateRole: vi.fn(),
+   toastError: vi.fn(),
+   onRoleChange: undefined as ((role: string) => void) | undefined,
+}));
 
 vi.mock("@/lib/stores/session-store", () => ({ useUserId: () => "owner" }));
+vi.mock("@/lib/auth", () => ({ requestSignOut: vi.fn() }));
 vi.mock("@/lib/hooks/mutations/invites/useUpdateRole", () => ({
-   default: () => ({ isPending: false, mutate: vi.fn() }),
+   default: () => ({ isPending: false, mutate: h.updateRole }),
 }));
+vi.mock("@s3-viewer/ui/components/toast", async () =>
+   (await import("@/components/test-helpers")).toastMock({
+      error: h.toastError,
+   })
+);
 vi.mock("@/lib/hooks/mutations/invites/useRemoveMember", () => ({
    default: () => ({ isPending: false, mutate: h.remove }),
 }));
@@ -39,8 +51,16 @@ vi.mock("@/components/Invites/bucket-access-dialog", () => ({
    default: () => null,
 }));
 vi.mock("@/components/Invites/role-select", () => ({
-   default: ({ roles }: { roles: Role[] }) =>
-      createElement("span", { "data-roles": roles.join(" ") }),
+   default: ({
+      roles,
+      onChange,
+   }: {
+      roles: Role[];
+      onChange: (role: string) => void;
+   }) => {
+      h.onRoleChange = onChange;
+      return createElement("span", { "data-roles": roles.join(" ") });
+   },
 }));
 import Members from "./members";
 
@@ -177,5 +197,45 @@ describe("removing a member", () => {
       await click(button("Cancel"));
       expect(dialog()).toBeNull();
       expect(h.remove).not.toHaveBeenCalled();
+   });
+});
+
+describe("changing a member's role", () => {
+   const view = mountedRuntime();
+   const change = async (error: Error) => {
+      await view.mount(
+         createElement(Members, props({ members: [member("a", Role.EDITOR)] }))
+      );
+      h.onRoleChange!(Role.ADMIN);
+      const [variables, options] = h.updateRole.mock.calls.at(-1) as [
+         unknown,
+         { onError: (error: Error) => void },
+      ];
+      expect(variables).toEqual({
+         serverId: "server",
+         userId: "a",
+         role: Role.ADMIN,
+      });
+      options.onError(error);
+   };
+
+   beforeEach(() => vi.clearAllMocks());
+
+   it("offers a fresh sign-in when promoting to admin needs one", async () => {
+      await change(
+         new ApiError(403, "needs a sign-in", ErrorCode.SESSION_STALE)
+      );
+      expect(h.toastError).toHaveBeenCalledWith(
+         "Sign in again to make someone an admin",
+         expect.objectContaining({
+            description: "needs a sign-in",
+            action: expect.objectContaining({ label: "Sign in again" }),
+         })
+      );
+   });
+
+   it("leaves other failures to the usual toast", async () => {
+      await change(new ApiError(500, "boom"));
+      expect(h.toastError).not.toHaveBeenCalled();
    });
 });

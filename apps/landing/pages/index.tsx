@@ -6,7 +6,7 @@ import {
    TeamLetter,
    ToolsBlock,
 } from "@/components/Landing";
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import { homeJsonLd } from "@/lib/jsonld";
 
 const DESCRIPTION =

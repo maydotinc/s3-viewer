@@ -4,7 +4,7 @@ import useApiMutation, {
 } from "@/lib/hooks/mutations/useApiMutation";
 import { queryKeys } from "@/lib/query-keys";
 import { toastError } from "@/lib/utils/toast";
-import { ServerUser, UpdateRoleInput } from "@s3-viewer/types";
+import { ErrorCode, ServerUser, UpdateRoleInput } from "@s3-viewer/types";
 
 const toastUpdateFailed = toastError("Couldn't update access");
 
@@ -26,8 +26,10 @@ const useUpdateRole = () =>
          queryKeys.members(scope.userId, serverId),
          queryKeys.sentInvites(scope.userId, serverId),
       ],
+      // a stale sign-in gets its own prompt from the caller
       failure: (failure) => {
          refreshChanged(failure);
+         if (failure.error.code === ErrorCode.SESSION_STALE) return;
          if (failure.error.status !== 409 || !failure.variables.bucketAccess)
             toastUpdateFailed(failure.error);
       },

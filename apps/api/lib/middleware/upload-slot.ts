@@ -20,8 +20,8 @@ import {
 import type { ErrorCode } from "@s3-viewer/types";
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { Request, Response } from "express";
-import { ipKeyGenerator } from "express-rate-limit";
 import { getAuth } from "./authorize";
+import { byIp } from "./rate-limit";
 import { allowStreamingBody } from "./request-body";
 
 type UploadSlotOptions = {
@@ -46,7 +46,7 @@ const acquireSlot = (
          userId,
          reservation,
          pool,
-         ipKeyGenerator(req.ip ?? ""),
+         byIp(req),
          res.locals.auth?.serverId
       );
    } catch (error) {

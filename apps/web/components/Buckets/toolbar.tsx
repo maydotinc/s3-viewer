@@ -119,8 +119,15 @@ const SortMenu = () => {
 
 const ObjectsToolbar = () => {
    const router = useRouter();
-   const { bucketName, prefix, reach, refresh, isLoading, isRefreshing } =
-      useBucketContext();
+   const {
+      serverId,
+      bucketName,
+      prefix,
+      reach,
+      refresh,
+      isLoading,
+      isRefreshing,
+   } = useBucketContext();
    const { selectedIds, selectedObjects, clearSelection } = useGridContext();
    const commands = useObjectCommands();
    const { canUpload, blockedReason, notice } = useUploader();
@@ -181,7 +188,9 @@ const ObjectsToolbar = () => {
    const hasSelectionActions = canMove || canBulkRename || canDownload;
    const showMoreMenu = hasSelectionActions || commands.can.delete;
    const goToFolder = (folderKey: string) =>
-      void router.push(folderHref(bucketName, segmentsFromKey(folderKey)));
+      void router.push(
+         folderHref(serverId, bucketName, segmentsFromKey(folderKey))
+      );
 
    useShortcut({
       keys: "r",

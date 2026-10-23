@@ -13,6 +13,7 @@
       "node": ">=22.12.0"
    },
    "scripts": {
+      "prepare": "husky",
       "setup": "node scripts/setup.mjs",
       "dev": "node scripts/dev.mjs",
       "stop": "node scripts/stop.mjs",
@@ -31,15 +32,20 @@
       "format": "prettier --write .",
       "format:check": "prettier --check ."
    },
+   "lint-staged": {
+      "*": "prettier --write --ignore-unknown"
+   },
    "packageManager": "pnpm@10.28.2",
    "devDependencies": {
       "@s3-viewer/eslint-config": "workspace:*",
       "@s3-viewer/ts-config": "workspace:*",
-      "@types/node": "^22",
+      "@types/node": "catalog:",
       "eslint": "catalog:",
+      "husky": "^9.1.7",
+      "lint-staged": "^16.4.0",
       "prettier": "^3.5.3",
       "sharp": "^0.35.5",
-      "tsx": "^4.19.4",
+      "tsx": "catalog:",
       "turbo": "^2.10.12",
       "typescript": "catalog:",
       "vitest": "catalog:"

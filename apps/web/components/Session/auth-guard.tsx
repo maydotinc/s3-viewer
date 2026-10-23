@@ -1,24 +1,16 @@
 import SessionUnreachable from "./session-unreachable";
 import ShellSkeleton from "./shell-skeleton";
 import { authClient, isSigningOut, refetchSession, signOut } from "@/lib/auth";
-import { afterLoginPath, loginPathFor } from "@/lib/auth-redirect";
+import {
+   afterLoginPath,
+   AUTH_SCREENS,
+   loginPathFor,
+   PUBLIC_PATHS,
+} from "@/lib/auth-redirect";
 import { useSessionState } from "@/lib/hooks/useSessionState";
 import { SITE_PATHS } from "@s3-viewer/types";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-
-const AUTH_SCREENS = new Set<string>([
-   SITE_PATHS.login,
-   SITE_PATHS.signup,
-   SITE_PATHS.forgotPassword,
-]);
-
-const PUBLIC_PATHS = new Set<string>([
-   ...AUTH_SCREENS,
-   SITE_PATHS.resetPassword,
-   "/404",
-   "/_error",
-]);
 
 const AuthGuard = ({ children }: { children: ReactNode }) => {
    const router = useRouter();

@@ -5,7 +5,7 @@ import {
 import { FakeXHR } from "@/lib/test/fake-xhr";
 import { expectUploadSlotsFree } from "@/lib/test/upload-slots";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { UploadCancelled } from "./upload-cancelled";
+import { UploadCancelledError } from "./upload-cancelled";
 
 const identity = vi.hoisted(() => ({ userId: "user-a" as string | null }));
 vi.mock("@/lib/stores/session-store", () => ({
@@ -82,14 +82,14 @@ describe("uploadObject", () => {
    it("refuses an upload under a changed identity before sending bytes", async () => {
       identity.userId = "user-b";
       const handle = upload();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       expect(FakeXHR.instances).toHaveLength(0);
    });
 
    it("cancels a network retry when the identity changes", async () => {
       const handle = upload();
       const result = expect(handle.done).rejects.toBeInstanceOf(
-         UploadCancelled
+         UploadCancelledError
       );
       FakeXHR.instances[0]?.fail();
       identity.userId = "user-b";
@@ -147,7 +147,7 @@ describe("uploadObject", () => {
       const handle = upload({ file: makeFile(10) });
       expect(FakeXHR.instances[0]?.timeout).toBe(30_000);
       handle.abort();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
    });
 
    it("retries a new-file status-0 network error with exponential backoff, up to two retries", async () => {
@@ -189,13 +189,13 @@ describe("uploadObject", () => {
       expect(FakeXHR.instances).toHaveLength(1);
    });
 
-   it("aborting mid-flight rejects with UploadCancelled and aborts the request", async () => {
+   it("aborting mid-flight rejects with UploadCancelledError and aborts the request", async () => {
       const handle = upload();
       const xhr = FakeXHR.instances[0];
       if (!xhr) throw new Error("no xhr");
       const abortSpy = vi.spyOn(xhr, "abort");
       handle.abort();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       expect(abortSpy).toHaveBeenCalledOnce();
    });
 });
@@ -287,7 +287,7 @@ describe("waiting out a busy server", () => {
       FakeXHR.instances[0]?.respond(429, busy);
       await vi.advanceTimersByTimeAsync(10);
       handle.abort();
-      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(handle.done).rejects.toBeInstanceOf(UploadCancelledError);
       await vi.advanceTimersByTimeAsync(60_000);
       expect(FakeXHR.instances).toHaveLength(1);
    });
@@ -339,7 +339,7 @@ describe("sharing upload slots across the tab", () => {
       const queued = handles.at(-1)!;
       await vi.advanceTimersByTimeAsync(0);
       queued.abort();
-      await expect(queued.done).rejects.toBeInstanceOf(UploadCancelled);
+      await expect(queued.done).rejects.toBeInstanceOf(UploadCancelledError);
       for (let index = 0; index < MULTIPART_CONCURRENCY; index++)
          FakeXHR.instances[index]?.respond(201, body);
       await Promise.all(handles.slice(0, -1).map((handle) => handle.done));

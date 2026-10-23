@@ -25,7 +25,7 @@ import {
 } from "./multipart-session";
 import { nextUploadJob, uploadSlot as withSlot } from "./slot-pool";
 import { withMultipartLease } from "./multipart-locks";
-import { UploadCancelled } from "./upload-cancelled";
+import { UploadCancelledError } from "./upload-cancelled";
 import {
    outcomeUnknown,
    type TransportHandle,
@@ -102,7 +102,7 @@ const uploadMultipart = ({
       ref = { ...target, uploadId: saved.uploadId };
       if (stopped()) {
          await abandon();
-         throw new UploadCancelled();
+         throw new UploadCancelledError();
       }
       try {
          if (
@@ -128,7 +128,7 @@ const uploadMultipart = ({
          await Promise.all(
             stored.map((part) =>
                withSlot(job, async () => {
-                  if (stopped()) throw new UploadCancelled();
+                  if (stopped()) throw new UploadCancelledError();
                   if (!verified) return;
                   const proof = saved.partDigests[part.partNumber];
                   if (
@@ -148,7 +148,7 @@ const uploadMultipart = ({
                })
             )
          );
-         if (stopped()) throw new UploadCancelled();
+         if (stopped()) throw new UploadCancelledError();
          if (!verified) {
             await abandon();
             return null;
@@ -164,13 +164,13 @@ const uploadMultipart = ({
                await abandon();
                return null;
             }
-            if (stopped()) throw new UploadCancelled();
+            if (stopped()) throw new UploadCancelledError();
          }
          return { session: saved, stored };
       } catch (error) {
          if (stopped()) {
             await abandon();
-            throw new UploadCancelled();
+            throw new UploadCancelledError();
          }
          if (isRetryable(error)) throw error;
          ref = null;
@@ -180,7 +180,7 @@ const uploadMultipart = ({
    };
 
    const begin = async (): Promise<OpenUpload> => {
-      if (stopped()) throw new UploadCancelled();
+      if (stopped()) throw new UploadCancelledError();
       const { uploadId, partSize, partCount } = await createMultipartUpload(
          userId,
          target,
@@ -217,7 +217,7 @@ const uploadMultipart = ({
    };
 
    const run = async (): Promise<S3ObjectUploaded> => {
-      if (stopped()) throw new UploadCancelled();
+      if (stopped()) throw new UploadCancelledError();
       const opened = (await resume()) ?? (await begin());
       const upload: UploadRef = {
          ...target,
@@ -226,7 +226,7 @@ const uploadMultipart = ({
       ref = upload;
       if (stopped()) {
          await abandon();
-         throw new UploadCancelled();
+         throw new UploadCancelledError();
       }
 
       const plan: PartPlan[] = Array.from(
@@ -272,7 +272,7 @@ const uploadMultipart = ({
          const blob = file.slice(planned.start, planned.end);
          if (persistent && !digests.has(planned.partNumber))
             digests.set(planned.partNumber, await sha256(blob));
-         if (stopped()) throw new UploadCancelled();
+         if (stopped()) throw new UploadCancelledError();
          if (failure !== undefined) return;
          const handle = putPart(
             userId,
@@ -309,11 +309,11 @@ const uploadMultipart = ({
       // a slot per attempt, not per part, so parts in backoff can't park the whole pool.
       const send = async (planned: PartPlan): Promise<void> => {
          for (let attempt = 0; ; attempt++) {
-            if (stopped()) throw new UploadCancelled();
+            if (stopped()) throw new UploadCancelledError();
             if (failure !== undefined) return;
             try {
                await withSlot(job, async () => {
-                  if (stopped()) throw new UploadCancelled();
+                  if (stopped()) throw new UploadCancelledError();
                   if (failure === undefined) await sendOnce(planned);
                });
                return;
@@ -354,7 +354,7 @@ const uploadMultipart = ({
       // a complete that failed in transit or on the server may have committed, so a retry's 404 or 409 proves nothing
       let ambiguous = false;
       for (let attempt = 0; ; attempt++) {
-         if (stopped()) throw new UploadCancelled();
+         if (stopped()) throw new UploadCancelledError();
          try {
             const uploaded = await completeMultipartUpload(
                userId,

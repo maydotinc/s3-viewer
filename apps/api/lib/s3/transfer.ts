@@ -4,7 +4,6 @@ import {
    type S3Client,
 } from "@aws-sdk/client-s3";
 import { DEFAULT_CONTENT_TYPE } from "@s3-viewer/types";
-import type { Readable } from "node:stream";
 import {
    OBJECT_EXISTS,
    S3_ROUTE_TIMEOUT_MS,
@@ -18,7 +17,7 @@ import {
    enforcesConditions,
    writeCondition,
 } from "./conditions";
-import { throwHttpError } from "./errors";
+import { isStalled, requireBody, throwHttpError } from "./errors";
 import { headIfExists } from "./head";
 import { withoutRetries } from "./no-retry";
 import {
@@ -26,7 +25,6 @@ import {
    metadataAttributes,
    sourceChangedError,
 } from "./object-metadata";
-import { StorageStalledError, UploadIdleError } from "./progress-floor";
 import { clientProvider } from "./provider";
 import {
    isUploadTooLargeError,
@@ -92,12 +90,6 @@ const transferObject = async ({
                "This object is encrypted with a customer-provided key and can't be transferred without the customer key."
             );
          const declared = head.ContentLength ?? 0;
-         if (declared > maxBytes)
-            throw new ApiHttpError(
-               413,
-               `Transfers are limited to ${maxBytes} bytes`
-            );
-
          const existing = await headIfExists(
             { ...destination, signal: deadline },
             destinationInput.key
@@ -123,8 +115,7 @@ const transferObject = async ({
          };
       }
    );
-   const body = object.Body as Readable | undefined;
-   if (!body) throw new ApiHttpError(502, "Storage returned no object body");
+   const body = requireBody(object.Body);
 
    // cancellation can precede upload setup, and destroy() can emit after upload cleanup.
    body.on("error", noop);
@@ -165,12 +156,7 @@ const transferObject = async ({
          },
       });
    } catch (error) {
-      if (
-         error instanceof UploadIdleError ||
-         error instanceof StorageStalledError ||
-         isUploadTooLargeError(error)
-      )
-         throw error;
+      if (isStalled(error) || isUploadTooLargeError(error)) throw error;
       return throwHttpError(error);
    } finally {
       signal.removeEventListener("abort", onAbort);

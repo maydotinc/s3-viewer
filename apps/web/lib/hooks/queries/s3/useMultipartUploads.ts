@@ -8,7 +8,7 @@ type UploadsMarker = { keyMarker: string; uploadIdMarker: string | null };
 
 const pageUploads = (page: S3MultipartUploadPage) => page.uploads;
 
-// s3 pages multipart listings by a (key, upload id) pair rather than one opaque cursor.
+// S3 pages multipart listings by a (key, upload id) pair rather than one opaque cursor.
 const nextMarker = (page: S3MultipartUploadPage): UploadsMarker | null =>
    page.nextKeyMarker
       ? {

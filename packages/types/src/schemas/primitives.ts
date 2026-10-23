@@ -13,6 +13,7 @@ import {
    PASSWORD_MAX_LENGTH,
    PASSWORD_MIN_LENGTH,
 } from "../constants";
+import { normalizeEmail } from "../utils";
 
 export const idSchema = z.string().regex(/^[A-Za-z0-9]{8,64}$/, "Invalid id");
 
@@ -105,7 +106,7 @@ const GMAIL_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
 
 /** one key per real inbox, so +tags and gmail dots can't multiply a per-recipient budget. */
 export const canonicalMailbox = (email: string): string => {
-   const address = email.trim().toLowerCase();
+   const address = normalizeEmail(email);
    const at = address.lastIndexOf("@");
    if (at <= 0) return address;
    const domain = address.slice(at + 1);

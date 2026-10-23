@@ -4,6 +4,10 @@ import { ChevronRight } from "lucide-react";
 import * as React from "react";
 
 import { ENTER, SURFACE } from "@s3-viewer/ui/lib/classes";
+import {
+   dialogCovers,
+   handFocusToDialog,
+} from "@s3-viewer/ui/lib/focus-return";
 import { cn } from "@s3-viewer/ui/lib/utils";
 
 const MENU =
@@ -16,7 +20,7 @@ const ITEM_DEFAULT =
    "text-viewerblack data-[highlighted]:bg-viewergray [&_svg:not([class*='text-'])]:text-viewertext";
 
 const ITEM_DESTRUCTIVE =
-   "text-viewertextred data-[highlighted]:bg-viewerbgred [&_svg]:text-viewertextred";
+   "text-viewerstrongred data-[highlighted]:bg-viewerbgred [&_svg]:text-viewerstrongred";
 
 function DropdownMenu({
    ...props
@@ -30,11 +34,21 @@ function DropdownMenuTrigger({
    return <DropdownMenuPrimitive.Trigger {...props} />;
 }
 
+// focus goes back to the trigger as usual, unless the picked item opened a dialog: focusing behind it would
+// fight the dialog's focus trap, so the dialog takes the trigger and returns focus there when it closes
+const deferToDialog = (event: Event): void => {
+   const content = event.target instanceof Element ? event.target : null;
+   const triggerId = content?.getAttribute("aria-labelledby");
+   const trigger = triggerId ? document.getElementById(triggerId) : null;
+   if (!trigger || !dialogCovers(trigger)) return;
+   event.preventDefault();
+   handFocusToDialog(trigger);
+};
+
 function DropdownMenuContent({
    className,
    sideOffset = 4,
-   // restoring trigger focus would steal it from a dialog opened by a menu item.
-   onCloseAutoFocus = (event) => event.preventDefault(),
+   onCloseAutoFocus = deferToDialog,
    ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
    return (

@@ -15,7 +15,7 @@ vi.mock("next/link", () => ({
    default: ({ children }: { children: ReactNode }) => children,
 }));
 vi.mock("@/components/Buckets/Context", () => ({
-   useBucketContext: () => ({ isLoading: false }),
+   useBucketContext: () => ({ isLoading: false, serverId: "server" }),
 }));
 vi.mock("@/components/Buckets/useObjectCommands", () => ({
    default: () => ({

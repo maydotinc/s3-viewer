@@ -1,6 +1,6 @@
 import GithubIcon from "@/components/Auth/github-icon";
 import Avatar from "@/components/avatar";
-import { authClient, signOut } from "@/lib/auth";
+import { authClient, requestSignOut } from "@/lib/auth";
 import usePrefetchSettings from "@/lib/hooks/queries/usePrefetchSettings";
 import { supportUrl } from "@/lib/site-config";
 import { isModifiedClick } from "@/lib/utils/events";
@@ -103,7 +103,7 @@ const ProfileDropdown = () => {
             <DropdownMenuSeparator />
             <DropdownMenuItem
                variant="destructive"
-               onSelect={() => void signOut().catch(toastFailure)}
+               onSelect={() => void requestSignOut().catch(toastFailure)}
             >
                <LogOut aria-hidden="true" />
                Sign out

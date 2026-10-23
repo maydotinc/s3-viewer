@@ -23,7 +23,7 @@ const RemovableChip = ({
       className={cn(
          "flex max-w-full items-center gap-1 rounded-md py-0.5 pr-1 pl-2 text-xs",
          invalid
-            ? "bg-viewerbgred text-viewertextred"
+            ? "bg-viewerbgred text-viewerstrongred"
             : "bg-viewergray text-viewerblack",
          className
       )}

@@ -40,7 +40,7 @@ const refreshAccess = (queryClient: QueryClient) => {
 
 let browserClient: QueryClient | null = null;
 
-// not a React state initialiser: strict mode double-invokes those, orphaning this reference.
+// a module singleton, so strict mode double-invoking the useState initialiser in _app still yields one client.
 const getQueryClient = (): QueryClient => {
    if (typeof window === "undefined") return createQueryClient();
    if (!browserClient) {

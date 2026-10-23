@@ -10,6 +10,7 @@ import {
 import { strictOriginCheck } from "@/lib/middleware/origin";
 import { auditRoute } from "@/lib/middleware/route";
 import {
+   INT4_MAX,
    iterateAudit,
    listAuditPage,
    verifyAuditChain,
@@ -19,7 +20,7 @@ import { recentlySeen } from "@/lib/audit/writer";
 import { record, recordWithin } from "@/lib/middleware/audit-record";
 import { requireFreshSession } from "@/lib/middleware/fresh-session";
 import { memberRole } from "@/lib/services/members";
-import { bump, countOf } from "@/lib/utils/counter-map";
+import { keyedSlots } from "@/lib/utils/keyed-slots";
 import {
    auditSettingsOf,
    auditSettingsSelect,
@@ -209,12 +210,7 @@ const getAuditLog = async (_req: Request, res: Response, input: AuditQuery) => {
 };
 
 const auditVerifySchema = serverScope.extend({
-   fromSeq: z.coerce
-      .number()
-      .int()
-      .min(0)
-      .max(Number.MAX_SAFE_INTEGER)
-      .default(0),
+   fromSeq: z.coerce.number().int().min(0).max(INT4_MAX).default(0),
 });
 type AuditVerifyQuery = z.infer<typeof auditVerifySchema>;
 
@@ -236,31 +232,32 @@ const verifyAuditLog = async (
 };
 
 // per process, like the streams it protects; released when the response closes, however it ends.
-const exportsRunning = new Map<string, number>();
-const running = (key: string): number => countOf(exportsRunning, key);
+const exportsRunning = keyedSlots();
+
+const userExporting = () =>
+   rateLimited(
+      "You already have an export running. Try again once it finishes."
+   );
+
+const serverExporting = () =>
+   rateLimited(
+      "Other exports are running on this server. Try again once they finish."
+   );
 
 const claimExportSlot = (res: Response, serverId: string): void => {
    const { userId, serverRole } = getAuth(res);
-   const userKey = `user:${userId}`;
-   const serverKey = `server:${serverId}`;
-   if (running(userKey) >= MAX_USER_EXPORTS)
-      throw rateLimited(
-         "You already have an export running. Try again once it finishes."
-      );
    // viewers holding the shared slots must not lock the people who manage the log out of it.
    const canManage = auditAccess(
       serverRole,
       getAuditContext(res).settings
    ).canManage;
-   const keys = canManage ? [userKey] : [userKey, serverKey];
-   if (!canManage && running(serverKey) >= MAX_SERVER_EXPORTS)
-      throw rateLimited(
-         "Other exports are running on this server. Try again once they finish."
-      );
-   for (const key of keys) bump(exportsRunning, key, 1);
-   res.once("close", () => {
-      for (const key of keys) bump(exportsRunning, key, -1);
-   });
+   const release = exportsRunning.acquire([
+      [`user:${userId}`, MAX_USER_EXPORTS, userExporting],
+      canManage
+         ? undefined
+         : [`server:${serverId}`, MAX_SERVER_EXPORTS, serverExporting],
+   ]);
+   res.once("close", release);
 };
 
 const exportAuditLog = async (

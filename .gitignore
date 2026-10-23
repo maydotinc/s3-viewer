@@ -10,10 +10,14 @@ next-env.d.ts
 .env*
 !.env.example
 *.pem
+*.key
+*.log
+.idea/
 /data/
 /apps/*/data/
-*.bak-*
 .DS_Store
-.vscode
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .claude/launch.json
 .claude/settings.local.json

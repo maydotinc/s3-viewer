@@ -1,4 +1,4 @@
-import Seo from "@/components/Seo";
+import Seo from "@/components/seo";
 import Hub from "@/components/UseCases/hub";
 import { USE_CASES } from "@/components/UseCases/data";
 import { pageJsonLd } from "@/lib/jsonld";

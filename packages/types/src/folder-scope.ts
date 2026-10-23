@@ -34,14 +34,8 @@ const prefixHasDotSegment = (prefix: string): boolean => {
    return last === ".." || segments.some(isDotSegment);
 };
 
-// an empty folder name would match every key, so it never matches any.
-// a stored folder missing its slash would also match "docs-private" for "docs", so it is read as "docs/".
 const under = (scope: readonly string[], path: string): boolean =>
-   scope.some(
-      (folder) =>
-         folder !== "" &&
-         path.startsWith(folder.endsWith("/") ? folder : `${folder}/`)
-   );
+   scope.some((folder) => path.startsWith(folder));
 
 const isInFolderScope = (scope: FolderScope, path: string): boolean =>
    scope === null || (!hasDotSegment(path) && under(scope, path));

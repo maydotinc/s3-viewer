@@ -1,11 +1,11 @@
-class UploadCancelled extends Error {
+class UploadCancelledError extends Error {
    constructor() {
       super("Upload cancelled");
-      this.name = "UploadCancelled";
+      this.name = "UploadCancelledError";
    }
 }
 
-const isCancelled = (error: unknown): error is UploadCancelled =>
-   error instanceof UploadCancelled;
+const isCancelled = (error: unknown): error is UploadCancelledError =>
+   error instanceof UploadCancelledError;
 
-export { UploadCancelled, isCancelled };
+export { UploadCancelledError, isCancelled };

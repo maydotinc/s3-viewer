@@ -5,11 +5,13 @@ const PALETTE = {
    viewerdarkblue: "#253977",
    viewerwhite: "#ffffff",
    viewerborder: "#e1e4ea",
+   viewercontrolborder: "#868fa1",
    viewergray: "#f7f7f7",
    viewertext: "#525866",
    viewerblack: "#0e121b",
    viewerlighttext: "#636c7e",
    viewertextred: "#fb3748",
+   viewerstrongred: "#d11a2d",
    viewerbgred: "#feebec",
 } as const;
 

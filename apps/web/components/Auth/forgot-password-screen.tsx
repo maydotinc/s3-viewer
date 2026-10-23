@@ -1,5 +1,6 @@
 import { AuthLayout, StepHeader } from "./auth-layout";
 import EmailField from "./email-field";
+import StatusLine from "./status-line";
 import { TEXT_LINK } from "./text-link";
 import { requestPasswordReset } from "@/lib/auth";
 import { INVALID_EMAIL_MESSAGE } from "@s3-viewer/auth/client";
@@ -9,7 +10,7 @@ import useInstanceConfig, {
 } from "@/lib/hooks/queries/useInstanceConfig";
 import { AUTH_LINK_TTL_HOURS, emailSchema } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
-import { cn } from "@s3-viewer/ui/lib/utils";
+
 import { useState, type FormEvent } from "react";
 
 type Step = "email" | "sent";
@@ -123,15 +124,10 @@ const ForgotPasswordScreen = () => {
                      </button>
                      .
                   </p>
-                  <p
-                     role={error ? "alert" : "status"}
-                     className={cn(
-                        "min-h-5 break-words leading-5",
-                        error ? "text-viewertextred" : "text-viewertext"
-                     )}
-                  >
-                     {error ?? (resent ? "Sent again." : "")}
-                  </p>
+                  <StatusLine
+                     error={error}
+                     status={resent ? "Sent again." : null}
+                  />
                </div>
             </div>
          )}

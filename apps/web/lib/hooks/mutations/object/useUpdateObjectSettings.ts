@@ -6,7 +6,7 @@ import type {
 import useObjectMutation, {
    forgetTouched,
    sendObjectMutation,
-} from "./object-mutation";
+} from "./useObjectMutation";
 
 type ObjectSettingsFields = Omit<
    UpdateObjectSettingsInput,

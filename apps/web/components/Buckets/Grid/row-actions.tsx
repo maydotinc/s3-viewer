@@ -1,4 +1,5 @@
 import type { ObjectCommands } from "@/components/Buckets/useObjectCommands";
+import OverflowMenu from "@/components/overflow-menu";
 import {
    renameBlockReason,
    rowBlockReason,
@@ -7,19 +8,11 @@ import {
 import { visibleText } from "@/lib/utils/format";
 import { folderHref, segmentsFromKey } from "@/lib/utils/s3/paths";
 import { baseName, canPresignObjectKey, type S3Object } from "@s3-viewer/types";
-import { Button } from "@s3-viewer/ui/components/button";
-import {
-   DropdownMenu,
-   DropdownMenuContent,
-   DropdownMenuTrigger,
-} from "@s3-viewer/ui/components/dropdown-menu";
-import { SimpleTooltip } from "@s3-viewer/ui/components/tooltip";
 import type { ICellRendererParams } from "ag-grid-community";
 import {
    ArrowRightLeft,
    CopyPlus,
    Download,
-   Ellipsis,
    FileArchive,
    FilePen,
    FolderInput,
@@ -33,12 +26,14 @@ import { ActionMenuItems, type SecondaryAction } from "./action-menu";
 import { useObjectGridState } from "./grid-state";
 
 const RowActionsMenu = ({
+   serverId,
    bucketName,
    prefix,
    reach,
    data,
    commands,
 }: {
+   serverId: string;
    bucketName: string;
    prefix: string;
    reach: KnownReach;
@@ -79,7 +74,11 @@ const RowActionsMenu = ({
                     { folderKey: data.key },
                     (destination) =>
                        void router.push(
-                          folderHref(bucketName, segmentsFromKey(destination))
+                          folderHref(
+                             serverId,
+                             bucketName,
+                             segmentsFromKey(destination)
+                          )
                        )
                  ),
            },
@@ -140,46 +139,19 @@ const RowActionsMenu = ({
               onSelect: removeRow,
            },
         ];
-   const actions = listed.filter(
-      (action): action is SecondaryAction => Boolean(action)
+   const actions = listed.filter((action): action is SecondaryAction =>
+      Boolean(action)
    );
    if (actions.length === 0) return null;
 
-   const blocked = rowBlockReason(reach, data.key);
-   if (blocked)
-      return (
-         <div className="flex h-full items-center justify-center">
-            <SimpleTooltip label={blocked}>
-               <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={`Actions for ${name}`}
-                  disabled
-               >
-                  <Ellipsis aria-hidden="true" />
-               </Button>
-            </SimpleTooltip>
-         </div>
-      );
-
    return (
       <div className="flex h-full items-center justify-center">
-         <DropdownMenu modal={false}>
-            <SimpleTooltip label={`Actions for ${name}`}>
-               <DropdownMenuTrigger asChild>
-                  <Button
-                     variant="ghost"
-                     size="icon-sm"
-                     aria-label={`Actions for ${name}`}
-                  >
-                     <Ellipsis aria-hidden="true" />
-                  </Button>
-               </DropdownMenuTrigger>
-            </SimpleTooltip>
-            <DropdownMenuContent align="end" className="w-56">
-               <ActionMenuItems actions={actions} />
-            </DropdownMenuContent>
-         </DropdownMenu>
+         <OverflowMenu
+            label={name}
+            disabledReason={rowBlockReason(reach, data.key)}
+         >
+            <ActionMenuItems actions={actions} />
+         </OverflowMenu>
       </div>
    );
 };
@@ -188,11 +160,13 @@ const RowActionsMenu = ({
 const MemoRowActionsMenu = memo(RowActionsMenu);
 
 const RowActions = (params: ICellRendererParams<S3Object>) => {
-   const { bucketName, prefix, reach, commands } = useObjectGridState();
+   const { serverId, bucketName, prefix, reach, commands } =
+      useObjectGridState();
    const data = params.data;
    if (!data) return null;
    return (
       <MemoRowActionsMenu
+         serverId={serverId}
          bucketName={bucketName}
          prefix={prefix}
          reach={reach}

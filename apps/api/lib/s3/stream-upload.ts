@@ -23,17 +23,11 @@ import {
    uploadConflict,
    type WriteCondition,
 } from "./conditions";
-import { uploadLimitMessage } from "./errors";
+import { isStalled, uploadLimitMessage } from "./errors";
 import { describeFailure } from "./failure";
 import { abortForCleanup } from "./multipart-uploads";
 import { forCleanup, withoutRetries } from "./no-retry";
-import {
-   floorBytesFor,
-   progressFloor,
-   stallMsFor,
-   StorageStalledError,
-   UploadIdleError,
-} from "./progress-floor";
+import { floorBytesFor, progressFloor, stallMsFor } from "./progress-floor";
 
 const UPLOAD_ABORTED = "Upload aborted";
 
@@ -177,22 +171,18 @@ const streamThroughUpload = async ({
       const out = await upload.done();
       return { size, eTag: out.ETag ?? null };
    } catch (err) {
+      // storage keeps a commit it received even when no answer comes back (a stall or idle abort included),
+      // so the caller must not retry blind and an abort could race the commit it cannot see.
+      const { httpStatus } = describeFailure(err);
+      const unconfirmed =
+         commitSent() && (httpStatus === undefined || httpStatus >= 500);
       // lib-storage leaves parts after completion failures; clean up before releasing admission.
-      if (upload.uploadId !== undefined && !cleanupConfirmed)
+      if (upload.uploadId !== undefined && !cleanupConfirmed && !unconfirmed)
          await abortForCleanup({ client, bucket }, key, upload.uploadId);
       if (isUploadTooLargeError(limiter.errored)) throw limiter.errored;
+      if (unconfirmed) throw new UnconfirmedWriteError();
       const { reason } = abortController.signal;
-      if (
-         reason instanceof UploadIdleError ||
-         reason instanceof StorageStalledError
-      )
-         throw reason;
-      // storage keeps a commit it received even when no answer comes back, so the caller must not retry blind.
-      if (commitSent()) {
-         const { httpStatus } = describeFailure(err);
-         if (httpStatus === undefined || httpStatus >= 500)
-            throw new UnconfirmedWriteError();
-      }
+      if (isStalled(reason)) throw reason;
       if (uploadConflict(err)) throw new ApiHttpError(409, conflictMessage);
       throw err;
    } finally {

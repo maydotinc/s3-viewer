@@ -1,7 +1,7 @@
 import useObjectCommands from "@/components/Buckets/useObjectCommands";
 import type { Tone } from "@/components/icon-tile";
 import StatusMessage, { RetryButton } from "@/components/status-message";
-import useAsyncAction from "@/components/use-async-action";
+import useAsyncAction from "@/lib/hooks/useAsyncAction";
 import { canPresignObjectKey } from "@s3-viewer/types";
 import { Button } from "@s3-viewer/ui/components/button";
 import { Download, type LucideIcon } from "lucide-react";

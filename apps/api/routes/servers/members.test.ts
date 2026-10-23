@@ -32,6 +32,7 @@ const state = vi.hoisted(() => ({
       allowedFolders: string[];
    }[],
    memberFound: true,
+   sessionCreatedAt: Date.now(),
    grantChanges: vi.fn(),
    replace: vi.fn(),
    recordMany: vi.fn(),
@@ -130,10 +131,12 @@ vi.mock("@s3-viewer/db", () => ({
                findMany: async ({
                   where,
                }: {
-                  where: { bucketName?: unknown };
+                  where: { bucketName?: unknown; userId?: string };
                }) =>
                   grantRows(
-                     where.bucketName ? state.actorGrants : state.memberGrants
+                     where.bucketName || where.userId === ACTOR
+                        ? state.actorGrants
+                        : state.memberGrants
                   ),
             },
          }),
@@ -154,6 +157,12 @@ routeServer(
    (app) => {
       app.use(express.json());
       app.use(signedIn(() => ({ id: ACTOR })));
+      app.use((req, _res, next) => {
+         Object.assign(req, {
+            session: { createdAt: new Date(state.sessionCreatedAt) },
+         });
+         next();
+      });
       app.use("/servers", membersRouter);
       app.use(recordDenials);
       app.use(errorHandler);
@@ -172,6 +181,7 @@ beforeEach(() => {
    state.actorGrants = [];
    state.currentGrants = [];
    state.memberFound = true;
+   state.sessionCreatedAt = Date.now();
    state.grantChanges.mockReset();
    state.replace.mockReset().mockResolvedValue(undefined);
    state.beforeScopeLock.mockReset();
@@ -462,6 +472,60 @@ describe("PATCH /servers/:serverId/members/:userId", () => {
       });
       expect(state.update).not.toHaveBeenCalled();
       expect((await patchRole({ role: "VIEWER" })).status).toBe(200);
+   });
+
+   it("needs a recent sign-in to make someone an admin, and changes nothing without one", async () => {
+      state.sessionCreatedAt = Date.now() - 25 * 60 * 60 * 1000;
+      const res = await patchRole({ role: "ADMIN" });
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "SESSION_STALE" });
+      expect(state.update).not.toHaveBeenCalled();
+      expect(state.recordMany).not.toHaveBeenCalled();
+   });
+
+   it("needs a recent sign-in to make a viewer a bucket admin", async () => {
+      state.sessionCreatedAt = Date.now() - 25 * 60 * 60 * 1000;
+      state.targetRole = "VIEWER";
+      const res = await patchRole({
+         role: "VIEWER",
+         bucketAccess: [{ bucketName: "photos", role: "ADMIN", folders: null }],
+         previousBucketAccess: [],
+      });
+      expect(res.status).toBe(403);
+      expect(await res.json()).toMatchObject({ code: "SESSION_STALE" });
+      expect(state.update).not.toHaveBeenCalled();
+   });
+
+   it("lets a stale sign-in re-save an admin or keep a bucket admin it was shown", async () => {
+      state.sessionCreatedAt = Date.now() - 25 * 60 * 60 * 1000;
+      state.targetRole = "ADMIN";
+      expect((await patchRole({ role: "ADMIN" })).status).toBe(200);
+      state.targetRole = "VIEWER";
+      state.currentGrants = [
+         {
+            bucketName: "photos",
+            role: "ADMIN",
+            restrictedFolders: false,
+            allowedFolders: [],
+         },
+      ];
+      const photos = { bucketName: "photos", role: "ADMIN", folders: null };
+      const res = await patchRole({
+         role: "VIEWER",
+         bucketAccess: [
+            photos,
+            { bucketName: "alpha", role: "VIEWER", folders: null },
+         ],
+         previousBucketAccess: [photos],
+      });
+      expect(res.status).toBe(200);
+   });
+
+   it("lets a stale sign-in still grant below admin and demote an admin", async () => {
+      state.sessionCreatedAt = Date.now() - 25 * 60 * 60 * 1000;
+      expect((await patchRole({ role: "VIEWER" })).status).toBe(200);
+      state.targetRole = "ADMIN";
+      expect((await patchRole({ role: "EDITOR" })).status).toBe(200);
    });
 
    it("leaves buckets out of the detail when the member holds no grant", async () => {

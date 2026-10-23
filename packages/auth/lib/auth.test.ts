@@ -813,9 +813,10 @@ describe("auth link delivery", () => {
          status: true,
       });
       await vi.waitFor(() =>
-         expect(logged).toHaveBeenCalledWith(
-            expect.stringContaining("SMTP unavailable")
-         )
+         expect(logged).toHaveBeenCalledWith("Auth email failed", {
+            kind: "reset",
+            error: expect.stringContaining("SMTP unavailable"),
+         })
       );
    });
 });
