@@ -20,7 +20,7 @@ services:
          retries: 10
 
    mailpit:
-      image: axllent/mailpit:v1.31.4
+      image: axllent/mailpit:v1.31.6
       profiles: [email]
       restart: unless-stopped
       ports:
