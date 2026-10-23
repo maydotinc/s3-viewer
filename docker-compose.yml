@@ -2,7 +2,7 @@ name: s3-viewer
 
 services:
    postgres:
-      image: postgres:16.15
+      image: postgres:18.4
       restart: unless-stopped
       environment:
          POSTGRES_USER: s3viewer

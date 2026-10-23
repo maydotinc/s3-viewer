@@ -1,7 +1,7 @@
 # disposable release validation only. never mounts an existing deployment's data.
 services:
    postgres:
-      image: postgres:16.15
+      image: postgres:18.4
       environment:
          POSTGRES_USER: smoke
          POSTGRES_PASSWORD: smoke
