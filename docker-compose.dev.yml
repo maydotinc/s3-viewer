@@ -42,7 +42,7 @@ services:
          - rustfsdata:/data
 
    demo-bootstrap:
-      image: amazon/aws-cli:2.37.9
+      image: amazon/aws-cli:2.38.2
       profiles: [demo]
       depends_on:
          - rustfs
