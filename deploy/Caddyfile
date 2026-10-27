@@ -1,0 +1,19 @@
+{
+	# behind another proxy you control, trust it here and raise TRUST_PROXY to match:
+	# servers {
+	# 	trusted_proxies static 10.0.0.0/8
+	# }
+}
+
+{$SITE_HOSTNAME:localhost} {
+	reverse_proxy web:3000
+}
+
+{$API_HOSTNAME:api.localhost} {
+	encode zstd gzip
+	reverse_proxy api:5001 {
+		transport http {
+			keepalive 60s
+		}
+	}
+}

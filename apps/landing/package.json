@@ -1,0 +1,36 @@
+{
+   "name": "landing",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "type": "module",
+   "sideEffects": [
+      "./styles/globals.css"
+   ],
+   "scripts": {
+      "dev": "next dev -p 3001",
+      "build": "next build",
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
+   "dependencies": {
+      "@s3-viewer/shared": "workspace:*",
+      "@s3-viewer/ui": "workspace:*",
+      "lucide-react": "catalog:",
+      "next": "catalog:",
+      "react": "catalog:",
+      "react-dom": "catalog:"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@tailwindcss/postcss": "catalog:",
+      "@types/node": "catalog:",
+      "@types/react": "catalog:",
+      "@types/react-dom": "catalog:",
+      "eslint": "catalog:",
+      "tailwindcss": "catalog:",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

@@ -1,0 +1,33 @@
+{
+   "name": "@s3-viewer/db",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "type": "module",
+   "exports": {
+      ".": "./src/client.ts",
+      "./delete-batches": "./src/delete-batches.ts",
+      "./errors": "./src/errors.ts",
+      "./invitations": "./src/invitations.ts",
+      "./rate-limit": "./src/rate-limit.ts"
+   },
+   "scripts": {
+      "db:generate": "pnpm exec prisma generate --schema=prisma/schema.prisma",
+      "db:deploy": "pnpm exec prisma migrate deploy --schema=prisma/schema.prisma",
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
+   "dependencies": {
+      "@prisma/client": "catalog:",
+      "@s3-viewer/shared": "workspace:*"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@types/node": "catalog:",
+      "eslint": "catalog:",
+      "prisma": "catalog:",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

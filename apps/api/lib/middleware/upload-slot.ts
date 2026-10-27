@@ -1,0 +1,130 @@
+import {
+   ApiHttpError,
+   isRateLimited,
+   retryReason,
+   watchDisconnect,
+} from "@/lib/http";
+import { getS3Client } from "@/lib/s3/client-cache";
+import { UnconfirmedWriteError } from "@/lib/s3/conditions";
+import { storageFailure } from "@/lib/s3/classify";
+import { uploadTooLarge } from "@/lib/s3/errors";
+import {
+   SlotExpiredError,
+   StorageStalledError,
+   UploadIdleError,
+} from "@/lib/s3/progress-floor";
+import { isUploadTooLargeError } from "@/lib/s3/stream-upload";
+import {
+   slotLifetimeMs,
+   uploadBudget,
+   type Pool,
+} from "@/lib/s3/upload-budget";
+import type { ErrorCode } from "@s3-viewer/shared";
+import type { S3Client } from "@aws-sdk/client-s3";
+import type { Request, Response } from "express";
+import { getAuth } from "./authorize";
+import { byIp } from "./rate-limit";
+import { allowStreamingBody } from "./request-body";
+
+type UploadSlotOptions = {
+   userId: string;
+   reservation: number;
+   // declared body size; the slot's lifetime scales with it.
+   bytes?: number;
+   pool?: Pool;
+   admissionErrorCode?: ErrorCode;
+   abortController?: AbortController;
+   closeOnFailure?: boolean;
+};
+
+// admitted against the server the authorize gate chose.
+const acquireSlot = (
+   req: Request,
+   res: Response,
+   { userId, reservation, pool, admissionErrorCode }: UploadSlotOptions
+): (() => void) => {
+   try {
+      return uploadBudget.acquire(
+         userId,
+         reservation,
+         pool,
+         byIp(req),
+         res.locals.auth?.serverId
+      );
+   } catch (error) {
+      res.setHeader("Connection", "close");
+      if (isRateLimited(error)) {
+         res.setHeader("Retry-After", "5");
+         if (admissionErrorCode)
+            throw new ApiHttpError(429, error.message, admissionErrorCode);
+      }
+      throw error;
+   }
+};
+
+function withUploadSlot<T>(
+   req: Request,
+   res: Response,
+   options: UploadSlotOptions & { bucket: string },
+   run: (abortController: AbortController, client: S3Client) => Promise<T>
+): Promise<T>;
+function withUploadSlot<T>(
+   req: Request,
+   res: Response,
+   options: UploadSlotOptions,
+   run: (abortController: AbortController) => Promise<T>
+): Promise<T>;
+async function withUploadSlot<T>(
+   req: Request,
+   res: Response,
+   options: UploadSlotOptions & { bucket?: string },
+   run: (abortController: AbortController, client: S3Client) => Promise<T>
+): Promise<T> {
+   const abortController = options.abortController ?? new AbortController();
+   const stopWatching = watchDisconnect(res, abortController, req);
+   let release: (() => void) | undefined;
+   let expiry: ReturnType<typeof setTimeout> | undefined;
+   try {
+      abortController.signal.throwIfAborted();
+      release = acquireSlot(req, res, options);
+      expiry = setTimeout(
+         () => abortController.abort(new SlotExpiredError()),
+         slotLifetimeMs(options.bytes)
+      );
+      expiry.unref();
+      // socket timeouts would also kill healthy S3 backpressure and completion.
+      req.setTimeout(0);
+      allowStreamingBody(req);
+      const client =
+         options.bucket === undefined
+            ? undefined
+            : await getS3Client(
+                 getAuth(res),
+                 options.bucket,
+                 abortController.signal
+              );
+      return await run(abortController, client as S3Client);
+   } catch (error) {
+      if (!res.headersSent && options.closeOnFailure !== false)
+         res.setHeader("Connection", "close");
+      if (isUploadTooLargeError(error)) throw uploadTooLarge(error.limit);
+      // a commit storage may have taken outranks the expiry that cut its answer off.
+      if (error instanceof UnconfirmedWriteError) throw error;
+      const { reason } = abortController.signal;
+      // storage clients surface their own abort error, not the reason we aborted with.
+      if (reason instanceof SlotExpiredError)
+         throw new ApiHttpError(408, reason.message);
+      if (error instanceof UploadIdleError)
+         throw new ApiHttpError(408, error.message);
+      if (error instanceof StorageStalledError)
+         throw new ApiHttpError(504, error.message);
+      if (retryReason(error) !== null) throw error;
+      throw storageFailure(error);
+   } finally {
+      clearTimeout(expiry);
+      stopWatching();
+      release?.();
+   }
+}
+
+export { withUploadSlot };

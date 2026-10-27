@@ -1,0 +1,27 @@
+{
+   "name": "@s3-viewer/shared",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "type": "module",
+   "sideEffects": false,
+   "exports": {
+      ".": "./src/index.ts",
+      "./constants": "./src/constants.ts",
+      "./env": "./src/env.ts"
+   },
+   "scripts": {
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
+   "dependencies": {
+      "zod": "catalog:"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "eslint": "catalog:",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

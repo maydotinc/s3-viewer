@@ -1,0 +1,58 @@
+packages:
+   - apps/*
+   - packages/*
+
+auditConfig:
+   ignoreGhsas:
+      # dev-only advisory with no runtime path: braces via eslint tooling.
+      - GHSA-vfj7-8cjw-p6xm
+      # zod 4 array parsing (GHSA-mrhx-c7xc-m3w5): the range also covers the 3.25 line, which
+      # bundles v4 under zod/v4; the app imports only the classic API, and better-auth's own zod 4 is overridden below.
+      - GHSA-mrhx-c7xc-m3w5
+
+catalog:
+   "@prisma/client": ^6.1.0
+   "@react-email/components": ^0.5.1
+   "@react-email/render": ^1.2.1
+   "@tailwindcss/postcss": ^4.3.3
+   "@types/node": ^22
+   "@types/react": ^19
+   "@types/react-dom": ^19
+   better-auth: ^1.7.2
+   eslint: ^9.28.0
+   happy-dom: ^21.0.4
+   lucide-react: ^0.475.0
+   next: 15.5.28
+   nodemailer: ^10.2.1
+   prisma: ^6.1.0
+   react: ^19.1.0
+   react-dom: ^19.1.0
+   resend: ^6.0.1
+   tailwindcss: ^4.3.3
+   tsx: ^4.19.4
+   typescript: ^5.8.3
+   vitest: ^4.1.12
+   zod: ^3.25.76
+
+# better-call uses zod only for instanceof checks in its OpenAPI docs generator, which this app never serves; the app stays on zod 3.
+peerDependencyRules:
+   allowedVersions:
+      "better-call>zod": "3"
+
+onlyBuiltDependencies:
+   - "@prisma/client"
+   - "@prisma/engines"
+   - "@tailwindcss/oxide"
+   - esbuild
+   - prisma
+   - sharp
+
+overrides:
+   # express-rate-limit pulls ip-address; floor clears GHSA-rxp7-6hxx-x8q5
+   ip-address: ^10.7.4
+   # next pins postcss 8.4.31 exactly, which has an advisory
+   postcss: ^8.5.28
+   # vitest resolves vite as a peer; the floor clears GHSA-587h-7wmj-h5pm
+   vite: ^7.3.7
+   # better-auth's zod 4; the floor clears GHSA-mrhx-c7xc-m3w5 without moving the app off zod 3
+   "zod@^4": ^4.6.6

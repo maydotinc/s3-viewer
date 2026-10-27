@@ -1,0 +1,166 @@
+import { CellBar } from "@/components/DataGrid/skeleton";
+import { BackToDashboard } from "@/components/Layout/error-state";
+import ServerLogo from "@/components/Layout/Sidebar/Servers/server-logo";
+import ListPagination, {
+   type LoadMoreQuery,
+} from "@/components/list-pagination";
+import QueryStatus from "@/components/query-status";
+import StatusMessage from "@/components/status-message";
+import { ROLE_LABELS } from "@s3-viewer/permissions";
+import type { ServerInfo } from "@s3-viewer/shared";
+import { Checkbox } from "@s3-viewer/ui/components/checkbox";
+import { Skeleton } from "@s3-viewer/ui/components/skeleton";
+import { cn } from "@s3-viewer/ui/lib/utils";
+import { ServerIcon } from "lucide-react";
+import { memo, useId } from "react";
+import LinkButton from "../link-button";
+
+type StepWhereProps = {
+   servers: readonly ServerInfo[];
+   selected: ReadonlySet<string>;
+   loading: boolean;
+   pages: LoadMoreQuery;
+   onToggle: (serverId: string, checked: boolean) => void;
+   onSelectAll: (serverIds: readonly string[]) => void;
+};
+
+const ROW = "flex h-12 items-center gap-3 px-3";
+
+const SKELETON_ROWS = 3;
+
+const ServerRow = memo(function ServerRow({
+   id,
+   server,
+   checked,
+   onToggle,
+}: {
+   id: string;
+   server: ServerInfo;
+   checked: boolean;
+   onToggle: (serverId: string, checked: boolean) => void;
+}) {
+   return (
+      <li>
+         <label
+            htmlFor={id}
+            className={cn(ROW, "cursor-pointer hover:bg-viewergray/60")}
+         >
+            <Checkbox
+               id={id}
+               checked={checked}
+               onCheckedChange={(next) => onToggle(server.id, next === true)}
+            />
+            <ServerLogo provider={server.provider} />
+            <span className="flex min-w-0 flex-1 flex-col">
+               <span className="truncate text-sm text-viewerblack">
+                  {server.name}
+               </span>
+               <span className="text-xs text-viewerlighttext">
+                  {ROLE_LABELS[server.userRole]}
+               </span>
+            </span>
+         </label>
+      </li>
+   );
+});
+
+const StepWhere = ({
+   servers,
+   selected,
+   loading,
+   pages,
+   onToggle,
+   onSelectAll,
+}: StepWhereProps) => {
+   const rowId = useId();
+   const allSelected =
+      servers.length > 0 && servers.every((server) => selected.has(server.id));
+   const empty =
+      !loading && servers.length === 0 && !pages.hasNextPage && !pages.error;
+   const failed = !loading && servers.length === 0 ? pages.error : null;
+   const canToggleAll = !loading && servers.length > 0;
+
+   return (
+      <div className="flex min-w-0 flex-col gap-2">
+         <div className="flex h-5 items-center justify-between gap-2">
+            <h3 className="text-sm font-medium text-viewerblack">Servers</h3>
+            <LinkButton
+               hidden={!canToggleAll}
+               onClick={() =>
+                  onSelectAll(
+                     allSelected ? [] : servers.map((server) => server.id)
+                  )
+               }
+            >
+               {allSelected ? "Clear" : "Select all"}
+            </LinkButton>
+         </div>
+         <ul
+            role="group"
+            aria-label="Servers to invite to"
+            aria-busy={loading || undefined}
+            // three rows plus their borders, so the skeleton and a list of up to three servers share a height
+            className="flex min-h-37 flex-col divide-y divide-viewerborder rounded-lg border border-viewerborder"
+         >
+            {loading ? (
+               Array.from({ length: SKELETON_ROWS }, (_, index) => (
+                  <li key={index} aria-hidden="true">
+                     <div className={ROW}>
+                        <Skeleton className="size-4 shrink-0 rounded" />
+                        <Skeleton className="size-6 shrink-0 rounded-md" />
+                        <span className="flex flex-col">
+                           <span className="flex h-5 items-center">
+                              <CellBar className="w-40" />
+                           </span>
+                           <span className="flex h-4 items-center">
+                              <CellBar className="h-3 w-12" />
+                           </span>
+                        </span>
+                     </div>
+                  </li>
+               ))
+            ) : empty ? (
+               <li className="flex flex-1 flex-col">
+                  <StatusMessage
+                     icon={ServerIcon}
+                     title="No servers you can invite to"
+                     actions={<BackToDashboard />}
+                  >
+                     You need to be an Owner or Admin of a server to invite
+                     people to it.
+                  </StatusMessage>
+               </li>
+            ) : failed ? (
+               <li className="flex flex-1 flex-col">
+                  <QueryStatus
+                     error={failed}
+                     title="Couldn't load your servers"
+                     retrying={pages.isFetching}
+                     onRetry={() =>
+                        void pages.refetch({ cancelRefetch: false })
+                     }
+                  />
+               </li>
+            ) : (
+               servers.map((server) => (
+                  <ServerRow
+                     key={server.id}
+                     id={`${rowId}-${server.id}`}
+                     server={server}
+                     checked={selected.has(server.id)}
+                     onToggle={onToggle}
+                  />
+               ))
+            )}
+         </ul>
+         <p className="min-h-5 text-xs leading-5 text-viewerlighttext">
+            Only servers where you&apos;re an Owner or Admin are listed.
+         </p>
+         <div className="flex min-h-8 items-center">
+            {!failed && <ListPagination {...pages} label="Load more servers" />}
+         </div>
+      </div>
+   );
+};
+
+export default StepWhere;

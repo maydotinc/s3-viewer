@@ -1,0 +1,104 @@
+// @vitest-environment happy-dom
+import { act, createElement, type ReactNode } from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mountedRuntime, submitForm } from "@/components/test-helpers";
+import { flushRuntime } from "@/lib/test/runtime";
+import ForgotPasswordScreen from "./forgot-password-screen";
+
+const h = vi.hoisted(() => ({
+   requestPasswordReset: vi.fn(),
+   onEmailChange: (_value: string) => {},
+   emailError: undefined as string | null | undefined,
+}));
+
+vi.mock("@/lib/auth", () => ({
+   requestPasswordReset: h.requestPasswordReset,
+}));
+vi.mock("@/lib/hooks/queries/useInstanceConfig", () => ({
+   default: () => ({ data: { emailEnabled: true }, isPending: false }),
+   emailState: () => "enabled",
+}));
+vi.mock("./auth-layout", () => ({
+   AuthLayout: ({ children }: { children: ReactNode }) =>
+      createElement("main", null, children),
+   StepHeader: ({ title, children }: { title: string; children: ReactNode }) =>
+      createElement("header", null, createElement("h1", null, title), children),
+}));
+vi.mock("./email-field", () => ({
+   default: (props: {
+      error: string | null;
+      onChange: (value: string) => void;
+   }) => {
+      h.onEmailChange = props.onChange;
+      h.emailError = props.error;
+      return null;
+   },
+}));
+
+const view = mountedRuntime();
+const mountScreen = async () =>
+   (await view.mount(createElement(ForgotPasswordScreen))).container;
+
+const buttonNamed = (container: HTMLElement, name: string) =>
+   Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === name
+   )!;
+
+const live = (container: HTMLElement, role: "alert" | "status") =>
+   container.querySelector(`[role="${role}"]`)!;
+
+const reachSentStep = async (container: HTMLElement) => {
+   await act(async () => h.onEmailChange("person@example.com"));
+   await act(async () => {
+      submitForm(container);
+   });
+   await flushRuntime();
+   expect(container.querySelector("h1")?.textContent).toBe("Check your inbox");
+};
+
+beforeEach(() => {
+   h.requestPasswordReset.mockReset();
+   h.requestPasswordReset.mockResolvedValue({});
+});
+
+describe("resending a password reset link", () => {
+   it("swaps a failed resend for the confirmation in the slot reserved under the prompt", async () => {
+      const container = await mountScreen();
+      await reachSentStep(container);
+      const alert = live(container, "alert");
+      const status = live(container, "status");
+      expect(alert.textContent).toBe("");
+      expect(status.textContent).toBe("");
+
+      h.requestPasswordReset.mockResolvedValueOnce({
+         error: "Too many requests",
+      });
+      await act(async () => buttonNamed(container, "Send again").click());
+      await flushRuntime();
+      expect(alert.isConnected).toBe(true);
+      expect(alert.textContent).toBe("Too many requests");
+      expect(status.textContent).toBe("");
+
+      await act(async () => buttonNamed(container, "Send again").click());
+      await flushRuntime();
+      expect(h.requestPasswordReset).toHaveBeenCalledTimes(3);
+      expect(alert.textContent).toBe("");
+      expect(status.isConnected).toBe(true);
+      expect(status.textContent).toBe("Sent again.");
+   });
+
+   it("drops the resend error when going back to change the email", async () => {
+      const container = await mountScreen();
+      await reachSentStep(container);
+      h.requestPasswordReset.mockResolvedValueOnce({
+         error: "Too many requests",
+      });
+      await act(async () => buttonNamed(container, "Send again").click());
+      await flushRuntime();
+
+      await act(async () =>
+         buttonNamed(container, "use another email").click()
+      );
+      expect(h.emailError).toBeNull();
+   });
+});

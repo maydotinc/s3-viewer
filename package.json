@@ -1,0 +1,53 @@
+{
+   "name": "s3-viewer",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "author": "May Inc. (https://may.inc)",
+   "homepage": "https://github.com/maydotinc/s3-viewer",
+   "repository": {
+      "type": "git",
+      "url": "https://github.com/maydotinc/s3-viewer.git"
+   },
+   "engines": {
+      "node": ">=22.12.0"
+   },
+   "scripts": {
+      "prepare": "husky",
+      "setup": "node scripts/setup.mjs",
+      "dev": "node scripts/dev.mjs",
+      "stop": "node scripts/stop.mjs",
+      "build": "turbo run build",
+      "lint": "turbo run lint && eslint scripts --max-warnings 0",
+      "check-types": "turbo run check-types && tsc --noEmit -p tsconfig.json",
+      "test": "vitest run",
+      "test:distribution": "node scripts/distribution-smoke.mjs",
+      "db:generate": "node scripts/db.mjs generate",
+      "db:deploy": "node scripts/db.mjs deploy",
+      "db:migrate": "node scripts/db.mjs migrate",
+      "db:status": "node scripts/db.mjs status",
+      "account:verify": "pnpm --filter api exec tsx verify-email.ts",
+      "favicons": "tsx scripts/generate-favicons.ts",
+      "landing:assets": "tsx scripts/optimize-landing-assets.ts",
+      "format": "prettier --write .",
+      "format:check": "prettier --check ."
+   },
+   "lint-staged": {
+      "*": "prettier --write --ignore-unknown"
+   },
+   "packageManager": "pnpm@10.28.2",
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "@types/node": "catalog:",
+      "eslint": "catalog:",
+      "husky": "^9.1.7",
+      "lint-staged": "^16.4.0",
+      "prettier": "^3.5.3",
+      "sharp": "^0.35.5",
+      "tsx": "catalog:",
+      "turbo": "^2.10.12",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

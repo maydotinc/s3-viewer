@@ -1,0 +1,42 @@
+app = "your-s3-viewer-api"
+primary_region = "iad"
+# shutdown drains for 5s, then flushes pending audits for up to 3s; Fly's 5s default cuts that short.
+kill_timeout = "10s"
+
+[build]
+   dockerfile = "apps/api/Dockerfile"
+
+[env]
+   DATA_DIR = "/data"
+   NEXT_PUBLIC_SITE_URL = "https://your-s3-viewer-web.fly.dev"
+   NEXT_PUBLIC_API_URL = "https://your-s3-viewer-api.fly.dev"
+   TRUST_PROXY = "1"
+   # fly.dev is a public suffix, so web and api are different sites.
+   COOKIE_SAMESITE = "none"
+   EMAIL_TRANSPORT = "none"
+   AUDIT_RETENTION_DAYS = "365"
+   # the default 256 MiB budget is half this 512 MB machine; 128 MiB leaves headroom for Node and TLS.
+   UPLOAD_MEMORY_BUDGET_BYTES = "134217728"
+
+[http_service]
+   internal_port = 5001
+   force_https = true
+   auto_stop_machines = "off"
+   auto_start_machines = true
+   min_machines_running = 1
+
+   [[http_service.checks]]
+      method = "GET"
+      path = "/health"
+      interval = "15s"
+      timeout = "5s"
+      grace_period = "20s"
+
+# generated auth secret + RSA key live here; back it up.
+[mounts]
+   source = "s3_viewer_data"
+   destination = "/data"
+
+[[vm]]
+   size = "shared-cpu-1x"
+   memory = "512mb"

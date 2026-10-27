@@ -1,0 +1,4 @@
+# this origin is only reached through the web app's proxy; the canonical urls
+# live on the web app's domain, so nothing here may be indexed directly.
+User-agent: *
+Disallow: /

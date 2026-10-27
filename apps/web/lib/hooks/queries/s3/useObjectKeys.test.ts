@@ -1,0 +1,113 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { queryKeys } from "@/lib/query-keys";
+import type { KnownReach } from "@/lib/utils/folder-access";
+
+const h = vi.hoisted(() => ({
+   get: vi.fn(),
+   options: null as {
+      queryKey: readonly unknown[];
+      queryFn: (context: { signal: AbortSignal }) => Promise<string[]>;
+      enabled: boolean;
+   } | null,
+   reach: { folders: null, owner: false } as KnownReach,
+   reachArgs: [] as unknown[],
+}));
+vi.mock("./useBucketScope", () => ({
+   default: (...args: unknown[]) => {
+      h.reachArgs = args;
+      return h.reach;
+   },
+}));
+vi.mock("@/lib/stores/session-store", () => ({
+   default: (select: (state: { serverId: string }) => unknown) =>
+      select({ serverId: "selected-server" }),
+   useUserId: () => "signed-in-user",
+}));
+vi.mock("@tanstack/react-query", () => ({
+   useQuery: (options: typeof h.options) => {
+      h.options = options;
+      return { data: [] };
+   },
+}));
+vi.mock("@/lib/api", async (original) => ({
+   ...(await original<typeof import("@/lib/api")>()),
+   api: { get: h.get },
+}));
+import useObjectKeys from "./useObjectKeys";
+
+const signal = new AbortController().signal;
+
+beforeEach(() => {
+   h.options = null;
+   h.reach = { folders: null, owner: false };
+   h.get.mockReset();
+   h.get.mockResolvedValue({ objects: [{ key: "folder/next.txt" }] });
+});
+
+describe("path suggestion scope", () => {
+   it("queries, caches and checks folder reach under the modal's captured target", async () => {
+      useObjectKeys("backups", "folder/", true, {
+         userId: "original-user",
+         serverId: "original-server",
+      });
+      expect(h.options?.queryKey).toEqual(
+         queryKeys.objectKeySuggestions(
+            "original-user",
+            "original-server",
+            "backups",
+            "folder/"
+         )
+      );
+      expect(h.reachArgs).toEqual([
+         "original-user",
+         "original-server",
+         "backups",
+      ]);
+      expect(h.options?.enabled).toBe(true);
+      expect(await h.options?.queryFn({ signal })).toEqual(["folder/next.txt"]);
+      expect(h.get).toHaveBeenCalledWith(
+         "/servers/original-server/buckets/backups/objects?prefix=folder%2F&blockSize=50",
+         signal
+      );
+   });
+
+   it("continues to use the current selection for the grid's prefix search", async () => {
+      useObjectKeys("backups", "folder/", true);
+      expect(h.options?.queryKey).toEqual(
+         queryKeys.objectKeySuggestions(
+            "signed-in-user",
+            "selected-server",
+            "backups",
+            "folder/"
+         )
+      );
+      await h.options?.queryFn({ signal });
+      expect(h.get).toHaveBeenCalledWith(
+         "/servers/selected-server/buckets/backups/objects?prefix=folder%2F&blockSize=50",
+         signal
+      );
+   });
+});
+
+describe("prefixes only the owner may list", () => {
+   it("has no suggestions for a dotted prefix instead of a refused listing", () => {
+      useObjectKeys("backups", "a/..", true);
+      expect(h.options?.enabled).toBe(false);
+   });
+});
+
+describe("suggestions fed by the grid's listing", () => {
+   it("never lists the prefix itself when asked to read the cache only", () => {
+      h.reach = { folders: null, owner: true };
+      useObjectKeys("backups", "folder/re", true, undefined, true);
+      expect(h.options?.enabled).toBe(false);
+      expect(h.options?.queryKey).toEqual(
+         queryKeys.objectKeySuggestions(
+            "signed-in-user",
+            "selected-server",
+            "backups",
+            "folder/re"
+         )
+      );
+   });
+});

@@ -1,0 +1,165 @@
+import {
+   GetObjectCommand,
+   type HeadObjectCommandOutput,
+   type S3Client,
+} from "@aws-sdk/client-s3";
+import { DEFAULT_CONTENT_TYPE } from "@s3-viewer/shared";
+import {
+   OBJECT_EXISTS,
+   S3_ROUTE_TIMEOUT_MS,
+   STREAM_IDLE_TIMEOUT_MS,
+} from "@/lib/constants";
+import { abortReason, noop, withDeadline } from "@/lib/utils/abort";
+import { storageFailure } from "./classify";
+import { conflictAs, enforcesConditions, writeCondition } from "./conditions";
+import { assertDestinationUnchanged } from "./copy-request";
+import { requireBody, StorageError } from "./errors";
+import { headIfExists } from "./head";
+import { withoutRetries } from "./no-retry";
+import {
+   headReviewed,
+   metadataAttributes,
+   sourceChanged,
+} from "./object-metadata";
+import { clientProvider } from "./provider";
+import {
+   isUploadTooLargeError,
+   streamThroughUpload,
+   UPLOAD_ABORTED,
+} from "./stream-upload";
+import { isStalled } from "./progress-floor";
+
+const DESTINATION_CHANGED =
+   "The destination changed or already exists. Refresh and try again.";
+
+type TransferEndpoint = { client: S3Client; bucket: string; key: string };
+
+type TransferParams = {
+   // a head the caller already took for the reviewed source spares a second round trip.
+   source: TransferEndpoint & {
+      expectedETag: string | null;
+      head?: HeadObjectCommandOutput;
+   };
+   destination: TransferEndpoint;
+   overwrite: boolean;
+   maxBytes: number;
+   partSize: number;
+   abortController: AbortController;
+   idleTimeoutMs?: number;
+};
+
+type TransferResult = { size: number; eTag: string | null };
+
+const transferObject = async ({
+   source: sourceInput,
+   destination: destinationInput,
+   overwrite,
+   maxBytes,
+   partSize,
+   abortController,
+   idleTimeoutMs = STREAM_IDLE_TIMEOUT_MS,
+}: TransferParams): Promise<TransferResult> => {
+   const { signal } = abortController;
+   const source = {
+      client: withoutRetries(sourceInput.client),
+      bucket: sourceInput.bucket,
+      signal,
+   };
+   const destination = {
+      client: withoutRetries(destinationInput.client),
+      bucket: destinationInput.bucket,
+      signal,
+   };
+   const { head, declared, replacing, provider, object } = await withDeadline(
+      signal,
+      S3_ROUTE_TIMEOUT_MS,
+      async (deadline) => {
+         const head =
+            sourceInput.head ??
+            (await headReviewed(
+               { ...source, signal: deadline },
+               sourceInput.key,
+               sourceInput.expectedETag
+            ));
+         if (head.SSECustomerAlgorithm)
+            throw new StorageError(
+               "conflict",
+               "This object is encrypted with a customer-provided key and can't be transferred without the customer key."
+            );
+         const declared = head.ContentLength ?? 0;
+         const existing = await headIfExists(
+            { ...destination, signal: deadline },
+            destinationInput.key
+         );
+         if (existing && !overwrite)
+            throw new StorageError("conflict", OBJECT_EXISTS);
+         const provider = await clientProvider(destination.client);
+         const object = await source.client
+            .send(
+               new GetObjectCommand({
+                  Bucket: source.bucket,
+                  Key: sourceInput.key,
+                  ...(head.ETag ? { IfMatch: head.ETag } : {}),
+               }),
+               { abortSignal: deadline }
+            )
+            .catch(conflictAs(sourceChanged));
+         return {
+            head,
+            declared,
+            replacing: overwrite ? (existing?.ETag ?? null) : null,
+            provider,
+            object,
+         };
+      }
+   );
+   const body = requireBody(object.Body);
+
+   // cancellation can precede upload setup, and destroy() can emit after upload cleanup.
+   body.on("error", noop);
+   const onAbort = () => body.destroy(abortReason(signal, UPLOAD_ABORTED));
+   signal.addEventListener("abort", onAbort, { once: true });
+   if (signal.aborted) onAbort();
+   try {
+      return await streamThroughUpload({
+         client: destination.client,
+         provider,
+         bucket: destination.bucket,
+         key: destinationInput.key,
+         body,
+         attributes: {
+            ContentType: DEFAULT_CONTENT_TYPE,
+            ...metadataAttributes(head),
+            ...(declared ? { ContentLength: declared } : {}),
+         },
+         condition: writeCondition(replacing ?? undefined),
+         partSize,
+         maxBytes,
+         abortController,
+         idleTimeoutMs,
+         conflictMessage: DESTINATION_CHANGED,
+         beforeCommit: async () => {
+            if (enforcesConditions(provider)) return;
+            await assertDestinationUnchanged(
+               destination,
+               destinationInput.key,
+               replacing,
+               DESTINATION_CHANGED
+            );
+         },
+      });
+   } catch (error) {
+      if (isStalled(error) || isUploadTooLargeError(error)) throw error;
+      throw storageFailure(error);
+   } finally {
+      signal.removeEventListener("abort", onAbort);
+      if (body.closed) {
+         body.off("error", noop);
+      } else {
+         body.once("close", () => body.off("error", noop));
+         body.destroy();
+      }
+   }
+};
+
+export { transferObject };

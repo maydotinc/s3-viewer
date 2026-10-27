@@ -1,0 +1,22 @@
+import {
+   Provider,
+   backblazeRegion,
+   type StorageCapabilities,
+} from "@s3-viewer/shared";
+
+const B2_NOTICE =
+   "Conditional writes are not enforced by Backblaze B2; S3 Viewer checks before each write instead.";
+
+const storageCapabilities = (
+   provider: Provider,
+   endpoint: string
+): StorageCapabilities => ({
+   writable: true,
+   deleteProtection: provider === Provider.S3 ? "conditional" : "checked",
+   notice:
+      provider === Provider.Other && backblazeRegion(endpoint)
+         ? B2_NOTICE
+         : null,
+});
+
+export { storageCapabilities };

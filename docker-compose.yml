@@ -1,0 +1,157 @@
+name: s3-viewer
+
+services:
+   postgres:
+      image: postgres:16.15
+      restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      environment:
+         POSTGRES_USER: s3viewer
+         POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-s3viewer}
+         POSTGRES_DB: s3viewer
+      volumes:
+         - pgdata:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U s3viewer -d s3viewer"]
+         interval: 5s
+         timeout: 5s
+         retries: 20
+
+   api:
+      build:
+         context: .
+         dockerfile: apps/api/Dockerfile
+      restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      cap_drop:
+         - ALL
+      # only the entrypoint's root branch uses these, to chown the data dir and drop to node
+      cap_add:
+         - CHOWN
+         - DAC_OVERRIDE
+         - SETUID
+         - SETGID
+      depends_on:
+         postgres:
+            condition: service_healthy
+      environment:
+         - DATABASE_URL=postgresql://s3viewer:${POSTGRES_PASSWORD:-s3viewer}@postgres:5432/s3viewer
+         - DATA_DIR=/data
+         - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
+         - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:5001}
+         - TRUST_PROXY=${TRUST_PROXY:-loopback}
+         - COOKIE_SAMESITE
+         - BETTER_AUTH_SECRET
+         - ENCRYPTION_PRIVATE_KEY
+         - ACCEPT_NEW_ENCRYPTION_KEY
+         - AUDIT_CHAIN_KEY
+         - ACCEPT_NEW_AUDIT_CHAIN_KEY
+         - EMAIL_TRANSPORT
+         - RESEND_KEY
+         - SMTP_URL
+         - EMAIL_FROM
+         - SUPPORT_EMAIL
+         - INVITE_EMAILS_PER_DAY
+         - GITHUB_CLIENT_ID
+         - GITHUB_CLIENT_SECRET
+         - ALLOW_PRIVATE_ENDPOINTS
+         - MAX_UPLOAD_BYTES
+         - UPLOAD_PART_BYTES
+         - MAX_CONCURRENT_UPLOADS
+         - MAX_USER_UPLOADS
+         - MAX_IP_UPLOADS
+         - UPLOAD_MEMORY_BUDGET_BYTES
+         - UPLOAD_IDLE_TIMEOUT_MS
+         - UPLOAD_SLOT_MAX_MS
+         - LOG_LEVEL
+         - PRISMA_LOG_QUERIES
+         - SIGNUP_MODE
+         - ALLOWED_EMAIL_DOMAINS
+         - UNVERIFIED_ACCOUNT_TTL_DAYS
+         - RATE_LIMIT_STORE
+         - AUDIT_RETENTION_DAYS=${AUDIT_RETENTION_DAYS:-365}
+         - AUDIT_RETENTION_MIN_DAYS
+         - KEEP_ALIVE_TIMEOUT_MS
+         - S3_MAX_SOCKETS_PER_HOST
+         - S3_MAX_TOTAL_SOCKETS
+         - S3_REQUESTS_PER_MINUTE
+         - S3_MAX_INFLIGHT_PER_SERVER
+         - S3_MAX_INFLIGHT_PER_USER
+         - S3_REQUEST_TIMEOUT_MS
+         - MAX_ARCHIVE_OBJECTS
+         - MAX_ARCHIVE_BYTES
+         # enable migrations on only one API replica.
+         - RUN_MIGRATIONS
+      volumes:
+         - apidata:/data
+      ports:
+         - "127.0.0.1:5001:5001"
+
+   web:
+      build:
+         context: .
+         dockerfile: apps/web/Dockerfile
+      restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      cap_drop:
+         - ALL
+      depends_on:
+         api:
+            condition: service_healthy
+         landing:
+            condition: service_healthy
+            required: false
+      environment:
+         - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
+         - NEXT_PUBLIC_API_URL=${API_URL:-http://localhost:5001}
+         # set to http://landing:3001 when enabling the landing profile.
+         - LANDING_ORIGIN
+      ports:
+         - "127.0.0.1:3000:3000"
+
+   landing:
+      build:
+         context: .
+         dockerfile: apps/landing/Dockerfile
+         args:
+            NEXT_PUBLIC_SITE_URL: ${SITE_URL:-http://localhost:3000}
+      profiles: [landing]
+      restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      cap_drop:
+         - ALL
+      environment:
+         - NEXT_PUBLIC_SITE_URL=${SITE_URL:-http://localhost:3000}
+      expose:
+         - "3001"
+
+   caddy:
+      image: caddy:2.11.7-alpine
+      profiles: [proxy]
+      restart: unless-stopped
+      security_opt:
+         - no-new-privileges:true
+      depends_on:
+         - web
+         - api
+      environment:
+         - SITE_HOSTNAME
+         - API_HOSTNAME
+      ports:
+         - "80:80"
+         - "443:443"
+         - "443:443/udp"
+      volumes:
+         - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+         - caddydata:/data
+         - caddyconfig:/config
+
+volumes:
+   pgdata:
+   apidata:
+   caddydata:
+   caddyconfig:

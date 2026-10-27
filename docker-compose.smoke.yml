@@ -1,0 +1,71 @@
+# disposable release validation only. never mounts an existing deployment's data.
+services:
+   postgres:
+      image: postgres:16.15
+      environment:
+         POSTGRES_USER: smoke
+         POSTGRES_PASSWORD: smoke
+         POSTGRES_DB: s3viewer_smoke
+      ports:
+         - "127.0.0.1::5432"
+      volumes:
+         - pgdata:/var/lib/postgresql/data
+      healthcheck:
+         test: ["CMD-SHELL", "pg_isready -U smoke -d s3viewer_smoke"]
+         interval: 2s
+         timeout: 3s
+         retries: 30
+
+   api:
+      build:
+         context: .
+         dockerfile: apps/api/Dockerfile
+      depends_on:
+         postgres:
+            condition: service_healthy
+      environment:
+         DATABASE_URL: postgresql://smoke:smoke@postgres:5432/s3viewer_smoke
+         DATA_DIR: /data
+         NEXT_PUBLIC_SITE_URL: http://localhost:3000
+         NEXT_PUBLIC_API_URL: http://localhost:5001
+         EMAIL_TRANSPORT: none
+         RATE_LIMIT_STORE: postgres
+      ports:
+         - "127.0.0.1::5001"
+      volumes:
+         - apidata:/data
+
+   web:
+      build:
+         context: .
+         dockerfile: apps/web/Dockerfile
+      depends_on:
+         api:
+            condition: service_healthy
+      environment:
+         NEXT_PUBLIC_SITE_URL: http://localhost:3000
+         NEXT_PUBLIC_API_URL: http://localhost:5001
+         LANDING_ORIGIN: http://landing:3001
+      ports:
+         - "127.0.0.1::3000"
+
+   landing:
+      build:
+         context: .
+         dockerfile: apps/landing/Dockerfile
+      environment:
+         NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      ports:
+         - "127.0.0.1::3001"
+
+   rustfs:
+      image: rustfs/rustfs:1.0.1
+      environment:
+         RUSTFS_ACCESS_KEY: smoke-access-key
+         RUSTFS_SECRET_KEY: smoke-secret-key
+      ports:
+         - "127.0.0.1::9000"
+
+volumes:
+   pgdata:
+   apidata:

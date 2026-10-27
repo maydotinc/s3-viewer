@@ -1,0 +1,11 @@
+{
+   "extends": "@s3-viewer/ts-config/node-library",
+   "compilerOptions": {
+      "lib": ["es2024"],
+      "paths": {
+         "@/*": ["./*"]
+      }
+   },
+   "include": ["**/*.ts"],
+   "exclude": ["node_modules", "dist"]
+}

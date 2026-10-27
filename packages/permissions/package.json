@@ -1,0 +1,24 @@
+{
+   "name": "@s3-viewer/permissions",
+   "version": "0.0.0",
+   "private": true,
+   "license": "MIT",
+   "type": "module",
+   "exports": {
+      ".": "./index.ts"
+   },
+   "scripts": {
+      "lint": "eslint . --max-warnings 0",
+      "check-types": "tsc --noEmit"
+   },
+   "dependencies": {
+      "@s3-viewer/shared": "workspace:*"
+   },
+   "devDependencies": {
+      "@s3-viewer/eslint-config": "workspace:*",
+      "@s3-viewer/ts-config": "workspace:*",
+      "eslint": "catalog:",
+      "typescript": "catalog:",
+      "vitest": "catalog:"
+   }
+}

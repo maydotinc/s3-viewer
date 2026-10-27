@@ -1,0 +1,201 @@
+"use client";
+
+import { PanelLeftIcon } from "lucide-react";
+import * as React from "react";
+
+import { Button } from "@s3-viewer/ui/components/button";
+import { cn } from "@s3-viewer/ui/lib/utils";
+
+const SIDEBAR_DESKTOP_QUERY = "(min-width: 64rem)";
+
+const SIDEBAR_BASE =
+   "flex min-h-0 w-64 max-w-[calc(100vw-2rem)] shrink-0 flex-col gap-6 border-r border-viewerborder bg-viewerwhite px-4 py-5";
+
+function useIsDesktop() {
+   const [isDesktop, setIsDesktop] = React.useState(false);
+
+   React.useEffect(() => {
+      const query = window.matchMedia(SIDEBAR_DESKTOP_QUERY);
+      const update = () => setIsDesktop(query.matches);
+      update();
+      query.addEventListener("change", update);
+      return () => query.removeEventListener("change", update);
+   }, []);
+
+   return isDesktop;
+}
+
+type SidebarContextProps = {
+   open: boolean;
+   openMobile: boolean;
+   setOpenMobile: (open: boolean) => void;
+   isDesktop: boolean;
+   toggleSidebar: () => void;
+};
+
+const SidebarContext = React.createContext<SidebarContextProps | null>(null);
+
+function useSidebar() {
+   const context = React.useContext(SidebarContext);
+   if (!context) {
+      throw new Error("useSidebar must be used within a SidebarProvider.");
+   }
+
+   return context;
+}
+
+function SidebarProvider({
+   className,
+   children,
+   ...props
+}: React.ComponentProps<"div">) {
+   const [open, setOpen] = React.useState(true);
+   const [openMobile, setOpenMobile] = React.useState(false);
+   const isDesktop = useIsDesktop();
+
+   const toggleSidebar = React.useCallback(() => {
+      if (isDesktop) setOpen((current) => !current);
+      else setOpenMobile((current) => !current);
+   }, [isDesktop]);
+
+   React.useEffect(() => {
+      if (isDesktop) setOpenMobile(false);
+   }, [isDesktop]);
+
+   const contextValue = React.useMemo<SidebarContextProps>(
+      () => ({
+         open,
+         openMobile,
+         setOpenMobile,
+         isDesktop,
+         toggleSidebar,
+      }),
+      [open, openMobile, isDesktop, toggleSidebar]
+   );
+
+   return (
+      <SidebarContext.Provider value={contextValue}>
+         <div className={cn("flex min-h-svh w-full", className)} {...props}>
+            {children}
+         </div>
+      </SidebarContext.Provider>
+   );
+}
+
+const FOCUSABLE =
+   'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+
+function Sidebar({
+   className,
+   children,
+   ...props
+}: React.ComponentProps<"aside">) {
+   const { open, openMobile, setOpenMobile } = useSidebar();
+   const ref = React.useRef<HTMLElement>(null);
+   const opener = React.useRef<HTMLElement | null>(null);
+
+   React.useEffect(() => {
+      const panel = ref.current;
+      if (!openMobile || !panel) return;
+
+      opener.current =
+         document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+      const focusables = () =>
+         Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+      (focusables()[0] ?? panel).focus();
+
+      const onKeyDown = (event: KeyboardEvent) => {
+         if (event.key === "Escape") {
+            if (event.defaultPrevented) return;
+            event.preventDefault();
+            setOpenMobile(false);
+            return;
+         }
+         if (event.key !== "Tab") return;
+         const items = focusables();
+         const first = items[0];
+         const last = items[items.length - 1];
+         if (!first || !last) {
+            event.preventDefault();
+            return;
+         }
+         const active = document.activeElement;
+         if (!event.shiftKey && (active === last || !panel.contains(active))) {
+            event.preventDefault();
+            first.focus();
+         } else if (
+            event.shiftKey &&
+            (active === first || !panel.contains(active))
+         ) {
+            event.preventDefault();
+            last.focus();
+         }
+      };
+
+      document.addEventListener("keydown", onKeyDown);
+      return () => {
+         document.removeEventListener("keydown", onKeyDown);
+         opener.current?.focus();
+         opener.current = null;
+      };
+   }, [openMobile, setOpenMobile]);
+
+   return (
+      <>
+         {openMobile && (
+            <button
+               type="button"
+               aria-label="Close the sidebar"
+               data-backdrop=""
+               onClick={() => setOpenMobile(false)}
+               className="fixed inset-0 z-10 cursor-default bg-viewerblack/40 lg:hidden"
+            />
+         )}
+         <aside
+            ref={ref}
+            tabIndex={-1}
+            className={cn(
+               SIDEBAR_BASE,
+               openMobile
+                  ? "fixed bottom-0 left-0 top-16 z-20 lg:static lg:z-auto"
+                  : "hidden lg:flex",
+               !open && "lg:hidden",
+               className
+            )}
+            {...props}
+         >
+            {children}
+         </aside>
+      </>
+   );
+}
+
+function SidebarTrigger({
+   className,
+   onClick,
+   ...props
+}: React.ComponentProps<typeof Button>) {
+   const { toggleSidebar, openMobile, isDesktop, open } = useSidebar();
+   const expanded = isDesktop ? open : openMobile;
+
+   return (
+      <Button
+         variant="ghost"
+         size="icon"
+         aria-expanded={expanded}
+         aria-label={expanded ? "Hide the sidebar" : "Show the sidebar"}
+         className={className}
+         onClick={(event) => {
+            onClick?.(event);
+            toggleSidebar();
+         }}
+         {...props}
+      >
+         <PanelLeftIcon />
+      </Button>
+   );
+}
+
+export { Sidebar, SidebarProvider, SidebarTrigger, useSidebar };

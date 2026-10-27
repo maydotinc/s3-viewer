@@ -1,0 +1,7 @@
+# trust one Caddy hop; it replaces incoming X-Forwarded-For values.
+# set TRUST_PROXY for additional trusted proxies.
+
+services:
+   api:
+      environment:
+         - TRUST_PROXY=${TRUST_PROXY:-1}

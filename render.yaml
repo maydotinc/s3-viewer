@@ -1,0 +1,58 @@
+# Render supplies service hosts, not origins; enter full URLs below.
+
+databases:
+   - name: s3-viewer-db
+     plan: 0.1c-256mb
+     databaseName: s3viewer
+     user: s3viewer
+     ipAllowList: []
+
+services:
+   - type: web
+     name: s3-viewer-api
+     runtime: docker
+     plan: 0.5c-512mb
+     dockerfilePath: ./apps/api/Dockerfile
+     dockerContext: .
+     healthCheckPath: /health
+     disk:
+        name: s3-viewer-data
+        mountPath: /data
+        sizeGB: 1
+     envVars:
+        - key: DATABASE_URL
+          fromDatabase:
+             name: s3-viewer-db
+             property: connectionString
+        - key: DATA_DIR
+          value: /data
+        # sync: false prompts only on creation; later dashboard edits persist.
+        - key: NEXT_PUBLIC_SITE_URL
+          sync: false
+        - key: NEXT_PUBLIC_API_URL
+          sync: false
+        - key: TRUST_PROXY
+          value: "1"
+        # onrender.com is a public suffix, so web and api are different sites.
+        - key: COOKIE_SAMESITE
+          value: none
+        - key: EMAIL_TRANSPORT
+          value: none
+        - key: AUDIT_RETENTION_DAYS
+          value: "365"
+        # the default 256 MiB budget is half this 512 MB instance; 128 MiB leaves headroom for Node and TLS.
+        - key: UPLOAD_MEMORY_BUDGET_BYTES
+          value: "134217728"
+
+   - type: web
+     name: s3-viewer-web
+     runtime: docker
+     plan: 0.5c-512mb
+     dockerfilePath: ./apps/web/Dockerfile
+     dockerContext: .
+     healthCheckPath: /api/health
+     envVars:
+        - key: NEXT_PUBLIC_SITE_URL
+          sync: false
+        - key: NEXT_PUBLIC_API_URL
+          sync: false

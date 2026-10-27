@@ -1,0 +1,4 @@
+{
+   "extends": "@s3-viewer/ts-config/react-library",
+   "include": ["."]
+}
