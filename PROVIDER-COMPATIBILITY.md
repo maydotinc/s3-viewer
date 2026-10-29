@@ -1,7 +1,7 @@
 # provider compatibility
 
 connect AWS S3, Cloudflare R2, Backblaze B2, or another S3-compatible endpoint like
-MinIO. here's what s3 viewer supports. your storage permissions and app role need
+MinIO or Shade. here's what s3 viewer supports. your storage permissions and app role need
 to allow it too.
 
 ✅ supported · ⚠️ supported with limits · ❌ not available in s3 viewer
@@ -47,6 +47,14 @@ every provider or setup.
   above 5 GiB, including transfers between buckets on the same server. other
   providers copy larger objects in parts. R2 has no object tags or ACLs, so
   they aren't carried over.
+- **the hosted app:** uploads to s3-viewer.com pass through our host's edge
+  firewall before they reach the API. it inspects request bodies and can refuse
+  a file whose bytes resemble an attack to it, a bootable disk image for
+  example. we don't tune those rules or ask for exceptions: they are part of
+  what keeps the hosted instance safe. the app reports such a refusal as a
+  firewall block rather than a connection problem. a self-hosted instance has
+  no such filter, so if a file keeps being refused, self-host or upload it with
+  another tool.
 - **limits:** on every provider, uploads and transfers between servers follow
   your instance's upload limit (5 GiB by default). zip downloads are limited to
   10,000 objects and 10 GiB by default, and stop if they run too slowly. see

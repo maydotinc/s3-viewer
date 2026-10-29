@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
          refusal: null,
       },
       isUploading: true,
+      rates: {} as Record<string, number>,
       cancel: () => undefined,
       cancelAll: () => undefined,
       cancelAllAndClear: (() => Promise.resolve()) as () => Promise<void>,

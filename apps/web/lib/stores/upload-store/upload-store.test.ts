@@ -573,3 +573,38 @@ it("retains attempted keys when an earlier success is superseded by a failed sam
       "p/sibling",
    ]);
 });
+
+it("smooths a transfer rate from progress samples and drops it when the upload settles", async () => {
+   vi.useFakeTimers({ toFake: ["Date"] });
+   vi.setSystemTime(1_000_000);
+   useUploadStore.getState().enqueue({
+      files: [
+         {
+            file: new File([new Uint8Array(1_000_000)], "big"),
+            relativePath: "big",
+         },
+      ],
+      serverId: "s",
+      bucketName: "b",
+      prefix: "p/",
+   });
+   const big = inFlight.get(uploadId("big"))!;
+   // too soon after the upload started to say anything about speed
+   vi.setSystemTime(1_000_200);
+   big.onProgress(100_000);
+   expect(useUploadStore.getState().rates).toEqual({});
+   vi.setSystemTime(1_001_000);
+   big.onProgress(500_000);
+   expect(useUploadStore.getState().rates).toEqual({
+      [uploadId("big")]: 500_000,
+   });
+   // a second sample at the same pace leaves the smoothed value where it is
+   vi.setSystemTime(1_002_000);
+   big.onProgress(1_000_000);
+   expect(useUploadStore.getState().rates[uploadId("big")]).toBeCloseTo(
+      500_000
+   );
+   expect(useUploadStore.getState().progress[uploadId("big")]).toBe(1_000_000);
+   await finish("big");
+   expect(useUploadStore.getState().rates).toEqual({});
+});

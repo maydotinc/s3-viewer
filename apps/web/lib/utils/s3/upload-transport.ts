@@ -42,6 +42,40 @@ const isUnreadableAnswer = (error: unknown): boolean =>
    error.code === ClientErrorCode.BAD_RESPONSE &&
    (error.status === 0 || (error.status >= 200 && error.status < 300));
 
+const BLOCKED_MESSAGE =
+   "A firewall between you and the server rejected this file's contents. The server itself is reachable.";
+const REACHABILITY_TIMEOUT_MS = 5_000;
+
+// a dropped connection and a firewall answering without CORS headers look identical to the browser
+const opaqueFailures = new WeakSet<object>();
+
+const opaqueFailure = () => {
+   const error = networkError();
+   opaqueFailures.add(error);
+   return error;
+};
+
+const apiReachable = async (): Promise<boolean> => {
+   try {
+      const res = await fetch(apiUrl("/health"), {
+         cache: "no-store",
+         signal: AbortSignal.timeout(REACHABILITY_TIMEOUT_MS),
+      });
+      return res.ok;
+   } catch {
+      return false;
+   }
+};
+
+// a part refused opaquely while the API still answers was stopped on the way in, not lost to the network
+const explainOpaqueFailure = async (error: unknown): Promise<unknown> =>
+   typeof error === "object" &&
+   error !== null &&
+   opaqueFailures.has(error) &&
+   (await apiReachable())
+      ? new ApiError(0, BLOCKED_MESSAGE, ClientErrorCode.BLOCKED)
+      : error;
+
 const retryAfter = new WeakMap<object, number>();
 
 const retryAfterMs = (error: unknown): number | undefined =>
@@ -132,7 +166,7 @@ const putBytes = <T>({
          onProgress?.(body.size);
          resolve(result);
       };
-      xhr.onerror = () => reject(networkError());
+      xhr.onerror = () => reject(opaqueFailure());
       xhr.ontimeout = () => reject(networkError());
       xhr.onabort = () =>
          reject(cancelled ? new UploadCancelledError() : networkError());
@@ -152,6 +186,7 @@ const putBytes = <T>({
 };
 
 export {
+   explainOpaqueFailure,
    isUnreadableAnswer,
    objectUploadUrl,
    outcomeUnknown,

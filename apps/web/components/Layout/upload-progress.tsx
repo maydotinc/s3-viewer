@@ -21,6 +21,8 @@ import { memo, useCallback, useId, useRef, useState } from "react";
 const ROW_HEIGHT = 68;
 const ROW_GAP = 8;
 
+const perSecond = (rate: number) => `${formatBytes(rate)}/s`;
+
 const percent = (entry: UploadEntry) => {
    if (entry.status === "completed") return 100;
    if (entry.size === 0) return 0;
@@ -68,9 +70,11 @@ const StatusIcon = ({ status }: { status: UploadEntry["status"] }) => {
 
 const UploadRow = memo(function UploadRow({
    entry,
+   rate,
    onCancel,
 }: {
    entry: UploadEntry;
+   rate: number | undefined;
    onCancel: () => void;
 }) {
    const value = percent(entry);
@@ -94,7 +98,7 @@ const UploadRow = memo(function UploadRow({
                      <span className="truncate">
                         {entry.status === "failed" && entry.error
                            ? entry.error
-                           : `${formatBytes(entry.uploadedBytes)} of ${formatBytes(entry.size)}`}
+                           : `${formatBytes(entry.uploadedBytes)} of ${formatBytes(entry.size)}${entry.status === "active" && rate !== undefined ? ` · ${perSecond(rate)}` : ""}`}
                      </span>
                      <StatusIcon status={entry.status} />
                   </div>
@@ -146,6 +150,7 @@ const UploadRowItem = memo(function UploadRowItem({
 }) {
    const entry = useUploadStore((state) => state.entries[id]);
    const progress = useUploadStore((state) => state.progress[id]);
+   const rate = useUploadStore((state) => state.rates[id]);
    const onCancel = useCallback(() => cancel(id), [cancel, id]);
    if (!entry) return null;
    return (
@@ -155,6 +160,7 @@ const UploadRowItem = memo(function UploadRowItem({
                ? entry
                : { ...entry, uploadedBytes: progress }
          }
+         rate={rate}
          onCancel={onCancel}
       />
    );
@@ -212,16 +218,27 @@ type SheetStatus = {
 
 const uploads = (count: number) => (count === 1 ? "upload" : "uploads");
 
+// the sum of every active upload, so the collapsed sheet shows what the connection is doing
+const selectTotalRate = (state: { rates: Record<string, number> }) => {
+   let total: number | undefined;
+   for (const rate of Object.values(state.rates)) total = (total ?? 0) + rate;
+   return total;
+};
+
 const sheetStatus = (
    isUploading: boolean,
-   batch: UploadBatch | null
+   batch: UploadBatch | null,
+   rate?: number
 ): SheetStatus => {
    const total = batch?.ids.length ?? 0;
    const done = batch?.completed ?? 0;
    const failed = batch?.failed ?? 0;
    const cancelled = Math.max(0, total - done - failed);
    if (isUploading)
-      return { tone: "uploading", heading: `Uploading… (${done}/${total})` };
+      return {
+         tone: "uploading",
+         heading: `Uploading… (${done}/${total})${rate === undefined ? "" : ` · ${perSecond(rate)}`}`,
+      };
    if (failed > 0)
       return {
          tone: "failed",
@@ -270,6 +287,7 @@ const UploadProgressSheet = () => {
    const order = useUploadStore((state) => state.order);
    const batch = useUploadStore((state) => state.batch);
    const isUploading = useUploadStore((state) => state.isUploading);
+   const rate = useUploadStore(selectTotalRate);
    const cancel = useUploadStore((state) => state.cancel);
    const cancelAll = useUploadStore((state) => state.cancelAll);
    const cancelAllAndClear = useUploadStore((state) => state.cancelAllAndClear);
@@ -280,7 +298,7 @@ const UploadProgressSheet = () => {
 
    if (order.length === 0) return null;
 
-   const { tone, heading } = sheetStatus(isUploading, batch);
+   const { tone, heading } = sheetStatus(isUploading, batch, rate);
 
    return (
       <>

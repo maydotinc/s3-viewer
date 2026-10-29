@@ -33,6 +33,11 @@ vi.mock("@/lib/api", async (importOriginal) => {
 });
 
 vi.stubGlobal("XMLHttpRequest", FakeXHR);
+// the reachability probe behind a refused part; unreachable unless a test says otherwise
+const health = vi.fn(async (): Promise<{ ok: boolean }> => {
+   throw new TypeError("Failed to fetch");
+});
+vi.stubGlobal("fetch", health);
 
 const storage = createMemoryStorage();
 const { memory } = storage;
@@ -134,6 +139,7 @@ const ackAll = () => {
 };
 
 beforeEach(() => {
+   health.mockReset().mockRejectedValue(new TypeError("Failed to fetch"));
    identity.userId = "user-a";
    vi.stubGlobal("navigator", { locks: createWebLocks() });
    FakeXHR.instances = [];
@@ -280,6 +286,48 @@ describe("retrying one part instead of the file", () => {
       expect(Object.values(savedSessions())).toEqual([
          expect.objectContaining({ uploadId: "u1" }),
       ]);
+   });
+
+   const refusePartOne = async () => {
+      for (let attempt = 0; attempt < 5; attempt++) {
+         FakeXHR.instances
+            .filter(
+               (xhr) => xhr.partNumber === 1 && xhr.readyState !== FakeXHR.DONE
+            )
+            .forEach((xhr) => xhr.fail());
+         await vi.advanceTimersByTimeAsync(10_000);
+      }
+   };
+
+   it("names a firewall when a part is refused while the API still answers", async () => {
+      health.mockResolvedValue({ ok: true });
+      const handle = start();
+      const failed = expect(handle.done).rejects.toMatchObject({
+         status: 0,
+         code: "BLOCKED",
+         message: expect.stringContaining("firewall"),
+      });
+      await settle();
+      partsFor([2, 3]).forEach(ack);
+      await refusePartOne();
+      await failed;
+      expect(health).toHaveBeenCalledExactlyOnceWith(
+         expect.stringMatching(/\/health$/),
+         expect.objectContaining({ cache: "no-store" })
+      );
+   });
+
+   it("keeps the connection message when the API is unreachable too", async () => {
+      const handle = start();
+      const failed = expect(handle.done).rejects.toMatchObject({
+         status: 0,
+         code: "NETWORK",
+         message: expect.stringContaining("connection"),
+      });
+      await settle();
+      partsFor([2, 3]).forEach(ack);
+      await refusePartOne();
+      await failed;
    });
 
    it("discards the parts of a failed upload when the browser can't save it for resuming", async () => {

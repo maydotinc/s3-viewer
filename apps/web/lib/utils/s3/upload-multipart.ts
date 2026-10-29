@@ -27,6 +27,7 @@ import { nextUploadJob, uploadSlot as withSlot } from "./slot-pool";
 import { withMultipartLease } from "./multipart-locks";
 import { UploadCancelledError } from "./upload-cancelled";
 import {
+   explainOpaqueFailure,
    isUnreadableAnswer,
    outcomeUnknown,
    type TransportHandle,
@@ -320,7 +321,7 @@ const uploadMultipart = ({
                return;
             } catch (error) {
                if (attempt >= PART_ATTEMPTS - 1 || !isRetryable(error))
-                  throw error;
+                  throw stopped() ? error : await explainOpaqueFailure(error);
                await sleep(backoffMs(attempt, RETRY_BACKOFF), ended.signal);
             }
          }

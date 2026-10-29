@@ -2,7 +2,7 @@ import type { BucketTarget } from "@/lib/types";
 import { yieldToEventLoop } from "@/lib/utils/yield-to-event-loop";
 import { isFolderRefusal } from "@/lib/utils/folder-refusal";
 import { pluralize } from "@/lib/utils/format";
-import { chunk, DEFAULT_CONTENT_TYPE } from "@s3-viewer/shared";
+import { chunk, DEFAULT_CONTENT_TYPE, SECOND_MS } from "@s3-viewer/shared";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { create } from "zustand";
 import type { UploadFile } from "@/lib/utils/s3/drop-entries";
@@ -19,6 +19,8 @@ const PROGRESS_STEPS = 100;
 const ENQUEUE_CHUNK_SIZE = 200;
 const COMPLETED_HISTORY_LIMIT = 1000;
 const QUEUE_COMPACT_AT = 1024;
+const RATE_SAMPLE_MS = 500;
+const RATE_WINDOW_MS = 3_000;
 
 type Job = BucketTarget & {
    file: File;
@@ -77,6 +79,8 @@ const adjustBatchCounts = (
 type UploadState = {
    entries: Record<string, UploadEntry>;
    progress: Record<string, number>;
+   // smoothed bytes per second for each active upload, patched in place like progress
+   rates: Record<string, number>;
    order: string[];
    batch: UploadBatch | null;
    isUploading: boolean;
@@ -124,7 +128,7 @@ const bumpStatus = ({ statusVersion }: UploadState) => ({
 // copying the whole record per update cost over a minute of main-thread time on a 10k drop
 const useUploadStore = create<UploadStore>()((set, get) => {
    const setEntry = (id: string, patch: Partial<UploadEntry>) => {
-      const { entries, progress, batch } = get();
+      const { entries, progress, rates, batch } = get();
       const entry = entries[id];
       if (!entry) return;
       const settles = patch.status && patch.status !== "active";
@@ -133,7 +137,10 @@ const useUploadStore = create<UploadStore>()((set, get) => {
          ...(settles && { uploadedBytes: progress[id] ?? entry.uploadedBytes }),
          ...patch,
       };
-      if (settles) delete progress[id];
+      if (settles) {
+         delete progress[id];
+         delete rates[id];
+      }
       if (!patch.status) set({});
       else if (!batch) set(bumpStatus);
       else {
@@ -195,6 +202,8 @@ const useUploadStore = create<UploadStore>()((set, get) => {
          Math.max(MIN_PROGRESS_STEP, Math.ceil(job.file.size / PROGRESS_STEPS))
       );
       let reported = 0;
+      let sampledAt = Date.now();
+      let sampledBytes = 0;
       const onProgress = (loaded: number) => {
          if (
             !owns() ||
@@ -203,6 +212,21 @@ const useUploadStore = create<UploadStore>()((set, get) => {
          )
             return;
          reported = loaded;
+         const now = Date.now();
+         const elapsed = now - sampledAt;
+         if (elapsed >= RATE_SAMPLE_MS) {
+            // a retried part reports fewer bytes; that is a stall, not a negative rate
+            const instant =
+               Math.max(0, loaded - sampledBytes) / (elapsed / SECOND_MS);
+            const { rates } = get();
+            const rate = rates[id];
+            // time-weighted smoothing, so a burst of small parts reads as a trend rather than a spike
+            const weight = 1 - Math.exp(-elapsed / RATE_WINDOW_MS);
+            rates[id] =
+               rate === undefined ? instant : rate + (instant - rate) * weight;
+            sampledAt = now;
+            sampledBytes = loaded;
+         }
          get().progress[id] = Math.min(loaded, job.file.size);
          set({});
       };
@@ -265,7 +289,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
 
    const cancelMany = (ids: readonly string[]) => {
       const aborts: Job[] = [];
-      const { entries, progress } = get();
+      const { entries, progress, rates } = get();
       const dequeuedScopes = new Set<string>();
       let changed = false;
       let dequeued = false;
@@ -287,6 +311,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
             status: "cancelled",
          };
          delete progress[id];
+         delete rates[id];
          changed = true;
       }
       if (dequeued) {
@@ -304,6 +329,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
    return {
       entries: {},
       progress: {},
+      rates: {},
       order: [],
       batch: null,
       isUploading: false,
@@ -360,7 +386,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
                   )
                      return;
                   const state = get();
-                  const { entries, progress } = state;
+                  const { entries, progress, rates } = state;
                   const batch: UploadBatch =
                      !state.batch || state.batch.settled
                         ? {
@@ -383,6 +409,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
                      if (prev && inBatch.has(id))
                         adjustBatchCounts(batch, prev.status, -1);
                      delete progress[id];
+                     delete rates[id];
                      jobs.get(id)?.abort?.();
                      jobs.set(id, {
                         userId,
@@ -453,6 +480,7 @@ const useUploadStore = create<UploadStore>()((set, get) => {
             ...bumpStatus(state),
             entries: {},
             progress: {},
+            rates: {},
             order: [],
             batch: null,
             isUploading: false,

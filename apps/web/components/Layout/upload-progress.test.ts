@@ -23,4 +23,10 @@ describe("the sheet's summary", () => {
          expect(sheetStatus(isUploading, current)).toEqual({ tone, heading });
       }
    );
+
+   it("appends the connection's rate while uploading", () => {
+      expect(sheetStatus(true, batch(10, 3, 0), 1.5 * 1024 ** 2).heading).toBe(
+         "Uploading… (3/10) · 1.5 MiB/s"
+      );
+   });
 });

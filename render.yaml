@@ -11,7 +11,7 @@ services:
    - type: web
      name: s3-viewer-api
      runtime: docker
-     plan: 0.5c-512mb
+     plan: 1c-2g
      dockerfilePath: ./apps/api/Dockerfile
      dockerContext: .
      healthCheckPath: /health
@@ -40,9 +40,16 @@ services:
           value: none
         - key: AUDIT_RETENTION_DAYS
           value: "365"
-        # the default 256 MiB budget is half this 512 MB instance; 128 MiB leaves headroom for Node and TLS.
+        # a 1 CPU / 2 GB instance: 512 MiB of upload buffers leaves 1.5 GB for Node, TLS and Postgres traffic.
         - key: UPLOAD_MEMORY_BUDGET_BYTES
-          value: "134217728"
+          value: "536870912"
+        # 16 MiB parts: a 2 GiB upload is about 130 requests instead of 400, and parts stay small enough
+        # that the pool is shared across users. the API refuses to boot when four buffers of a part reach the budget.
+        - key: UPLOAD_PART_BYTES
+          value: "16777216"
+        # 16 parts in flight is 256 MiB, which saturates one CPU with room left for zips.
+        - key: MAX_CONCURRENT_UPLOADS
+          value: "16"
 
    - type: web
      name: s3-viewer-web

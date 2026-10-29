@@ -146,7 +146,7 @@ you'll need Postgres, both public URLs, a persistent API `/data` volume, and HTT
 
 ### Render
 
-use [`render.yaml`](./render.yaml) as a Blueprint. it sets up both services, Postgres, and an API disk. set `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_API_URL` to the actual public origins on **both** services, and update them if your names or domains change. the template sets `EMAIL_TRANSPORT=none`, so change it when adding email.
+use [`render.yaml`](./render.yaml) as a Blueprint. it sets up both services, Postgres, and an API disk. set `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_API_URL` to the actual public origins on **both** services, and update them if your names or domains change. the template sets `EMAIL_TRANSPORT=none`, so change it when adding email. Render's edge protection inspects request bodies and may refuse an upload whose contents resemble an attack; there is no setting to relax it, and the app reports the refusal as a firewall block. the template sets `UPLOAD_PART_BYTES` to 16 MiB so large uploads need fewer requests; the API refuses to start if four buffers of that size would reach `UPLOAD_MEMORY_BUDGET_BYTES`, so raise both together.
 
 ### Fly.io
 
