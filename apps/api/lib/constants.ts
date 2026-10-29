@@ -28,8 +28,9 @@ const SLOT_MIN_BYTES_PER_SECOND = 256 * 1024;
 const COPY_MIN_BYTES_PER_SECOND = 8 * MIB;
 const copyWorkMs = (bytes: number): number =>
    (bytes / COPY_MIN_BYTES_PER_SECOND) * SECOND_MS;
+// AbortSignal.timeout refuses a fractional delay, and most sizes are not whole MiB.
 const copyDeadlineMs = (bytes: number): number =>
-   Math.max(S3_ROUTE_TIMEOUT_MS, copyWorkMs(bytes));
+   Math.ceil(Math.max(S3_ROUTE_TIMEOUT_MS, copyWorkMs(bytes)));
 const UPLOAD_PART_QUEUE_SIZE = 2;
 const UPLOAD_ASSEMBLY_BUFFERS = 2;
 const UPLOAD_BUFFERS_PER_UPLOAD =

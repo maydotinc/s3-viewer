@@ -46,7 +46,7 @@ const About = () => {
                   <br />
                   never the problem.
                </PageTitle>
-               <p className="text-lg text-viewertext max-w-[620px]">
+               <p className="text-base sm:text-lg text-viewertext max-w-[620px]">
                   We built S3 Viewer because the dashboards were the problem.
                   AWS won&apos;t let you see your R2 buckets. Cloudflare
                   won&apos;t show your S3 data. Every provider keeps your files

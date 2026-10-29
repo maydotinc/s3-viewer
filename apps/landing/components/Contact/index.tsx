@@ -56,8 +56,8 @@ const Contact = () => {
             <div className="flex flex-col gap-4 max-w-[760px]">
                <PageTitle>Contact</PageTitle>
                <p className="text-viewertext max-w-[620px]">
-                  {PRODUCT_NAME} is built by {MAY_NAME}. Email us, open an
-                  issue, or read about the studio.
+                  {MAY_NAME} builds {PRODUCT_NAME}. Email us, open an issue, or
+                  read about the studio.
                </p>
             </div>
          </PageHero>

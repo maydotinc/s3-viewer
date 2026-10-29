@@ -1,4 +1,8 @@
-import { S3_ROUTE_TIMEOUT_MS, copyWorkMs } from "@/lib/constants";
+import {
+   S3_ROUTE_TIMEOUT_MS,
+   copyDeadlineMs,
+   copyWorkMs,
+} from "@/lib/constants";
 import type { HeadObjectCommandOutput, S3Client } from "@aws-sdk/client-s3";
 import { GIB } from "@s3-viewer/shared";
 import { describe, expect, it } from "vitest";
@@ -13,6 +17,14 @@ describe("copyScope", () => {
    it("budgets a multi-GiB copy well past the route timeout", () => {
       expect(copyWorkMs(10 * GIB)).toBeGreaterThan(10 * S3_ROUTE_TIMEOUT_MS);
       expect(copyWorkMs(5 * 1024 ** 4)).toBeLessThan(2 ** 31 - 1);
+   });
+
+   it("sizes the deadline for an object that is not a whole number of MiB", () => {
+      // 1,306,435,584 bytes: a reported 1.2 GiB object whose work estimate is 155739.26 ms.
+      const res = fakeResponse();
+      const sized = copyScope(scope, res, head(1306435584));
+      expect(copyDeadlineMs(1306435584)).toBe(155740);
+      expect(sized.signal?.aborted).toBe(false);
    });
 
    it("hands the idle socket timeout over to the sized deadline", () => {

@@ -11,7 +11,7 @@ const PageHero = ({
    <section className="-mt-22 border-b border-viewerborder pt-22">
       <div
          className={cn(
-            "mx-auto w-full max-w-6xl px-6 pt-10 pb-12 sm:pt-16 sm:pb-16",
+            "mx-auto w-full max-w-6xl px-6 pt-4 pb-12 sm:pt-16 sm:pb-16",
             contentClassName
          )}
       >

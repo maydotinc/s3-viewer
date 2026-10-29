@@ -18,6 +18,7 @@ import {
    RetryableError,
    disconnectSignal,
    errorHandler,
+   requestSignal,
    rethrowDbError,
 } from "./http";
 
@@ -27,6 +28,13 @@ vi.spyOn(logger, "warn").mockImplementation(() => {});
 beforeEach(() => {
    vi.mocked(logger.error).mockClear();
    vi.mocked(logger.warn).mockClear();
+});
+
+describe("requestSignal", () => {
+   it("accepts a fractional deadline", () => {
+      const signal = requestSignal(fakeResponse(), 155739.2578125);
+      expect(signal.aborted).toBe(false);
+   });
 });
 
 describe("disconnectSignal", () => {

@@ -4,7 +4,7 @@ import { contactJsonLd } from "@/lib/jsonld";
 import { CONTACT_EMAIL, MAY_HOST, MAY_NAME } from "@/lib/site-config";
 import { PRODUCT_NAME } from "@s3-viewer/shared/constants";
 
-const DESCRIPTION = `Contact the ${PRODUCT_NAME} team at ${MAY_NAME}. Email ${CONTACT_EMAIL}, open a GitHub issue, or visit ${MAY_HOST}.`;
+const DESCRIPTION = `Reach the ${PRODUCT_NAME} team: email ${CONTACT_EMAIL}, open a GitHub issue, or visit ${MAY_HOST} to see what else ${MAY_NAME} builds.`;
 
 const JSON_LD = contactJsonLd(DESCRIPTION);
 

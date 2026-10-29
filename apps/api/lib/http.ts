@@ -115,8 +115,12 @@ const disconnectSignal = (res: Response): AbortSignal => {
    return controller.signal;
 };
 
+// a computed deadline can be fractional; AbortSignal.timeout only takes integers.
 const requestSignal = (res: Response, timeoutMs: number): AbortSignal =>
-   AbortSignal.any([disconnectSignal(res), AbortSignal.timeout(timeoutMs)]);
+   AbortSignal.any([
+      disconnectSignal(res),
+      AbortSignal.timeout(Math.ceil(timeoutMs)),
+   ]);
 
 // Better Call ValidationError has APIError's shape but not its prototype.
 const isAuthApiError = (err: unknown): err is APIError =>
