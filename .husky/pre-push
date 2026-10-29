@@ -2,3 +2,8 @@ if ! pnpm format:check; then
    echo "push blocked: unformatted files. run 'pnpm format', commit the result, and push again." >&2
    exit 1
 fi
+# the same gate CI runs, so a new advisory surfaces here instead of on a red push.
+if ! pnpm audit --prod --audit-level=high; then
+   echo "push blocked: a production dependency has a high or critical advisory. bump it (or add an accepted GHSA to auditConfig in pnpm-workspace.yaml) and push again." >&2
+   exit 1
+fi
