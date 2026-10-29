@@ -709,6 +709,7 @@ describe("GET /servers/:serverId/audit/export", () => {
       const res = await fetch(`${base}/export`);
       expect(res.status).toBe(503);
       expect(res.headers.get("content-type")).not.toContain("text/csv");
+      await res.text();
       expect(state.selectRows).not.toHaveBeenCalled();
    });
 
@@ -781,7 +782,10 @@ describe("GET /servers/:serverId/audit/export", () => {
 
    it("confines a non-owner's export to their reach", async () => {
       state.role = "ADMIN";
-      expect((await fetch(`${base}/export`)).status).toBe(200);
+      const res = await fetch(`${base}/export`);
+      expect(res.status).toBe(200);
+      // the slot frees when the response closes; leaving the body unread hands the next test a 429.
+      await res.text();
       expect(queryText(0)).toContain(adminReach);
    });
 
