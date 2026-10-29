@@ -33,6 +33,9 @@ model Session {
   token     String   @unique
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  // better-auth checks its core columns at startup; the session create hook keeps these two null.
+  ipAddress String?
+  userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -44,8 +47,6 @@ model Session {
 
 model Account {
   id                    String    @id @default(cuid())
-  // Better Auth keys accounts by (issuer, accountId), including local:credential.
-  issuer                String
   accountId             String
   providerId            String
   userId                String
@@ -61,7 +62,6 @@ model Account {
   updatedAt             DateTime  @updatedAt
 
   @@unique([providerId, accountId])
-  @@unique([issuer, accountId])
   @@index([userId])
   @@map("account")
 }
