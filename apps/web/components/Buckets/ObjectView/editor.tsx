@@ -13,23 +13,17 @@ import { Button } from "@s3-viewer/ui/components/button";
 import { Skeleton } from "@s3-viewer/ui/components/skeleton";
 import { toast } from "@s3-viewer/ui/components/toast";
 import { cn } from "@s3-viewer/ui/lib/utils";
+import dynamic from "next/dynamic";
 import { RefreshCw, Save, X } from "lucide-react";
-import {
-   useCallback,
-   useEffect,
-   useMemo,
-   useRef,
-   useState,
-   type UIEvent,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
    applyLineEnding,
    dominantLineEnding,
-   editorLineCount,
    isSaveShortcut,
    toEditorText,
    type LineEnding,
 } from "./editor-input";
+import { detectEditorLanguage, type EditorLanguage } from "./editor-language";
 import { PREVIEW_PANEL } from "./preview-frame";
 
 type ObjectEditorProps = {
@@ -75,6 +69,11 @@ const EditorSkeleton = () => (
    </div>
 );
 
+const CodeEditor = dynamic(() => import("./code-editor"), {
+   ssr: false,
+   loading: EditorSkeleton,
+});
+
 const ObjectEditor = ({
    bucketName,
    objectKey,
@@ -99,8 +98,10 @@ const ObjectEditor = ({
    const [reloading, setReloading] = useState(false);
    const [eTag, setETag] = useState<string | null>(null);
    const [error, setError] = useState<string | null>(null);
-   const gutterRef = useRef<HTMLDivElement | null>(null);
-   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+   const [language, setLanguage] = useState<EditorLanguage>(() =>
+      detectEditorLanguage(fileName, contentType)
+   );
+   const [loadVersion, setLoadVersion] = useState(0);
    const panelRef = useRef<HTMLElement | null>(null);
    const lineEnding = useRef<LineEnding>("\n");
    const loaded = useRef(false);
@@ -112,6 +113,7 @@ const ObjectEditor = ({
       setValue(text);
       setBaseline(text);
       setETag(loadedContent.eTag);
+      setLoadVersion((version) => version + 1);
    }, []);
 
    const data = content.data;
@@ -191,27 +193,6 @@ const ObjectEditor = ({
 
    useUnsavedChangesGuard(dirty, UNSAVED_MESSAGE, scopeMatches);
 
-   const lineCount = useMemo(() => editorLineCount(value), [value]);
-   const gutter = useMemo(
-      () =>
-         lineCount === null
-            ? null
-            : Array.from({ length: lineCount }, (_, index) => index + 1).join(
-                 "\n"
-              ),
-      [lineCount]
-   );
-
-   useEffect(() => {
-      if (gutterRef.current && textareaRef.current)
-         gutterRef.current.scrollTop = textareaRef.current.scrollTop;
-   }, [gutter]);
-
-   const syncScroll = (event: UIEvent<HTMLTextAreaElement>) => {
-      if (gutterRef.current)
-         gutterRef.current.scrollTop = event.currentTarget.scrollTop;
-   };
-
    const close = () => {
       if (dirty && !window.confirm(UNSAVED_MESSAGE)) return;
       onClose();
@@ -284,29 +265,16 @@ const ObjectEditor = ({
                </p>
             </div>
          ) : (
-            <div className="flex min-h-0 flex-1">
-               {gutter !== null && (
-                  <div
-                     ref={gutterRef}
-                     aria-hidden="true"
-                     className="w-12 shrink-0 overflow-hidden border-r border-viewerborder bg-viewergray py-3 pr-2 text-right font-mono text-xs leading-5 whitespace-pre text-viewerlighttext"
-                  >
-                     {gutter}
-                  </div>
-               )}
-               <textarea
-                  ref={textareaRef}
-                  value={value}
-                  wrap="off"
-                  spellCheck={false}
-                  autoComplete="off"
-                  aria-label={`Contents of ${name}`}
-                  readOnly={saving}
-                  className="min-h-0 min-w-0 flex-1 resize-none bg-viewerwhite px-3 py-3 font-mono text-base leading-5 text-viewerblack outline-none sm:text-xs"
-                  onScroll={syncScroll}
-                  onChange={(event) => setValue(event.target.value)}
-               />
-            </div>
+            <CodeEditor
+               key={loadVersion}
+               value={value}
+               onChange={setValue}
+               language={language}
+               onLanguageChange={setLanguage}
+               label={`Contents of ${name}`}
+               readOnly={saving}
+               lineEnding={lineEnding.current === "\r\n" ? "CRLF" : "LF"}
+            />
          )}
       </section>
    );
