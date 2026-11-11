@@ -8,6 +8,7 @@ import {
    typeInto,
 } from "@/components/test-helpers";
 import ObjectEditor from "./editor";
+import type { CodeEditorProps } from "./code-editor";
 
 const h = vi.hoisted(() => ({
    session: { userId: "user-a", serverId: "server-a" },
@@ -37,6 +38,17 @@ vi.mock("@/lib/hooks/mutations/object/useSaveObjectContent", () => ({
 vi.mock("@s3-viewer/ui/components/toast", async () =>
    (await import("@/components/test-helpers")).toastMock()
 );
+
+// Save/conflict tests isolate the code editor; its real interactions are covered separately.
+vi.mock("next/dynamic", () => ({
+   default: () => (props: CodeEditorProps) =>
+      createElement("textarea", {
+         value: props.value,
+         readOnly: props.readOnly,
+         onChange: (event: { target: { value: string } }) =>
+            props.onChange(event.target.value),
+      }),
+}));
 
 type Props = Parameters<typeof ObjectEditor>[0];
 const initialProps: Props = {
@@ -192,20 +204,15 @@ describe("editor saving", () => {
    });
 });
 
-describe("editor gutter limits", () => {
-   it("omits a million-line gutter without changing the editable or saved contents", async () => {
-      const gutter = () =>
-         view.current.container.querySelector('div[aria-hidden="true"]');
+describe("large editor drafts", () => {
+   it("preserves a million-line draft through saving", async () => {
       const text = "\n".repeat(1024 * 1024);
       await edit(text);
-      expect(gutter()).toBeNull();
       expect(textarea().value).toBe(text);
       await save();
       expect(h.mutate).toHaveBeenCalledWith(
          expect.objectContaining({ text }),
          expect.any(Object)
       );
-      await edit("one\ntwo");
-      expect(gutter()?.textContent).toBe("1\n2");
    });
 });

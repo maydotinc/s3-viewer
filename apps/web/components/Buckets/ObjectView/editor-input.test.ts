@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-   editorLineCount,
    applyLineEnding,
    dominantLineEnding,
    isSaveShortcut,
@@ -52,22 +51,5 @@ describe("the save shortcut", () => {
       key("Shift", { ctrlKey: true }),
    ])("ignores %o", (event) => {
       expect(isSaveShortcut(event)).toBe(false);
-   });
-});
-
-describe("bounded line-number gutters", () => {
-   it("counts the empty first line and a trailing empty line", () => {
-      expect(editorLineCount("")).toBe(1);
-      expect(editorLineCount("one\ntwo\n")).toBe(3);
-   });
-
-   it("disables the gutter only after its line limit", () => {
-      expect(editorLineCount("\n".repeat(1_999))).toBe(2_000);
-      expect(editorLineCount("\n".repeat(2_000))).toBeNull();
-      expect(editorLineCount("\n".repeat(1024 * 1024))).toBeNull();
-   });
-
-   it("keeps line numbers for a long line within the editing limit", () => {
-      expect(editorLineCount("x".repeat(1024 * 1024))).toBe(1);
    });
 });
